@@ -1,0 +1,19 @@
+model:
+  params:
+    embed_dim: 3           # you may keep this, or adjust depending on preliminary experiments
+    n_embed: 8192          # consider testing with a larger codebook if necessary
+    ddconfig:
+      double_z: False
+      z_channels: 3
+      resolution: 64      #128 updated resolution (if you believe a higher resolution is beneficial)
+      in_channels: 1       # usually remains unchanged if you're using a scalar SDF
+      out_ch: 1
+      ch: 64
+      ch_mult: [1, 2, 4]  # [1, 2, 4,4] increased model capacity
+      num_res_blocks: 1     # 2 added extra residual block per level
+      attn_resolutions: []
+      dropout: 0.0
+
+lossconfig:
+  params:
+    codebook_weight: 1.0   # start with 1.0; tune if necessary

@@ -1,0 +1,26 @@
+model:
+  params:
+    # Diffusion noise schedule
+    linear_start: 0.00085    # Starting value for linear beta schedule
+    linear_end: 0.012        # Ending value for linear beta schedule
+    timesteps: 1000          # Total number of diffusion steps
+    conditioning_key: crossattn  # Use cross‑attention for conditioning
+    scale_factor: 0.18215    # Scaling factor for model predictions
+
+  unet:
+    params:
+    # Latent spatial resolution after VQ‑VAE (e.g., 64^3 input → 16^3 latents)
+      image_size: 16
+
+    # Channel dimensions
+      in_channels: 3     # Dimensionality of conditioning input (e.g., CLIP embedding)
+      out_channels: 3    # Output channel dim for epsilon prediction
+      model_channels: 192
+
+      # Network depth and attention
+      num_res_blocks: 2
+      attention_resolutions: [1, 2, 4]  # Attention at these downsampling factors
+      channel_mult: [1, 2, 4, 4]        # Channel multiplier per level
+      num_heads: 6                     # Number of attention heads
+      # Dimensionality for 3D latents
+      dims: 3
