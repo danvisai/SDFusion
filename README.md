@@ -1,19 +1,25 @@
-Generative Towns:
-    Follow the current readme. Install the suitable cuda toolkit based on your gpu. install the required libraries.
-    ---
-    Use the pretrained weights from https://purdue0-my.sharepoint.com/:f:/g/personal/dsimhadr_purdue_edu/EuDWf4yR8HVNnkfrtvrvDuUBwYKa986wVcmzjB9CcCP5ig?e=SEObEF
-    download the vqvae weights and place it in the logs_building folder.
-----
+
+#Generative Towns:---
+Follow the current readme. Install the suitable cuda toolkit based on your gpu. install the required libraries.
+
+Use the pretrained weights from 
+[(https://purdue0-my.sharepoint.com/:f:/g/personal/dsimhadr_purdue_edu/EuDWf4yR8HVNnkfrtvrvDuUBwYKa986wVcmzjB9CcCP5ig?e=SEObEF)]
+download the vqvae weights and place it in the logs_building folder.
+
 moving to training the SDFusion.
 we run buildingNet commands as our data is houses/buildings
+```
 cd preprocess
 ./launchers/launch_create_sdf_building.sh
 cd ../
+```
 once we have our preprocessed data we can train the vqvae. SInce we already have the vqvae pretrained weights you can skip this step.
-----
+
 next 
 Train SDFusion for single-view reconstruction
+```
 ./launchers/train_sdfusion_img2shape.sh
+```
 here we are stuck
 
 
