@@ -1,6 +1,6 @@
 
 #Generative Towns:---
-Follow the current readme. Install the suitable cuda toolkit based on your gpu. install the required libraries.
+Follow the current readme. Install the suitable cuda toolkit based on your gpu. install the required libraries mentioned in the installation section..
 
 Use the pretrained weights from 
 [(https://purdue0-my.sharepoint.com/:f:/g/personal/dsimhadr_purdue_edu/EuDWf4yR8HVNnkfrtvrvDuUBwYKa986wVcmzjB9CcCP5ig?e=SEObEF)]
