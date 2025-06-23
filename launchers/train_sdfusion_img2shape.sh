@@ -58,7 +58,7 @@ display_freq=1000
 print_freq=25
 total_iters=100000000
 save_steps_freq=3000
-nThreads=0
+
 ##########################
 
 

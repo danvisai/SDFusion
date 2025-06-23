@@ -116,6 +116,7 @@ def train_main_worker(opt, model, train_dl, test_dl, test_dl_for_eval, visualize
 
         pbar.update(1)
         
+    
 
 if __name__ == "__main__":
     # this will parse args, setup log_dirs, multi-gpus
@@ -172,3 +173,5 @@ if __name__ == "__main__":
             os.system(f'cp {df_cfg} {cfg_out}')
 
     train_main_worker(opt, model, train_dl, test_dl, test_dl_for_eval, visualizer, device)
+
+

@@ -13,6 +13,10 @@ def create_model(opt):
     elif opt.model == 'sdfusion':
         from models.sdfusion_model import SDFusionModel
         model = SDFusionModel()
+
+    elif opt.model == "sdfusion_model_img2shape":
+        from models.sdfusion_model_img2shape import SDFusionImageFPShapeModel
+        model = SDFusionImageFPShapeModel()
         
     elif opt.model == 'sdfusion-txt2shape':
         from models.sdfusion_txt2shape_model import SDFusionText2ShapeModel
