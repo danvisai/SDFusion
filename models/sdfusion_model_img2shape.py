@@ -1,6 +1,7 @@
 import os
 from collections import OrderedDict
 from functools import partial
+from utils.util import tensor2im
 
 import numpy as np
 import torch
@@ -41,6 +42,7 @@ class SDFusionImageFPShapeModel(BaseModel):
 
         # build diffusion network
         unet_params = df_conf.unet.params
+        use_ckpt = bool(unet_params.get("use_checkpoint", False))
         self.df = DiffusionUNet(unet_params, vq_conf=vq_conf,
                                 conditioning_key=df_conf.model.params.conditioning_key)
         self.df.to(self.device)
@@ -55,6 +57,8 @@ class SDFusionImageFPShapeModel(BaseModel):
 
         # load pretrained VQ-VAE
         self.vqvae = load_vqvae(vq_conf, vq_ckpt=opt.vq_ckpt, opt=opt)
+
+        
 
         # image encoder
         clip_param = df_conf.clip.params
@@ -77,14 +81,21 @@ class SDFusionImageFPShapeModel(BaseModel):
         if opt.ckpt:
             self.load_ckpt(opt.ckpt, load_opt=self.isTrain)
 
-        # renderer only for inference/visuals
-        if not self.isTrain:
-            dist, elev, azim = 1.7, 20, 20
-            self.renderer = init_mesh_renderer(image_size=256,
-                                              dist=dist, elev=elev, azim=azim,
-                                              device=self.device)
-        else:
-            self.renderer = None
+        # # renderer only for inference/visuals
+        # if not self.isTrain:
+        #     dist, elev, azim = 1.7, 20, 20
+        #     self.renderer = init_mesh_renderer(image_size=256,
+        #                                       dist=dist, elev=elev, azim=azim,
+        #                                       device=self.device)
+        # else:
+        #     self.renderer = None
+
+        # always set up a renderer so we can save train-time visuals
+        dist, elev, azim = 1.7, 20, 20
+        self.renderer = init_mesh_renderer(
+            image_size=256, dist=dist, elev=elev, azim=azim,
+            device=self.device
+        )
 
         cprint(f"[*] SDFusionImageFPShapeModel initialized (train={self.isTrain}).", 'cyan')
 
@@ -307,15 +318,36 @@ class SDFusionImageFPShapeModel(BaseModel):
         self.gen_df = self.vqvae.decode_no_quant(samples)
         return self.gen_df
 
+    # def get_current_visuals(self):
+    #     if self.renderer is None:
+    #         return {}
+    #     ims = {
+    #         'img': self.img,
+    #         'gt': render_sdf(self.renderer, self.x),
+    #         'gen': render_sdf(self.renderer, self.gen_df)
+    #     }
+    #     return OrderedDict((k, self.tnsrs2ims([k])[0]) for k in ims)
+    
+  
+
+    @torch.no_grad()
     def get_current_visuals(self):
         if self.renderer is None:
             return {}
-        ims = {
-            'img': self.img,
-            'gt': render_sdf(self.renderer, self.x),
-            'gen': render_sdf(self.renderer, self.gen_df)
-        }
-        return OrderedDict((k, self.tnsrs2ims([k])[0]) for k in ims)
+        # render SDFs
+        gt_t = render_sdf(self.renderer, self.x)
+        gen_t = render_sdf(self.renderer, self.gen_df)
+
+        # convert to H×W×3 uint8 arrays
+        img_im = tensor2im(self.img.data)
+        gt_im  = tensor2im(gt_t .data)
+        gen_im = tensor2im(gen_t.data)
+
+        return OrderedDict([
+        ('img', img_im),
+        ('gt',  gt_im),
+        ('gen', gen_im),
+        ])
 
     def save(self, label, global_step, save_opt=False):
         state = {'vqvae': self.vqvae.state_dict(),
@@ -326,3 +358,20 @@ class SDFusionImageFPShapeModel(BaseModel):
         if save_opt:
             state['opt'] = self.optimizer.state_dict()
         torch.save(state, os.path.join(self.opt.ckpt_dir, f'df_{label}.pth'))
+
+    def load_ckpt(self, ckpt, load_opt=False):
+    # allow passing in state‐dict or path
+        map_fn = lambda storage, loc: storage
+        state_dict = torch.load(ckpt, map_location=map_fn) if isinstance(ckpt, str) else ckpt
+
+        self.vqvae.load_state_dict(state_dict['vqvae'])
+        self.df.load_state_dict(state_dict['df'])
+        self.img_encoder.load_state_dict(state_dict['img_enc'])
+        self.fp_encoder.load_state_dict(state_dict['fp_enc'])
+        print(colored(f"[*] weights loaded from {ckpt}", 'blue'))
+
+        if load_opt and 'opt' in state_dict:
+            self.optimizer.load_state_dict(state_dict['opt'])
+            print(colored(f"[*] optimizer state loaded from {ckpt}", 'blue'))
+        elif load_opt:
+            print(colored("[!] optimizer state not found in checkpoint.", 'yellow'))

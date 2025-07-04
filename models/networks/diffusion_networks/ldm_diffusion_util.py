@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from einops import repeat
+from torch.utils.checkpoint import checkpoint as _checkpoint
 
 # from ldm.util import instantiate_from_config ## copy from here
 import importlib

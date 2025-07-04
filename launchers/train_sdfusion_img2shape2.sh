@@ -6,7 +6,8 @@ RED='\033\[0;31m'
 NC='\033\[0m' # No Color
 DATE_WITH_TIME=`date "+%Y-%m-%dT%H-%M-%S"`
 
-logs_dir="logs"
+#logs_dir="logs"
+logs_dir="/mnt/d/generative_Towns/Logs"
 if [ `hostname` = az007 ] || [ `hostname` = az006 ]; then
     logs_dir="logs_home"
 fi
@@ -29,7 +30,7 @@ echo "Using GPU(s): ${gpu_ids}"
 ### Hyperparameters
 
 lr=1e-5
-batch_size=2
+batch_size=4
 backend='gloo'  # 'gloo' for CPU, 'nccl' for multi-GPUs
 #######################
 
@@ -45,7 +46,7 @@ vq_cat='all'
 
 # Optional: resume from a checkpoint
 
-epoch_ckpt=""  # e.g. "--ckpt /path/to/df\_steps-latest.pth"
+ckpt="/mnt/d/generative_Towns/Logs/2025-07-01T18-50-33-sdfusion_model_img2shape-building-LR1e-5/ckpt/df_steps-latest.pth"  # e.g. "--ckpt /path/to/df\_steps-latest.pth"
 ########################
 
 ### Dataset
@@ -60,10 +61,10 @@ trunc_thres=0.2
 
 ### Logging and debug
 
-display_freq=500
-print_freq=50
-total_iters=500000
-save_steps_freq=2000
+display_freq=1000
+print_freq=100
+total_iters=100000000
+save_steps_freq=5000
 ########################
 
 debug=0
@@ -105,8 +106,16 @@ cmd="train.py
 --total_iters ${total_iters}
 --save_steps_freq ${save_steps_freq}
 --debug ${debug}
---dataroot ${dataroot}
-${epoch_ckpt}"
+"
+if [ ! -z "$dataroot" ]; then
+    cmd="${cmd} --dataroot ${dataroot}"
+    echo "setting dataroot to: ${dataroot}"
+fi
+
+if [ ! -z "$ckpt" ]; then
+    cmd="${cmd} --ckpt ${ckpt}"
+    echo "continue training with ckpt=${ckpt}"
+fi
 
 echo "[INFO] Training command:"
 echo "CUDA_VISIBLE_DEVICES=${gpu_ids} python ${cmd}"

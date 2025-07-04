@@ -149,6 +149,18 @@ class SpatialSelfAttention(nn.Module):
         h_ = self.proj_out(h_)
 
         return x+h_
+    
+
+# try xFormers’ FlashAttention first
+try:
+    from xformers.ops import memory_efficient_attention
+    _HAS_XFORMERS = True
+except ImportError:
+    _HAS_XFORMERS = False
+
+# if on PyTorch >=2.0 with CUDA 11.7+, this will dispatch to FLASH attention under the hood
+_HAS_TORCH_FDA = hasattr(F, "scaled_dot_product_attention")
+
 
 
 class CrossAttention(nn.Module):

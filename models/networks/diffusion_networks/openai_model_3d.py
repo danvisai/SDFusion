@@ -11,6 +11,8 @@ import torch
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn as nn
+from torch.utils.checkpoint import checkpoint as _checkpoint
 
 # from ldm.modules.diffusionmodules.util import (
 # from external.ldm.modules.diffusionmodules.util import (
@@ -116,17 +118,30 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
     support it as an extra input.
     """
 
+    # def forward(self, x, emb, context=None):
+    #     for layer in self:
+    #         if isinstance(layer, TimestepBlock):
+    #             x = layer(x, emb)
+    #         elif isinstance(layer, SpatialTransformer) or isinstance(layer, SpatialTransformer3D):
+    #             x = layer(x, context)
+    #         else:
+    #             x = layer(x)
+    #     return x
+
     def forward(self, x, emb, context=None):
+        """ Only checkpoint the SpatialTransformer(3D) layers; everything else runs normally."""
         for layer in self:
             if isinstance(layer, TimestepBlock):
+                # ResBlock, Upsample/Downsample, etc.
                 x = layer(x, emb)
-            elif isinstance(layer, SpatialTransformer) or isinstance(layer, SpatialTransformer3D):
-                x = layer(x, context)
+            elif isinstance(layer, (SpatialTransformer, SpatialTransformer3D)):
+                # Wrap just this attention block in gradient‐checkpointing
+                x = _checkpoint(layer, x, context)
             else:
+                # other nn.Modules: conv, norm, etc.
                 x = layer(x)
         return x
-
-
+    
 class Upsample(nn.Module):
     """
     An upsampling layer with an optional convolution.
@@ -509,7 +524,7 @@ class UNet3DModel(nn.Module):
     ):
         super().__init__()
         # import pdb; pdb.set_trace()
-
+        self.use_checkpoint = use_checkpoint
         if use_spatial_transformer:
             assert context_dim is not None, 'Fool!! You forgot to include the dimension of your cross-attention conditioning...'
 
