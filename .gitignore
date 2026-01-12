@@ -29,3 +29,29 @@ demo_data/
 # bak
 bak*/
 
+Logs_GT
+Saved_Checkpoint/
+eval_results/
+pytorch3d/
+#ml/training junk
+__pycache__/
+*.pyc
+*.pyo
+*.pt
+*.pth
+*.ckpt
+wandb/
+runs/
+logs/
+checkpoints/
+datasets/
+
+# Visual Studio / build junk
+.vs/
+build/
+bin/
+obj/
+x64/
+x86/
+Debug/
+Release/
