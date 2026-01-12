@@ -55,3 +55,17 @@ x64/
 x86/
 Debug/
 Release/
+sdfusion/
+
+# Python virtual environments
+sdfusion/
+venv/
+env/
+.venv/
+*.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
