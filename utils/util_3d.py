@@ -391,26 +391,52 @@ def rotate_mesh(mesh, axis='Y', angle=10, device='cuda'):
     new_mesh = Meshes(verts=rot_verts, faces=faces, textures=textures).to(device)
     return new_mesh
 
+# def rotate_mesh_360(mesh_renderer, mesh, n_frames=36):
+#     device = mesh.device
+#     cur_mesh = mesh
+
+#     B = len(mesh.verts_list())
+#     ret = [ [] for i in range(B)]
+
+#     angle = (360 // n_frames)
+
+#     # for i in range(36):
+#     for i in range(n_frames):
+#         cur_mesh = rotate_mesh(cur_mesh, angle=angle, device=device)
+#         img = render_mesh(mesh_renderer, cur_mesh, norm=False) # b c h w
+#         img = img.permute(0, 2, 3, 1) # b h w c
+#         img = img.detach().cpu().numpy()
+#         img = (img * 255).astype(np.uint8)
+#         for j in range(B):
+#             ret[j].append(img[j])
+
+#     return ret
 def rotate_mesh_360(mesh_renderer, mesh, n_frames=36):
     device = mesh.device
-    cur_mesh = mesh
+    verts_orig = mesh.verts_list()
+    faces = mesh.faces_list()
+    textures = mesh.textures
 
-    B = len(mesh.verts_list())
-    ret = [ [] for i in range(B)]
+    angle_step = 360 / n_frames
+    ret = [[] for _ in range(len(verts_orig))]
 
-    angle = (360 // n_frames)
-
-    # for i in range(36):
     for i in range(n_frames):
-        cur_mesh = rotate_mesh(cur_mesh, angle=angle, device=device)
-        img = render_mesh(mesh_renderer, cur_mesh, norm=False) # b c h w
-        img = img.permute(0, 2, 3, 1) # b h w c
-        img = img.detach().cpu().numpy()
+        angle = i * angle_step
+        rot = RotateAxisAngle(angle, axis="Y", degrees=True, device=device)
+
+        rotated_verts = [rot.transform_points(v.clone()) for v in verts_orig]
+        rotated_mesh = Meshes(verts=rotated_verts, faces=faces, textures=textures).to(device)
+
+        img = render_mesh(mesh_renderer, rotated_mesh, norm=False)  # [B, C, H, W]
+        img = img.permute(0, 2, 3, 1).detach().cpu().numpy()  # [B, H, W, C]
         img = (img * 255).astype(np.uint8)
-        for j in range(B):
+
+        for j in range(len(verts_orig)):
             ret[j].append(img[j])
 
     return ret
+
+
 
 
 ############################# START: 3D ops #############################

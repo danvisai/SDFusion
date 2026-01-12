@@ -141,7 +141,8 @@ class SDFusionText2ShapeOpt(BaseOpt):
 class SDFusionImage2ShapeOpt(BaseOpt):
     def __init__(self, gpu_ids=0, seed=None):
         super().__init__(gpu_ids, seed=seed)
-
+        self.latent_size_HW = [16,16]
+        self.latent_size_D = 16
         # some other custom args here
         print(f'[*] {self.name()} initialized.')
         
@@ -156,15 +157,18 @@ class SDFusionImage2ShapeOpt(BaseOpt):
         
     def init_model_args(
             self,
-            ckpt_path='saved_ckpt/sdfusion-img2shape.pth',
-            vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
+            #ckpt_path='saved_ckpt/sdfusion-img2shape.pth',
+            ckpt_path = '/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/Logs_GT/2025-09-23T20-28-50-sdfusion_model_img2shape-building-LR1e-5/ckpt/df_steps-latest.pth',
+            #vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
+            vq_ckpt_path = '/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/logs_building/2025-05-19T19-58-28-vqvae-building-all-res64-LR1e-4-T0.2-release/ckpt/vqvae_steps-latest.pth',
         ):
-        self.model = 'sdfusion-img2shape'
+        #self.model = 'sdfusion-img2shape'
+        self.model = 'sdfusion_model_img2shape'
         self.df_cfg = 'configs/sdfusion-img2shape.yaml'
         self.ckpt = ckpt_path
         
         self.vq_model = 'vqvae'
-        self.vq_cfg = 'configs/vqvae_snet.yaml'
+        self.vq_cfg = 'configs/vqvae_bnet.yaml'
         self.vq_ckpt = vq_ckpt_path
         self.vq_dset = 'snet'
         self.vq_cat = 'all'
@@ -191,15 +195,17 @@ class SDFusionMM2ShapeOpt(BaseOpt):
         
     def init_model_args(
             self,
-            ckpt_path='saved_ckpt/sdfusion-mm2shape.pth',
-            vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
+            #ckpt_path='saved_ckpt/sdfusion-mm2shape.pth',
+            ckpt_path = '/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/Logs_GT/2025-09-23T20-28-50-sdfusion_model_img2shape-building-LR1e-5/ckpt/df_steps-latest.pth',
+            #vq_ckpt_path='saved_ckpt/vqvae-snet-all.pth',
+            vq_ckpt_path = '/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/logs_building/2025-05-19T19-58-28-vqvae-building-all-res64-LR1e-4-T0.2-release/ckpt/vqvae_steps-latest.pth',
         ):
-        self.model = 'sdfusion-mm2shape'
-        self.df_cfg = 'configs/sdfusion-mm2shape.yaml'
+        self.model = 'sdfusion_model_img2shape'
+        self.df_cfg = 'configs/sdfusion-img2shape.yaml'
         self.ckpt = ckpt_path
         
         self.vq_model = 'vqvae'
-        self.vq_cfg = 'configs/vqvae_snet.yaml'
+        self.vq_cfg = 'configs/vqvae_bnet.yaml'
         self.vq_ckpt = vq_ckpt_path
         self.vq_dset = 'snet'
         self.vq_cat = 'all'
@@ -355,29 +361,84 @@ def crop_square(img, bbox, img_size_h=256, img_size_w=256):
 
     return pil_img
 
+def preprocess_image(image, mask, *, fallback_bg=178, img_hw=256):
+    """
+    Prepare inputs for CLIP when you have a mask and (optionally) an image.
 
-def preprocess_image(image, mask):
-    if type(image) is str:
-        img_np = np.array(Image.open(image).convert('RGB'))
+    Returns:
+        img_comp (PIL.Image): composited or synthesized RGB, square crop @ img_hw
+        img_clean (PIL.Image): masked-only RGB, square crop @ img_hw
+
+    Behavior:
+      - If image is None: create a neutral RGB canvas and render only the masked
+        region (mask silhouette). This allows mask-only demos.
+      - If image is array/str: behave like before (composite with softened bg).
+    """
+    # --- Load / normalize mask to uint8 {0,1} ---
+    if isinstance(mask, str):
+        mask_np = np.array(Image.open(mask).convert('1'), dtype=np.uint8)  # HxW {0,1}
     else:
-        img_np = image
-    if type(mask) is str:
-        mask_np = np.array(Image.open(mask).convert('1'))
+        mask_np = mask.astype(np.uint8)
+
+    # --- Load or synthesize image ---
+    if image is None:
+        # Neutral gray background
+        # You can also choose white (255) or black (0). Gray is a good neutral.
+        h, w = mask_np.shape[:2]
+        img_np = np.full((h, w, 3), fallback_bg, dtype=np.uint8)
     else:
-        mask_np = mask
-        
-    # get bbox from mask
+        img_np = np.array(Image.open(image).convert('RGB')) if isinstance(image, str) else image
+
+    # --- Guard: empty mask -> use whole image ---
+    if mask_np.max() == 0:
+        # No foreground; create a 1-pixel bbox in the center
+        h, w = mask_np.shape
+        cy, cx = h // 2, w // 2
+        mask_np[cy:cy+1, cx:cx+1] = 1
+
+    # --- Get bbox from mask & crop square ---
     x0, y0, x1, y1 = mask2bbox(mask_np)
     bbox = [x0, y0, x1, y1]
-        
+
+    # --- Composite (when image exists) or keep neutral background (when None) ---
+    # r controls how much background is pushed toward a flat color;
+    # when image is None, img_np is already flat so this is fine too.
     r = 0.7
-    img_comp = img_np * mask_np[:, :, None] + (1 - mask_np[:, :, None]) * (r*255 + (1 - r) * img_np)
-    img_comp = crop_square(img_comp.astype(np.uint8), bbox)
-    
-    img_clean = img_np * mask_np[:, :, None]
-    img_clean = crop_square(img_clean.astype(np.uint8), bbox)
-    
+    img_comp_np = (
+        img_np * mask_np[:, :, None] +
+        (1 - mask_np[:, :, None]) * (r * 255 + (1 - r) * img_np)
+    ).astype(np.uint8)
+
+    img_clean_np = (img_np * mask_np[:, :, None]).astype(np.uint8)
+
+    # --- Square crop to bbox and resize to CLIP-friendly size ---
+    img_comp = crop_square(img_comp_np, bbox, img_size_h=img_hw, img_size_w=img_hw)
+    img_clean = crop_square(img_clean_np, bbox, img_size_h=img_hw, img_size_w=img_hw)
+
     return img_comp, img_clean
+
+# def preprocess_image(image, mask):
+#     if type(image) is str:
+#         img_np = np.array(Image.open(image).convert('RGB'))
+#     else:
+#         img_np = image
+#     if type(mask) is str:
+#         mask_np = np.array(Image.open(mask).convert('1'))
+#     else:
+#         mask_np = mask
+        
+#     # get bbox from mask
+#     x0, y0, x1, y1 = mask2bbox(mask_np)
+#     bbox = [x0, y0, x1, y1]
+        
+#     r = 0.7
+#     img_comp = img_np * mask_np[:, :, None] + (1 - mask_np[:, :, None]) * (r*255 + (1 - r) * img_np)
+#     img_comp = crop_square(img_comp.astype(np.uint8), bbox)
+    
+#     img_clean = img_np * mask_np[:, :, None]
+#     img_clean = crop_square(img_clean.astype(np.uint8), bbox)
+    
+#     return img_comp, img_clean
 
 def get_shape_mask(mask_mode, device='cuda'):
 

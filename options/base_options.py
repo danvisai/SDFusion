@@ -54,6 +54,18 @@ class BaseOptions():
         self.parser.add_argument('--ddim_eta', type=float, default=0.0)
         self.parser.add_argument('--uc_scale', type=float, default=1.0, help='scale for un guidance')
         
+        #new code
+        # --- latent size (optional CLI overrides; can be omitted if YAML provides them) ---
+        self.parser.add_argument(
+            '--latent_size_D', type=int, default=None,
+            help='Latent depth (D) for the 3D latent grid; if None, will be read from df_cfg or inferred from vq_cfg.'
+        )
+        self.parser.add_argument(
+            '--latent_size_HW', type=int, nargs=2, default=None,
+            help='Latent height and width (H W) for the 3D latent grid; if None, will be read from df_cfg or inferred from vq_cfg.'
+        )
+
+
         # vqvae stuff
         self.parser.add_argument('--vq_model', type=str, default='vqvae', help='for choosing the vqvae model to use.')
         self.parser.add_argument('--vq_cfg', type=str, default='configs/vqvae_snet.yaml', help='vqvae model config file')
@@ -112,6 +124,71 @@ class BaseOptions():
         # util.seed_everything(seed)
 
         self.opt.rank = get_rank()
+
+        #new code
+        def _infer_latent_from_vqcfg(vq_cfg_path):
+            try:
+                vq_yaml = OmegaConf.load(vq_cfg_path)
+                dd = vq_yaml.model.params.ddconfig
+                base_res = int(dd.resolution)          # e.g., 64, 128, 256
+                ch_mult  = list(dd.ch_mult)            # e.g., [1, 2, 4] or [1, 2, 4, 4]
+
+                # Two common heuristics for downsample factor
+                factor_a = 2 ** max(len(ch_mult) - 1, 0)
+                factor_b = 2 ** max(len(ch_mult), 0)
+
+                # Prefer f=4 if divisible (common "f4" latent noted in your cfg comments)
+                candidates = []
+                if base_res % 4 == 0:
+                    candidates.append(4)
+                candidates.extend([factor_a, factor_b])
+
+                for f in candidates:
+                    if f > 0 and base_res % f == 0:
+                        side = base_res // f
+                        if side >= 1:
+                            return int(side), int(side), int(side)
+            except Exception as e:
+                print(colored(f"[warn] Could not infer latent size from vq_cfg ({vq_cfg_path}): {e}", "yellow"))
+
+            print(colored("[warn] Falling back to latent 64^3", "yellow"))
+            return 64, 64, 64
+
+        # Load df_cfg YAML if possible
+        try:
+            df_yaml = OmegaConf.load(self.opt.df_cfg)
+        except Exception as e:
+            df_yaml = OmegaConf.create()
+            print(colored(f"[warn] Could not load df_cfg ({self.opt.df_cfg}): {e}", "yellow"))
+
+        # CLI overrides (already parsed) take precedence; if not provided, try YAML
+        if getattr(self.opt, 'latent_size_HW', None) is None:
+            if 'latent_size_HW' in df_yaml:
+                hw = df_yaml.latent_size_HW
+                self.opt.latent_size_HW = (int(hw[0]), int(hw[1]))
+            else:
+                self.opt.latent_size_HW = None
+
+        if getattr(self.opt, 'latent_size_D', None) is None:
+            if 'latent_size_D' in df_yaml:
+                self.opt.latent_size_D = int(df_yaml.latent_size_D)
+            else:
+                self.opt.latent_size_D = None
+
+        # If still missing, infer from VQ-VAE config
+        if self.opt.latent_size_HW is None or self.opt.latent_size_D is None:
+            D, H, W = _infer_latent_from_vqcfg(self.opt.vq_cfg)
+            if self.opt.latent_size_HW is None:
+                self.opt.latent_size_HW = (H, W)
+            if self.opt.latent_size_D is None:
+                self.opt.latent_size_D = D
+
+        # Normalize types
+        self.opt.latent_size_HW = (int(self.opt.latent_size_HW[0]), int(self.opt.latent_size_HW[1]))
+        self.opt.latent_size_D  = int(self.opt.latent_size_D)
+        # --------------------------------------------------------------------
+
+
 
         if get_rank() == 0:
             # print args

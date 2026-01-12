@@ -6,8 +6,8 @@ RED='\033\[0;31m'
 NC='\033\[0m' # No Color
 DATE_WITH_TIME=`date "+%Y-%m-%dT%H-%M-%S"`
 
-#logs_dir="logs"
-logs_dir="/mnt/d/generative_Towns/Logs"
+logs_dir="Logs_GT"
+#logs_dir="/mnt/d/generative_Towns/Logs"
 if [ `hostname` = az007 ] || [ `hostname` = az006 ]; then
     logs_dir="logs_home"
 fi
@@ -30,23 +30,29 @@ echo "Using GPU(s): ${gpu_ids}"
 ### Hyperparameters
 
 lr=1e-5
-batch_size=4
+batch_size=50
 backend='gloo'  # 'gloo' for CPU, 'nccl' for multi-GPUs
 #######################
 
 ### Model and config
 
 model='sdfusion_model_img2shape'
-df_cfg='configs/sdfusion-img2shape.yaml'   # your new diffusion config
+df_cfg='configs/sdfusion-img2shape.yaml'   # new diffusion config
 vq_model='vqvae'
 vq_cfg='configs/vqvae_bnet.yaml'
-vq_ckpt="/mnt/c/Users/Public/generativetowns/sdfusion/SDFusion/logs_building/2025-05-19T19-58-28-vqvae-building-all-res64-LR1e-4-T0.2-release/ckpt/vqvae_steps-latest.pth"
+vq_ckpt="/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/logs_building/2025-05-19T19-58-28-vqvae-building-all-res64-LR1e-4-T0.2-release/ckpt/vqvae_steps-latest.pth"
 vq_dset='bnet'
 vq_cat='all'
 
 # Optional: resume from a checkpoint
 
-ckpt="/mnt/d/generative_Towns/Logs/2025-07-01T18-50-33-sdfusion_model_img2shape-building-LR1e-5/ckpt/df_steps-latest.pth"  # e.g. "--ckpt /path/to/df\_steps-latest.pth"
+#ckpt="/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/Saved_Checkpoint/df_steps-latest.pth"  # e.g. "--ckpt /path/to/df\_steps-latest.pth"
+#ckpt ="/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/Logs_GT/continue-2025-07-16T14-24-47-sdfusion_model_img2shape-building-LR1e-5/ckpt/df_steps-latest.pth"
+
+#ckpt = "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/Logs_GT/2025-09-23T20-28-50-sdfusion_model_img2shape-building-LR1e-5/ckpt/df_steps-latest.pth"
+#ckpt = "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/Logs_GT/2025-10-24T20-01-12-sdfusion_model_img2shape-building-LR1e-5/ckpt/df_steps-latest.pth"
+ckpt=""
+
 ########################
 
 ### Dataset

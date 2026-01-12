@@ -747,6 +747,31 @@ class UNet3DModel(nn.Module):
             conv_nd(dims, model_channels, n_embed, 1),
             #nn.LogSoftmax(dim=1)  # change to cross_entropy and produce non-normalized logits
         )
+        #hint new code
+        # self.hint_proj = nn.Conv3d(
+        #     in_channels=1,
+        #     out_channels=self.model_channels,
+        #     kernel_size=1,
+        # )# Enhanced ControlNet branch for hint conditioning
+        self.controlnet = nn.Sequential(
+            nn.Conv3d(1, self.model_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            ResBlock(
+            self.model_channels,     # input channels
+            emb_channels=self.model_channels,  # match time_embed_dim if needed
+            dropout=0.1
+        ),
+        ResBlock(
+            self.model_channels,
+            emb_channels=self.model_channels,
+            dropout=0.1
+        ),
+
+        )  
+        self.hint_scale = nn.Parameter(torch.tensor(1.0))
+
+
+        
 
     def convert_to_fp16(self):
         """
@@ -764,7 +789,7 @@ class UNet3DModel(nn.Module):
         self.middle_block.apply(convert_module_to_f32)
         self.output_blocks.apply(convert_module_to_f32)
 
-    def forward(self, x, timesteps=None, context=None, y=None,**kwargs):
+    def forward(self, x, timesteps=None, context=None, y=None,hint = None,**kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -788,8 +813,25 @@ class UNet3DModel(nn.Module):
         # h = x.type(self.dtype)
         h = x
         # print(h.type)
-        for module in self.input_blocks:
+        # if hint is not None:
+        #     hint_feat = self.hint_proj(hint)
+        #     h = h+hint_feat
+
+        hint_feat = None
+        if hint is not None:
+            hint_feat = self.controlnet(hint)
+            h = h + self.hint_scale * hint_feat
+
+
+        # for module in self.input_blocks:
+        #     h = module(h, emb, context)
+        #     hs.append(h)
+        for i, module in enumerate(self.input_blocks):
             h = module(h, emb, context)
+    
+            if hint_feat is not None and i in [1, 3, 5]:  # inject at selected blocks
+                h = h + hint_feat  # optionally: scale with lambda: h = h + self.hint_scale * hint_feat
+
             hs.append(h)
         h = self.middle_block(h, emb, context)
         for module in self.output_blocks:

@@ -17,7 +17,7 @@ class DiffusionUNet(nn.Module):
         self.conditioning_key = conditioning_key # default for lsun_bedrooms
 
 
-    def forward(self, x, t, c_concat: list = None, c_crossattn: list = None):
+    def forward(self, x, t, c_concat: list = None, c_crossattn: list = None, hint: torch.Tensor = None):
         # x: should be latent code. shape: (bs X z_dim X d X h X w)
 
         if self.conditioning_key is None:
@@ -36,6 +36,11 @@ class DiffusionUNet(nn.Module):
         elif self.conditioning_key == 'adm':
             cc = c_crossattn[0]
             out = self.diffusion_net(x, t, y=cc)
+
+        elif self.conditioning_key == 'controlnet' :
+            # x: latent input
+            # hint: spatial control feature from controlnet encoder (eg, [b,c,d,h,w])
+            out = self.diffusion_net(x, t, hint=hint)
         else:
             raise NotImplementedError()
 
