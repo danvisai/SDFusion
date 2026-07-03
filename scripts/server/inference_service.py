@@ -702,6 +702,8 @@ class ExportBuilding(BaseModel):
     height: float = 10.0
     recipe_params: List[float]
     edits: List[dict] = Field(default_factory=list)
+    weather: float = 0.0                 # Layer 2.5a procedural aging (geometry export path)
+    weather_seed: Optional[int] = None
     style_ref_b64: Optional[str] = None  # per-building style image (textured export only)
     prompt: Optional[str] = None
 
@@ -902,6 +904,8 @@ class RebuildBuildingReq(BaseModel):
     edits: List[dict] = Field(default_factory=list)   # world-meter EditOps (typed
                                                       # constructions from /interpret_mass_world
                                                       # or crude sculpt ops — both are pure CSG)
+    weather: float = 0.0                              # Layer 2.5a procedural aging, 0..1
+    weather_seed: Optional[int] = None
     res: int = 96
 
 
@@ -918,7 +922,8 @@ def rebuild_building(req: RebuildBuildingReq):
         mesh = build_building_mesh(refiner(), {
             "footprint": req.footprint, "style": req.style, "height": req.height,
             "building_class": req.building_class, "recipe_params": req.recipe_params,
-            "edits": req.edits}, res=req.res)
+            "edits": req.edits, "weather": req.weather,
+            "weather_seed": req.weather_seed}, res=req.res)
     except Exception as ex:
         raise HTTPException(400, f"rebuild failed: {ex}")
     if mesh is None or not len(mesh.faces):

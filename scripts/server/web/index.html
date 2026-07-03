@@ -69,6 +69,7 @@
       <button class="sec sm" data-add="dome">+ Dome</button>
       <button class="sec sm" data-add="wing">+ Wing</button>
     </div>
+    <label>Weathering <span class="val" id="eWxV">0.00</span></label><input type="range" id="eWx" min="0" max="1" value="0" step="0.05"/>
     <label>Snap faithfulness <span class="val" id="eStrengthV">0.50</span></label><input type="range" id="eStrength" min="0.2" max="0.8" value="0.5" step="0.05"/>
     <div class="row"><button class="sm" id="eSnap" style="margin-top:8px">✨ Snap to plausible (AI)</button>
       <button class="sec sm" id="eUndo" style="margin-top:8px">↩ Undo edit</button></div>
@@ -146,7 +147,7 @@ const $=id=>document.getElementById(id);
 function b64buf(b){b=b.split(',').pop();const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer;}
 async function post(u,b){const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(!r.ok)throw new Error((await r.text()).slice(0,160));return r.json();}
 const rect=(w,d)=>[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]];
-[['w',' m','wv'],['d',' m','dv'],['h',' m','hv'],['ma',' m','mav'],['mb','','mbv'],['eH',' m','eHv'],['eStrength','','eStrengthV']].forEach(([i,s,v])=>{$(i).oninput=()=>$(v).textContent=$(i).value+s;});
+[['w',' m','wv'],['d',' m','dv'],['h',' m','hv'],['ma',' m','mav'],['mb','','mbv'],['eH',' m','eHv'],['eStrength','','eStrengthV'],['eWx','','eWxV']].forEach(([i,s,v])=>{$(i).oninput=()=>$(v).textContent=$(i).value+s;});
 
 function setMesh(b,glb){ return new Promise(res=>{ if(b.group)town.remove(b.group); loader.parse(b64buf(glb),'',g=>{ g.scene.traverse(o=>{if(o.isMesh){o.material=(b===selected?selMat:baseMat);o.castShadow=true;o.receiveShadow=true;}}); g.scene.position.set(b.position[0],0,b.position[1]); g.scene.userData.b=b; b.group=g.scene; town.add(g.scene); if(b===selected){boxHelper.setFromObject(g.scene);boxHelper.visible=true;} res(b); }); }); }
 async function addBuilding(d){ const b={footprint:d.footprint,position:d.position||[0,0],style:d.style,cls:d.building_class,height:d.height,seed:d.seed??1,params:d.recipe_params,edits:[]}; await setMesh(b,d.glb_b64||d.mesh_glb_b64); buildings.push(b); return b; }
@@ -157,7 +158,7 @@ function applyMat(b,m){ b.group&&b.group.traverse(o=>{if(o.isMesh)o.material=m;}
 function select(b){ if(selected)applyMat(selected,baseMat); selected=b; applyMat(b,selMat); boxHelper.setFromObject(b.group); boxHelper.visible=true;
   if(b.styleRef){ $('eRefThumb').src=b.styleRef; $('eRefThumb').style.display='block'; $('eRefName').textContent='set'; }
   else { $('eRefThumb').style.display='none'; $('eRefName').textContent='none'; }
-  $('editor').style.display='block'; $('eTitle').textContent=`${b.cls.toLowerCase()} · ${b.style}`; $('eStyle').value=b.style; $('eCls').value=b.cls; $('eH').value=Math.round(b.height); $('eHv').textContent=Math.round(b.height)+' m'; $('eInfo').textContent=''; }
+  $('editor').style.display='block'; $('eTitle').textContent=`${b.cls.toLowerCase()} · ${b.style}`; $('eStyle').value=b.style; $('eCls').value=b.cls; $('eH').value=Math.round(b.height); $('eHv').textContent=Math.round(b.height)+' m'; $('eWx').value=b.weather||0; $('eWxV').textContent=(b.weather||0).toFixed(2); $('eInfo').textContent=''; }
 function deselect(){ if(selected)applyMat(selected,baseMat); selected=null; boxHelper.visible=false; $('editor').style.display='none'; }
 renderer.domElement.addEventListener('pointerdown',ev=>{ if(ev.button!==0||ev.detail>1)return; const r=renderer.domElement.getBoundingClientRect(); const m=new THREE.Vector2(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1);
   ray.setFromCamera(m,camera); const hits=ray.intersectObjects(buildings.filter(b=>b.group).map(b=>b.group),true);
@@ -216,7 +217,7 @@ $('exGo').onclick=async()=>{
   $('info').textContent=tex?'baking textured town (~1 min/building)…':'building export scene…'; const t=performance.now();
   try{ const payload=buildings.slice(0,tex?12:64).map(b=>({footprint:b.footprint,position:b.position,
       style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[],
-      style_ref_b64:b.styleRef||null}));
+      weather:b.weather||0,weather_seed:b.seed??1,style_ref_b64:b.styleRef||null}));
     const r=await post('/export_town',{buildings:payload,scale:+$('exUnits').value,textures:tex});
     const bin=atob(r.glb_b64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
     dl(new Blob([u8],{type:'model/gltf-binary'}),'town.glb');
@@ -237,8 +238,14 @@ function buildEdit(b,kind){ const B=fpB(b.footprint),h=b.height,w=B.x1-B.x0,d=B.
     return {kind:'box',center:[B.x1-w*0.18,h*0.95,B.z1-d*0.18],size:[r,h*0.5,r],mode:'add',smooth:0.0}; }
   if(kind==='dome')  return {kind:'sphere',center:[(B.x0+B.x1)/2,h,(B.z0+B.z1)/2],size:[Math.min(w,d)*0.42],mode:'add',smooth:0.4};
   return {kind:'box',center:[B.x1+w*0.18,h*0.3,(B.z0+B.z1)/2],size:[w*0.2,h*0.3,d*0.32],mode:'add',smooth:0.0}; } // wing
-async function rebuild(b){ const m=await post('/rebuild_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[]});
+async function rebuild(b){ const m=await post('/rebuild_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[],weather:b.weather||0,weather_seed:b.seed??1});
   await setMesh(b,m.mesh_glb_b64); return m; }
+// WEATHERING (Layer 2.5a): procedural aging — cracks, chipped edges, erosion — carved into
+// the final SDF server-side; part of the building's state, reproduced exactly on export.
+$('eWx').onchange=async()=>{ if(!selected||busy)return; busy=true; const b=selected; b.weather=+$('eWx').value;
+  $('eInfo').textContent='weathering…'; const t=performance.now();
+  try{ const m=await rebuild(b); $('eInfo').textContent=`weathered ${b.weather.toFixed(2)} · ${m.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s`; }
+  catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; };
 async function makeArchitecture(kind){ if(!selected||busy)return; busy=true; const b=selected;
   $('eInfo').textContent='making sense of the mass…'; const t=performance.now();
   try{ const r=await post('/interpret_mass_world',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,seed:b.seed??1,op:buildEdit(b,kind),existing_ops:b.edits||[]});

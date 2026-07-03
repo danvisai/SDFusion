@@ -119,7 +119,20 @@ def build_building_mesh(refiner, b, res=96):
         x0, x1 = min(x0, cx - r), max(x1, cx + r)
         z0, z1 = min(z0, cz - r), max(z1, cz + r)
     bbox = (x0 - pad, 0.0, z0 - pad, x1 + pad, head, z1 + pad)
-    mesh = grid_to_mesh(sample_grid(sdf, res, bbox, device=refiner.device), bbox, 0.0)
+    g = sample_grid(sdf, res, bbox, device=refiner.device)
+    wx = float(b.get("weather") or 0.0)
+    if wx > 0:
+        # Layer 2.5a: procedural aging (cracks/edge wear/erosion) on the FINAL detailed
+        # SDF grid — part of the building's symbolic state (weather + weather_seed), so
+        # rebuild and export reproduce it exactly
+        import torch
+        from scene.sdf_weather import weather_grid
+        vox = ((bbox[3] - bbox[0]) / (res - 1), (bbox[4] - bbox[1]) / (res - 1),
+               (bbox[5] - bbox[2]) / (res - 1))
+        g = torch.from_numpy(weather_grid(g.detach().cpu().numpy(), vox,
+                                          seed=int(b.get("weather_seed") or 0),
+                                          intensity=wx, y0_m=float(bbox[1])))
+    mesh = grid_to_mesh(g, bbox, 0.0)
     if mesh is not None and len(mesh.faces):
         mesh = _orient_mesh_outward(mesh, sdf, refiner.device)
         from scene.mesh_cleanup import cleanup_mesh
