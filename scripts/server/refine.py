@@ -255,25 +255,29 @@ class Refiner:
     def _load_sdedit(self, autoguidance=True):
         """Lazy-load the snap prior (+ a weaker ckpt of the SAME run for autoguidance).
 
-        Uses the 2026-06-08 HYBRID prior: trained on BOTH real 3D BAG massing AND the 8
-        procedural styles, on the clean VQVAE (gap#6 fixed), with CFG dropout + EMA. The ckpt
-        embeds the clean VQVAE (load_ckpt overwrites the v1 weights from _mk_stage3a) and EMA
-        weights are preferred at inference. Old BAG-only 30k prior kept below for reference."""
+        DEPLOYED 2026-07-03: the cross-cultural warm-start finetune (NL+DE+JP massing breadth),
+        validated 2026-06-29/30 to fix exactly the failure the demo was hitting — the old
+        2026-06-08 hybrid-clean 20k prior snaps a placed mass into a degenerate blob / erases it
+        (outputs/sdedit_xcultural/localized_{ab,de,jp}.png); this ckpt keeps it a coherent,
+        type-appropriate element. Same use_extra_cond=True (era/floors) architecture, so
+        _mk_stage3a below is unchanged. Old 20k ckpt path kept commented for rollback.
+        Guide ckpt is an EARLIER (weaker) checkpoint of the SAME finetune run, for autoguidance."""
         import os
-        ckdir = REPO / "logs_building/2026-06-08T11-50-42-stage3a-hybrid-clean/ckpt"
-        # ckdir = REPO / "logs_building/2026-06-05T15-02-24-bag3d-prior-fast/ckpt"  # pre-foundations
+        main_dir = REPO / "logs_building/continue-stage3a-xcultural-warmstart-ft-final/ckpt"
+        guide_dir = REPO / "logs_building/continue-stage3a-xcultural-warmstart-ft/ckpt"
+        # main_dir = guide_dir = REPO / "logs_building/2026-06-08T11-50-42-stage3a-hybrid-clean/ckpt"  # old, pre-2026-07-03
 
-        def _ck(name):
+        def _ck(d, name):
             # Prefer a node-local copy (SNAP_CKPT_DIR, e.g. /tmp/hybrid_ckpts) — Lustre stalls on
             # sustained 15GB reads; fall back to scratch when the local copy is absent.
             local = Path(os.environ.get("SNAP_CKPT_DIR", "/tmp/hybrid_ckpts")) / name
-            return local if local.exists() else ckdir / name
+            return local if local.exists() else d / name
 
         with self._sd_lock:  # startup warmup thread may race the first request
             if getattr(self, "_sd_main", None) is None:
-                self._sd_main = self._mk_stage3a(_ck("stage3a_steps-latest.pth"), use_extra_cond=True)
+                self._sd_main = self._mk_stage3a(_ck(main_dir, "stage3a_steps-latest.pth"), use_extra_cond=True)
             if autoguidance and getattr(self, "_sd_guide", None) is None:
-                self._sd_guide = self._mk_stage3a(_ck("stage3a_steps-5000.pth"), use_extra_cond=True)
+                self._sd_guide = self._mk_stage3a(_ck(guide_dir, "stage3a_steps-1000.pth"), use_extra_cond=True)
         return self._sd_main, (self._sd_guide if autoguidance else None)
 
     @torch.no_grad()

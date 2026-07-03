@@ -500,7 +500,27 @@ def interpret_mass(grid, op, building_class="RESIDENTIAL", style="modern",
     g = np.linspace(-1, 1, R)
     to_i = lambda v: int(np.clip((v + 1) * 0.5 * (R - 1), 0, R - 1))
     c = np.asarray(op.get("center", [0, 0, 0]), np.float32)
-    e = np.asarray(list(op.get("size", [0.1, 0.1, 0.1]))[:3] + [0.1, 0.1])[:3].astype(np.float32)
+    kind_hint = op.get("kind", "box")
+    # op['size'] layout differs by primitive kind (sphere=[r], cylinder=[r,h], cone=[angle,h],
+    # box=[hx,hy,hz]) -- treating it as a raw 3-slice silently corrupts non-box kinds. A
+    # sphere's size=[r] padded this way gave e=[r,0.1,0.1]: its "height" read as a hardcoded
+    # 0.1 regardless of actual radius, which misrouted every reasonably-sized sphere into the
+    # 'bay' rule (e[1]=0.1 fails the 'balcony' cutoff e[1]<0.09 by a hair) -> constructed as
+    # kind='box'. Only sphere needed this fix; cylinder's h-as-full-height quirk is left alone
+    # since it's what currently makes cylinders correctly read as slender/tower.
+    raw_size = list(op.get("size", [0.1, 0.1, 0.1]))
+    if kind_hint == "sphere":
+        r = float(raw_size[0]) if raw_size else 0.1
+        e = np.array([r, r, r], np.float32)
+    elif kind_hint == "cone":
+        # size=[angle_deg, height] -- e[0]/e[2] would otherwise read as the ANGLE (e.g. 28),
+        # used downstream as a shaft radius (tower's r=max(e[0],e[2])) -- derive an actual
+        # footprint radius from angle+height instead (base radius of a cone of that half-angle).
+        ang, h = (raw_size + [30.0, 0.2])[:2]
+        rad = max(float(h), 1e-3) * float(np.tan(np.radians(np.clip(ang, 1.0, 89.0))))
+        e = np.array([rad, float(h) * 0.5, rad], np.float32)
+    else:
+        e = np.asarray((raw_size + [0.1, 0.1])[:3], np.float32)
     mode = op.get("mode", "add")
 
     ys = np.where(occ.any(axis=(0, 2)))[0]
@@ -528,6 +548,10 @@ def interpret_mass(grid, op, building_class="RESIDENTIAL", style="modern",
     # ---- 1. TYPE the placement: learned planner distribution > geometric rules ----
     if mode == "subtract":
         rule_kind = "door" if near_ground and e[1] > 0.07 else "window"
+    elif kind_hint == "sphere":
+        rule_kind = "dome"           # unambiguous by shape alone -- no size/position rule needed
+    elif kind_hint == "cone":
+        rule_kind = "tower"          # spire-shaped by construction; tower's own build adds the cone cap
     elif slender and top_of_op > y_local_top + 0.04:
         rule_kind = "tower"
     elif on_roof and inside_fp:

@@ -11,6 +11,13 @@
   #panel { width:300px; flex:0 0 300px; padding:14px; background:var(--panel); overflow:auto; border-right:1px solid var(--line); }
   h1 { font-size:15px; margin:0; } .sub { color:var(--mut); font-size:11px; margin:3px 0 12px; }
   h2 { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin:16px 0 6px; }
+  details.step { margin:14px 0 0; }
+  details.step summary { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut);
+    margin:0 0 6px; cursor:pointer; list-style:none; user-select:none; }
+  details.step summary::-webkit-details-marker { display:none; }
+  details.step summary::before { content:'▸ '; color:var(--acc); }
+  details.step[open] summary::before { content:'▾ '; }
+  details.step summary:hover { color:var(--ink); }
   .card { background:#161d26; border:1px solid var(--line); border-radius:9px; padding:10px; }
   label { display:block; margin:8px 0 3px; color:var(--mut); font-size:11px; }
   select, input[type=range], input[type=number] { width:100%; background:#0d1219; color:var(--ink); border:1px solid var(--line); border-radius:6px; }
@@ -27,6 +34,7 @@
   #view { flex:1; position:relative; }
   #cv { width:100%; height:100%; display:block; }
   #hint { position:absolute; bottom:10px; left:12px; color:#cfe; font-size:11px; text-shadow:0 1px 3px #000a; pointer-events:none; }
+  #fps { position:absolute; top:10px; right:12px; color:#8f9; font-size:11px; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px #000a; pointer-events:none; }
   #info { margin-top:8px; color:var(--mut); font-size:11px; white-space:pre-line; }
   #eInfo { margin-top:10px; padding:8px 9px; background:#0d1219; border:1px solid var(--line); border-radius:7px;
            color:#cfe; font-size:11.5px; min-height:34px; white-space:pre-line; }
@@ -38,10 +46,12 @@
 <div id="panel">
   <h1>SDF Sculptor <span class="tag">raymarched</span></h1>
   <div class="sub"><b>① Generate</b> a building → <b>② place a mass</b> and let the AI
-  <b>make it architecture</b> → <b>③ AI-detail</b> it → <b>④ snap, preview, bake</b>.
-  Snapping only re-molds what you placed — your building stays crisp.</div>
+  <b>make it architecture</b> → <b>③ AI-detail</b> it → <b>④ preview, bake</b>.
+  Everything is placed procedurally — no generative re-molding, nothing goes moldy.</div>
+  <div id="eInfo">place a mass, then 🧠 — or go straight to ✨ AI details</div>
 
-  <h2>① Building</h2>
+  <details class="step" id="stepGen" open>
+  <summary>① Building</summary>
   <div class="card">
     <div class="row">
       <div><label>Class</label><select id="cls"><option>RESIDENTIAL</option><option>COMMERCIAL</option><option>PUBLIC</option><option>RELIGIOUS</option></select></div>
@@ -58,8 +68,10 @@
     </select>
     <button id="gen">Generate building</button>
   </div>
+  </details>
 
-  <h2>② Sculpt a mass</h2>
+  <details class="step" id="stepSculpt" open>
+  <summary>② Sculpt a mass</summary>
   <div class="card">
     <div class="grid4">
       <button class="sec sm" data-prim="box">box</button>
@@ -84,17 +96,20 @@
     roof. <b>Re-roll</b> samples a new variation (dome vs spire, window rhythm — class
     matters: religious buildings roll domes).</div>
     <div id="editorWrap" style="display:none">
-      <h2 style="margin-top:14px">Selected primitive</h2>
-      <label>Pos X <span class="val" id="pxV">0.00</span></label><input type="range" id="px" min="-1" max="1" step="0.02" value="0"/>
-      <label>Pos Y <span class="val" id="pyV">0.00</span></label><input type="range" id="py" min="-1" max="1" step="0.02" value="0"/>
-      <label>Pos Z <span class="val" id="pzV">0.00</span></label><input type="range" id="pz" min="-1" max="1" step="0.02" value="0"/>
-      <label>Size <span class="val" id="szV">0.30</span></label><input type="range" id="sz" min="0.05" max="0.9" step="0.02" value="0.3"/>
-      <label>Rotate Y <span class="val" id="ryV">0°</span></label><input type="range" id="ry" min="0" max="180" step="5" value="0"/>
+      <h2 style="margin-top:14px">Selected primitive <span class="tag">drag the gizmo in the view</span></h2>
+      <div class="row">
+        <button class="sec sm on" id="gzMove" data-mode="translate">↔ Move</button>
+        <button class="sec sm" id="gzScale" data-mode="scale">⤢ Resize</button>
+        <button class="sec sm" id="gzRotate" data-mode="rotate">⟳ Rotate</button>
+      </div>
+      <div class="help" id="selReadout">pos 0.00, 0.00, 0.00 · size 0.30 · rot 0°</div>
     </div>
-    <div class="row" style="margin-top:8px"><button class="sec sm" id="undo">↩ Undo</button><button class="sec sm" id="clr">Clear edits</button></div>
+    <div class="row" style="margin-top:8px"><button class="sec sm" id="undo">↩ Undo</button><button class="sec sm" id="clr">Clear all edits</button></div>
   </div>
+  </details>
 
-  <h2>③ AI detailing</h2>
+  <details class="step" id="stepDetail">
+  <summary>③ AI detailing</summary>
   <div class="card">
     <button class="sm" id="aiDetails">✨ AI details (layout planner)</button>
     <div class="help">A model trained on real buildings places windows / doors / towers
@@ -109,24 +124,24 @@
       <button class="sec sm" data-det="roof_hip">hip roof</button>
     </div>
   </div>
+  </details>
 
-  <h2>④ Snap · Preview · Bake</h2>
+  <details class="step" id="stepFinish">
+  <summary>④ Preview · Bake</summary>
   <div class="card">
-    <button id="snap">✨ Snap to plausible (AI)</button>
-    <div class="help">Re-molds <b>only the masses you placed</b> onto the learned manifold
-    of real buildings — the rest of your building stays bit-exact.</div>
-    <label>Faithfulness <span class="val" id="strV">0.50</span></label><input type="range" id="str" min="0.2" max="0.8" step="0.05" value="0.5"/>
-    <label style="display:flex;gap:6px;align-items:center;margin-top:6px;text-transform:none">
-      <input type="checkbox" id="globalSnap" style="width:auto"/> global re-mold (regenerate the whole massing)</label>
+    <div class="help">🧠 Make it architecture already places everything procedurally —
+    building this .glb never runs the generative massing prior, so nothing here can turn
+    moldy; it's a straight CSG + facade-composer export of what you see.</div>
     <button class="sec" id="detPrev">👁 Detail preview (bake quality)</button>
     <div class="help">Shows the full facade treatment (window grids, bands, plinth, roof)
     exactly as Bake will export it. Toggle off to keep sculpting.</div>
-    <div class="row"><button class="sec sm" id="bake">⬇ Bake mesh (.glb)</button><button class="sec sm" id="reset">Reset edits</button></div>
+    <div class="row"><button class="sec sm" id="bake">⬇ Bake mesh (.glb)</button></div>
     <button id="applyTown" style="display:none">⬆ Apply to town</button>
-    <div id="eInfo">place a mass, then 🧠 — or go straight to ✨ AI details</div>
   </div>
+  </details>
 
-  <h2>⑤ Photoreal (style by image)</h2>
+  <details class="step" id="stepPhoto">
+  <summary>⑤ Photoreal (style by image)</summary>
   <div class="card">
     <label>Style reference <span class="val" id="refName">none</span></label>
     <div class="row">
@@ -143,6 +158,7 @@
     (multi-view diffusion baked into an albedo atlas) that imports into Unreal/Blender
     already wearing this style. ~1 min.</div>
   </div>
+  </details>
   <div id="info">loading…</div>
   <div id="nrOverlay" style="display:none;position:fixed;inset:0;background:#000c;z-index:50;align-items:center;justify-content:center;flex-direction:column;gap:10px">
     <img id="nrImg" style="max-width:82vmin;max-height:82vmin;border-radius:10px"/>
@@ -152,7 +168,7 @@
     </div>
   </div>
 </div>
-<div id="view"><canvas id="cv"></canvas><div id="hint">drag to orbit · scroll to zoom · place a primitive → 🧠 make it architecture → 🎲 re-roll · Snap when happy</div></div>
+<div id="view"><canvas id="cv"></canvas><div id="hint">drag empty space to orbit · scroll to zoom · place a primitive, then drag its gizmo (Move/Resize/Rotate) · 🧠 make it architecture → 🎲 re-roll · Bake when happy</div><div id="fps">-- fps</div></div>
 
 <script type="importmap">
 { "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" }}
@@ -160,6 +176,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
 const MAXP = 48;
 const PALETTE = ["box","rounded_box","sphere","cylinder","cone","gable","hip"];  // index = shader kind
@@ -171,11 +188,29 @@ const post = async (u,b)=>{ const r=await fetch(u,{method:'POST',headers:{'Conte
 const cv = $('cv');
 const renderer = new THREE.WebGLRenderer({canvas:cv, antialias:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.autoClear = false;   // two passes on the same canvas: raymarch quad, then the 3D gizmo overlay
 renderer.debug.onShaderError=(gl,prog,vs,fs)=>{ const log=gl.getShaderInfoLog(fs)||gl.getShaderInfoLog(vs)||'shader error'; document.getElementById('info').textContent='SHADER ERROR: '+log.slice(0,300); };
 const cam = new THREE.PerspectiveCamera(45, 1, 0.01, 100); cam.position.set(2.2,1.7,2.6);
 const controls = new OrbitControls(cam, cv); controls.enableDamping=true; controls.target.set(0,0,0);
 const fsScene = new THREE.Scene();
 const fsCam = new THREE.Camera();
+
+// ---- gizmo overlay (a REAL 3D scene rendered with the same `cam`, layered on top of the
+// raymarch quad) — the raymarched building has no actual mesh objects to attach a drag
+// gizmo to, so a proxy Object3D stands in for the selected primitive's transform. ----
+const gizmoScene = new THREE.Scene();
+const gizmoProxy = new THREE.Object3D();
+const gizmoBoxHelper = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(2,2,2)),
+  new THREE.LineBasicMaterial({color:0xf0a526, transparent:true, opacity:0.85}));
+gizmoProxy.add(gizmoBoxHelper);
+gizmoProxy.visible = false;   // hidden until a primitive is selected (see refreshSel)
+gizmoScene.add(gizmoProxy);
+const tcontrols = new TransformControls(cam, cv);
+tcontrols.setSize(0.9);
+gizmoScene.add(tcontrols);
+tcontrols.addEventListener('dragging-changed', e=>{ controls.enabled = !e.value; });
+let gizmoBaseSize = null;   // edits[sel].size captured when the gizmo was attached (scale is relative to this)
 
 const uniforms = {
   uVol:{value:null}, uHasVol:{value:0},
@@ -242,8 +277,16 @@ void main(){
   vec3 sky = pow(mix(vec3(0.09,0.12,0.17), vec3(0.16,0.22,0.31), clamp(vUv.y,0.0,1.0)), vec3(0.4545));
   vec2 tb = boxT(ro, rd); float tn=max(tb.x,0.0), tf=tb.y;
   if(tf<=tn){ oCol=vec4(sky,1.0); return; }
-  const int STEPS=128; float dt=(tf-tn)/float(STEPS); bool hit=false; float t=tn;
-  for(int i=0;i<STEPS;i++){ float tt=tn+dt*float(i); if(map(ro+rd*tt)<=0.0){ float lo=max(tt-dt,tn),hi=tt; for(int j=0;j<6;j++){ float m=(lo+hi)*0.5; if(map(ro+rd*m)<=0.0) hi=m; else lo=m; } t=hi; hit=true; break; } }
+  // Sphere tracing (step by the SDF's own distance) instead of fixed-dt marching + a bisection
+  // refine pass: converges in far fewer map() evaluations in open space and needs no separate
+  // refine loop, since a step ending with d<EPS is already within EPS of the true surface.
+  const int STEPS=100; const float EPS=0.0015; float t=tn; bool hit=false;
+  for(int i=0;i<STEPS;i++){
+    float d=map(ro+rd*t);
+    if(d<EPS){ hit=true; break; }
+    t+=max(d,EPS);
+    if(t>=tf) break;
+  }
   if(!hit){ oCol=vec4(sky,1.0); return; }
   vec3 p=ro+rd*t; vec3 n=calcN(p);
   vec3 L=normalize(vec3(0.55,0.85,0.35)); float diff=max(dot(n,L),0.0);
@@ -275,9 +318,14 @@ function loop(){ requestAnimationFrame(loop); controls.update();
   cam.updateMatrixWorld(true);   // cam is never passed to renderer.render -> must update manually
   uniforms.uCamPos.value.copy(cam.position); uniforms.uCamMat.value.copy(cam.matrixWorld);
   uniforms.uTan.value=Math.tan(cam.fov*Math.PI/360);
-  renderer.render(fsScene, fsCam);
+  renderer.clear();
+  renderer.render(fsScene, fsCam);          // pass 1: raymarched building
+  renderer.clearDepth();
+  renderer.render(gizmoScene, cam);         // pass 2: 3D drag gizmo overlay (real camera+scene)
   const now=performance.now(); fps=0.9*fps+0.1*(1000/Math.max(now-lastT,1)); lastT=now;
+  fpsAcc++; if(now-fpsShown>500){ $('fps').textContent=Math.round(fps)+' fps'; fpsShown=now; fpsAcc=0; }
 }
+let fpsShown=performance.now(), fpsAcc=0;
 loop();
 
 // ---- state ----
@@ -308,19 +356,60 @@ function pushEditUniforms(){
     uniforms.uSmooth.value[i]=e.smooth||0; uniforms.uRotY.value[i]=(e.rot_y||0)*Math.PI/180; uniforms.uRound.value[i]=e.round_r||0;
   }
 }
+// Approximate (hx,hy,hz) half-extent per primitive kind, used only to size the gizmo's box
+// proxy — it's a bounding indicator, not an exact silhouette of sphere/cylinder/cone/roof shapes.
+function halfExtentOf(kind, size){
+  if(kind==='sphere') return [size[0], size[0], size[0]];
+  if(kind==='cylinder') return [size[0], size[1]*0.5, size[0]];
+  if(kind==='cone') return [size[1]*0.5, size[1]*0.5, size[1]*0.5];
+  if(kind==='gable'||kind==='hip') return [size[0]*0.5, (size[2]+size[3])*0.5, size[1]*0.5];
+  return [size[0], size[1], size[2]];                     // box, rounded_box
+}
+// Inverse: the gizmo's scale-mode drags gizmoProxy.scale relative to (1,1,1) at selection
+// time — map that back onto the kind-specific size array (captured as gizmoBaseSize).
+function sizeFromGizmoScale(kind, base, sc){
+  if(kind==='sphere') return [base[0]*sc.x];
+  if(kind==='cylinder') return [base[0]*sc.x, base[1]*sc.y];
+  if(kind==='cone') return [base[0], base[1]*sc.y];       // angle untouched; height follows Y
+  if(kind==='gable'||kind==='hip') return [base[0]*sc.x, base[1]*sc.z, base[2]*sc.y, base[3]*sc.y];
+  return [base[0]*sc.x, base[1]*sc.y, base[2]*sc.z];
+}
+function updateSelReadout(){ if(sel<0||sel>=edits.length) return; const e=edits[sel];
+  const sv=Math.max(...e.size.slice(0, e.kind==='sphere'?1:3).map(Number));
+  $('selReadout').textContent=`pos ${e.center.map(v=>v.toFixed(2)).join(', ')} · size ${sv.toFixed(2)} · rot ${Math.round(e.rot_y||0)}°`;
+}
 function refreshSel(){ const wrap=$('editorWrap');
   $('interp').disabled = !(sel>=0 && sel<edits.length && edits[sel].layer!=='detail');
   $('reroll').disabled = (typeof lastInterp==='undefined' || !lastInterp);
-  if(sel<0||sel>=edits.length){ wrap.style.display='none'; return; } wrap.style.display='block';
-  const e=edits[sel]; $('px').value=e.center[0]; $('py').value=e.center[1]; $('pz').value=e.center[2];
-  $('pxV').textContent=e.center[0].toFixed(2); $('pyV').textContent=e.center[1].toFixed(2); $('pzV').textContent=e.center[2].toFixed(2);
-  const sval=Math.max(...e.size.slice(0, e.kind==='sphere'?1:3).map(Number)); $('sz').value=Math.min(sval,0.9); $('szV').textContent=sval.toFixed(2);
-  $('ry').value=e.rot_y||0; $('ryV').textContent=(e.rot_y||0)+'°';
+  if(sel<0||sel>=edits.length){ wrap.style.display='none'; tcontrols.detach(); gizmoProxy.visible=false; gizmoBaseSize=null; return; }
+  wrap.style.display='block';
+  const e=edits[sel];
+  gizmoProxy.position.set(e.center[0],e.center[1],e.center[2]);
+  gizmoProxy.rotation.set(0,(e.rot_y||0)*Math.PI/180,0);
+  gizmoProxy.scale.set(1,1,1);
+  const he=halfExtentOf(e.kind, e.size);
+  gizmoBoxHelper.scale.set(Math.max(he[0],0.02), Math.max(he[1],0.02), Math.max(he[2],0.02));
+  gizmoBaseSize=e.size.slice();
+  gizmoProxy.visible=true;
+  tcontrols.attach(gizmoProxy);
+  updateSelReadout();
 }
+tcontrols.addEventListener('objectChange', ()=>{
+  if(sel<0||sel>=edits.length||!gizmoBaseSize) return;
+  const e=edits[sel];
+  e.center=[gizmoProxy.position.x, gizmoProxy.position.y, gizmoProxy.position.z];
+  e.rot_y=gizmoProxy.rotation.y*180/Math.PI;
+  e.size=sizeFromGizmoScale(e.kind, gizmoBaseSize, gizmoProxy.scale);
+  pushEditUniforms(); updateSelReadout();
+});
+['gzMove','gzScale','gzRotate'].forEach(id=>$(id).onclick=()=>{
+  tcontrols.setMode($(id).dataset.mode);
+  ['gzMove','gzScale','gzRotate'].forEach(j=>$(j).classList.toggle('on', j===id));
+});
 function addPrim(kind){ if(!st.base_b64){ $('eInfo').textContent='generate a building first'; return; }
   const s=0.3; const e={kind, center:[0.0,0.35,0.0], size:defaultSize(kind,s), mode, smooth:parseFloat($('sm').value), rot_y:0, round_r:kind==='rounded_box'?0.06:0, layer:'mass'};
   edits.push(e); sel=edits.length-1; pushEditUniforms(); refreshSel();
-  $('eInfo').textContent=`${kind} placed (${mode}) — position it with the sliders, then 🧠 Make it architecture`;
+  $('eInfo').textContent=`${kind} placed (${mode}) — drag the gizmo to position it, then 🧠 Make it architecture`;
 }
 
 // ---- semantic details (layer 'detail'): crisp analytic elements that are NOT sent through
@@ -354,47 +443,25 @@ function addDetail(kind){ if(!st.base_b64){ $('eInfo').textContent='generate a b
   $('eInfo').textContent=`${kind} added (detail layer — crisp, survives snap)`;
 }
 
-// resize the selected primitive uniformly via the Size slider
-function setSelSize(v){ if(sel<0) return; const e=edits[sel];
-  if(e.kind==='sphere') e.size=[v];
-  else if(e.kind==='cylinder') e.size=[v*0.7, v*2.0];
-  else if(e.kind==='cone') e.size=[e.size[0], v*2.0];
-  else if(e.kind==='gable'||e.kind==='hip') e.size=[v*1.8, v*1.8, v*1.4, v*0.9];
-  else e.size=[v,v,v];
-  pushEditUniforms();
-}
-
 // ---- API ----
 async function gen(){ if(busy) return; busy=true; $('gen').disabled=true; $('info').textContent='generating…'; const t=performance.now();
   st.style=$('style').value; st.cls=$('cls').value; st.height=+$('h').value; st.footprint=st.fpOverride||rect(+$('w').value,+$('d').value);
   try{ const src=$('massSrc').value;
     const r=await post('/building_sdf',{footprint:st.footprint, style:st.style, building_class:st.cls, height:st.height,
-      massing_source:(src==='bag'?'bag':'recipe'), sdedit_strength:(src==='recipe_ai'?+$('str').value:0)});
+      massing_source:(src==='bag'?'bag':'recipe'), sdedit_strength:(src==='recipe_ai'?0.5:0)});
     st.center=r.center; st.scale=r.scale; st.recipe_params=r.recipe_params; setVolume(r.sdf_b64, r.res);
     edits=[]; sel=-1; pushEditUniforms(); refreshSel();
-    $('info').textContent=`${st.style} · ${r.res}³ vol · ${((performance.now()-t)/1000).toFixed(1)}s — add primitives, then Snap`;
+    $('info').textContent=`${st.style} · ${r.res}³ vol · ${((performance.now()-t)/1000).toFixed(1)}s — add a primitive, then 🧠 Make it architecture`;
   }catch(e){ $('info').textContent='error: '+e.message; } busy=false; $('gen').disabled=false;
-}
-async function snap(){ if(busy||!st.base_b64) return; busy=true; $('snap').disabled=true; const t=performance.now(); $('eInfo').textContent='snapping to a plausible building…';
-  try{ const massOps=edits.filter(e=>e.layer!=='detail').map(wire);
-    const detOps=edits.filter(e=>e.layer==='detail').map(wire);
-    const global=$('globalSnap').checked;
-    if(!massOps.length && !global){
-      $('eInfo').textContent='no placed masses — base kept crisp (details are already exact). Tick "global re-mold" to regenerate the whole massing.';
-      busy=false; $('snap').disabled=false; return; }
-    const r=await post('/snap_sdf',{base_sdf_b64:st.base_b64, res:st.res, edits:massOps, strength:+$('str').value, local:!global, resnap_detail_ops:detOps});
-    setVolume(r.sdf_b64, r.res);
-    // massing baked in; details persist — RE-SNAPPED onto the NEW surface (walls move under them)
-    edits=(r.resnapped_ops||detOps).map(o=>({rot_y:0, round_r:0, ...o, layer:'detail'}));
-    sel=edits.length-1; pushEditUniforms(); refreshSel();
-    $('eInfo').textContent=`snapped · IoU→edit ${r.iou_to_edit.toFixed(2)} · ${((performance.now()-t)/1000).toFixed(1)}s · ${edits.length} detail op(s) kept crisp`;
-  }catch(e){ $('eInfo').textContent='snap error: '+e.message; } busy=false; $('snap').disabled=false;
 }
 async function bake(){ if(busy||!st.base_b64) return; busy=true; $('bake').disabled=true; $('eInfo').textContent='baking mesh…';
   try{ const r=await post('/snap_sdf',{base_sdf_b64:st.base_b64, res:st.res,
-      edits:edits.filter(e=>e.layer!=='detail').map(wire),
-      detail_edits:edits.filter(e=>e.layer==='detail').map(wire),
-      strength:+$('str').value, return_mesh:true, center:st.center, scale:st.scale, detail:true, building_class:st.cls, style:st.style});
+      edits:[],                             // no diffusion snap -- Make it architecture already
+                                            // placed everything procedurally; edits:[] + local
+                                            // (default) makes snap_volume a bit-exact no-op
+      detail_edits:edits.map(wire),        // ALL current ops (mass+detail) go through the
+                                            // crisp CSG+composer path only, never the prior
+      return_mesh:true, center:st.center, scale:st.scale, detail:true, building_class:st.cls, style:st.style});
     if(r.mesh_glb_b64){ const bin=atob(r.mesh_glb_b64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
       const url=URL.createObjectURL(new Blob([u8],{type:'model/gltf-binary'})); const a=document.createElement('a'); a.href=url; a.download='sculpt.glb'; a.click(); URL.revokeObjectURL(url);
       $('eInfo').textContent='baked → sculpt.glb downloaded'; } else $('eInfo').textContent='bake produced no mesh';
@@ -404,9 +471,7 @@ async function bake(){ if(busy||!st.base_b64) return; busy=true; $('bake').disab
 // ---- UI wiring ----
 [['w',' m','wv'],['d',' m','dv'],['h',' m','hv']].forEach(([i,s,v])=>$(i).oninput=()=>$(v).textContent=$(i).value+s);
 $('sm').oninput=()=>{ $('smv').textContent=(+$('sm').value).toFixed(2); };
-$('str').oninput=()=>{ $('strV').textContent=(+$('str').value).toFixed(2); };
-$('gen').onclick=gen; $('snap').onclick=snap; $('bake').onclick=bake;
-$('reset').onclick=()=>{ edits=[]; sel=-1; pushEditUniforms(); refreshSel(); $('eInfo').textContent='edits cleared'; };
+$('gen').onclick=gen; $('bake').onclick=bake;
 $('mAdd').onclick=()=>{ mode='add'; $('mAdd').classList.add('on'); $('mSub').classList.remove('on'); };
 $('mSub').onclick=()=>{ mode='subtract'; $('mSub').classList.add('on'); $('mAdd').classList.remove('on'); };
 document.querySelectorAll('[data-prim]').forEach(b=>b.onclick=()=>addPrim(b.dataset.prim));
@@ -418,7 +483,8 @@ $('aiDetails').onclick=async()=>{ if(busy||!st.base_b64) return; busy=true; $('a
     edits=edits.filter(e=>e.layer!=='detail');           // replace previous proposal
     r.ops.forEach(o=>edits.push({...o, rot_y:0, round_r:0, layer:'detail'}));
     sel=edits.length-1; pushEditUniforms(); refreshSel();
-    $('eInfo').textContent=`planner placed ${r.n} elements · ${((performance.now()-t)/1000).toFixed(1)}s — drag/resize, then Snap or Bake`;
+    $('stepFinish').open=true;
+    $('eInfo').textContent=`planner placed ${r.n} elements · ${((performance.now()-t)/1000).toFixed(1)}s — drag/resize, then Bake`;
   }catch(e){ $('eInfo').textContent='AI details error: '+e.message; } busy=false; $('aiDetails').disabled=false; };
 // learned interior re-coherence (set refiner) was REMOVED from the demo (2026-06-15): it pulled
 // exterior windows inward and carved holes. Elements now stay on the EXTERIOR where placed.
@@ -520,10 +586,7 @@ $('detPrev').onclick=async()=>{
   busy=false; $('detPrev').disabled=false;
 };
 $('undo').onclick=()=>{ if(edits.length){ edits.pop(); sel=edits.length-1; pushEditUniforms(); refreshSel(); } };
-$('clr').onclick=()=>{ edits=[]; sel=-1; pushEditUniforms(); refreshSel(); };
-['px','py','pz'].forEach((id,k)=>$(id).oninput=()=>{ if(sel<0) return; edits[sel].center[k]=+$(id).value; $(id+'V').textContent=(+$(id).value).toFixed(2); pushEditUniforms(); });
-$('sz').oninput=()=>{ $('szV').textContent=(+$('sz').value).toFixed(2); setSelSize(+$('sz').value); };
-$('ry').oninput=()=>{ if(sel<0) return; edits[sel].rot_y=+$('ry').value; $('ryV').textContent=$('ry').value+'°'; pushEditUniforms(); };
+$('clr').onclick=()=>{ edits=[]; sel=-1; pushEditUniforms(); refreshSel(); $('eInfo').textContent='all edits cleared'; };
 
 function applyParams(){ const q=new URLSearchParams(location.search);
   if(q.get('style')) $('style').value=q.get('style');
@@ -539,9 +602,8 @@ $('applyTown').onclick=async()=>{
   if(busy||!st.base_b64||st.townBid===undefined) return;
   busy=true; $('applyTown').disabled=true; $('eInfo').textContent='baking for the town…'; const t=performance.now();
   try{ const r=await post('/snap_sdf',{base_sdf_b64:st.base_b64, res:st.res,
-      edits:edits.filter(e=>e.layer!=='detail').map(wire),
-      detail_edits:edits.filter(e=>e.layer==='detail').map(wire),
-      strength:+$('str').value, return_mesh:true, center:st.center, scale:st.scale,
+      edits:[], detail_edits:edits.map(wire),   // no diffusion snap, same as bake() above
+      return_mesh:true, center:st.center, scale:st.scale,
       detail:true, building_class:st.cls, style:st.style});
     if(!r.mesh_glb_b64) throw new Error('bake produced no mesh');
     localStorage.setItem('townApply', JSON.stringify({bid:st.townBid, glb_b64:r.mesh_glb_b64, ts:Date.now()}));
