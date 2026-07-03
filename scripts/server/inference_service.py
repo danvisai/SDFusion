@@ -704,6 +704,7 @@ class ExportBuilding(BaseModel):
     edits: List[dict] = Field(default_factory=list)
     weather: float = 0.0                 # Layer 2.5a procedural aging (geometry export path)
     weather_seed: Optional[int] = None
+    ornaments: List[dict] = Field(default_factory=list)  # Layer 2.5b relief instances
     style_ref_b64: Optional[str] = None  # per-building style image (textured export only)
     prompt: Optional[str] = None
 
@@ -742,6 +743,28 @@ def export_town_ep(req: ExportTownReq):
                 "n_buildings": manifest["n_buildings"], "n_vertices": nv}
     except Exception as ex:
         raise HTTPException(400, f"export failed: {ex}")
+
+
+class OrnamentBuildingReq(BaseModel):
+    footprint: List[List[float]]
+    style: str = "modern"
+    height: float = 10.0
+    seed: Optional[int] = None
+
+
+@app.post("/ornament_building")
+def ornament_building(req: OrnamentBuildingReq):
+    """Layer 2.5b: RETRIEVE a culturally-matched heritage-scan relief from
+    data/ornaments_v1 and FIT it to the building's main wall (scale/yaw/sink). Returns the
+    SYMBOLIC instance ({id, edge, t, y, w}) — append to the building's `ornaments` and
+    rebuild via /rebuild_building; the mesh instance is merged procedurally, the diffusion
+    prior never touches it."""
+    from ornaments import propose
+    try:
+        inst = propose(req.footprint, req.height, req.style, seed=req.seed)
+    except Exception as ex:
+        raise HTTPException(400, f"ornament failed: {ex}")
+    return {"ornament": inst}
 
 
 class InterpretMassReq(BaseModel):
@@ -906,6 +929,8 @@ class RebuildBuildingReq(BaseModel):
                                                       # or crude sculpt ops — both are pure CSG)
     weather: float = 0.0                              # Layer 2.5a procedural aging, 0..1
     weather_seed: Optional[int] = None
+    ornaments: List[dict] = Field(default_factory=list)  # Layer 2.5b heritage-relief
+                                                      # instances ({id, edge, t, y, w})
     res: int = 96
 
 
@@ -923,7 +948,7 @@ def rebuild_building(req: RebuildBuildingReq):
             "footprint": req.footprint, "style": req.style, "height": req.height,
             "building_class": req.building_class, "recipe_params": req.recipe_params,
             "edits": req.edits, "weather": req.weather,
-            "weather_seed": req.weather_seed}, res=req.res)
+            "weather_seed": req.weather_seed, "ornaments": req.ornaments}, res=req.res)
     except Exception as ex:
         raise HTTPException(400, f"rebuild failed: {ex}")
     if mesh is None or not len(mesh.faces):

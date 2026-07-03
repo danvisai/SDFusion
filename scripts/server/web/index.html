@@ -69,6 +69,8 @@
       <button class="sec sm" data-add="dome">+ Dome</button>
       <button class="sec sm" data-add="wing">+ Wing</button>
     </div>
+    <div class="row"><button class="sec sm" id="eOrn" style="margin-top:6px">🏛 Ornament (re-roll)</button>
+      <button class="sec sm" id="eOrnClear" style="margin-top:6px">✕</button></div>
     <label>Weathering <span class="val" id="eWxV">0.00</span></label><input type="range" id="eWx" min="0" max="1" value="0" step="0.05"/>
     <label>Snap faithfulness <span class="val" id="eStrengthV">0.50</span></label><input type="range" id="eStrength" min="0.2" max="0.8" value="0.5" step="0.05"/>
     <div class="row"><button class="sm" id="eSnap" style="margin-top:8px">✨ Snap to plausible (AI)</button>
@@ -217,7 +219,7 @@ $('exGo').onclick=async()=>{
   $('info').textContent=tex?'baking textured town (~1 min/building)…':'building export scene…'; const t=performance.now();
   try{ const payload=buildings.slice(0,tex?12:64).map(b=>({footprint:b.footprint,position:b.position,
       style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[],
-      weather:b.weather||0,weather_seed:b.seed??1,style_ref_b64:b.styleRef||null}));
+      weather:b.weather||0,weather_seed:b.seed??1,ornaments:b.ornaments||[],style_ref_b64:b.styleRef||null}));
     const r=await post('/export_town',{buildings:payload,scale:+$('exUnits').value,textures:tex});
     const bin=atob(r.glb_b64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
     dl(new Blob([u8],{type:'model/gltf-binary'}),'town.glb');
@@ -238,8 +240,21 @@ function buildEdit(b,kind){ const B=fpB(b.footprint),h=b.height,w=B.x1-B.x0,d=B.
     return {kind:'box',center:[B.x1-w*0.18,h*0.95,B.z1-d*0.18],size:[r,h*0.5,r],mode:'add',smooth:0.0}; }
   if(kind==='dome')  return {kind:'sphere',center:[(B.x0+B.x1)/2,h,(B.z0+B.z1)/2],size:[Math.min(w,d)*0.42],mode:'add',smooth:0.4};
   return {kind:'box',center:[B.x1+w*0.18,h*0.3,(B.z0+B.z1)/2],size:[w*0.2,h*0.3,d*0.32],mode:'add',smooth:0.0}; } // wing
-async function rebuild(b){ const m=await post('/rebuild_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[],weather:b.weather||0,weather_seed:b.seed??1});
+async function rebuild(b){ const m=await post('/rebuild_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[],weather:b.weather||0,weather_seed:b.seed??1,ornaments:b.ornaments||[]});
   await setMesh(b,m.mesh_glb_b64); return m; }
+// ORNAMENT (Layer 2.5b): retrieve a real heritage-scan relief matched to the style and fit
+// it onto the main wall — symbolic instance in b.ornaments, merged procedurally at rebuild.
+$('eOrn').onclick=async()=>{ if(!selected||busy)return; busy=true; const b=selected;
+  $('eInfo').textContent='fitting ornament…'; const t=performance.now();
+  try{ const r=await post('/ornament_building',{footprint:b.footprint,style:b.style,height:b.height,seed:Math.floor(Math.random()*99999)});
+    b.ornaments=[r.ornament];                     // one panel in v0 — click again to re-roll
+    const m=await rebuild(b);
+    $('eInfo').textContent=`🏛 ${r.ornament.name.slice(0,58)} · ${m.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s`;
+  }catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; };
+$('eOrnClear').onclick=async()=>{ if(!selected||busy||!(selected.ornaments||[]).length)return; busy=true;
+  selected.ornaments=[]; $('eInfo').textContent='rebuilding…';
+  try{ await rebuild(selected); $('eInfo').textContent='ornament cleared'; }
+  catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; };
 // WEATHERING (Layer 2.5a): procedural aging — cracks, chipped edges, erosion — carved into
 // the final SDF server-side; part of the building's state, reproduced exactly on export.
 $('eWx').onchange=async()=>{ if(!selected||busy)return; busy=true; const b=selected; b.weather=+$('eWx').value;

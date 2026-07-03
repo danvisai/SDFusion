@@ -137,6 +137,14 @@ def build_building_mesh(refiner, b, res=96):
         mesh = _orient_mesh_outward(mesh, sdf, refiner.device)
         from scene.mesh_cleanup import cleanup_mesh
         mesh = cleanup_mesh(mesh)                         # weld + drop floating fragments
+        if b.get("ornaments"):
+            # Layer 2.5b: heritage-scan relief instances, merged AFTER cleanup so the
+            # fragment-dropper can't remove them; full scan detail, SDF-res independent
+            try:
+                from ornaments import apply_ornaments
+                mesh = apply_ornaments(mesh, b["ornaments"], poly)
+            except Exception as ex:
+                print(f"[export] ornaments unavailable ({ex})")
     return mesh
 
 
