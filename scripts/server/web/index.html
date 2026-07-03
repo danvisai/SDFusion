@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GenerativeTowns — footprints → 3D town, sculpt &amp; restyle</title>
+<style>
+  :root { --panel:#f3f5f8; --ink:#1d2733; --mut:#5f6b7a; --acc:#1769d6; --line:#dde3ea; --sel:#f0a526; }
+  * { box-sizing:border-box; }
+  body { margin:0; height:100vh; display:flex; font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; background:#fff; color:var(--ink); overflow:hidden; }
+  #panel { width:316px; flex:0 0 316px; padding:18px; background:var(--panel); overflow:auto; border-right:1px solid var(--line); }
+  h1 { font-size:17px; margin:0; } .sub { color:var(--mut); font-size:12px; margin:4px 0 14px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin:18px 0 6px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .card.sel { border-color:var(--sel); box-shadow:0 0 0 2px #f0a52633; }
+  label { display:block; margin:10px 0 4px; color:var(--mut); font-size:12px; }
+  select, input[type=range], input[type=number] { width:100%; }
+  .val { color:var(--acc); float:right; font-variant-numeric:tabular-nums; }
+  .row { display:flex; gap:8px; } .row>*{ flex:1; }
+  button { width:100%; margin-top:10px; padding:10px; border:0; border-radius:8px; background:var(--acc); color:#fff; font-weight:650; cursor:pointer; font-size:14px; }
+  button.sec { background:#e7ecf2; color:var(--ink); }
+  button.sm { margin-top:0; padding:7px; font-size:12px; }
+  button:disabled { opacity:.55; cursor:wait; }
+  #drop { border:2px dashed #c3ccd7; border-radius:10px; padding:14px; text-align:center; color:var(--mut); cursor:pointer; background:#fff; }
+  #drop.hot { border-color:var(--acc); background:#eef4fd; }
+  #prev { width:100%; margin-top:8px; border-radius:6px; display:none; border:1px solid var(--line); }
+  #info,#eInfo { margin-top:10px; color:var(--mut); font-size:12px; white-space:pre-line; }
+  #view { flex:1; position:relative; }
+  #hint { position:absolute; bottom:10px; left:12px; color:#fff; font-size:11px; text-shadow:0 1px 2px #0007; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>GenerativeTowns</h1>
+  <div class="sub">Footprints → 3D town. <b>Click a building</b> to select, then restyle / sculpt — the mesh adapts live.</div>
+
+  <h2>① Town from a footprint image</h2>
+  <div class="card">
+    <div id="drop">Drop an OSM map / footprint image<br/><small>or click to choose</small><input type="file" id="file" accept="image/*" style="display:none"/></div>
+    <img id="prev"/>
+    <div id="samples" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+    <label>Image spans <span class="val" id="mav">200 m</span></label><input type="range" id="ma" min="60" max="800" value="200" step="10"/>
+    <label>Max buildings <span class="val" id="mbv">40</span></label><input type="range" id="mb" min="4" max="120" value="40" step="2"/>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="inv" style="width:auto"/>Invert detection</label>
+    <button id="genimg" disabled>Generate town from image</button>
+  </div>
+
+  <h2>② Single building</h2>
+  <div class="card">
+    <div class="row"><div><label>Class</label><select id="cls"><option>RESIDENTIAL</option><option>COMMERCIAL</option><option>PUBLIC</option><option>RELIGIOUS</option></select></div>
+      <div><label>Style</label><select id="style"><option>modern</option><option>victorian</option><option>colonial</option><option>industrial</option><option>craftsman</option><option>contemporary</option><option>mediterranean</option><option>public_civic</option></select></div></div>
+    <label>Width <span class="val" id="wv">14 m</span></label><input type="range" id="w" min="6" max="30" value="14"/>
+    <label>Depth <span class="val" id="dv">18 m</span></label><input type="range" id="d" min="6" max="30" value="18"/>
+    <label>Height <span class="val" id="hv">16 m</span></label><input type="range" id="h" min="5" max="60" value="16"/>
+    <button class="sec" id="gen">Generate building</button>
+  </div>
+
+  <h2>③ Selected building</h2>
+  <div class="card sel" id="editor" style="display:none">
+    <div id="eTitle" style="font-weight:650;margin-bottom:4px"></div>
+    <label>Restyle <span class="val" style="color:var(--sel)">live</span></label>
+    <select id="eStyle"><option>modern</option><option>victorian</option><option>colonial</option><option>industrial</option><option>craftsman</option><option>contemporary</option><option>mediterranean</option><option>public_civic</option></select>
+    <label>Height <span class="val" id="eHv">16 m</span></label><input type="range" id="eH" min="5" max="70" value="16"/>
+    <label>Class</label><select id="eCls"><option>RESIDENTIAL</option><option>COMMERCIAL</option><option>PUBLIC</option><option>RELIGIOUS</option></select>
+    <label>Sculpt — add architecture (procedural, crisp)</label>
+    <div class="grid3">
+      <button class="sec sm" data-add="tower">+ Tower</button>
+      <button class="sec sm" data-add="dome">+ Dome</button>
+      <button class="sec sm" data-add="wing">+ Wing</button>
+    </div>
+    <label>Snap faithfulness <span class="val" id="eStrengthV">0.50</span></label><input type="range" id="eStrength" min="0.2" max="0.8" value="0.5" step="0.05"/>
+    <div class="row"><button class="sm" id="eSnap" style="margin-top:8px">✨ Snap to plausible (AI)</button>
+      <button class="sec sm" id="eUndo" style="margin-top:8px">↩ Undo edit</button></div>
+    <div class="row"><button class="sec sm" id="eSeed" style="margin-top:8px">🎲 Variation</button>
+      <button class="sec sm" id="eDe" style="margin-top:8px">Deselect</button></div>
+    <button class="sec sm" id="eSculpt" style="margin-top:8px">🔨 Open in SDF Sculptor</button>
+    <label style="margin-top:10px">Style image <span class="val" id="eRefName">none</span></label>
+    <div class="row"><button class="sec sm" id="eRefPick">🖼 Pick…</button><button class="sec sm" id="eRefClear">✕</button></div>
+    <input type="file" id="eRefFile" accept="image/*" style="display:none"/>
+    <img id="eRefThumb" style="display:none;width:100%;margin-top:6px;border-radius:6px"/>
+    <div id="eInfo"></div>
+  </div>
+
+  <h2>④ Photoreal town</h2>
+  <div class="card">
+    <button id="townRender">📸 Photoreal render (per-building styles)</button>
+    <div style="color:#5b6b7a;font-size:11px;margin-top:5px">Renders the whole town with
+    diffusion pixels on the exact geometry. Each building with a style image keeps its own
+    look; the rest follow the prompt. ~30s.</div>
+  </div>
+
+  <h2>⑤ Export to engine</h2>
+  <div class="card">
+    <label>Units</label>
+    <select id="exUnits"><option value="100">centimeters (Unreal)</option><option value="1">meters (Blender / glTF)</option></select>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="exTex" style="width:auto"/>Bake textures (per-building style, ~1 min each)</label>
+    <button id="exGo">⬇ Export town (.glb)</button>
+    <div style="color:#5b6b7a;font-size:11px;margin-top:5px">One glTF scene of the whole
+    town (each building a named node, exact geometry incl. sculpt edits, + ground). UE5:
+    Import, enable Nanite, light it. With <b>Bake textures</b> on, each building imports
+    wearing its style image as a material (slower; capped at 12 buildings).</div>
+  </div>
+  <div id="info">loading engine…</div>
+  <div id="trOverlay" style="display:none;position:fixed;inset:0;background:#000c;z-index:50;align-items:center;justify-content:center;flex-direction:column;gap:10px">
+    <img id="trImg" style="max-width:84vmin;max-height:84vmin;border-radius:10px"/>
+    <div style="display:flex;gap:8px">
+      <button class="sm" id="trSave" style="width:auto;padding:8px 16px">⬇ Save PNG</button>
+      <button class="sec sm" id="trClose" style="width:auto;padding:8px 16px">Close</button>
+    </div>
+  </div>
+</div>
+<div id="view"><div id="hint">click a building to select · drag to orbit · scroll to zoom</div></div>
+
+<script type="importmap">
+{ "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" }}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const view=document.getElementById('view');
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(devicePixelRatio); renderer.setSize(view.clientWidth,view.clientHeight);
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.25; view.appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0xbcd6f0); scene.fog=new THREE.Fog(0xbcd6f0,260,1100);
+const camera=new THREE.PerspectiveCamera(45,view.clientWidth/view.clientHeight,0.1,4000); camera.position.set(60,50,90);
+const controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.maxPolarAngle=Math.PI*0.495;
+scene.add(new THREE.HemisphereLight(0xffffff,0x96a3b3,1.15));
+const sun=new THREE.DirectionalLight(0xfff4e0,2.2); sun.position.set(80,140,60); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+const sc=sun.shadow.camera; sc.left=sc.bottom=-300; sc.right=sc.top=300; sc.far=600; scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(8000,8000),new THREE.MeshStandardMaterial({color:0x9fb59a,roughness:1})); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+const grid=new THREE.GridHelper(2400,240,0x88a0b8,0xaebccb); grid.material.opacity=.35; grid.material.transparent=true; scene.add(grid);
+const baseMat=new THREE.MeshStandardMaterial({color:0xeadfca,roughness:.82,metalness:0,flatShading:true,side:THREE.DoubleSide});
+const selMat =new THREE.MeshStandardMaterial({color:0xffe2a6,roughness:.7,metalness:0,flatShading:true,side:THREE.DoubleSide,emissive:0x6a4a00,emissiveIntensity:.25});
+const loader=new GLTFLoader(); const town=new THREE.Group(); scene.add(town);
+const boxHelper=new THREE.BoxHelper(new THREE.Object3D(),0xf0a526); boxHelper.visible=false; scene.add(boxHelper);
+const ray=new THREE.Raycaster();
+let buildings=[], selected=null;
+addEventListener('error', e=>{ const el=document.getElementById('info'); if(el) el.textContent='JS error: '+(e.message||e.error); });
+addEventListener('resize',()=>{camera.aspect=view.clientWidth/view.clientHeight;camera.updateProjectionMatrix();renderer.setSize(view.clientWidth,view.clientHeight);});
+(function loop(){requestAnimationFrame(loop);controls.update(); if(selected)boxHelper.update(); renderer.render(scene,camera);})();
+
+const $=id=>document.getElementById(id);
+function b64buf(b){b=b.split(',').pop();const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer;}
+async function post(u,b){const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(!r.ok)throw new Error((await r.text()).slice(0,160));return r.json();}
+const rect=(w,d)=>[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]];
+[['w',' m','wv'],['d',' m','dv'],['h',' m','hv'],['ma',' m','mav'],['mb','','mbv'],['eH',' m','eHv'],['eStrength','','eStrengthV']].forEach(([i,s,v])=>{$(i).oninput=()=>$(v).textContent=$(i).value+s;});
+
+function setMesh(b,glb){ return new Promise(res=>{ if(b.group)town.remove(b.group); loader.parse(b64buf(glb),'',g=>{ g.scene.traverse(o=>{if(o.isMesh){o.material=(b===selected?selMat:baseMat);o.castShadow=true;o.receiveShadow=true;}}); g.scene.position.set(b.position[0],0,b.position[1]); g.scene.userData.b=b; b.group=g.scene; town.add(g.scene); if(b===selected){boxHelper.setFromObject(g.scene);boxHelper.visible=true;} res(b); }); }); }
+async function addBuilding(d){ const b={footprint:d.footprint,position:d.position||[0,0],style:d.style,cls:d.building_class,height:d.height,seed:d.seed??1,params:d.recipe_params,edits:[]}; await setMesh(b,d.glb_b64||d.mesh_glb_b64); buildings.push(b); return b; }
+function clearTown(){ buildings.forEach(b=>b.group&&town.remove(b.group)); buildings=[]; deselect(); }
+function frame(){ const box=new THREE.Box3().setFromObject(town); if(box.isEmpty())return; const c=box.getCenter(new THREE.Vector3()),s=box.getSize(new THREE.Vector3()),r=Math.max(s.x,s.z,s.y*1.4); controls.target.copy(c); camera.position.set(c.x+r*1.05,c.y+r*0.85,c.z+r*1.25); }
+
+function applyMat(b,m){ b.group&&b.group.traverse(o=>{if(o.isMesh)o.material=m;}); }
+function select(b){ if(selected)applyMat(selected,baseMat); selected=b; applyMat(b,selMat); boxHelper.setFromObject(b.group); boxHelper.visible=true;
+  if(b.styleRef){ $('eRefThumb').src=b.styleRef; $('eRefThumb').style.display='block'; $('eRefName').textContent='set'; }
+  else { $('eRefThumb').style.display='none'; $('eRefName').textContent='none'; }
+  $('editor').style.display='block'; $('eTitle').textContent=`${b.cls.toLowerCase()} · ${b.style}`; $('eStyle').value=b.style; $('eCls').value=b.cls; $('eH').value=Math.round(b.height); $('eHv').textContent=Math.round(b.height)+' m'; $('eInfo').textContent=''; }
+function deselect(){ if(selected)applyMat(selected,baseMat); selected=null; boxHelper.visible=false; $('editor').style.display='none'; }
+renderer.domElement.addEventListener('pointerdown',ev=>{ if(ev.button!==0||ev.detail>1)return; const r=renderer.domElement.getBoundingClientRect(); const m=new THREE.Vector2(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(m,camera); const hits=ray.intersectObjects(buildings.filter(b=>b.group).map(b=>b.group),true);
+  if(hits.length){let o=hits[0].object;while(o&&!o.userData.b)o=o.parent;if(o)select(o.userData.b);} });
+
+// regenerate the selected building with new style/class/height/seed -> mesh adapts live
+let busy=false;
+async function adapt(changes){ if(!selected||busy)return; busy=true; const b=selected; Object.assign(b,changes); $('eInfo').textContent='adapting mesh…';
+  try{ const r=await post('/regenerate_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,seed:b.seed,diversity:'high',detail:true});
+    b.params=r.recipe_params; b.style=r.style; setMesh(b,r.mesh_glb_b64); $('eTitle').textContent=`${b.cls.toLowerCase()} · ${b.style}`; $('eInfo').textContent='updated';
+  }catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; }
+$('eStyle').onchange=()=>adapt({style:$('eStyle').value});
+$('eCls').onchange=()=>adapt({cls:$('eCls').value});
+$('eH').onchange=()=>adapt({height:+$('eH').value});
+$('eSeed').onclick=()=>adapt({seed:Math.floor(Math.random()*9999)});
+$('eDe').onclick=deselect;
+// open the selected building in the raymarched SDF sculptor — bid links it back so the
+// sculptor's "Apply to town" replaces THIS building's mesh in place
+$('eSculpt').onclick=()=>{ if(!selected)return; const b=selected;
+  const q=new URLSearchParams({style:b.style,cls:b.cls,h:Math.round(b.height),
+    fp:JSON.stringify(b.footprint),bid:String(buildings.indexOf(b)),seed:String(b.seed??1)});
+  window.open('/sculpt.html?'+q.toString(),'_blank'); };
+// receive the sculpted bake back from the sculptor tab (localStorage bridge)
+addEventListener('storage', async ev=>{
+  if(ev.key!=='townApply'||!ev.newValue) return;
+  try{ const d=JSON.parse(ev.newValue); const b=buildings[d.bid];
+    if(b&&d.glb_b64){ await setMesh(b,d.glb_b64); $('info').textContent=`building ${d.bid} updated from the sculptor`; }
+  }catch(e){} });
+// per-building STYLE IMAGE (used by the photoreal town render)
+$('eRefPick').onclick=()=>$('eRefFile').click();
+$('eRefFile').onchange=()=>{ const f=$('eRefFile').files[0]; if(!f||!selected) return;
+  const rd=new FileReader(); rd.onload=()=>{ selected.styleRef=rd.result;
+    $('eRefThumb').src=rd.result; $('eRefThumb').style.display='block';
+    $('eRefName').textContent=f.name.slice(0,20); }; rd.readAsDataURL(f); };
+$('eRefClear').onclick=()=>{ if(selected) selected.styleRef=null;
+  $('eRefThumb').style.display='none'; $('eRefName').textContent='none'; };
+// PHOTOREAL TOWN: exact geometry (params + sculpt edits + detail), per-building styles
+$('townRender').onclick=async()=>{
+  if(busy||!buildings.length) return; busy=true; $('townRender').disabled=true;
+  $('info').textContent='photoreal town render… (first run loads SDXL ~1 min)'; const t=performance.now();
+  try{ const payload=buildings.slice(0,12).map(b=>({footprint:b.footprint,position:b.position,
+      style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,
+      edits:b.edits||[],style_ref_b64:b.styleRef||null}));
+    const r=await post('/neural_render_town',{buildings:payload});
+    $('trImg').src='data:image/png;base64,'+r.image_b64; $('trOverlay').style.display='flex';
+    $('info').textContent=`photoreal town (${r.n_buildings} bldgs) · ${((performance.now()-t)/1000).toFixed(0)}s`;
+  }catch(e){ $('info').textContent='render error: '+e.message; }
+  busy=false; $('townRender').disabled=false; };
+$('trClose').onclick=()=>{ $('trOverlay').style.display='none'; };
+$('trSave').onclick=()=>{ const a=document.createElement('a'); a.href=$('trImg').src; a.download='town.png'; a.click(); };
+// EXPORT: one glTF scene of the whole town (exact geometry incl. sculpt edits) + manifest.
+function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+$('exGo').onclick=async()=>{
+  if(busy||!buildings.length) return; busy=true; $('exGo').disabled=true;
+  const tex=$('exTex').checked;
+  $('info').textContent=tex?'baking textured town (~1 min/building)…':'building export scene…'; const t=performance.now();
+  try{ const payload=buildings.slice(0,tex?12:64).map(b=>({footprint:b.footprint,position:b.position,
+      style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[],
+      style_ref_b64:b.styleRef||null}));
+    const r=await post('/export_town',{buildings:payload,scale:+$('exUnits').value,textures:tex});
+    const bin=atob(r.glb_b64); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+    dl(new Blob([u8],{type:'model/gltf-binary'}),'town.glb');
+    dl(new Blob([JSON.stringify(r.manifest,null,2)],{type:'application/json'}),'town_manifest.json');
+    $('info').textContent=`exported ${r.n_buildings} buildings · ${(r.n_vertices/1000|0)}k verts · ${r.manifest.units} · ${((performance.now()-t)/1000).toFixed(1)}s — town.glb + manifest downloaded`;
+  }catch(e){ $('info').textContent='export error: '+e.message; } busy=false; $('exGo').disabled=false; };
+// sculpt. Quick-add buttons are PROCEDURAL (Make-it-architecture): the crude primitive is
+// typed as a real part server-side (/interpret_mass_world bridges world meters <-> the
+// classifier's cube frame) and the returned typed CSG construction is applied crisp via
+// /rebuild_building — the diffusion prior never touches it, so it can't melt placed detail.
+// The ✨ Snap button stays as the manual generative option (SDEdit massing prior).
+const fpB=fp=>{const xs=fp.map(p=>p[0]),zs=fp.map(p=>p[1]);return{x0:Math.min(...xs),x1:Math.max(...xs),z0:Math.min(...zs),z1:Math.max(...zs)};};
+function buildEdit(b,kind){ const B=fpB(b.footprint),h=b.height,w=B.x1-B.x0,d=B.z1-B.z0;
+  // tower primitive sits HIGH (0.45h..1.45h, slender cross-section capped vs height) so the
+  // classifier reads it unambiguously as a tower (a ground-to-roof block reads as 'raw');
+  // the returned construction anchors the shaft to the ground anyway.
+  if(kind==='tower'){ const r=Math.min(Math.min(w,d)*0.16,h*0.2);
+    return {kind:'box',center:[B.x1-w*0.18,h*0.95,B.z1-d*0.18],size:[r,h*0.5,r],mode:'add',smooth:0.0}; }
+  if(kind==='dome')  return {kind:'sphere',center:[(B.x0+B.x1)/2,h,(B.z0+B.z1)/2],size:[Math.min(w,d)*0.42],mode:'add',smooth:0.4};
+  return {kind:'box',center:[B.x1+w*0.18,h*0.3,(B.z0+B.z1)/2],size:[w*0.2,h*0.3,d*0.32],mode:'add',smooth:0.0}; } // wing
+async function rebuild(b){ const m=await post('/rebuild_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,edits:b.edits||[]});
+  await setMesh(b,m.mesh_glb_b64); return m; }
+async function makeArchitecture(kind){ if(!selected||busy)return; busy=true; const b=selected;
+  $('eInfo').textContent='making sense of the mass…'; const t=performance.now();
+  try{ const r=await post('/interpret_mass_world',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,seed:b.seed??1,op:buildEdit(b,kind),existing_ops:b.edits||[]});
+    const grp='gI'+Date.now();                          // one group per construction = the undo unit
+    (b.edits=b.edits||[]).push(...r.ops.map(o=>({...o,grp})));
+    const m=await rebuild(b);
+    const coh=r.coherent?' · aligned to neighbors':'';
+    $('eInfo').textContent=`${r.kind.toUpperCase()} · ${r.n} ops (${r.source})${coh} · ${m.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s`;
+  }catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; }
+async function snap(){ if(!selected||busy)return; busy=true; const b=selected;
+  $('eInfo').textContent='snapping to a plausible building…'; const t=performance.now();
+  try{ const r=await post('/refine_with_edit',{base_style:b.style,base_recipe_params:b.params,footprint:b.footprint,height:b.height,edits:b.edits||[],building_class:b.cls,mode:'sdedit',strength:+$('eStrength').value});
+    await setMesh(b,r.mesh_glb_b64); $('eInfo').textContent=`snapped · ${r.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s`;
+  }catch(e){ $('eInfo').textContent='snap error: '+e.message; } busy=false; }
+document.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=()=>{ if(!selected)return; makeArchitecture(btn.dataset.add); });
+$('eSnap').onclick=()=>snap();
+$('eUndo').onclick=async()=>{ if(!selected||busy||!selected.edits||!selected.edits.length)return; busy=true; const b=selected;
+  const last=b.edits[b.edits.length-1];                 // drop the whole construction, not one op
+  b.edits=last.grp?b.edits.filter(e=>e.grp!==last.grp):b.edits.slice(0,-1);
+  $('eInfo').textContent='rebuilding…';
+  try{ const m=await rebuild(b); $('eInfo').textContent=`edit undone · ${m.n_vertices.toLocaleString()} verts`; }
+  catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; };
+
+// ---- single building ----
+async function gen(){ const bt=$('gen'); bt.disabled=true; $('info').textContent='generating…'; clearTown(); const t=performance.now();
+  try{ const r=await post('/regenerate_building',{footprint:rect(+$('w').value,+$('d').value),style:$('style').value,building_class:$('cls').value,height:+$('h').value,seed:1,diversity:'high',detail:true});
+    const b=await addBuilding({...r, glb_b64:r.mesh_glb_b64, footprint:rect(+$('w').value,+$('d').value), position:[0,0], building_class:$('cls').value, height:+$('h').value, style:r.style}); frame(); select(b);
+    $('info').textContent=`${r.style} · ${r.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s — click parts to edit`;
+  }catch(e){ $('info').textContent='error: '+e.message; } bt.disabled=false; }
+$('gen').onclick=gen;
+
+// ---- image -> town ----
+let imgData=null;
+function loadImg(f){ const rd=new FileReader(); rd.onload=()=>{imgData=rd.result;$('prev').src=imgData;$('prev').style.display='block';$('genimg').disabled=false;$('info').textContent='image loaded — click Generate';};rd.readAsDataURL(f); }
+$('file').onchange=e=>{if(e.target.files[0])loadImg(e.target.files[0]);};
+const drop=$('drop'); drop.onclick=()=>$('file').click(); drop.ondragover=e=>{e.preventDefault();drop.classList.add('hot');}; drop.ondragleave=()=>drop.classList.remove('hot'); drop.ondrop=e=>{e.preventDefault();drop.classList.remove('hot');if(e.dataTransfer.files[0])loadImg(e.dataTransfer.files[0]);};
+async function genImg(){ if(!imgData)return; const bt=$('genimg'); bt.disabled=true; $('info').textContent='detecting footprints + generating town…'; clearTown(); const t=performance.now();
+  try{ const r=await post('/generate_from_image',{image_b64:imgData,meters_across:+$('ma').value,max_buildings:+$('mb').value,invert:$('inv').checked});
+    for(const bd of r.buildings) await addBuilding(bd); frame();
+    $('info').textContent=`town: ${r.n_buildings} buildings · ${((performance.now()-t)/1000).toFixed(1)}s — click any building to restyle/sculpt`;
+  }catch(e){ $('info').textContent='error: '+e.message; } bt.disabled=false; }
+$('genimg').onclick=genImg;
+
+fetch('/samples/samples.json').then(r=>r.json()).then(list=>{ list.forEach(s=>{const b=document.createElement('button');b.className='sec sm';b.style='flex:0 0 auto';b.textContent=s.label;
+  b.onclick=async()=>{const blob=await(await fetch('/samples/'+s.file)).blob();const rd=new FileReader();rd.onload=()=>{imgData=rd.result;$('prev').src=imgData;$('prev').style.display='block';$('genimg').disabled=false;$('ma').value=Math.round(s.meters_across);$('mav').textContent=Math.round(s.meters_across)+' m';$('mb').value=90;$('mbv').textContent='90';genImg();};rd.readAsDataURL(blob);};
+  $('samples').appendChild(b);}); }).catch(()=>{});
+fetch('/health').then(r=>r.json()).then(h=>{$('info').textContent=`engine: ${h.device} — generate a building or drop a footprint image`;gen();}).catch(()=>$('info').textContent='cannot reach engine');
+</script>
+</body>
+</html>

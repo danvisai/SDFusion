@@ -758,6 +758,25 @@ class InterpretMassReq(BaseModel):
                                         # integrate_new_part); omit/empty -> unchanged behavior.
 
 
+def _interpret_and_integrate(grid, op, existing_ops, building_class, style, seed, temperature):
+    """Shared classify -> typed-construction (+ CoherentPartRefiner alignment) core of
+    /interpret_mass and /interpret_mass_world. Cube frame in, cube frame out."""
+    from layout_detail import interpret_mass, integrate_new_part
+    out = interpret_mass(grid, op, building_class=building_class, style=style,
+                         seed=seed, temperature=temperature)
+    out["coherent"] = False
+    if existing_ops and out.get("ops"):
+        n_new = len(out["ops"])
+        merged, used = integrate_new_part(grid, existing_ops, out["ops"],
+                                          building_class=building_class,
+                                          device=refiner().device)
+        if used:
+            # integrate_new_part appends the new construction's group LAST (existing groups
+            # keep their input order first) -> the trailing n_new ops are the refined result.
+            out["ops"], out["coherent"] = merged[-n_new:], True
+    return out
+
+
 @app.post("/interpret_mass")
 def interpret_mass_ep(req: InterpretMassReq):
     """SMART ADD: make sense of a placed mass — classify it as an architectural part
@@ -767,30 +786,147 @@ def interpret_mass_ep(req: InterpretMassReq):
     with same-type neighbors (row/spacing/wall-attach) before returning."""
     import base64 as _b
     import numpy as np
-    from layout_detail import interpret_mass, integrate_new_part
     try:
         grid = np.frombuffer(_b.b64decode(req.base_sdf_b64.split(",")[-1]),
                              dtype="<f4").reshape(req.res, req.res, req.res).copy()
     except Exception as ex:
         raise HTTPException(400, f"bad base_sdf_b64: {ex}")
     try:
-        out = interpret_mass(grid, req.op, building_class=req.building_class,
-                             style=req.style, seed=req.seed, temperature=req.temperature)
-        out["coherent"] = False
-        if req.existing_ops and out.get("ops"):
-            dev = refiner().device
-            n_new = len(out["ops"])
-            merged, used = integrate_new_part(
-                grid, req.existing_ops, out["ops"], building_class=req.building_class, device=dev)
-            if used:
-                # integrate_new_part appends the new construction's group LAST (existing groups
-                # keep their input order first) -> the trailing n_new ops are the refined result.
-                out["ops"], out["coherent"] = merged[-n_new:], True
+        out = _interpret_and_integrate(grid, req.op, req.existing_ops, req.building_class,
+                                       req.style, req.seed, req.temperature)
     except Exception as ex:
         raise HTTPException(400, f"interpret failed: {ex}")
     return {"kind": out["kind"], "n": len(out["ops"]), "ops": out["ops"],
             "source": out.get("source", "rules"), "p_types": out.get("p_types", {}),
             "coherent": out["coherent"]}
+
+
+# -- world-meter frame bridge for the town page (index.html) ----------------
+# index.html buildings are symbolic state (recipe params + a world-meter edit list), not a
+# cached cube SDF like sculpt.html's — ops must be converted through the SAME (center, scale)
+# the massing volume is built with, or they land outside the sampled cube (see
+# test_coherent_add_bake.world_box_op, where this bridge was first proven).
+
+def _op_scale_size(kind, size, f):
+    """Scale an EditOp size by factor f. Size layouts are kind-specific (scene/sdf_edit
+    ._primitive): box/rounded_box=[hx,hy,hz], sphere=[r], cylinder=[r,h],
+    gable/hip=[w,d,body_h,roof_h] — all lengths; cone=[angle_deg, height] — the ANGLE is
+    scale-invariant, only the height converts."""
+    vals = [float(v) for v in size]
+    if kind == "cone":
+        return [vals[0]] + [v * f for v in vals[1:]]
+    return [v * f for v in vals]
+
+
+def _op_world_to_cube(op, c, s):
+    o = dict(op)
+    o["center"] = [(float(v) - float(cv)) / s for v, cv in zip(op["center"], c)]
+    o["size"] = _op_scale_size(op.get("kind", "box"), op.get("size", [1, 1, 1]), 1.0 / s)
+    for k in ("smooth", "round_r"):
+        if op.get(k):
+            o[k] = float(op[k]) / s
+    return o
+
+
+def _op_cube_to_world(op, c, s):
+    o = dict(op)
+    o["center"] = [float(v) * s + float(cv) for v, cv in zip(op["center"], c)]
+    o["size"] = _op_scale_size(op.get("kind", "box"), op.get("size", [1, 1, 1]), s)
+    for k in ("smooth", "round_r"):
+        if op.get(k):
+            o[k] = float(op[k]) * s
+    return o
+
+
+class InterpretMassWorldReq(BaseModel):
+    footprint: List[List[float]]        # local building meters (the town page's b.footprint)
+    style: str = "modern"
+    building_class: str = "RESIDENTIAL"
+    height: float = 10.0
+    recipe_params: List[float]
+    op: dict                            # the raw placed EditOp, WORLD meters (same frame as
+                                        # footprint; y=0 is the ground)
+    existing_ops: List[dict] = Field(default_factory=list)  # the building's current edit list
+                                        # (world meters): mass ops (no det tag) are composed
+                                        # into the massing the new op is classified against;
+                                        # det-tagged ops feed the coherence pass.
+    seed: Optional[int] = None
+    temperature: float = 0.9
+
+
+@app.post("/interpret_mass_world")
+def interpret_mass_world(req: InterpretMassWorldReq):
+    """SMART ADD for the town page: same classify -> typed-construction (+ coherent align)
+    as /interpret_mass, but in world meters. Rebuilds the base massing volume from the
+    building's recipe state, bridges the op through the volume's (center, scale), and returns
+    the construction back in world meters — ready to append to the building's edit list and
+    rebuild procedurally via /rebuild_building (no diffusion anywhere on this path)."""
+    if req.style not in ps.STYLE_TO_IDX:
+        raise HTTPException(400, f"unknown style '{req.style}'")
+    r = refiner()
+    try:
+        grid, c, s, _hn = r.building_volume(req.footprint, req.style, req.recipe_params,
+                                            req.height, res=64)
+    except Exception as ex:
+        raise HTTPException(400, f"base massing failed: {ex}")
+    s = float(s)
+    try:
+        cube_exist = [_op_world_to_cube(o, c, s) for o in req.existing_ops]
+        mass_ops = [o for o in cube_exist if not o.get("det")]
+        detail_ops = [o for o in cube_exist if o.get("det")]
+        if mass_ops:   # earlier adds are part of the massing the new op is typed against
+            from refine import volume_to_sdf
+            from scene.sdf_edit import EditableBuilding, EditOp
+            from scene.sdf_primitives import sample_grid
+            comp = EditableBuilding(volume_to_sdf(grid, r.device),
+                                    [EditOp.from_dict(d) for d in mass_ops]).composed()
+            grid = sample_grid(comp, 64, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
+                               device=r.device).cpu().numpy()
+        out = _interpret_and_integrate(grid, _op_world_to_cube(req.op, c, s), detail_ops,
+                                       req.building_class, req.style, req.seed,
+                                       req.temperature)
+        world_ops = [_op_cube_to_world(o, c, s) for o in out["ops"]]
+    except Exception as ex:
+        raise HTTPException(400, f"interpret failed: {ex}")
+    return {"kind": out["kind"], "n": len(world_ops), "ops": world_ops,
+            "source": out.get("source", "rules"), "p_types": out.get("p_types", {}),
+            "coherent": out["coherent"]}
+
+
+class RebuildBuildingReq(BaseModel):
+    footprint: List[List[float]]
+    style: str = "modern"
+    building_class: str = "RESIDENTIAL"
+    height: float = 10.0
+    recipe_params: List[float]
+    edits: List[dict] = Field(default_factory=list)   # world-meter EditOps (typed
+                                                      # constructions from /interpret_mass_world
+                                                      # or crude sculpt ops — both are pure CSG)
+    res: int = 96
+
+
+@app.post("/rebuild_building", response_model=MeshResp)
+def rebuild_building(req: RebuildBuildingReq):
+    """PROCEDURAL-ONLY rebuild of one town building: recipe base + CSG edits + composer
+    detail -> mesh, the exact per-building path /export_town uses (town_export.
+    build_building_mesh). The town page's Make-it-architecture and Undo regenerate through
+    this, so placed constructions can never be remolded by the diffusion prior."""
+    if req.style not in ps.STYLE_TO_IDX:
+        raise HTTPException(400, f"unknown style '{req.style}'")
+    from town_export import build_building_mesh
+    try:
+        mesh = build_building_mesh(refiner(), {
+            "footprint": req.footprint, "style": req.style, "height": req.height,
+            "building_class": req.building_class, "recipe_params": req.recipe_params,
+            "edits": req.edits}, res=req.res)
+    except Exception as ex:
+        raise HTTPException(400, f"rebuild failed: {ex}")
+    if mesh is None or not len(mesh.faces):
+        raise HTTPException(400, "rebuild produced an empty mesh")
+    return MeshResp(style=req.style, recipe_params=list(map(float, req.recipe_params)),
+                    mesh_glb_b64=_b64(engine().mesh_to_glb(mesh)),
+                    n_vertices=len(mesh.vertices), n_faces=len(mesh.faces),
+                    position_xz=[0.0, 0.0])
 
 
 class ProposeDetailsReq(BaseModel):
