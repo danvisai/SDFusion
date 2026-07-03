@@ -34,7 +34,55 @@ class BaseOptions():
         self.parser.add_argument('--res', type=int, default=64, help='dataset resolution')
         self.parser.add_argument('--cat', type=str, default='chair', help='category for shapenet')
         self.parser.add_argument('--trunc_thres', type=float, default=0.2, help='threshold for truncated sdf.')
-        
+
+        # VQVAE v2 quality knobs — opt-in; defaults preserve v1 behavior.
+        self.parser.add_argument('--augment', action='store_true',
+                                 help='enable Y-rotation (k*90deg) + X/Z flip data augmentation '
+                                      'for BuildingNet SDF training. Train phase only.')
+        self.parser.add_argument('--use_aux_losses', action='store_true',
+                                 help='VQVAE: add surface-band SmoothL1 + footprint-BCE losses '
+                                      'on top of standard codebook+L1. Loss functions verbatim '
+                                      'from train_sdf_residual.py:43-62.')
+        self.parser.add_argument('--aux_band_weight', type=float, default=0.5,
+                                 help='Weight for surface_band_smooth_l1 (when --use_aux_losses).')
+        self.parser.add_argument('--aux_fp_weight', type=float, default=0.25,
+                                 help='Weight for soft_footprint_bce (when --use_aux_losses).')
+        self.parser.add_argument('--aux_band_sigma', type=float, default=0.05,
+                                 help='Band width (in SDF units) for surface-band weighting.')
+        self.parser.add_argument('--aux_fp_tau', type=float, default=0.05,
+                                 help='Soft-inside temperature for footprint BCE.')
+        self.parser.add_argument('--use_adamw_cosine', action='store_true',
+                                 help='VQVAE: AdamW + cosine LR with linear warmup instead of '
+                                      'Adam + StepLR. Defaults preserve v1 schedule.')
+        self.parser.add_argument('--warmup_steps', type=int, default=1000,
+                                 help='Linear warmup steps for --use_adamw_cosine.')
+        self.parser.add_argument('--cosine_total_steps', type=int, default=80000,
+                                 help='Cosine decay horizon for --use_adamw_cosine.')
+
+        # Stage 3a Layer-A context conditioning (known_body + edit_mask + primitive channels).
+        self.parser.add_argument('--use_context', action='store_true',
+                                 help='Stage 3a: concat (known_body, edit_mask, primitive) context '
+                                      'channels so an added mass integrates coherently (Layer A).')
+        # Stage 3a Layer-B: element-type token (window/door/balcony/pilaster/bay), derived from
+        # the Layer-A primitive's shape via the same SHAPE->ARCH rule as facade_grammar.py.
+        self.parser.add_argument('--use_element_type', action='store_true',
+                                 help='Stage 3a: add a global element-type embedding classified '
+                                      'from the Layer-A primitive shape (Layer B; requires --use_context).')
+        # Stage 3a (conditional SDF latent diffusion) knobs — opt-in via --dataset_mode stage3a.
+        self.parser.add_argument('--recipe_aug_ratio', type=float, default=0.7,
+                                 help='Fraction of each Stage 3a batch drawn from recipe-aug '
+                                      'corpus (1 - ratio) drawn from real BuildingNet.')
+        self.parser.add_argument('--recipe_aug_root', type=str,
+                                 default='data/recipe_augmentation_v1',
+                                 help='Stage 3a recipe-augmentation h5 directory.')
+        self.parser.add_argument('--heights_csv', type=str,
+                                 default='outputs/stage3_metadata/asset_dimensions.csv',
+                                 help='Stage 3a per-asset Frame-N height CSV.')
+        self.parser.add_argument('--bag3d_h5', type=str,
+                                 default='data/bag3d_v1/bag3d.h5',
+                                 help='3D BAG corpus h5 (point at /dev/shm copy to avoid '
+                                      'slow Lustre reads).')
+
         self.parser.add_argument('--ratio', type=float, default=1., help='ratio of the dataset to use. for debugging and overfitting')
         self.parser.add_argument('--max_dataset_size', default=2147483648, type=int, help='chooses the maximum dataset size.')
         self.parser.add_argument('--nThreads', default=9, type=int, help='# threads for loading data')        
@@ -43,7 +91,7 @@ class BaseOptions():
         ############## START: model related options ################
         self.parser.add_argument(
                             '--model', type=str, default='sdfusion',
-                            choices=['vqvae', 'sdfusion', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape','sdfusion_model_img2shape'],
+                            choices=['vqvae', 'sdfusion', 'sdfusion-img2shape', 'sdfusion-txt2shape','sdfusion-mm2shape','sdfusion_model_img2shape','stage3a','stage3b'],
                             help='chooses which model to use.'
                         )
         self.parser.add_argument('--ckpt', type=str, default=None, help='ckpt to load.')
