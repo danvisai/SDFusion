@@ -748,20 +748,45 @@ def export_town_ep(req: ExportTownReq):
 class OrnamentBuildingReq(BaseModel):
     footprint: List[List[float]]
     style: str = "modern"
+    building_class: str = "RESIDENTIAL"
     height: float = 10.0
+    recipe_params: List[float]
     seed: Optional[int] = None
+    temperature: float = 0.7
+    existing_ops: List[dict] = Field(default_factory=list)  # world-meter EditOps already on
+                                        # the building (towers/other ornaments) — deconflicted
+                                        # against via CoherentPartRefiner, same as interpret_mass
 
 
 @app.post("/ornament_building")
 def ornament_building(req: OrnamentBuildingReq):
-    """Layer 2.5b: RETRIEVE a culturally-matched heritage-scan relief from
-    data/ornaments_v1 and FIT it to the building's main wall (scale/yaw/sink). Returns the
-    SYMBOLIC instance ({id, edge, t, y, w}) — append to the building's `ornaments` and
-    rebuild via /rebuild_building; the mesh instance is merged procedurally, the diffusion
-    prior never touches it."""
+    """Layer 2.5b: place a heritage-scan relief using the ALREADY-TRAINED part-layout
+    planner (picks a plausible flush-wall slot from the massing — the same model that places
+    balconies/columns in /propose_details) + CoherentPartRefiner (deconflicts it against the
+    building's existing detail ops — the same X-Part model coherent-add uses). No external
+    API and no hand-coded placement rule in this path; retrieval (WHICH relief) stays a
+    small seeded style/culture-affinity choice over the local library (data/ornaments_v1).
+    Returns the SYMBOLIC instance ({id, center, normal, w}) — append to the building's
+    `ornaments` and rebuild via /rebuild_building; the mesh instance is merged procedurally
+    after the massing is baked, so the diffusion prior never touches it."""
+    if req.style not in ps.STYLE_TO_IDX:
+        raise HTTPException(400, f"unknown style '{req.style}'")
+    from layout_detail import place_ornament
     from ornaments import propose
+    r = refiner()
     try:
-        inst = propose(req.footprint, req.height, req.style, seed=req.seed)
+        grid, c, s, _hn = r.building_volume(req.footprint, req.style, req.recipe_params,
+                                            req.height, res=64)
+        s = float(s)
+        cube_exist = [_op_world_to_cube(o, c, s) for o in req.existing_ops if o.get("det")]
+        slot = place_ornament(grid, cube_exist, building_class=req.building_class,
+                              device=r.device, temperature=req.temperature, seed=req.seed)
+        world_slot = None
+        if slot is not None:
+            world_slot = {"center": [float(v) * s + float(cv) for v, cv in zip(slot["center"], c)],
+                          "normal": [float(v) for v in slot["normal"]],  # unit dir: scale-invariant
+                          "half_extent": [float(v) * s for v in slot["half_extent"]]}
+        inst = propose(req.footprint, req.height, req.style, seed=req.seed, slot=world_slot)
     except Exception as ex:
         raise HTTPException(400, f"ornament failed: {ex}")
     return {"ornament": inst}

@@ -60,11 +60,15 @@ def _occ_frame(grid):
     return occ, c, max(s, 1e-3)
 
 
-def _snap_to_surface(occ, kind, c_pl, e_pl):
+def _snap_to_surface(occ, kind, c_pl, e_pl, return_normal=False, push_override=None):
     """Project a planner-frame box onto the massing surface (planner frame ~= occ-bbox frame).
 
     walls (window/door/balcony/column): pull center to the nearest occupied-boundary in XZ.
-    roof  (chimney/dome/tower-base):    set base y to the top occupied y at that column."""
+    roof  (chimney/dome/tower-base):    set base y to the top occupied y at that column.
+    `push_override` replaces the per-kind default outward offset (e.g. 0.0 to land exactly
+    ON the wall regardless of `kind`'s usual convention). `return_normal` additionally
+    returns the outward wall unit normal (xz) computed for wall kinds — used by ornament
+    placement, which needs the direction to orient a panel, not just its landing point."""
     R = occ.shape[0]
     to_i = lambda v: int(np.clip((v + 1) * 0.5 * (R - 1), 0, R - 1))
     xi, yi, zi = to_i(c_pl[0]), to_i(c_pl[1]), to_i(c_pl[2])
@@ -73,7 +77,7 @@ def _snap_to_surface(occ, kind, c_pl, e_pl):
         from scipy.ndimage import binary_erosion
         ys = np.where(occ.any(axis=(0, 2)))[0]            # occupied height range
         if not len(ys):
-            return c_pl
+            return (c_pl, np.zeros(2, np.float32)) if return_normal else c_pl
         yi = int(np.clip(yi, ys.min(), ys.max()))         # clamp to where walls EXIST
         col = occ[:, max(yi, 1), :]                       # (D=z, W=x) slice at part height
         if not col.any():
@@ -92,15 +96,19 @@ def _snap_to_surface(occ, kind, c_pl, e_pl):
         n = v / (np.linalg.norm(v) + 1e-6)
         # subtract ops (window/door) must STRADDLE the wall (center ON the surface);
         # protruding adds (balcony) sit outward by ~their depth; columns hug the wall.
-        push = {"window": 0.0, "door": 0.0, "balcony": 0.9, "column": 0.15}[kind]
+        push = push_override if push_override is not None else \
+            {"window": 0.0, "door": 0.0, "balcony": 0.9, "column": 0.15}[kind]
         d = max(e_pl[0], e_pl[2])
-        return np.array([wx + n[0] * d * push, c_pl[1], wz + n[1] * d * push], np.float32)
+        result = np.array([wx + n[0] * d * push, c_pl[1], wz + n[1] * d * push], np.float32)
+        return (result, n.astype(np.float32)) if return_normal else result
     if kind in ("chimney", "dome", "tower"):
         colY = occ[zi, :, xi]
         if colY.any():
             top = g[np.where(colY)[0].max()]
-            return np.array([c_pl[0], top + (e_pl[1] if kind == "chimney" else 0.0), c_pl[2]], np.float32)
-    return c_pl
+            result = np.array([c_pl[0], top + (e_pl[1] if kind == "chimney" else 0.0), c_pl[2]],
+                              np.float32)
+            return (result, np.zeros(2, np.float32)) if return_normal else result
+    return (c_pl, np.zeros(2, np.float32)) if return_normal else c_pl
 
 
 def resnap_ops_to_surface(grid, ops):
@@ -449,6 +457,113 @@ def propose_detail_ops(grid, building_class="RESIDENTIAL", device="cuda", temper
     # proven re-snapper (B5-validated <1 voxel) — covers planner-frame edge cases.
     ops = regularize_ops(ops, np.asarray(grid) <= 0, 1.0)
     return resnap_ops_to_surface(grid, ops)
+
+
+def _planner_frame_occ(grid):
+    """Resample a cube-frame grid's occupancy into the planner's occ-bbox-normalized 64^3
+    frame (margin~1.0) — the frame PartLayoutPlannerV2/_snap_to_surface were trained around
+    (same resampling as propose_detail_ops, factored out for reuse by ornament placement).
+    Returns (occN, c, s): c,s map planner-frame [-1,1] <-> the grid's own cube-frame coords
+    via cc = c_pl*s + c."""
+    occ, c, s = _occ_frame(grid)
+    R = occ.shape[0]
+    g1 = torch.linspace(-1, 1, 64)
+    Z, Y, X = torch.meshgrid(g1, g1, g1, indexing="ij")
+    q = (torch.stack([X, Y, Z], -1) * float(s) + torch.from_numpy(c)).numpy()
+    idx = np.clip(((q + 1) * 0.5 * (R - 1)).round().astype(int), 0, R - 1)
+    occN = occ[idx[..., 2], idx[..., 1], idx[..., 0]]
+    return occN, c, s
+
+
+_ORNAMENT_STAND_IN_TYPES = ("balcony", "balcony_upper")   # flush/shallow wall-attached types
+                                                          # in the trained vocabulary — the
+                                                          # closest analogues to a mounted
+                                                          # relief panel (see docstring below)
+
+
+def propose_ornament_slot(grid, building_class="RESIDENTIAL", device="cuda",
+                          temperature=0.7, seed=None, n_tries=4):
+    """Layer 2.5b placement: ask the ALREADY-TRAINED part-layout planner (the same model
+    that places balconies/columns/towers in propose_detail_ops) where a flush wall panel
+    belongs on THIS massing — no external API, no hand-coded 'longest wall' rule. There is
+    no 'ornament' type in the planner's trained vocabulary (BuildingNet's part taxonomy has
+    no ornament/relief/decoration label — carved detail is undifferentiated inside the
+    'wall' class; see outputs/part_labels_full/label_names.json), so a sampled
+    balcony/balcony_upper instance stands in: geometrically the closest trained types to a
+    mounted relief panel (shallow, flush, wall-attached). The real scanned mesh is swapped
+    in later by scripts/server/ornaments.py — this function only decides WHERE.
+
+    The planner is autoregressive+stochastic and doesn't always emit a stand-in type in one
+    draw (empirically ~10% per draw for a plain residential box), so this samples up to
+    `n_tries` layouts and pools candidates across them. Among candidates, prefers ones in
+    the WALL band, not the roof (soft Gaussian weight biased toward the lower ~60% of the
+    occupied Y-range) — real friezes/panels sit between the plinth and the eave. Measured
+    directly (2026-07-06): a flat-roofed massing (modern/public_civic) is ~full-width wall
+    top to bottom (any height is fine), but a pitched-roof massing (victorian) is only ~57%
+    full-width before the roof tapers in — a dead-center bbox weight put candidates in the
+    roof taper on those styles; centering at -0.35 (bbox-relative, -1=ground/+1=peak) keeps
+    the weight inside the wall band for both cases without needing per-style tuning.
+    Returns a viewer/cube-frame slot {"center":[x,y,z], "normal":[nx,nz],
+    "half_extent":[ex,ey,ez]}, or None if no draw produced a candidate (caller should fall
+    back to a geometric rule)."""
+    from scipy.ndimage import distance_transform_edt
+    occN, c, s = _planner_frame_occ(grid)
+    vox = 2.0 / 63
+    sdfN = np.clip((distance_transform_edt(~occN) - distance_transform_edt(occN)) * vox,
+                   -0.2, 0.2).astype(np.float32)
+    x = torch.from_numpy(sdfN).view(1, 1, 64, 64, 64).to(device)
+    cls = torch.tensor([CLASSES.index(building_class) if building_class in CLASSES else 3],
+                       device=device)
+    planner = _get_planner(device)
+    cands = []
+    for i in range(max(n_tries, 1)):
+        if seed is not None:
+            torch.manual_seed(int(seed) + i)
+        parts = planner.sample(x, cls, temperature=temperature)[0]
+        cands += [(np.asarray(b[:3], np.float32), np.abs(np.asarray(b[3:], np.float32)))
+                  for t, b in parts if TYPE_NAMES[t] in _ORNAMENT_STAND_IN_TYPES
+                  and max(abs(b[3]), abs(b[5])) > 0.06]
+    if not cands:
+        return None
+    rng = np.random.default_rng(seed)
+    ys = np.array([c_pl[1] for c_pl, _ in cands], np.float32)
+    w = np.exp(-((np.clip(ys, -1, 1) + 0.35) ** 2) / (2 * 0.45 ** 2))
+    c_pl, e_pl = cands[int(rng.choice(len(cands), p=w / w.sum()))]
+    center_pl, n = _snap_to_surface(occN, "balcony", c_pl, e_pl,
+                                    return_normal=True, push_override=0.0)
+    return {"center": (center_pl * s + c).tolist(), "normal": [float(n[0]), float(n[1])],
+            "half_extent": (np.clip(e_pl, 0.03, 0.5) * s).tolist()}
+
+
+def place_ornament(grid, existing_ops, building_class="RESIDENTIAL", device="cuda",
+                   temperature=0.7, seed=None):
+    """propose_ornament_slot's planner-picked wall slot, deconflicted against the building's
+    EXISTING det-tagged EditOps (other user-placed detail — towers, prior ornaments) via the
+    SAME CoherentPartRefiner (X-Part neighbor-locality) used by integrate_new_part for
+    coherent-add — the planner samples independently of what's already placed, so without
+    this pass a second ornament could land on top of the first. NOTE: this does not see the
+    composer's procedural window/door grid (those aren't represented as EditOps at all, only
+    baked directly into the facade SDF), so deconfliction covers explicit user detail only.
+    Returns a viewer/cube-frame slot dict (see propose_ornament_slot), or None."""
+    slot = propose_ornament_slot(grid, building_class, device, temperature, seed)
+    if slot is None:
+        return None
+    stand_in = dict(kind="box", center=slot["center"], size=slot["half_extent"],
+                    mode="add", smooth=0.0, det="balcony", grp="gOrnStandIn")
+    if existing_ops:
+        merged, used = integrate_new_part(grid, existing_ops, [stand_in],
+                                          building_class=building_class, device=device)
+        if used:
+            stand_in = merged[-1]
+    # Keep the ORIGINAL outward normal from propose_ornament_slot rather than re-deriving it
+    # at the (possibly refiner-nudged) final center: re-querying a point that's already
+    # exactly ON the wall boundary is numerically degenerate there (query ~= found wall
+    # point -> a near-zero difference vector before normalization gives a near-arbitrary
+    # direction, caught via render — see outputs/weathering/ornament_learned_facing.png,
+    # 2026-07-06). integrate_new_part only nudges the center for spacing (same wall), so the
+    # original normal remains correct in practice.
+    return {"center": stand_in["center"], "normal": slot["normal"],
+            "half_extent": stand_in["size"]}
 
 
 # ---------------------------------------------------------------------------

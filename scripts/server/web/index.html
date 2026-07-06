@@ -246,7 +246,7 @@ async function rebuild(b){ const m=await post('/rebuild_building',{footprint:b.f
 // it onto the main wall — symbolic instance in b.ornaments, merged procedurally at rebuild.
 $('eOrn').onclick=async()=>{ if(!selected||busy)return; busy=true; const b=selected;
   $('eInfo').textContent='fitting ornament…'; const t=performance.now();
-  try{ const r=await post('/ornament_building',{footprint:b.footprint,style:b.style,height:b.height,seed:Math.floor(Math.random()*99999)});
+  try{ const r=await post('/ornament_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,recipe_params:b.params,existing_ops:b.edits||[],seed:Math.floor(Math.random()*99999)});
     b.ornaments=[r.ornament];                     // one panel in v0 — click again to re-roll
     const m=await rebuild(b);
     $('eInfo').textContent=`🏛 ${r.ornament.name.slice(0,58)} · ${m.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s`;
