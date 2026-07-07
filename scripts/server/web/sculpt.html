@@ -536,7 +536,14 @@ async function interpretSel(reroll){
   } else {
     if(sel<0||!edits[sel]||edits[sel].layer==='detail'){ $('eInfo').textContent='select a placed primitive (mass) first'; return; }
     srcOp=edits[sel]; seed=0;
-    edits.splice(sel,1);                                       // the raw prim gets replaced
+    // remove the WHOLE construction if the selection is part of one (e.g. a resumed
+    // Make-it-architecture tower's body shares a grp with its own cap/windows) -- a plain
+    // splice(sel,1) only drops the one op and leaves its siblings orphaned, stacking a
+    // second overlapping cap+window set on the new result (2026-07-07: this branch was only
+    // ever reachable for a fresh, ungrouped addPrim() primitive before the town-page resume
+    // feature made an already-constructed body selectable too). A fresh raw primitive has no
+    // grp, so this is identical to the old splice for that case.
+    edits = srcOp.grp ? edits.filter(e=>e.grp!==srcOp.grp) : edits.filter((e,i)=>i!==sel);
   }
   busy=true; $('interp').disabled=$('reroll').disabled=true;
   $('eInfo').textContent='making sense of the mass…'; const t=performance.now();
