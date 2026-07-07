@@ -339,6 +339,18 @@ let busy = false;
 const rect = (w,d)=>[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]];
 const fpB = fp=>{const xs=fp.map(p=>p[0]),zs=fp.map(p=>p[1]);return{x0:Math.min(...xs),x1:Math.max(...xs),z0:Math.min(...zs),z1:Math.max(...zs)};};
 const wire = e=>{const {layer, ...rest}=e; return rest;};   // strip client-only fields for the API
+// world-meter <-> cube[-1,1] EditOp bridge (mirrors inference_service.py's
+// _op_world_to_cube/_op_cube_to_world) — used for the town-page round-trip (2026-07-06):
+// index.html's edits are world-meter, this page's are cube-frame relative to (st.center,
+// st.scale). Size layouts are kind-specific: box/rounded_box/gable/hip/sphere/cylinder are
+// all-lengths; cone=[angle_deg,height] has a scale-INVARIANT angle in slot 0.
+function opScaleSize(kind, size, f){ if(kind==='cone') return [size[0], ...size.slice(1).map(v=>v*f)]; return size.map(v=>v*f); }
+function worldToCubeOp(op, center, scale){ const o={...op};
+  o.center=op.center.map((v,i)=>(v-center[i])/scale); o.size=opScaleSize(op.kind,op.size,1/scale);
+  if(op.smooth) o.smooth=op.smooth/scale; if(op.round_r) o.round_r=op.round_r/scale; return o; }
+function cubeToWorldOp(op, center, scale){ const o={...op};
+  o.center=op.center.map((v,i)=>v*scale+center[i]); o.size=opScaleSize(op.kind,op.size,scale);
+  if(op.smooth) o.smooth=op.smooth*scale; if(op.round_r) o.round_r=op.round_r*scale; return o; }
 function b64ToVol(b64, res){ const bin=atob(b64); const buf=new ArrayBuffer(bin.length); const u8=new Uint8Array(buf); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); const data=new Float32Array(buf); const tex=new THREE.Data3DTexture(data,res,res,res); tex.format=THREE.RedFormat; tex.type=THREE.FloatType; tex.minFilter=THREE.LinearFilter; tex.magFilter=THREE.LinearFilter; tex.wrapR=tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping; tex.needsUpdate=true; return tex; }
 
 function setVolume(b64,res){ st.base_b64=b64; st.res=res; const tex=b64ToVol(b64,res); if(uniforms.uVol.value) uniforms.uVol.value.dispose(); uniforms.uVol.value=tex; uniforms.uHasVol.value=1;
@@ -446,12 +458,25 @@ function addDetail(kind){ if(!st.base_b64){ $('eInfo').textContent='generate a b
 // ---- API ----
 async function gen(){ if(busy) return; busy=true; $('gen').disabled=true; $('info').textContent='generating…'; const t=performance.now();
   st.style=$('style').value; st.cls=$('cls').value; st.height=+$('h').value; st.footprint=st.fpOverride||rect(+$('w').value,+$('d').value);
+  // consume the town-page resume state (if any) ONCE — a later manual Generate click starts
+  // fresh, same as before (2026-07-06 round-trip coherence)
+  const resumeParams=st.resumeParams, resumeEditsWorld=st.resumeEditsWorld;
+  st.resumeParams=null; st.resumeEditsWorld=null;
   try{ const src=$('massSrc').value;
-    const r=await post('/building_sdf',{footprint:st.footprint, style:st.style, building_class:st.cls, height:st.height,
-      massing_source:(src==='bag'?'bag':'recipe'), sdedit_strength:(src==='recipe_ai'?0.5:0)});
+    const body={footprint:st.footprint, style:st.style, building_class:st.cls, height:st.height,
+      massing_source:(resumeParams?'recipe':(src==='bag'?'bag':'recipe')),
+      sdedit_strength:(resumeParams?0:(src==='recipe_ai'?0.5:0))};
+    if(resumeParams) body.recipe_params=resumeParams;   // EXACT params, not a re-sample —
+                                                        // reproduces the town building's
+                                                        // actual massing, not a random one
+    const r=await post('/building_sdf', body);
     st.center=r.center; st.scale=r.scale; st.recipe_params=r.recipe_params; setVolume(r.sdf_b64, r.res);
-    edits=[]; sel=-1; pushEditUniforms(); refreshSel();
-    $('info').textContent=`${st.style} · ${r.res}³ vol · ${((performance.now()-t)/1000).toFixed(1)}s — add a primitive, then 🧠 Make it architecture`;
+    edits = resumeEditsWorld ? resumeEditsWorld.map(o=>worldToCubeOp(o, st.center, st.scale)) : [];
+    sel=edits.length-1; pushEditUniforms(); refreshSel();
+    const resumeMsg = (resumeEditsWorld && resumeEditsWorld.length)
+      ? ` — resumed ${resumeEditsWorld.length} edit(s) from the town building (its weathering/ornaments aren't editable here; they'll re-apply when you go back)`
+      : '';
+    $('info').textContent=`${st.style} · ${r.res}³ vol · ${((performance.now()-t)/1000).toFixed(1)}s — add a primitive, then 🧠 Make it architecture${resumeMsg}`;
   }catch(e){ $('info').textContent='error: '+e.message; } busy=false; $('gen').disabled=false;
 }
 async function bake(){ if(busy||!st.base_b64) return; busy=true; $('bake').disabled=true; $('eInfo').textContent='baking mesh…';
@@ -594,7 +619,14 @@ function applyParams(){ const q=new URLSearchParams(location.search);
   if(q.get('h')){ $('h').value=q.get('h'); $('hv').textContent=q.get('h')+' m'; }
   if(q.get('fp')){ try{ st.fpOverride=JSON.parse(q.get('fp')); }catch(e){} }
   if(q.get('bid')!==null&&q.get('bid')!==undefined&&q.get('bid')!==''){
-    st.townBid=+q.get('bid'); $('applyTown').style.display='block'; } }
+    st.townBid=+q.get('bid'); $('applyTown').style.display='block';
+    // resume the town building's EXACT state (2026-07-06 round-trip coherence): the same
+    // recipe_params (not a re-sample — index.html stashes this right before opening this
+    // tab) + its current edits, converted world->cube once gen() knows (st.center,st.scale).
+    try{ const raw=localStorage.getItem('sculptResume');
+      if(raw){ const d=JSON.parse(raw);
+        if(d.bid===st.townBid){ st.resumeParams=d.params||null; st.resumeEditsWorld=d.edits||[]; } }
+    }catch(e){} } }
 applyParams();
 // ROUND-TRIP: bake the current sculpt server-side and hand the mesh back to the town tab
 // (localStorage bridge — same origin), replacing the originating building in place.
@@ -606,7 +638,11 @@ $('applyTown').onclick=async()=>{
       return_mesh:true, center:st.center, scale:st.scale,
       detail:true, building_class:st.cls, style:st.style});
     if(!r.mesh_glb_b64) throw new Error('bake produced no mesh');
-    localStorage.setItem('townApply', JSON.stringify({bid:st.townBid, glb_b64:r.mesh_glb_b64, ts:Date.now()}));
+    // send the EDIT LIST back (cube->world), not just the mesh (2026-07-06 round-trip fix):
+    // the town page rebuilds from this so its weathering/ornaments — which this page has no
+    // concept of — correctly re-apply on top; glb_b64 is kept as a same-tab preview only.
+    const worldEdits = edits.map(e=>wire(cubeToWorldOp(e, st.center, st.scale)));
+    localStorage.setItem('townApply', JSON.stringify({bid:st.townBid, glb_b64:r.mesh_glb_b64, edits:worldEdits, ts:Date.now()}));
     $('eInfo').textContent=`applied to town building ${st.townBid} · ${((performance.now()-t)/1000).toFixed(1)}s — switch to the town tab`;
   }catch(e){ $('eInfo').textContent='apply error: '+e.message; }
   busy=false; $('applyTown').disabled=false;

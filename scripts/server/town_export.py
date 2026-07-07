@@ -97,8 +97,10 @@ def build_building_mesh(refiner, b, res=96):
         base = EditableBuilding(base, [EditOp.from_dict(d) for d in b["edits"]]).composed()
     sdf, n_towers = base, 0
     try:
+        from scene.composer_detail import auto_roof_flag
         sdf, _lay, dec = compose_detail(base, poly, h, b.get("building_class", "RESIDENTIAL"),
                                         style=b.get("style", "modern"),
+                                        roof=auto_roof_flag(b.get("edits")),
                                         composer=get_composer(refiner.device))
         n_towers = dec["n_towers"]
     except Exception as ex:

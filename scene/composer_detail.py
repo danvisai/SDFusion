@@ -114,13 +114,34 @@ def _glaze_to_target(p: det.DetailParams, target: float) -> det.DetailParams:
     return p
 
 
+def auto_roof_flag(edits):
+    """Whether compose_detail should still auto-place a roof cap, given an edit list that
+    may already contain a user-placed det:'roof' replacement (the SDF Sculptor's manual
+    'gable roof'/'hip roof' buttons) — apply_roof_shape is an unconditional union with no
+    awareness of what's already there, so leaving it on doubles a hand-placed roof
+    (2026-07-06, sculptor bake + town round-trip coherence).
+
+    NOT door: det:'door' is also set by several OTHER already-shipped features (the
+    balcony/wing Make-it-architecture constructions' own door sub-op, AI-details'
+    exactly-one-door regularization) that are unrelated to a deliberate main-entrance
+    replacement — suppressing the composer's door on those would remove the building's
+    only entrance. Only 'roof' is unambiguous: nothing else in the codebase tags it."""
+    dets = {str(e.get("det")) for e in (edits or [])}
+    return "roof" not in dets
+
+
 def compose_detail(base_sdf, footprint, height, building_class, style="modern",
-                   seed=None, composer=None, door=True, add_ops=None):
+                   seed=None, composer=None, door=True, roof=True, add_ops=None):
     """Run the composer for this massing, then instantiate the chosen elements onto base_sdf.
     `add_ops`: user-ADDED primitives (EditOp dicts, mode='add'), WORLD-meter frame matching
     base_sdf/footprint/height (Y from the building's ground) — each gets its OWN detail via
     det.add_element_detail (classified tower/balcony/etc), layered on AFTER the whole-building
     treatment so a bare CSG-added box doesn't stay bare (2026-07-02 gap fix).
+    `door`/`roof`: set False when the caller already has a user-placed door/roof replacement
+    in its edit list (the SDF Sculptor's manual door/roof detail ops) — add_door/
+    apply_roof_shape are UNCONDITIONAL unions with no awareness of what's already there, so
+    leaving them on would double a hand-placed roof/door (2026-07-06, town<->sculptor
+    round-trip coherence).
     Returns (composed_sdf, layout_dict, decisions_dict)."""
     composer = composer or get_composer()
     layout = composer.sample_layout(building_class, footprint, height, seed=seed)
@@ -137,7 +158,8 @@ def compose_detail(base_sdf, footprint, height, building_class, style="modern",
     sdf = det.add_facade_detail(base_sdf, footprint, height, p)
     if door:
         sdf = det.add_door(sdf, footprint, height)
-    sdf = det.apply_roof_shape(sdf, footprint, height, dec["roof_shape"])
+    if roof:
+        sdf = det.apply_roof_shape(sdf, footprint, height, dec["roof_shape"])
     if dec["dome"] or dec["n_towers"] or dec["steps"]:
         sdf = det.add_landmarks(sdf, footprint, height, dome=dec["dome"],
                                 n_towers=dec["n_towers"], tower_h_ratio=dec["tower_h_ratio"],

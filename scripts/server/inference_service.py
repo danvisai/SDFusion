@@ -332,6 +332,12 @@ class BuildingSdfReq(BaseModel):
                                    # (hybrid 3D-BAG prior) right at generation
     massing_source: str = "recipe" # recipe | bag (retrieve the closest-footprint REAL 3D BAG
                                    # house and fit it to the user's footprint + height)
+    recipe_params: Optional[List[float]] = None  # when given, use these EXACT params instead
+                                   # of re-sampling — lets the Sculptor reproduce a specific
+                                   # town building's massing exactly (seed alone doesn't:
+                                   # sample_params(seed=None) is non-deterministic, and even
+                                   # a matched seed only reproduces the diffusion draw, not
+                                   # a params array the caller already has in hand)
 
 
 class SdfResp(BaseModel):
@@ -356,7 +362,8 @@ def building_sdf(req: BuildingSdfReq):
         raise HTTPException(400, f"unknown style '{req.style}'")
     poly = np.asarray(req.footprint, np.float32)
     local = poly - poly.mean(axis=0)
-    params = e.sample_params(local, req.height, req.building_class, req.style, seed=req.seed)
+    params = (np.asarray(req.recipe_params, np.float32) if req.recipe_params is not None
+             else e.sample_params(local, req.height, req.building_class, req.style, seed=req.seed))
     try:
         if req.massing_source == "bag":
             grid, c, s, idx = r.bag_house_volume(local, req.height, res=req.res)
@@ -442,7 +449,8 @@ def snap_sdf(req: SnapSdfReq):
             if req.center is not None and req.scale is not None:
                 mesh = r.volume_to_world_mesh(grid_out, req.center, req.scale,
                                               building_class=req.building_class, style=req.style,
-                                              seed=req.seed, detail=req.detail)
+                                              seed=req.seed, detail=req.detail,
+                                              detail_edits=req.detail_edits)
             else:
                 from scene.sdf_primitives import grid_to_mesh
                 mesh = grid_to_mesh(torch.from_numpy(snapped), (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0), iso=0.0)

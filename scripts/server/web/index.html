@@ -72,11 +72,9 @@
     <div class="row"><button class="sec sm" id="eOrn" style="margin-top:6px">🏛 Ornament (re-roll)</button>
       <button class="sec sm" id="eOrnClear" style="margin-top:6px">✕</button></div>
     <label>Weathering <span class="val" id="eWxV">0.00</span></label><input type="range" id="eWx" min="0" max="1" value="0" step="0.05"/>
-    <label>Snap faithfulness <span class="val" id="eStrengthV">0.50</span></label><input type="range" id="eStrength" min="0.2" max="0.8" value="0.5" step="0.05"/>
-    <div class="row"><button class="sm" id="eSnap" style="margin-top:8px">✨ Snap to plausible (AI)</button>
-      <button class="sec sm" id="eUndo" style="margin-top:8px">↩ Undo edit</button></div>
-    <div class="row"><button class="sec sm" id="eSeed" style="margin-top:8px">🎲 Variation</button>
-      <button class="sec sm" id="eDe" style="margin-top:8px">Deselect</button></div>
+    <div class="row"><button class="sec sm" id="eUndo" style="margin-top:8px">↩ Undo edit</button>
+      <button class="sec sm" id="eSeed" style="margin-top:8px">🎲 Variation</button></div>
+    <button class="sec sm" id="eDe">Deselect</button>
     <button class="sec sm" id="eSculpt" style="margin-top:8px">🔨 Open in SDF Sculptor</button>
     <label style="margin-top:10px">Style image <span class="val" id="eRefName">none</span></label>
     <div class="row"><button class="sec sm" id="eRefPick">🖼 Pick…</button><button class="sec sm" id="eRefClear">✕</button></div>
@@ -149,7 +147,7 @@ const $=id=>document.getElementById(id);
 function b64buf(b){b=b.split(',').pop();const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer;}
 async function post(u,b){const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(!r.ok)throw new Error((await r.text()).slice(0,160));return r.json();}
 const rect=(w,d)=>[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]];
-[['w',' m','wv'],['d',' m','dv'],['h',' m','hv'],['ma',' m','mav'],['mb','','mbv'],['eH',' m','eHv'],['eStrength','','eStrengthV'],['eWx','','eWxV']].forEach(([i,s,v])=>{$(i).oninput=()=>$(v).textContent=$(i).value+s;});
+[['w',' m','wv'],['d',' m','dv'],['h',' m','hv'],['ma',' m','mav'],['mb','','mbv'],['eH',' m','eHv'],['eWx','','eWxV']].forEach(([i,s,v])=>{$(i).oninput=()=>$(v).textContent=$(i).value+s;});
 
 function setMesh(b,glb){ return new Promise(res=>{ if(b.group)town.remove(b.group); loader.parse(b64buf(glb),'',g=>{ g.scene.traverse(o=>{if(o.isMesh){o.material=(b===selected?selMat:baseMat);o.castShadow=true;o.receiveShadow=true;}}); g.scene.position.set(b.position[0],0,b.position[1]); g.scene.userData.b=b; b.group=g.scene; town.add(g.scene); if(b===selected){boxHelper.setFromObject(g.scene);boxHelper.visible=true;} res(b); }); }); }
 async function addBuilding(d){ const b={footprint:d.footprint,position:d.position||[0,0],style:d.style,cls:d.building_class,height:d.height,seed:d.seed??1,params:d.recipe_params,edits:[]}; await setMesh(b,d.glb_b64||d.mesh_glb_b64); buildings.push(b); return b; }
@@ -170,7 +168,13 @@ renderer.domElement.addEventListener('pointerdown',ev=>{ if(ev.button!==0||ev.de
 let busy=false;
 async function adapt(changes){ if(!selected||busy)return; busy=true; const b=selected; Object.assign(b,changes); $('eInfo').textContent='adapting mesh…';
   try{ const r=await post('/regenerate_building',{footprint:b.footprint,style:b.style,building_class:b.cls,height:b.height,seed:b.seed,diversity:'high',detail:true});
-    b.params=r.recipe_params; b.style=r.style; setMesh(b,r.mesh_glb_b64); $('eTitle').textContent=`${b.cls.toLowerCase()} · ${b.style}`; $('eInfo').textContent='updated';
+    b.params=r.recipe_params; b.style=r.style;
+    await rebuild(b);   // reapply edits/weathering/ornaments on the freshly regenerated
+                        // recipe (was setMesh() directly to the bare mesh -- silently
+                        // dropped any placed tower/ornament/weathering on every restyle/
+                        // height/class/variation change; rebuild() is a no-op equivalent
+                        // to the old path when there's nothing to reapply)
+    $('eTitle').textContent=`${b.cls.toLowerCase()} · ${b.style}`; $('eInfo').textContent='updated';
   }catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; }
 $('eStyle').onchange=()=>adapt({style:$('eStyle').value});
 $('eCls').onchange=()=>adapt({cls:$('eCls').value});
@@ -179,15 +183,29 @@ $('eSeed').onclick=()=>adapt({seed:Math.floor(Math.random()*9999)});
 $('eDe').onclick=deselect;
 // open the selected building in the raymarched SDF sculptor — bid links it back so the
 // sculptor's "Apply to town" replaces THIS building's mesh in place
-$('eSculpt').onclick=()=>{ if(!selected)return; const b=selected;
+$('eSculpt').onclick=()=>{ if(!selected)return; const b=selected; const bid=buildings.indexOf(b);
+  // hand off this building's EXACT current state (2026-07-06 round-trip coherence): the
+  // Sculptor used to always start from a fresh random re-sample, unrelated to what's
+  // actually shown here. recipe_params + edits are stashed; weathering/ornaments aren't
+  // representable in the Sculptor's cube-frame edit-op system (they're separate post-
+  // process stages there, not EditOps) so they just stay in b.weather/b.ornaments and
+  // re-apply automatically once the sculpted edits come back via rebuild().
+  localStorage.setItem('sculptResume', JSON.stringify({bid, params:b.params, edits:b.edits||[], ts:Date.now()}));
   const q=new URLSearchParams({style:b.style,cls:b.cls,h:Math.round(b.height),
-    fp:JSON.stringify(b.footprint),bid:String(buildings.indexOf(b)),seed:String(b.seed??1)});
+    fp:JSON.stringify(b.footprint),bid:String(bid),seed:String(b.seed??1)});
   window.open('/sculpt.html?'+q.toString(),'_blank'); };
-// receive the sculpted bake back from the sculptor tab (localStorage bridge)
+// receive the sculpted edits back from the sculptor tab (localStorage bridge)
 addEventListener('storage', async ev=>{
   if(ev.key!=='townApply'||!ev.newValue) return;
   try{ const d=JSON.parse(ev.newValue); const b=buildings[d.bid];
-    if(b&&d.glb_b64){ await setMesh(b,d.glb_b64); $('info').textContent=`building ${d.bid} updated from the sculptor`; }
+    if(!b) return;
+    if(d.edits){   // rebuild from the returned edits (not the raw mesh) so this building's
+                   // weathering/ornaments -- which the Sculptor has no concept of -- correctly
+                   // re-apply on top (2026-07-06 round-trip fix; was setMesh() directly to the
+                   // sculptor's bake, silently erasing any weathering/ornament on Apply)
+      b.edits=d.edits; await rebuild(b);
+    } else if(d.glb_b64){ await setMesh(b,d.glb_b64); }
+    $('info').textContent=`building ${d.bid} updated from the sculptor`;
   }catch(e){} });
 // per-building STYLE IMAGE (used by the photoreal town render)
 $('eRefPick').onclick=()=>$('eRefFile').click();
@@ -270,13 +288,7 @@ async function makeArchitecture(kind){ if(!selected||busy)return; busy=true; con
     const coh=r.coherent?' · aligned to neighbors':'';
     $('eInfo').textContent=`${r.kind.toUpperCase()} · ${r.n} ops (${r.source})${coh} · ${m.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s`;
   }catch(e){ $('eInfo').textContent='error: '+e.message; } busy=false; }
-async function snap(){ if(!selected||busy)return; busy=true; const b=selected;
-  $('eInfo').textContent='snapping to a plausible building…'; const t=performance.now();
-  try{ const r=await post('/refine_with_edit',{base_style:b.style,base_recipe_params:b.params,footprint:b.footprint,height:b.height,edits:b.edits||[],building_class:b.cls,mode:'sdedit',strength:+$('eStrength').value});
-    await setMesh(b,r.mesh_glb_b64); $('eInfo').textContent=`snapped · ${r.n_vertices.toLocaleString()} verts · ${((performance.now()-t)/1000).toFixed(1)}s`;
-  }catch(e){ $('eInfo').textContent='snap error: '+e.message; } busy=false; }
 document.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=()=>{ if(!selected)return; makeArchitecture(btn.dataset.add); });
-$('eSnap').onclick=()=>snap();
 $('eUndo').onclick=async()=>{ if(!selected||busy||!selected.edits||!selected.edits.length)return; busy=true; const b=selected;
   const last=b.edits[b.edits.length-1];                 // drop the whole construction, not one op
   b.edits=last.grp?b.edits.filter(e=>e.grp!==last.grp):b.edits.slice(0,-1);

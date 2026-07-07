@@ -574,10 +574,12 @@ class Refiner:
 
     @torch.no_grad()
     def volume_to_world_mesh(self, grid, center, scale, building_class="RESIDENTIAL",
-                             style="modern", seed=None, detail=False, res=96):
+                             style="modern", seed=None, detail=False, res=96, detail_edits=None):
         """Bake a cube-frame snapped volume to a WORLD-meters mesh sitting on y=0. If detail, run
         the ② composer/detail (class-appropriate roof/windows/door/landmarks) on the snapped massing
-        (README's composer->SDEdit wiring, applied at bake time); robust fallback to plain massing."""
+        (README's composer->SDEdit wiring, applied at bake time); robust fallback to plain massing.
+        `detail_edits`: the caller's raw edit ops (already CSG-unioned into `grid`) — only used
+        to check for a user-placed det:'door'/det:'roof' so compose_detail doesn't double it."""
         from scene.sdf_primitives import sample_grid, grid_to_mesh
         c = np.asarray(center, np.float32)
         s = float(scale)
@@ -600,12 +602,13 @@ class Refiner:
         sdf = placed
         if detail:
             try:
-                from scene.composer_detail import compose_detail, get_composer
+                from scene.composer_detail import compose_detail, get_composer, auto_roof_flag
                 fp = occ.any(axis=1)                                 # (D,W) top-down silhouette
                 poly = _mask_to_polygon(fp, c[0] - s, c[0] + s, c[2] - s, c[2] + s)
                 if poly is not None:
                     sdf, _layout, _dec = compose_detail(placed, poly, height_w, building_class,
                                                         style=style, seed=seed,
+                                                        roof=auto_roof_flag(detail_edits),
                                                         composer=get_composer(dev))
             except Exception as exc:
                 print(f"[snap bake] composer detail unavailable ({exc}); plain massing")
@@ -659,8 +662,10 @@ class Refiner:
                     cw[1] -= ymin_w
                     sw = np.asarray(op["size"][:3], np.float32) * s
                     add_ops.append({**op, "center": cw.tolist(), "size": sw.tolist()})
+                from scene.composer_detail import auto_roof_flag
                 sdf, _lay, _dec = compose_detail(placed, poly, height_w, building_class,
                                                  style=style, seed=seed,
+                                                 roof=auto_roof_flag(detail_edits),
                                                  composer=get_composer(dev), add_ops=add_ops)
         except Exception as exc:
             print(f"[detail preview] composer unavailable ({exc}); plain massing")
