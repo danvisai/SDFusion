@@ -23,7 +23,7 @@ import texture_bake as tb  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "outputs", "paint_relief_verify")
 os.makedirs(OUT, exist_ok=True)
-URL = "http://127.0.0.1:8099"
+URL = os.environ.get("VERIFY_URL", "http://127.0.0.1:8099")
 
 
 def post(p, b):

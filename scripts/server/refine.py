@@ -238,21 +238,25 @@ class Refiner:
 
     # -- Paint-to-relief: painted patch -> 2D art -> real sculpted SDF detail --
     def refine_paint_relief(self, grid, cam, paint_img, prompt, style_ref=None, seed=7,
-                            steps_diff=28, strength=0.6, sketch_thickness=12, sketch_scale=0.85,
+                            steps_diff=28, strength=0.85, sketch_thickness=6, sketch_scale=0.85,
                             relief_depth=0.12, band=0.07, fit_steps=400, n_pts=20000,
-                            view_res=512, aspect=1.0, return_mesh=True):
-        """Paint a rough/vague shape on the CURRENT building -> SDXL art (a scribble
-        ControlNet reads the drawn SHAPE as a real structural signal, not just blended
-        pixel color — see paint_relief.generate_patch_art) restricted to that patch ->
-        fuse the art as a real geometric relief via the same Option D machinery as
+                            view_res=512, aspect=1.0, canvas_px=768, return_mesh=True):
+        """Sketch a rough shape on the CURRENT building -> the stroke is rectified onto its
+        wall plane and SDXL generates bas-relief art on that flat frontal canvas
+        (paint_relief.generate_patch_art — v2 wall-space; v1 generated in the perspective
+        building view and kept redrawing the facade instead of the motif) -> the art is
+        fused in as a real geometric relief via the same Option D machinery as
         `refine_displacement` (fit_displacement/DisplacementField): final(x) =
-        base(x) + w(x) * displacement(x), where `w` is 1 on the painted patch fading to 0
-        over `band` (`paint_relief.paint_locality_mask`, the paint-stroke analogue of
+        base(x) + w(x) * displacement(x), where `w` is 1 on the art's own silhouette fading
+        to 0 over `band` (`paint_relief.paint_locality_mask`, the paint-stroke analogue of
         `_edit_locality_mask`) so untouched geometry stays bit-exact. Within the patch, the
-        target REPLACES whatever's already there (e.g. an existing carved window) with a
-        flat wall reference (`paint_relief.flat_wall_point`) plus the art's height, rather
-        than perturbing the old geometry — otherwise a window painted over just gets
-        slightly bumped instead of cleanly replaced by the new art.
+        target REPLACES whatever's already there (e.g. an existing carved window) with the
+        rectification plane itself plus the art's height, rather than perturbing the old
+        geometry — otherwise a window painted over just gets slightly bumped instead of
+        cleanly replaced by the new art. The plane (p0, n) comes straight from the wall
+        frame the art was generated on, so the art pixels and the flat reference are
+        exactly consistent (v1 re-derived the normal from the SDF gradient here — a second,
+        subtly different estimate).
 
         `grid`: cube-frame (D,H,W) SDF numpy array — the SAME detailed volume the sculptor
         viewer is showing (e.g. from `detail_cube_volume(..., res_out=96)`), NOT world
@@ -262,23 +266,24 @@ class Refiner:
         rough painted shape/colors (PIL RGBA, transparent where unpainted) in that same view.
         `sketch_thickness`/`sketch_scale`: how literally the drawn SHAPE is followed — thin
         +strong reads as "adjust it to the right thing", thick+weaker as "a creative art
-        piece" (paint_relief.scribble_from_mask). `strength` separately controls how much
-        the painted COLORS survive (~0.6 "blend" keeps them recognizable).
+        piece" (paint_relief.scribble_from_mask). `strength` controls how much the stroke's
+        own pixels anchor the img2img denoise (1.0 ignores them entirely).
         `relief_depth`: max relief magnitude in cube units (~0.05 ≈ 2 voxels at 96^3).
+        `canvas_px`: the rectified wall canvas's longer side, in pixels.
         Returns (out_grid (D,H,W) numpy SDF, mesh|None, art_rgb) so a caller can either
         drop `out_grid`/`out_grid`-derived mesh into the live preview, or re-bake color.
         """
         import paint_relief as pr
         base_sdf = volume_to_sdf(grid, self.device)
-        rgb, surf_pts, mask_bool, basis = pr.generate_patch_art(
+        art = pr.generate_patch_art(
             grid, cam, paint_img, prompt, style_ref=style_ref, seed=seed, steps=steps_diff,
             strength=strength, sketch_thickness=sketch_thickness, sketch_scale=sketch_scale,
-            res=view_res, aspect=aspect, device=self.device)
-        h_field = pr.height_from_art(rgb, mask_bool, relief_depth)
-
-        hit_rows, hit_cols = np.where(mask_bool & basis["hit"])
-        h_surf = torch.as_tensor(h_field[hit_rows, hit_cols], dtype=torch.float32,
-                                 device=self.device)
+            res=view_res, aspect=aspect, canvas_px=canvas_px, device=self.device)
+        rgb, gen_mask = art["rgb"], art["gen_mask"]
+        h_field = pr.height_from_art(rgb, gen_mask, relief_depth)
+        surf_pts = torch.as_tensor(art["pts3d"][gen_mask], dtype=torch.float32,
+                                   device=self.device)
+        h_surf = torch.as_tensor(h_field[gen_mask], dtype=torch.float32, device=self.device)
 
         lo = surf_pts.min(0).values.cpu().numpy()
         hi = surf_pts.max(0).values.cpu().numpy()
@@ -299,27 +304,13 @@ class Refiner:
             bv = base_sdf(pts)
 
         # Replace whatever's ALREADY there (e.g. a carved window/sill the user painted
-        # over) with a flat wall reference + the art relief, instead of just perturbing
+        # over) with the rectification plane + the art relief, instead of just perturbing
         # the existing recess by a small `h` — otherwise the old window and the new art
         # blend together and the window visually "wins" (2026-07-07 user report).
-        flat_p0 = pr.flat_wall_point(mask_bool, basis)
-        if flat_p0 is not None:
-            p0_t = torch.as_tensor(flat_p0, dtype=torch.float32, device=self.device)
-            eps = 2.0 / grid.shape[0]
-            ex = torch.tensor([eps, 0, 0], device=self.device)
-            ey = torch.tensor([0, eps, 0], device=self.device)
-            ez = torch.tensor([0, 0, eps], device=self.device)
-            with torch.no_grad():
-                grad = torch.stack([
-                    base_sdf(p0_t[None] + ex) - base_sdf(p0_t[None] - ex),
-                    base_sdf(p0_t[None] + ey) - base_sdf(p0_t[None] - ey),
-                    base_sdf(p0_t[None] + ez) - base_sdf(p0_t[None] - ez),
-                ], -1)
-            n0 = F.normalize(grad, dim=-1)[0]                   # outward wall normal
-            flat_val = (pts - p0_t[None]) @ n0                  # signed dist to the wall plane
-            tv = bv + w * ((flat_val - h_at_pts) - bv)          # blend: bv outside, flat+art inside
-        else:                                                   # no usable surrounding context
-            tv = bv - w * h_at_pts                              # fall back to the old perturb-only behavior
+        p0_t = torch.as_tensor(art["p0"], dtype=torch.float32, device=self.device)
+        n0 = torch.as_tensor(art["n"], dtype=torch.float32, device=self.device)
+        flat_val = (pts - p0_t[None]) @ n0                  # signed dist to the wall plane
+        tv = bv + w * ((flat_val - h_at_pts) - bv)          # blend: bv outside, flat+art inside
 
         norm = normalizer(bbox)
         out_scale = float(min(max((tv - bv).abs().max().item() * 1.05, 0.02),

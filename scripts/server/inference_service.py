@@ -720,13 +720,10 @@ class PaintReliefReq(BaseModel):
     steps: int = 28
     strength: float = 0.85              # img2img denoise strength: 1.0 = ignore the user's
                                          # painted colors entirely (hallucinate from the
-                                         # prompt alone). Needs to be fairly high (~0.85) by
-                                         # default -- at ~0.6 the result stays too close to
-                                         # the flat painted color/shape to develop real 3D
-                                         # shading (verified 2026-07-07: a molding stroke
-                                         # only showed fluted/ribbed relief detail at ~0.85,
-                                         # not 0.6), which matters more than exact color
+                                         # prompt alone). Kept high by default: developing
+                                         # real carved shading matters more than exact color
                                          # fidelity for "this should read as architecture"
+                                         # (v2 wall-space verified at 0.85, 2026-07-07)
     sketch_thickness: float = 6          # px: how literally the drawn SHAPE (not color) is
                                          # followed -- thin (~4-8) = precise/"the right
                                          # thing" (the default: a blurry/undefined blob is
@@ -789,10 +786,10 @@ def paint_relief_ep(req: PaintReliefReq):
         if req.style_ref_b64:
             ref = Image.open(_io.BytesIO(
                 _b.b64decode(req.style_ref_b64.split(",")[-1]))).convert("RGB")
-        prompt = req.prompt or ("an architectural molding or trim element built onto the "
-                                "wall, matching the shape shown, carved stone with a crisp "
-                                "raised profile, dramatic side lighting and deep shadows, "
-                                "high quality, sharp detail")
+        from paint_relief import relief_prompt
+        # req.prompt describes WHAT the motif is; the bas-relief style wrapper is always
+        # applied (monochrome carved-stone under raking light) — see relief_prompt for why.
+        prompt = relief_prompt(req.prompt)
         out_grid, mesh, rgb = r.refine_paint_relief(
             grid96, req.cam, paint_img, prompt, style_ref=ref, seed=req.seed,
             steps_diff=req.steps, strength=req.strength, sketch_thickness=req.sketch_thickness,

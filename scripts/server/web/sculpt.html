@@ -171,10 +171,11 @@
   <div class="card">
     <button id="paintMode">🖌 Sketch mode: off</button>
     <div class="help">This is a sketch tool, not a paint bucket: drag out a rough, vague
-    shape (as many strokes/colors as you like) — the model reads it as a sketch and resolves
-    it into a coherent piece (a dedicated scribble ControlNet reads the SHAPE you drew,
-    ControlNet depth/edge keeps it seated on the real geometry), then sculpts the result
-    into the SDF as an actual raised/carved relief. Orbit is disabled while sketching. Click
+    shape (as many strokes/colors as you like) on the MIDDLE of a wall — the stroke is
+    rectified onto that wall's plane, the model composes a bas-relief for the flat patch (a
+    dedicated scribble ControlNet reads the SHAPE you drew), and the result is sculpted into
+    the SDF as an actual raised/carved relief. Strokes across a corner or roofline get
+    clipped to the dominant wall. Orbit is disabled while sketching. Click
     <b>Generate relief</b> when your sketch is ready — drawing itself never submits.</div>
     <div class="row">
       <div><label>Color</label><input type="color" id="paintColor" value="#b08968" style="width:100%;height:30px;padding:2px;background:#0d1219;border:1px solid var(--line);border-radius:6px"/></div>
@@ -187,10 +188,10 @@
     <label>Sketch fidelity <span class="val" id="psketchv">precise</span></label>
     <input type="range" id="sketchPrecision" min="4" max="36" step="1" value="6"/>
     <div class="help">Precise = the model closely follows the shape you drew ("adjust it to
-    the right thing"). Creative = it treats your shape as loose inspiration and can invent a
-    genuinely different form (verified 2026-07-07: a vague scribble turned into an unrelated
-    building facade at the creative end) — a clear, intentional shape (like a star) usually
-    survives down to "balanced" but can get replaced entirely at the creative extreme.</div>
+    the right thing"). Creative = it treats your shape as loose inspiration for the motif
+    named in the prompt (verified 2026-07-07 v2: a vague blob + "a lion head" at the
+    creative end came back as an actual lion-head relief in the blob's place) — a clear,
+    intentional shape (like a star) usually survives down to "balanced".</div>
     <label>Color fidelity <span class="val" id="psv">creative (0.85)</span></label>
     <input type="range" id="paintStrength" min="0.2" max="1" step="0.05" value="0.85"/>
     <div class="help">Low = keeps the colors you picked; high = AI chooses its own colors and
