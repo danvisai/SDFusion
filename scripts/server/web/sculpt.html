@@ -471,8 +471,16 @@ async function gen(){ if(busy) return; busy=true; $('gen').disabled=true; $('inf
                                                         // actual massing, not a random one
     const r=await post('/building_sdf', body);
     st.center=r.center; st.scale=r.scale; st.recipe_params=r.recipe_params; setVolume(r.sdf_b64, r.res);
-    edits = resumeEditsWorld ? resumeEditsWorld.map(o=>worldToCubeOp(o, st.center, st.scale)) : [];
-    sel=edits.length-1; pushEditUniforms(); refreshSel();
+    // tag layer the SAME way interpretSel() does (det present -> 'detail', e.g. a tower's own
+    // window band) — without this, resumed ops carry no layer at all, so refreshSel()'s
+    // 'is this interpretable' check misfires and sel (below) can land on a tiny buried window
+    // carve instead of the construction's actual body (2026-07-07 fix)
+    edits = resumeEditsWorld ? resumeEditsWorld.map(o=>{ const c=worldToCubeOp(o, st.center, st.scale);
+      return {...c, layer:(c.det?'detail':'mass')}; }) : [];
+    sel = edits.length ? edits.findIndex(e=>e.layer!=='detail') : -1;  // select a MASS
+                                                                        // primitive by default
+    if(sel<0 && edits.length) sel=edits.length-1;                      // (all-detail edge case)
+    pushEditUniforms(); refreshSel();
     const resumeMsg = (resumeEditsWorld && resumeEditsWorld.length)
       ? ` — resumed ${resumeEditsWorld.length} edit(s) from the town building (its weathering/ornaments aren't editable here; they'll re-apply when you go back)`
       : '';
