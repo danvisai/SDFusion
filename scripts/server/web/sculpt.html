@@ -35,6 +35,12 @@
   #cv { width:100%; height:100%; display:block; }
   #hint { position:absolute; bottom:10px; left:12px; color:#cfe; font-size:11px; text-shadow:0 1px 3px #000a; pointer-events:none; }
   #fps { position:absolute; top:10px; right:12px; color:#8f9; font-size:11px; font-variant-numeric:tabular-nums; text-shadow:0 1px 3px #000a; pointer-events:none; }
+  #artPreview { position:absolute; top:12px; left:12px; width:220px; display:none; z-index:6;
+    background:#0d1219ee; border:1px solid var(--line); border-radius:8px; padding:8px; }
+  #artPreview .lbl { color:var(--mut); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+  #artPreview img { width:100%; border-radius:5px; display:block; background:#222; min-height:120px; object-fit:cover; }
+  #artPreview .st { color:#cfe; font-size:10.5px; margin-top:5px; }
+  #paintCv { position:absolute; inset:0; width:100%; height:100%; display:none; touch-action:none; cursor:crosshair; z-index:5; opacity:.55; }
   #info { margin-top:8px; color:var(--mut); font-size:11px; white-space:pre-line; }
   #eInfo { margin-top:10px; padding:8px 9px; background:#0d1219; border:1px solid var(--line); border-radius:7px;
            color:#cfe; font-size:11.5px; min-height:34px; white-space:pre-line; }
@@ -159,6 +165,43 @@
     already wearing this style. ~1 min.</div>
   </div>
   </details>
+
+  <details class="step" id="stepPaint">
+  <summary>⑥ Sketch relief <span class="tag">experimental</span></summary>
+  <div class="card">
+    <button id="paintMode">🖌 Sketch mode: off</button>
+    <div class="help">This is a sketch tool, not a paint bucket: drag out a rough, vague
+    shape (as many strokes/colors as you like) — the model reads it as a sketch and resolves
+    it into a coherent piece (a dedicated scribble ControlNet reads the SHAPE you drew,
+    ControlNet depth/edge keeps it seated on the real geometry), then sculpts the result
+    into the SDF as an actual raised/carved relief. Orbit is disabled while sketching. Click
+    <b>Generate relief</b> when your sketch is ready — drawing itself never submits.</div>
+    <div class="row">
+      <div><label>Color</label><input type="color" id="paintColor" value="#b08968" style="width:100%;height:30px;padding:2px;background:#0d1219;border:1px solid var(--line);border-radius:6px"/></div>
+      <div><label>Brush size <span class="val" id="pbv">40 px</span></label><input type="range" id="paintBrush" min="15" max="110" value="40"/></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="sm" id="paintGenerate">🪄 Generate relief</button>
+      <button class="sec sm" id="paintClear">✕ Clear sketch</button>
+    </div>
+    <label>Sketch fidelity <span class="val" id="psketchv">precise</span></label>
+    <input type="range" id="sketchPrecision" min="4" max="36" step="1" value="6"/>
+    <div class="help">Precise = the model closely follows the shape you drew ("adjust it to
+    the right thing"). Creative = it treats your shape as loose inspiration and can invent a
+    genuinely different form (verified 2026-07-07: a vague scribble turned into an unrelated
+    building facade at the creative end) — a clear, intentional shape (like a star) usually
+    survives down to "balanced" but can get replaced entirely at the creative extreme.</div>
+    <label>Color fidelity <span class="val" id="psv">creative (0.85)</span></label>
+    <input type="range" id="paintStrength" min="0.2" max="1" step="0.05" value="0.85"/>
+    <div class="help">Low = keeps the colors you picked; high = AI chooses its own colors and
+    adds real 3D shading (needed for it to read as carved/architectural, not a flat sticker).</div>
+    <label>Relief depth <span class="val" id="pdv">0.12</span></label>
+    <input type="range" id="paintDepth" min="0.03" max="0.25" step="0.01" value="0.12"/>
+    <label style="margin-top:8px">Prompt (optional)</label>
+    <input type="text" id="paintPrompt" placeholder="auto: relief sculpture detail" style="width:100%;background:#0d1219;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px;font-size:11px"/>
+    <button class="sec sm" id="dlRelief" style="display:none">⬇ Download relief mesh (.glb)</button>
+  </div>
+  </details>
   <div id="info">loading…</div>
   <div id="nrOverlay" style="display:none;position:fixed;inset:0;background:#000c;z-index:50;align-items:center;justify-content:center;flex-direction:column;gap:10px">
     <img id="nrImg" style="max-width:82vmin;max-height:82vmin;border-radius:10px"/>
@@ -168,7 +211,7 @@
     </div>
   </div>
 </div>
-<div id="view"><canvas id="cv"></canvas><div id="hint">drag empty space to orbit · scroll to zoom · place a primitive, then drag its gizmo (Move/Resize/Rotate) · 🧠 make it architecture → 🎲 re-roll · Bake when happy</div><div id="fps">-- fps</div></div>
+<div id="view"><canvas id="cv"></canvas><canvas id="paintCv"></canvas><div id="hint">drag empty space to orbit · scroll to zoom · place a primitive, then drag its gizmo (Move/Resize/Rotate) · 🧠 make it architecture → 🎲 re-roll · Bake when happy</div><div id="fps">-- fps</div><div id="artPreview"><div class="lbl">Generated art (debug)</div><img id="artPreviewImg"/><div class="st" id="artPreviewSt">drag a stroke to generate</div></div></div>
 
 <script type="importmap">
 { "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" }}
@@ -662,6 +705,108 @@ $('applyTown').onclick=async()=>{
   }catch(e){ $('eInfo').textContent='apply error: '+e.message; }
   busy=false; $('applyTown').disabled=false;
 };
+// ---- PAINT RELIEF: drag on the building -> SDXL art restricted to the stroke -> a real
+// sculpted SDF relief (Refiner.refine_paint_relief), not a flat texture. paintCv overlays
+// #cv at its NATURAL current size/aspect (no square "photo canvas" crop/resize) — painting
+// happens directly on the 3D view exactly as you were already looking at it. Orbit is
+// frozen only while paint mode is active, so the stroke's camera stays valid; texture_bake's
+// trace_view now supports non-square aspect (matches the shader's uTan*uAspect) so the
+// unprojection stays correct for whatever angle/zoom you were at. Each stroke is derived
+// FRESH from the true massing (st.base_b64/edits), the same one-shot contract /bake_texture
+// already uses — it updates the live shader texture directly (like Detail preview) rather
+// than st.base_b64, so it can never desync the mass-editing/bake pipeline's "raw massing"
+// invariant or double-apply composer detail on a later Bake.
+const paintCv = $('paintCv'), paintCtx = paintCv.getContext('2d');
+let paintOn = false, painting = false, lastReliefGlb = null;
+function paintCvSize(){                              // match #cv's ACTUAL on-screen pixels
+  const w=Math.round(cv.clientWidth), h=Math.round(cv.clientHeight);
+  if(paintCv.width!==w) paintCv.width=w;
+  if(paintCv.height!==h) paintCv.height=h;
+}
+function enterPaintMode(){
+  if(busy||!st.base_b64){ $('eInfo').textContent='generate a building first'; return; }
+  paintCvSize();
+  paintCtx.clearRect(0,0,paintCv.width,paintCv.height);
+  paintCv.style.display='block';
+  controls.enabled=false; paintOn=true;
+  $('paintMode').classList.add('on'); $('paintMode').textContent='🖌 Sketch mode: on (drag to sketch)';
+  $('eInfo').textContent='drag out a rough shape directly on the building (any number of strokes/colors), then click Generate relief';
+  // debug/UX preview: shows exactly what the model generated from your last stroke, so you
+  // can see what your drawing is actually being matched to, not just feel the 3D result.
+  $('artPreview').style.display='block';
+}
+function exitPaintMode(){
+  if(!paintOn) return;
+  paintOn=false; painting=false;
+  paintCv.style.display='none'; controls.enabled=true;
+  $('paintMode').classList.remove('on'); $('paintMode').textContent='🖌 Sketch mode: off';
+  $('artPreview').style.display='none';
+}
+$('paintMode').onclick=()=>{ paintOn ? exitPaintMode() : enterPaintMode(); };
+addEventListener('resize', ()=>{ if(paintOn) paintCvSize(); });
+function paintXY(ev){ const rc=paintCv.getBoundingClientRect();
+  return [(ev.clientX-rc.left)*(paintCv.width/rc.width), (ev.clientY-rc.top)*(paintCv.height/rc.height)]; }
+function paintDab(x,y){ const r=+$('paintBrush').value/2;
+  paintCtx.fillStyle=$('paintColor').value; paintCtx.beginPath(); paintCtx.arc(x,y,r,0,Math.PI*2); paintCtx.fill(); }
+paintCv.addEventListener('pointerdown', ev=>{ if(!paintOn||busy) return; painting=true; paintCv.setPointerCapture(ev.pointerId); paintDab(...paintXY(ev)); });
+paintCv.addEventListener('pointermove', ev=>{ if(!painting) return; paintDab(...paintXY(ev)); });
+// finishing a stroke just lifts the pen -- it does NOT submit, so you can draw as many
+// strokes/colors as you want (switch the color picker between strokes) before generating.
+paintCv.addEventListener('pointerup', ()=>{ painting=false; });
+$('paintGenerate').onclick=()=>submitPaint();
+$('paintClear').onclick=()=>{ if(busy) return; paintCtx.clearRect(0,0,paintCv.width,paintCv.height); };
+async function submitPaint(){
+  if(busy||!st.base_b64) return; busy=true; $('paintMode').disabled=true; $('paintGenerate').disabled=true;
+  $('eInfo').textContent='resolving sketch… (SDXL, ~1 min)'; const t=performance.now();
+  $('artPreviewSt').textContent='generating…'; $('artPreviewImg').style.opacity=0.4;
+  try{
+    // RGBA PNG: transparent where unpainted (defines the mask + the scribble ControlNet's
+    // shape signal), your actual colors where painted (blended into the art at `strength`).
+    const paint_png_b64 = paintCv.toDataURL('image/png').split(',')[1];
+    const r = await post('/paint_relief', {
+      base_sdf_b64:st.base_b64, res:st.res, center:st.center, scale:st.scale,
+      building_class:st.cls, style:st.style, detail_edits:edits.filter(e=>e.layer==='detail').map(wire),
+      cam:{pos:[cam.position.x,cam.position.y,cam.position.z],
+           look:[controls.target.x,controls.target.y,controls.target.z], fov:cam.fov},
+      paint_png_b64, view_res:paintCv.height, aspect:paintCv.width/paintCv.height,
+      prompt:$('paintPrompt').value||null,
+      style_ref_b64:st.styleRef||null, seed:Math.floor(Math.random()*1e6),
+      strength:+$('paintStrength').value, sketch_thickness:+$('sketchPrecision').value,
+      sketch_scale:sketchScaleFromSlider(+$('sketchPrecision').value),
+      relief_depth:+$('paintDepth').value, return_mesh:true});
+    const tex=b64ToVol(r.sdf_b64, r.res);                    // LIVE PREVIEW only — st.base_b64
+    if(uniforms.uVol.value) uniforms.uVol.value.dispose();   // stays untouched, so Bake/Detail
+    uniforms.uVol.value=tex; uniforms.uHasVol.value=1;       // preview keep deriving from the
+    lastReliefGlb=r.mesh_glb_b64||null;                      // true massing (no double detail).
+    $('dlRelief').style.display = lastReliefGlb ? 'block' : 'none';
+    paintCtx.clearRect(0,0,paintCv.width,paintCv.height);
+    if(r.art_png_b64){                                       // this is what your stroke was
+      $('artPreviewImg').src='data:image/png;base64,'+r.art_png_b64;  // actually matched to —
+      $('artPreviewImg').style.opacity=1;                    // see it before it's carved in 3D
+      $('artPreviewSt').textContent='this is what the AI generated (before it became relief)';
+    }
+    $('eInfo').textContent=`relief sculpted · ${((performance.now()-t)/1000).toFixed(0)}s — paint another patch, or ⬇ download`;
+  }catch(e){ $('eInfo').textContent='paint relief error: '+e.message; $('artPreviewSt').textContent='generation failed'; $('artPreviewImg').style.opacity=1; }
+  busy=false; $('paintMode').disabled=false; $('paintGenerate').disabled=false;
+}
+$('paintBrush').oninput=()=>{ $('pbv').textContent=$('paintBrush').value+' px'; };
+$('paintDepth').oninput=()=>{ $('pdv').textContent=(+$('paintDepth').value).toFixed(2); };
+$('paintStrength').oninput=()=>{ const v=+$('paintStrength').value;
+  const tag = v<=0.4?'preserve':(v>=0.8?'creative':'blend');
+  $('psv').textContent=`${tag} (${v.toFixed(2)})`; };
+// Maps the same slider to the scribble ControlNet's conditioning weight: thin+strong (0.85)
+// closely follows the drawn shape; thick+weak (0.40) lets the model invent a genuinely
+// different form (calibrated 2026-07-07 -- 0.85/0.60 both kept a clear star recognizable
+// with added context, 0.45 replaced it entirely with an unrelated facade for a vague blob).
+function sketchScaleFromSlider(px){ const t=(px-4)/(36-4); return 0.85 - t*0.45; }
+$('sketchPrecision').oninput=()=>{ const v=+$('sketchPrecision').value;
+  const tag = v<=10?'precise':(v>=24?'creative':'balanced');
+  $('psketchv').textContent=`${tag} (${v}px, controlnet ${sketchScaleFromSlider(v).toFixed(2)})`; };
+$('dlRelief').onclick=()=>{ if(!lastReliefGlb) return;
+  const bin=atob(lastReliefGlb); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  const url=URL.createObjectURL(new Blob([u8],{type:'model/gltf-binary'})); const a=document.createElement('a');
+  a.href=url; a.download='relief.glb'; a.click(); URL.revokeObjectURL(url); };
+
 fetch('/health').then(r=>r.json()).then(h=>{ $('info').textContent=`engine: ${h.device} — set size + style, then Generate`; gen(); })
   .catch(()=>$('info').textContent='cannot reach engine (is the server running?)');
 </script>

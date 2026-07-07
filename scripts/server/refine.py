@@ -236,6 +236,106 @@ class Refiner:
                 "footprint": np.asarray(b_poly).tolist(), "height": float(b_h),
                 "mesh": mesh, "iou_to_edit": iou, "field": field}
 
+    # -- Paint-to-relief: painted patch -> 2D art -> real sculpted SDF detail --
+    def refine_paint_relief(self, grid, cam, paint_img, prompt, style_ref=None, seed=7,
+                            steps_diff=28, strength=0.6, sketch_thickness=12, sketch_scale=0.85,
+                            relief_depth=0.12, band=0.07, fit_steps=400, n_pts=20000,
+                            view_res=512, aspect=1.0, return_mesh=True):
+        """Paint a rough/vague shape on the CURRENT building -> SDXL art (a scribble
+        ControlNet reads the drawn SHAPE as a real structural signal, not just blended
+        pixel color — see paint_relief.generate_patch_art) restricted to that patch ->
+        fuse the art as a real geometric relief via the same Option D machinery as
+        `refine_displacement` (fit_displacement/DisplacementField): final(x) =
+        base(x) + w(x) * displacement(x), where `w` is 1 on the painted patch fading to 0
+        over `band` (`paint_relief.paint_locality_mask`, the paint-stroke analogue of
+        `_edit_locality_mask`) so untouched geometry stays bit-exact. Within the patch, the
+        target REPLACES whatever's already there (e.g. an existing carved window) with a
+        flat wall reference (`paint_relief.flat_wall_point`) plus the art's height, rather
+        than perturbing the old geometry — otherwise a window painted over just gets
+        slightly bumped instead of cleanly replaced by the new art.
+
+        `grid`: cube-frame (D,H,W) SDF numpy array — the SAME detailed volume the sculptor
+        viewer is showing (e.g. from `detail_cube_volume(..., res_out=96)`), NOT world
+        meters and NOT the VQVAE's truncated Frame-N space (TRUNC doesn't apply here).
+        `cam`: {"pos","look","fov"} matching texture_bake.trace_view's camera contract —
+        the frontend sends the exact camera it painted against. `paint_img`: the user's
+        rough painted shape/colors (PIL RGBA, transparent where unpainted) in that same view.
+        `sketch_thickness`/`sketch_scale`: how literally the drawn SHAPE is followed — thin
+        +strong reads as "adjust it to the right thing", thick+weaker as "a creative art
+        piece" (paint_relief.scribble_from_mask). `strength` separately controls how much
+        the painted COLORS survive (~0.6 "blend" keeps them recognizable).
+        `relief_depth`: max relief magnitude in cube units (~0.05 ≈ 2 voxels at 96^3).
+        Returns (out_grid (D,H,W) numpy SDF, mesh|None, art_rgb) so a caller can either
+        drop `out_grid`/`out_grid`-derived mesh into the live preview, or re-bake color.
+        """
+        import paint_relief as pr
+        base_sdf = volume_to_sdf(grid, self.device)
+        rgb, surf_pts, mask_bool, basis = pr.generate_patch_art(
+            grid, cam, paint_img, prompt, style_ref=style_ref, seed=seed, steps=steps_diff,
+            strength=strength, sketch_thickness=sketch_thickness, sketch_scale=sketch_scale,
+            res=view_res, aspect=aspect, device=self.device)
+        h_field = pr.height_from_art(rgb, mask_bool, relief_depth)
+
+        hit_rows, hit_cols = np.where(mask_bool & basis["hit"])
+        h_surf = torch.as_tensor(h_field[hit_rows, hit_cols], dtype=torch.float32,
+                                 device=self.device)
+
+        lo = surf_pts.min(0).values.cpu().numpy()
+        hi = surf_pts.max(0).values.cpu().numpy()
+        pad = np.maximum(0.15 * (hi - lo), 0.05)
+        bbox = tuple((lo - pad).tolist() + (hi + pad).tolist())
+
+        pts = torch.rand(n_pts, 3, device=self.device)
+        lo_t = torch.tensor(bbox[:3], device=self.device)
+        hi_t = torch.tensor(bbox[3:], device=self.device)
+        pts = pts * (hi_t - lo_t) + lo_t
+
+        from scipy.spatial import cKDTree
+        tree = cKDTree(surf_pts.cpu().numpy())
+        _, nn = tree.query(pts.cpu().numpy(), k=1)
+        h_at_pts = h_surf[torch.as_tensor(nn, device=self.device)]
+        w = pr.paint_locality_mask(surf_pts, pts, band=band)
+        with torch.no_grad():
+            bv = base_sdf(pts)
+
+        # Replace whatever's ALREADY there (e.g. a carved window/sill the user painted
+        # over) with a flat wall reference + the art relief, instead of just perturbing
+        # the existing recess by a small `h` — otherwise the old window and the new art
+        # blend together and the window visually "wins" (2026-07-07 user report).
+        flat_p0 = pr.flat_wall_point(mask_bool, basis)
+        if flat_p0 is not None:
+            p0_t = torch.as_tensor(flat_p0, dtype=torch.float32, device=self.device)
+            eps = 2.0 / grid.shape[0]
+            ex = torch.tensor([eps, 0, 0], device=self.device)
+            ey = torch.tensor([0, eps, 0], device=self.device)
+            ez = torch.tensor([0, 0, eps], device=self.device)
+            with torch.no_grad():
+                grad = torch.stack([
+                    base_sdf(p0_t[None] + ex) - base_sdf(p0_t[None] - ex),
+                    base_sdf(p0_t[None] + ey) - base_sdf(p0_t[None] - ey),
+                    base_sdf(p0_t[None] + ez) - base_sdf(p0_t[None] - ez),
+                ], -1)
+            n0 = F.normalize(grad, dim=-1)[0]                   # outward wall normal
+            flat_val = (pts - p0_t[None]) @ n0                  # signed dist to the wall plane
+            tv = bv + w * ((flat_val - h_at_pts) - bv)          # blend: bv outside, flat+art inside
+        else:                                                   # no usable surrounding context
+            tv = bv - w * h_at_pts                              # fall back to the old perturb-only behavior
+
+        norm = normalizer(bbox)
+        out_scale = float(min(max((tv - bv).abs().max().item() * 1.05, 0.02),
+                              max(relief_depth * 1.5, 0.5)))
+        field = fit_displacement(bv, tv, norm(pts), steps=fit_steps, device=self.device,
+                                 n_freq=8, hidden=160, band=band, reg=0.01, out_scale=out_scale)
+
+        def final_sdf(p):
+            wp = pr.paint_locality_mask(surf_pts, p, band=band)  # 2nd locality gate: keep the
+            return base_sdf(p) + wp * field(norm(p))             # effect local past the fit bbox
+
+        full_bbox = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0)
+        out_grid = sample_grid(final_sdf, grid.shape[0], full_bbox, device=self.device)
+        mesh = grid_to_mesh(out_grid, full_bbox, iso=0.0) if return_mesh else None
+        return out_grid.cpu().numpy().astype(np.float32), mesh, rgb
+
     # -- SDEdit mode: the learned massing prior (3D BAG) ------------------
     def _mk_stage3a(self, ckpt, use_extra_cond=False, use_adaln=False):
         from types import SimpleNamespace

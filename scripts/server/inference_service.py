@@ -702,6 +702,115 @@ def bake_texture(req: BakeTextureReq):
         raise HTTPException(400, f"bake texture failed: {ex}")
 
 
+class PaintReliefReq(BaseModel):
+    base_sdf_b64: str                   # cube-frame massing volume (sculptor st.base_b64)
+    res: int = 64
+    center: List[float]
+    scale: float                        # world half-extent (m) of the cube frame
+    building_class: str = "RESIDENTIAL"
+    style: str = "modern"
+    detail_edits: List[dict] = Field(default_factory=list)
+    cam: dict                           # {"pos":[x,y,z], "look":[x,y,z], "fov":float}
+    paint_png_b64: str                  # user's painted colors (RGBA, transparent where
+                                         # unpainted), same view as `cam` — alpha defines the
+                                         # painted region, RGB is what gets blended into the art
+    prompt: Optional[str] = None
+    style_ref_b64: Optional[str] = None
+    seed: int = 7
+    steps: int = 28
+    strength: float = 0.85              # img2img denoise strength: 1.0 = ignore the user's
+                                         # painted colors entirely (hallucinate from the
+                                         # prompt alone). Needs to be fairly high (~0.85) by
+                                         # default -- at ~0.6 the result stays too close to
+                                         # the flat painted color/shape to develop real 3D
+                                         # shading (verified 2026-07-07: a molding stroke
+                                         # only showed fluted/ribbed relief detail at ~0.85,
+                                         # not 0.6), which matters more than exact color
+                                         # fidelity for "this should read as architecture"
+    sketch_thickness: float = 6          # px: how literally the drawn SHAPE (not color) is
+                                         # followed -- thin (~4-8) = precise/"the right
+                                         # thing" (the default: a blurry/undefined blob is
+                                         # worse than an overly literal shape), thick (~30)
+                                         # = coarse/"a creative art piece" (opt-in via UI)
+    sketch_scale: float = 0.85          # scribble ControlNet conditioning weight
+    relief_depth: float = 0.12          # cube units; calibrated so the default reads as an
+                                         # obvious carved/raised relief (~6 voxels at 96^3),
+                                         # not just a faint bump — 0.05 was barely visible
+    band: float = 0.07
+    view_res: int = 512                 # image HEIGHT of the capture
+    aspect: float = 1.0                 # width/height — the live viewport's own aspect, so
+                                         # painting happens on the current 3D view in place
+                                         # instead of a forced square crop
+    composer_seed: Optional[int] = 0    # detail_cube_volume's composer seed (windows/bands/
+                                         # roof/landmarks) — pinned by default so repeated
+                                         # paint strokes on the same building don't randomly
+                                         # re-roll UNRELATED facade decoration each call
+                                         # (detail_cube_volume defaults to seed=None/random);
+                                         # only the painted patch itself should change.
+    return_mesh: bool = False
+
+
+class PaintReliefResp(BaseModel):
+    sdf_b64: str
+    res: int
+    mesh_glb_b64: Optional[str] = None
+    art_png_b64: Optional[str] = None   # the generated art itself (post-blend), for preview
+
+
+@app.post("/paint_relief", response_model=PaintReliefResp)
+def paint_relief_ep(req: PaintReliefReq):
+    """Paint a patch on the current building -> SDXL art restricted to that patch -> a
+    REAL sculpted SDF relief (marching cubes shows carved/raised geometry, not just a
+    color texture), fused in via a per-patch displacement field
+    (Refiner.refine_paint_relief). Same grid-prep contract as /bake_texture."""
+    import base64 as _b
+    import io as _io
+    import numpy as np
+    r = refiner()
+    try:
+        grid = np.frombuffer(_b.b64decode(req.base_sdf_b64.split(",")[-1]),
+                             dtype="<f4").reshape(req.res, req.res, req.res).copy()
+        if req.detail_edits:
+            from refine import volume_to_sdf
+            from scene.sdf_edit import EditableBuilding, EditOp
+            from scene.sdf_primitives import sample_grid
+            comp = EditableBuilding(volume_to_sdf(grid, r.device),
+                                    [EditOp.from_dict(d) for d in req.detail_edits]).composed()
+            grid = sample_grid(comp, req.res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
+                               device=r.device).cpu().numpy()
+        grid96 = r.detail_cube_volume(grid, req.center, req.scale,
+                                      building_class=req.building_class, style=req.style,
+                                      seed=req.composer_seed, res_out=96,
+                                      detail_edits=req.detail_edits)
+        from PIL import Image
+        # NOT .convert("RGB") -- alpha carries which pixels were actually painted
+        paint_img = Image.open(_io.BytesIO(_b.b64decode(req.paint_png_b64.split(",")[-1])))
+        ref = None
+        if req.style_ref_b64:
+            ref = Image.open(_io.BytesIO(
+                _b.b64decode(req.style_ref_b64.split(",")[-1]))).convert("RGB")
+        prompt = req.prompt or ("an architectural molding or trim element built onto the "
+                                "wall, matching the shape shown, carved stone with a crisp "
+                                "raised profile, dramatic side lighting and deep shadows, "
+                                "high quality, sharp detail")
+        out_grid, mesh, rgb = r.refine_paint_relief(
+            grid96, req.cam, paint_img, prompt, style_ref=ref, seed=req.seed,
+            steps_diff=req.steps, strength=req.strength, sketch_thickness=req.sketch_thickness,
+            sketch_scale=req.sketch_scale, relief_depth=req.relief_depth,
+            band=req.band, view_res=req.view_res, aspect=req.aspect,
+            return_mesh=req.return_mesh)
+        mesh_b64 = None
+        if req.return_mesh and mesh is not None and len(mesh.faces):
+            mesh_b64 = _b64(engine().mesh_to_glb(mesh))
+        art_buf = _io.BytesIO()
+        Image.fromarray((np.clip(rgb, 0, 1) * 255).astype(np.uint8)).save(art_buf, format="PNG")
+        return PaintReliefResp(sdf_b64=_b64(out_grid.astype("<f4").tobytes()),
+                               res=int(out_grid.shape[0]), mesh_glb_b64=mesh_b64,
+                               art_png_b64=_b64(art_buf.getvalue()))
+    except Exception as ex:
+        raise HTTPException(400, f"paint relief failed: {ex}")
+
+
 class ExportBuilding(BaseModel):
     footprint: List[List[float]]
     position: List[float]
