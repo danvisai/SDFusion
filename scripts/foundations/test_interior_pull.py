@@ -45,22 +45,25 @@ def U(w, d, cw, cd):
             [-w/2+cw, d/2-cd], [-w/2+cw, d/2], [-w/2, d/2]]
 
 
-def sdf_at(occ, c, s, pts_world):
-    """Signed distance (occupancy-boundary EDT, same convention as layout_detail.recohere_ops)
-    at world-frame points, for the interior-pull check."""
-    from scipy.ndimage import distance_transform_edt
-    R = occ.shape[0]
-    edt_out = distance_transform_edt(~occ)
-    edt_in = distance_transform_edt(occ)
-    vox = 2.0 / 63
-    sdf_grid = (edt_out - edt_in) * vox
-    g = np.linspace(-1, 1, R)
+def sdf_at(grid, pts_world):
+    """True signed distance IN WORLD VOXELS at viewer-frame (world cube) op centers,
+    read straight off the massing SDF grid (layout (z,y,x)).
+
+    HISTORY (2026-07-08): this used to rebuild an EDT over the OCC-FRAME resampled
+    occupancy and then applied the occ->world transform to points that were ALREADY
+    world-frame — every wall-mounted op evaluated at a spot shrunk toward the building
+    interior and read as "buried". That measurement bug was the entire 2026-07-03
+    "propose_detail_ops buries windows on non-convex footprints" report; the ops were
+    on-surface all along (re-verified via trilinear world SDF and 96^3 detail renders).
+    Measuring against the actual SDF grid removes both the frame mix-up and the EDT
+    resampling quantization that inflated boundary readings."""
+    R = grid.shape[0]
+    vox = 2.0 / (R - 1)
     to_i = lambda v: int(np.clip((v + 1) * 0.5 * (R - 1), 0, R - 1))
     out = []
     for p in pts_world:
-        # p is in the OCC-FRAME (c,s) planner coords used by integrate_new_part -> world
-        pw = np.asarray(p) * s + c
-        out.append(float(sdf_grid[to_i(pw[2]), to_i(pw[1]), to_i(pw[0])]))
+        p = np.asarray(p)
+        out.append(float(grid[to_i(p[2]), to_i(p[1]), to_i(p[0])]) / vox)
     return np.array(out)
 
 
@@ -101,19 +104,19 @@ def main():
     out_ops, used = ld.integrate_new_part(grid, existing_ops, new_window, building_class=cls, device=dev)
     print(f"used={used}")
 
-    # 1) QUANTITATIVE: sample the massing SDF at every op's final center (occ-frame coords,
-    # matching integrate_new_part's own (c,s) convention) -- flag anything deep inside solid mass.
-    occf, cf, sf = ld._occ_frame(grid)
+    # 1) QUANTITATIVE: sample the massing SDF at every op's final center — flag anything
+    # deep inside solid mass. Wall ops legitimately straddle the surface (center on the
+    # outermost occupied voxel ~= -1 vox), so the burial threshold is -2.5 voxels.
     centers = [np.asarray(o["center"], np.float32) for o in out_ops]
-    sdfs = sdf_at(occf, cf, sf, centers)
-    print("\nper-op surface distance (occ-frame SDF; ~0 = on surface, very negative = BURIED interior):")
+    sdfs = sdf_at(grid, centers)
+    print("\nper-op surface distance (world SDF, voxels; ~-1 = on surface, very negative = BURIED):")
     worst = 0.0
     for o, d in zip(out_ops, sdfs):
-        flag = "  <-- INTERIOR PULL?" if d < -0.06 else ""
-        print(f"  {o.get('det','?'):8s} grp={o.get('grp','-'):8s} sdf={d:+.4f}{flag}")
+        flag = "  <-- INTERIOR PULL?" if d < -2.5 else ""
+        print(f"  {o.get('det','?'):8s} grp={o.get('grp','-'):8s} sdf={d:+6.1f} vox{flag}")
         worst = min(worst, d)
-    print(f"\nworst (most negative) surface distance: {worst:+.4f}  "
-          f"({'FAIL -- likely interior pull' if worst < -0.06 else 'PASS -- nothing buried'})")
+    print(f"\nworst (most negative) surface distance: {worst:+.1f} vox  "
+          f"({'FAIL -- likely interior pull' if worst < -2.5 else 'PASS -- nothing buried'})")
 
     # 2) VISUAL: render base vs. after-integration, from an angle that shows the courtyard.
     def compose_grid(ops_):

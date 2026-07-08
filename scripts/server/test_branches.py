@@ -238,6 +238,28 @@ def main():
         return f"{r['n_buildings']} buildings from mask"
     case("B10 image -> town", b10)
 
+    def b13():
+        # NON-CONVEX guard: AI details must land on walls of a U/courtyard footprint too —
+        # including the courtyard-facing inner walls. The 2026-07-03 "buries windows in
+        # solid mass" report turned out to be a measurement bug in a foundations script
+        # (fixed 2026-07-08); this asserts the real property with the real SDF so any
+        # future regression is caught by the gates, not by eye.
+        w, d, cw, cd = 20, 16, 6, 8
+        ufp = [[-w/2, -d/2], [w/2, -d/2], [w/2, d/2], [w/2-cw, d/2], [w/2-cw, d/2-cd],
+               [-w/2+cw, d/2-cd], [-w/2+cw, d/2], [-w/2, d/2]]
+        r = post("/building_sdf", {"footprint": ufp, "style": "modern",
+                                   "building_class": "RESIDENTIAL", "height": 14, "seed": 3})
+        g0 = vol(r["sdf_b64"])
+        det = post("/propose_details", {"base_sdf_b64": r["sdf_b64"], "res": 64,
+                                        "building_class": "RESIDENTIAL", "seed": 0})
+        vox = 2.0 / 63
+        wall = [o for o in det["ops"] if o.get("det") in ("window", "door", "balcony", "column")]
+        assert len(wall) >= 4, f"only {len(wall)} wall ops on the U footprint"
+        ds = [abs(sdf_at(g0, o["center"])) / vox for o in wall]
+        assert max(ds) < 2.5, f"wall op {max(ds):.1f} vox off surface (buried or floating)"
+        return f"{len(wall)} wall ops on U-footprint, worst {max(ds):.1f} vox"
+    case("B13 non-convex (U) details stay on walls", b13)
+
     stamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     with open(os.path.join(OUT, f"report_{stamp}.csv"), "w", newline="") as f:
         w = csv.writer(f); w.writerow(["branch", "status", "metric", "secs"]); w.writerows(ROWS)
