@@ -1,0 +1,17 @@
+[
+  {
+    "file": "synthetic_blocks.png",
+    "label": "Synthetic blocks",
+    "meters_across": 220
+  },
+  {
+    "file": "munich_oldtown.png",
+    "label": "Munich Altstadt (real OSM)",
+    "meters_across": 591.480504617095
+  },
+  {
+    "file": "lafayette.png",
+    "label": "Lafayette IN (real OSM)",
+    "meters_across": 449.3820317386417
+  }
+]

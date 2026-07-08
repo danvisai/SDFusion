@@ -44,7 +44,9 @@ wandb/
 runs/
 logs/
 checkpoints/
-datasets/
+# NOTE: `datasets/` here is the dataset *loader code* and must stay tracked; actual
+# data lives in data/ (ignored above). A bare `datasets/` rule here used to shadow
+# the code — removed 2026-07-08.
 
 # Visual Studio / build junk
 .vs/
