@@ -521,6 +521,7 @@ class UNet3DModel(nn.Module):
         context_dim=None,                 # custom transformer support
         n_embed=None,                     # custom support for prediction of discrete ids into codebook of first stage vq model
         legacy=True,
+        adaln_context_dim=None,           # gated: inject global cond vector into the time embedding
     ):
         super().__init__()
         # import pdb; pdb.set_trace()
@@ -569,6 +570,17 @@ class UNet3DModel(nn.Module):
 
         if self.num_classes is not None:
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
+
+        # adaLN-style conditioning (gated): project the global conditioning VECTOR into the
+        # timestep embedding so it modulates EVERY ResBlock's scale/shift (ADM/DiT trick) —
+        # the cross-attn path alone is provably ignored by this UNet (style-collapse audit).
+        self.adaln_context_dim = adaln_context_dim
+        if adaln_context_dim is not None:
+            self.adaln_proj = nn.Sequential(
+                linear(int(adaln_context_dim), time_embed_dim),
+                nn.SiLU(),
+                linear(time_embed_dim, time_embed_dim),
+            )
 
         self.input_blocks = nn.ModuleList(
             [
@@ -808,6 +820,10 @@ class UNet3DModel(nn.Module):
         if self.num_classes is not None:
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
+
+        adaln_vec = kwargs.get("adaln_vec", None)
+        if adaln_vec is not None and self.adaln_context_dim is not None:
+            emb = emb + self.adaln_proj(adaln_vec)    # cond modulates every ResBlock via emb
 
         # import pdb; pdb.set_trace()
         # h = x.type(self.dtype)

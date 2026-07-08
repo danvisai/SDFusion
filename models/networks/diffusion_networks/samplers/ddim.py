@@ -21,8 +21,9 @@ class DDIMSampler(object):
 
     def register_buffer(self, name, attr):
         if type(attr) == torch.Tensor:
-            if attr.device != torch.device("cuda"):
-                attr = attr.to(torch.device("cuda"))
+            dev = torch.device(getattr(self.model, "device", attr.device))
+            if attr.device != dev:
+                attr = attr.to(dev)
         setattr(self, name, attr)
 
     def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
@@ -181,10 +182,16 @@ class DDIMSampler(object):
     @torch.no_grad()
     def p_sample_ddim(self, x, c, t, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
-                      unconditional_guidance_scale=1., unconditional_conditioning=None, mm_cls_free=False):
+                      unconditional_guidance_scale=1., unconditional_conditioning=None, mm_cls_free=False,
+                      eps_fn=None):
         b, *_, device = *x.shape, x.device
 
-        if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
+        if eps_fn is not None:
+            # External epsilon function (e.g. autoguidance: combine a strong model's
+            # conditional prediction with a weaker checkpoint's). Bypasses built-in CFG;
+            # the rest of the DDIM update below is reused unchanged.
+            e_t = eps_fn(x, t)
+        elif unconditional_conditioning is None or unconditional_guidance_scale == 1.:
             e_t = self.model.apply_model(x, t, c)
         elif mm_cls_free:
 

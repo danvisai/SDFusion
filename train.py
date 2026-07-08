@@ -25,7 +25,26 @@ from utils.distributed import (
 import torch
 from utils.visualizer import Visualizer
 
-def train_main_worker(opt, model, train_dl, test_dl, test_dl_for_eval, visualizer, device):
+def _val_loss(model, val_dl):
+    """One pass over val_dl in eval mode; returns mean diffusion loss."""
+    if val_dl is None:
+        return None
+    model.switch_eval()
+    losses = []
+    with torch.no_grad():
+        for data in val_dl:
+            model.set_input(data)
+            model.forward()  # populates model.loss_dict on the SDFusion path
+            err = model.get_current_errors()
+            if 'total' in err:
+                losses.append(float(err['total']))
+    model.switch_train()
+    if not losses:
+        return None
+    return sum(losses) / len(losses)
+
+
+def train_main_worker(opt, model, train_dl, val_dl, test_dl, test_dl_for_eval, visualizer, device):
 
     if get_rank() == 0:
         cprint('[*] Start training. name: %s' % opt.name, 'blue')
@@ -98,6 +117,10 @@ def train_main_worker(opt, model, train_dl, test_dl, test_dl_for_eval, visualize
             # eval every 3000 steps
             if iter_ip1 % opt.save_steps_freq == 0:
                 metrics = model.eval_metrics(test_dl_for_eval, global_step=iter_ip1)
+                vloss = _val_loss(model, val_dl)
+                if vloss is not None:
+                    metrics = dict(metrics)
+                    metrics['val_loss'] = vloss
                 # visualizer.print_current_metrics(epoch, metrics, phase='test')
                 visualizer.print_current_metrics(iter_ip1, metrics, phase='test')
                 # print(metrics)
@@ -131,8 +154,9 @@ if __name__ == "__main__":
     from datetime import datetime
     opt.exp_time = datetime.now().strftime('%Y-%m-%dT%H-%M')
 
-    train_dl, test_dl, test_dl_for_eval = CreateDataLoader(opt)
+    train_dl, val_dl, test_dl, test_dl_for_eval = CreateDataLoader(opt)
     train_ds, test_ds = train_dl.dataset, test_dl.dataset
+    val_ds = val_dl.dataset if val_dl is not None else None
 
     dataset_size = len(train_ds)
     if opt.dataset_mode == 'shapenet_lang':
@@ -140,6 +164,8 @@ if __name__ == "__main__":
         cprint('[*] # testing text snippets = %d' % len(test_ds), 'yellow')
     else:
         cprint('[*] # training images = %d' % len(train_ds), 'yellow')
+        if val_ds is not None:
+            cprint('[*] # val images = %d' % len(val_ds), 'yellow')
         cprint('[*] # testing images = %d' % len(test_ds), 'yellow')
 
     # main loop
@@ -172,6 +198,6 @@ if __name__ == "__main__":
             cfg_out = os.path.join(expr_dir, os.path.basename(df_cfg))
             os.system(f'cp {df_cfg} {cfg_out}')
 
-    train_main_worker(opt, model, train_dl, test_dl, test_dl_for_eval, visualizer, device)
+    train_main_worker(opt, model, train_dl, val_dl, test_dl, test_dl_for_eval, visualizer, device)
 
 

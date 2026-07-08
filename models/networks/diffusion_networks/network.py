@@ -9,15 +9,16 @@ from einops import rearrange, repeat
 from .openai_model_3d import UNet3DModel
 
 class DiffusionUNet(nn.Module):
-    def __init__(self, unet_params, vq_conf=None, conditioning_key=None):
+    def __init__(self, unet_params, vq_conf=None, conditioning_key=None, adaln_context_dim=None):
         """ init method """
         super().__init__()
 
-        self.diffusion_net = UNet3DModel(**unet_params)
+        self.diffusion_net = UNet3DModel(**unet_params, adaln_context_dim=adaln_context_dim)
         self.conditioning_key = conditioning_key # default for lsun_bedrooms
 
 
-    def forward(self, x, t, c_concat: list = None, c_crossattn: list = None, hint: torch.Tensor = None):
+    def forward(self, x, t, c_concat: list = None, c_crossattn: list = None, hint: torch.Tensor = None,
+                adaln_vec: torch.Tensor = None):
         # x: should be latent code. shape: (bs X z_dim X d X h X w)
 
         if self.conditioning_key is None:
@@ -31,7 +32,7 @@ class DiffusionUNet(nn.Module):
         elif self.conditioning_key == 'hybrid':
             xc = torch.cat([x] + c_concat, dim=1)
             cc = torch.cat(c_crossattn, 1)
-            out = self.diffusion_net(xc, t, context=cc)
+            out = self.diffusion_net(xc, t, context=cc, adaln_vec=adaln_vec)
             # import pdb; pdb.set_trace()
         elif self.conditioning_key == 'adm':
             cc = c_crossattn[0]

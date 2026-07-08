@@ -15,14 +15,40 @@ import torchvision.transforms as transforms
 from datasets.base_dataset import BaseDataset
 
 
+def _augment_sdf_fp(sdf, fp, rng):
+    """Y-rotation (k*90 deg) + X/Z flip augmentation that preserves the
+    BuildingNet axis convention (D=z, H=y, W=x; channel dim is 0).
+
+    sdf : (1, D, H, W) float    fp : (3, D, W) float
+    Both rotated/flipped together so footprint stays consistent with the SDF.
+    """
+    k = int(rng.integers(0, 4))         # 0, 1, 2, 3 quarter-turns about Y
+    flip_x = bool(rng.integers(0, 2))
+    flip_z = bool(rng.integers(0, 2))
+    if k:
+        # Rotate in the (D, W) plane = (axis 1, axis 3) for sdf, (axis 1, axis 2) for fp.
+        sdf = torch.rot90(sdf, k=k, dims=(1, 3))
+        fp = torch.rot90(fp, k=k, dims=(1, 2))
+    if flip_x:
+        sdf = torch.flip(sdf, dims=(3,))   # flip W
+        fp = torch.flip(fp, dims=(2,))
+    if flip_z:
+        sdf = torch.flip(sdf, dims=(1,))   # flip D
+        fp = torch.flip(fp, dims=(1,))
+    return sdf, fp
+
+
 # from https://github.com/laughtervv/DISN/blob/master/preprocessing/info.json
 class BuildingNetDataset(BaseDataset):
 
     def initialize(self, opt, phase='train', cat='all', res=64):
         self.opt = opt
+        self.phase = phase
         self.load_from_cached = False
         self.max_dataset_size = opt.max_dataset_size
         self.res = res
+        # Per-worker RNG for augmentation; seeded later in __getitem__.
+        self._augment = bool(getattr(opt, 'augment', False)) and phase == 'train'
 
         dataroot = opt.dataroot
         file_list = f'{dataroot}/BuildingNet_dataset_v0_1/splits/{phase}_split.txt'
@@ -97,7 +123,22 @@ class BuildingNetDataset(BaseDataset):
         thres = self.opt.trunc_thres
         if thres != 0.0:
             sdf = torch.clamp(sdf, min=-thres, max=thres)
-      
+
+        # Optional axis-aligned augmentation (Y-rotations + X/Z flips). The
+        # `img` (PNG-loaded footprint render) is intentionally NOT rotated —
+        # the VQVAE doesn't consume `img`, but downstream image-conditioned
+        # paths might, and silently rotating their conditioning would break
+        # them. The `fp` (binary footprint from h5) is rotated to stay
+        # consistent with the SDF, since VQVAE-v2 training uses fp via the
+        # soft_footprint_bce aux loss.
+        if self._augment:
+            seed_data = (
+                hash(sdf_h5_file) ^
+                (torch.initial_seed() & 0xFFFFFFFF) ^
+                (index * 0x9E3779B1)
+            ) & 0xFFFFFFFF
+            rng = np.random.default_rng(seed_data)
+            sdf, fp = _augment_sdf_fp(sdf, fp, rng)
 
         ret = {
             'sdf': sdf,

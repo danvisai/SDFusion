@@ -29,7 +29,15 @@ def create_model(opt):
     elif opt.model == 'sdfusion-mm2shape':
         from models.sdfusion_mm_model import SDFusionMultiModal2ShapeModel
         model = SDFusionMultiModal2ShapeModel()
-        
+
+    elif opt.model == 'stage3a':
+        from models.stage3a_model import Stage3aModel
+        model = Stage3aModel()
+
+    elif opt.model == 'stage3b':
+        from models.stage3b_model import Stage3bModel
+        model = Stage3bModel()
+
     else:
         raise ValueError("Model [%s] not recognized." % opt.model)
 

@@ -187,8 +187,11 @@ def check_insideout(sdf_val, sdf_res, x, y, z):
     y_ind = np.argmin(np.absolute(y))
     z_ind = np.argmin(np.absolute(z))
     all_val = sdf_val.flatten()
-    # num_val = all_val[x_ind+y_ind*(sdf_res+1)+z_ind*(sdf_res+1)**2]
-    num_val = all_val[x_ind+y_ind*(sdf_res)+z_ind*(sdf_res)**2]
+    # The flat SDF array is the (sdf_res+1)^3 grid produced by computeDistanceField,
+    # not sdf_res^3 — using sdf_res as the stride was reading the wrong voxel and
+    # spuriously flagging hollow meshes as inside-out (causing reprocessing churn
+    # on re-runs).
+    num_val = all_val[x_ind + y_ind * (sdf_res + 1) + z_ind * (sdf_res + 1) ** 2]
     return num_val > 0.0
     # else:
         # return False

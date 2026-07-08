@@ -1,3 +1,4 @@
+import math
 import os
 from collections import OrderedDict
 
@@ -9,6 +10,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 import torch
+import torch.nn.functional as F
 from torch import nn, optim
 from torch.profiler import record_function
 
@@ -22,6 +24,30 @@ from models.losses import VQLoss
 import utils.util
 from utils.util_3d import init_mesh_renderer, render_sdf
 from utils.distributed import reduce_loss_dict
+
+
+# --- VQVAE-v2 auxiliary losses (verbatim from train_sdf_residual.py:43-62) ----
+# These are gated by --use_aux_losses; default off so v1 training paths are
+# untouched.
+
+def _soft_inside(sdf: torch.Tensor, tau: float) -> torch.Tensor:
+    return torch.sigmoid(-sdf / max(tau, 1e-6))
+
+
+def _surface_band_smooth_l1(corrected: torch.Tensor, target: torch.Tensor,
+                            sigma: float, beta: float = 0.1) -> torch.Tensor:
+    band = torch.exp(-target.abs() / max(sigma, 1e-6))
+    per_voxel = F.smooth_l1_loss(corrected, target, reduction="none", beta=beta)
+    return (band * per_voxel).sum() / band.sum().clamp_min(1e-8)
+
+
+def _soft_footprint_bce(corrected: torch.Tensor, target: torch.Tensor,
+                        tau: float) -> torch.Tensor:
+    # BuildingNet convention: (B, C, D, H, W) with H = Y (vertical). Top-down
+    # silhouette via 'any' over the H axis (dim=3 of the 5D tensor).
+    p = _soft_inside(corrected, tau).amax(dim=3).clamp(1e-6, 1.0 - 1e-6)
+    t = (target <= 0).any(dim=3).float()
+    return F.binary_cross_entropy(p, t)
 
 class VQVAEModel(BaseModel):
     def name(self):
@@ -54,8 +80,26 @@ class VQVAEModel(BaseModel):
             self.loss_vq = VQLoss(codebook_weight=codebook_weight).to(self.device)
 
             # initialize optimizers
-            self.optimizer = optim.Adam(self.vqvae.parameters(), lr=opt.lr, betas=(0.5, 0.9))
-            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1000, 0.9)
+            if getattr(opt, 'use_adamw_cosine', False):
+                # VQVAE-v2 schedule: AdamW + linear warmup + cosine. The old
+                # StepLR(1000, 0.9) decayed LR to ~0 by 100k steps, which
+                # plateaued v1 quality. Cosine with warmup gives a longer
+                # productive training window.
+                self.optimizer = optim.AdamW(
+                    self.vqvae.parameters(), lr=opt.lr,
+                    betas=(0.9, 0.999), weight_decay=1e-4,
+                )
+                warmup = max(int(opt.warmup_steps), 1)
+                total = max(int(opt.cosine_total_steps), warmup + 1)
+                def _lr_lambda(step: int) -> float:
+                    if step < warmup:
+                        return float(step + 1) / float(warmup)
+                    p = (step - warmup) / max(total - warmup, 1)
+                    return 0.5 * (1.0 + math.cos(math.pi * min(p, 1.0)))
+                self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, _lr_lambda)
+            else:
+                self.optimizer = optim.Adam(self.vqvae.parameters(), lr=opt.lr, betas=(0.5, 0.9))
+                self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, 1000, 0.9)
 
             self.optimizers = [self.optimizer]
             self.schedulers = [self.scheduler]
@@ -174,6 +218,26 @@ class VQVAEModel(BaseModel):
         '''backward pass for the generator in training the unsupervised model'''
         total_loss, loss_dict = self.loss_vq(self.qloss, self.x, self.x_recon)
 
+        # Optional VQVAE-v2 auxiliary losses (surface-band SmoothL1 + footprint
+        # BCE), gated by --use_aux_losses. Operates on the same (corrected,
+        # target) = (recon, input) pair the VQLoss uses.
+        if getattr(self.opt, 'use_aux_losses', False):
+            band = _surface_band_smooth_l1(
+                self.x_recon, self.x,
+                sigma=float(self.opt.aux_band_sigma),
+                beta=0.1,
+            )
+            fp = _soft_footprint_bce(
+                self.x_recon, self.x,
+                tau=float(self.opt.aux_fp_tau),
+            )
+            aux = (float(self.opt.aux_band_weight) * band
+                   + float(self.opt.aux_fp_weight) * fp)
+            total_loss = total_loss + aux
+            loss_dict['loss_band'] = band.detach()
+            loss_dict['loss_fp'] = fp.detach()
+            loss_dict['loss_total'] = total_loss.detach()
+
         self.loss = total_loss
 
         self.loss_dict = reduce_loss_dict(loss_dict)
@@ -182,6 +246,8 @@ class VQVAEModel(BaseModel):
         self.loss_codebook = loss_dict['loss_codebook']
         self.loss_nll = loss_dict['loss_nll']
         self.loss_rec = loss_dict['loss_rec']
+        self.loss_band = loss_dict.get('loss_band')
+        self.loss_fp = loss_dict.get('loss_fp')
 
         self.loss.backward()
 
@@ -193,14 +259,17 @@ class VQVAEModel(BaseModel):
         self.optimizer.step()
     
     def get_current_errors(self):
-        
+
         ret = OrderedDict([
             ('total', self.loss_total.mean().data),
             ('codebook', self.loss_codebook.mean().data),
             ('nll', self.loss_nll.mean().data),
             ('rec', self.loss_rec.mean().data),
         ])
-
+        if getattr(self, 'loss_band', None) is not None:
+            ret['band'] = self.loss_band.mean().data
+        if getattr(self, 'loss_fp', None) is not None:
+            ret['fp'] = self.loss_fp.mean().data
         return ret
 
     def get_current_visuals(self):
