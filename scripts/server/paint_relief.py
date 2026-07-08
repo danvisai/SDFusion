@@ -277,7 +277,8 @@ def rectify_stroke_to_wall(grid, cam, paint_img, res=512, aspect=1.0, canvas_px=
     stroke_alpha = samp[..., 3] * samp[..., 5] * occl_ok
     return {"stroke_rgb": samp[..., :3], "stroke_alpha": stroke_alpha.astype(np.float32),
             "stroke_mask": stroke_alpha > 0.5, "pts3d": pts3d, "p0": p0, "n": n, "U": U,
-            "V": V, "px_per_unit": Wc / eu, "basis": basis}
+            "V": V, "uv_bounds": np.array([u0, v0, u1, v1], np.float32),
+            "px_per_unit": Wc / eu, "basis": basis}
 
 
 def scribble_from_mask(mask_bool, thickness=12):
@@ -540,5 +541,7 @@ def generate_patch_art(grid, cam, paint_img, prompt, style_ref=None, seed=7, ste
     if not gen_mask.any():
         gen_mask = stroke_mask.copy()
     return {"rgb": rgb, "gen_mask": gen_mask, "stroke_mask": stroke_mask,
-            "pts3d": rect["pts3d"], "p0": rect["p0"], "n": rect["n"],
+            "pts3d": rect["pts3d"], "p0": rect["p0"], "n": rect["n"], "U": rect["U"],
+            "V": rect["V"], "uv_bounds": rect["uv_bounds"],
+            "px_per_unit": rect["px_per_unit"],
             "init": init_np, "scribble": np.asarray(scribble_img)}

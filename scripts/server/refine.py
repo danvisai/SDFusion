@@ -239,40 +239,49 @@ class Refiner:
     # -- Paint-to-relief: painted patch -> 2D art -> real sculpted SDF detail --
     def refine_paint_relief(self, grid, cam, paint_img, prompt, style_ref=None, seed=7,
                             steps_diff=28, strength=0.85, sketch_thickness=6, sketch_scale=0.85,
-                            relief_depth=0.12, band=0.07, fit_steps=400, n_pts=20000,
-                            view_res=512, aspect=1.0, canvas_px=768, return_mesh=True):
+                            relief_depth=0.12, band=0.07, view_res=512, aspect=1.0,
+                            canvas_px=768, out_res=128, return_mesh=True):
         """Sketch a rough shape on the CURRENT building -> the stroke is rectified onto its
         wall plane and SDXL generates bas-relief art on that flat frontal canvas
         (paint_relief.generate_patch_art — v2 wall-space; v1 generated in the perspective
         building view and kept redrawing the facade instead of the motif) -> the art is
-        fused in as a real geometric relief via the same Option D machinery as
-        `refine_displacement` (fit_displacement/DisplacementField): final(x) =
-        base(x) + w(x) * displacement(x), where `w` is 1 on the art's own silhouette fading
-        to 0 over `band` (`paint_relief.paint_locality_mask`, the paint-stroke analogue of
-        `_edit_locality_mask`) so untouched geometry stays bit-exact. Within the patch, the
-        target REPLACES whatever's already there (e.g. an existing carved window) with the
-        rectification plane itself plus the art's height, rather than perturbing the old
-        geometry — otherwise a window painted over just gets slightly bumped instead of
-        cleanly replaced by the new art. The plane (p0, n) comes straight from the wall
-        frame the art was generated on, so the art pixels and the flat reference are
-        exactly consistent (v1 re-derived the normal from the SDF gradient here — a second,
-        subtly different estimate).
+        fused in as a real geometric relief by DIRECT closed-form evaluation:
+
+            final(x) = base(x) + w(x) * ((plane(x) - h(u(x), v(x))) - base(x))
+
+        where plane() is the signed distance to the rectification plane, h is the art's
+        height field bilinearly sampled in the wall's own UV frame, and w gates the effect
+        laterally (distance transform of the art silhouette, fading over `band`) and along
+        the normal. v2.0 pushed the target through refine_displacement's neural
+        fit_displacement (8 Fourier frequencies, 20k samples) — a band-limited bottleneck
+        that low-passed the art's detail into a lump and smeared its silhouette (user
+        report 2026-07-07: "alignment not visible, losing details"). The displacement here
+        is KNOWN in closed form, so no fit is needed: art pixels map to geometry with
+        pixel-exact alignment, and the only remaining resolution limit is `out_res`
+        (default 128, up from the 96 input grid — the relief region deserves the extra
+        headroom; b64ToVol/the raymarch shader are res-agnostic).
+
+        Within the patch, the target REPLACES whatever's already there (e.g. an existing
+        carved window) with the rectification plane itself plus the art's height, rather
+        than perturbing the old geometry — otherwise a window painted over just gets
+        slightly bumped instead of cleanly replaced by the new art (2026-07-07 user
+        report). The plane (p0, n, U, V) comes straight from the wall frame the art was
+        generated on, so art pixels and the flat reference are exactly consistent.
 
         `grid`: cube-frame (D,H,W) SDF numpy array — the SAME detailed volume the sculptor
         viewer is showing (e.g. from `detail_cube_volume(..., res_out=96)`), NOT world
         meters and NOT the VQVAE's truncated Frame-N space (TRUNC doesn't apply here).
         `cam`: {"pos","look","fov"} matching texture_bake.trace_view's camera contract —
         the frontend sends the exact camera it painted against. `paint_img`: the user's
-        rough painted shape/colors (PIL RGBA, transparent where unpainted) in that same view.
-        `sketch_thickness`/`sketch_scale`: how literally the drawn SHAPE is followed — thin
-        +strong reads as "adjust it to the right thing", thick+weaker as "a creative art
-        piece" (paint_relief.scribble_from_mask). `strength` controls how much the stroke's
-        own pixels anchor the img2img denoise (1.0 ignores them entirely).
-        `relief_depth`: max relief magnitude in cube units (~0.05 ≈ 2 voxels at 96^3).
+        rough painted shape/colors (PIL RGBA, transparent where unpainted) in that view.
+        `sketch_thickness`/`sketch_scale`: how literally the drawn SHAPE is followed
+        (paint_relief.scribble_from_mask). `strength` controls how much the stroke's own
+        pixels anchor the denoise. `relief_depth`: max relief magnitude in cube units.
         `canvas_px`: the rectified wall canvas's longer side, in pixels.
-        Returns (out_grid (D,H,W) numpy SDF, mesh|None, art_rgb) so a caller can either
-        drop `out_grid`/`out_grid`-derived mesh into the live preview, or re-bake color.
+        Returns (out_grid (out_res^3) numpy SDF, mesh|None, art_rgb) so a caller can
+        either drop `out_grid`/`out_grid`-derived mesh into the live preview, or re-bake.
         """
+        import cv2
         import paint_relief as pr
         base_sdf = volume_to_sdf(grid, self.device)
         art = pr.generate_patch_art(
@@ -281,49 +290,41 @@ class Refiner:
             res=view_res, aspect=aspect, canvas_px=canvas_px, device=self.device)
         rgb, gen_mask = art["rgb"], art["gen_mask"]
         h_field = pr.height_from_art(rgb, gen_mask, relief_depth)
-        surf_pts = torch.as_tensor(art["pts3d"][gen_mask], dtype=torch.float32,
-                                   device=self.device)
-        h_surf = torch.as_tensor(h_field[gen_mask], dtype=torch.float32, device=self.device)
 
-        lo = surf_pts.min(0).values.cpu().numpy()
-        hi = surf_pts.max(0).values.cpu().numpy()
-        pad = np.maximum(0.15 * (hi - lo), 0.05)
-        bbox = tuple((lo - pad).tolist() + (hi + pad).tolist())
-
-        pts = torch.rand(n_pts, 3, device=self.device)
-        lo_t = torch.tensor(bbox[:3], device=self.device)
-        hi_t = torch.tensor(bbox[3:], device=self.device)
-        pts = pts * (hi_t - lo_t) + lo_t
-
-        from scipy.spatial import cKDTree
-        tree = cKDTree(surf_pts.cpu().numpy())
-        _, nn = tree.query(pts.cpu().numpy(), k=1)
-        h_at_pts = h_surf[torch.as_tensor(nn, device=self.device)]
-        w = pr.paint_locality_mask(surf_pts, pts, band=band)
-        with torch.no_grad():
-            bv = base_sdf(pts)
-
-        # Replace whatever's ALREADY there (e.g. a carved window/sill the user painted
-        # over) with the rectification plane + the art relief, instead of just perturbing
-        # the existing recess by a small `h` — otherwise the old window and the new art
-        # blend together and the window visually "wins" (2026-07-07 user report).
+        # lateral falloff: cube-unit distance to the art silhouette, precomputed in canvas
+        # space (border padding leaves the canvas edge "far", so w->0 off-canvas for free)
+        d_px = cv2.distanceTransform((~gen_mask).astype(np.uint8), cv2.DIST_L2, 3)
+        maps = torch.stack([
+            torch.as_tensor(h_field, dtype=torch.float32, device=self.device),
+            torch.as_tensor(d_px / float(art["px_per_unit"]), dtype=torch.float32,
+                            device=self.device)])[None]           # (1, 2, Hc, Wc)
         p0_t = torch.as_tensor(art["p0"], dtype=torch.float32, device=self.device)
         n0 = torch.as_tensor(art["n"], dtype=torch.float32, device=self.device)
-        flat_val = (pts - p0_t[None]) @ n0                  # signed dist to the wall plane
-        tv = bv + w * ((flat_val - h_at_pts) - bv)          # blend: bv outside, flat+art inside
-
-        norm = normalizer(bbox)
-        out_scale = float(min(max((tv - bv).abs().max().item() * 1.05, 0.02),
-                              max(relief_depth * 1.5, 0.5)))
-        field = fit_displacement(bv, tv, norm(pts), steps=fit_steps, device=self.device,
-                                 n_freq=8, hidden=160, band=band, reg=0.01, out_scale=out_scale)
+        U_t = torch.as_tensor(art["U"], dtype=torch.float32, device=self.device)
+        V_t = torch.as_tensor(art["V"], dtype=torch.float32, device=self.device)
+        u0, v0, u1, v1 = [float(x) for x in art["uv_bounds"]]
+        reach_in = 0.12         # how deep an existing recess still gets flattened/replaced
 
         def final_sdf(p):
-            wp = pr.paint_locality_mask(surf_pts, p, band=band)  # 2nd locality gate: keep the
-            return base_sdf(p) + wp * field(norm(p))             # effect local past the fit bbox
+            bv = base_sdf(p)
+            rel = p - p0_t[None]
+            fl = rel @ n0                                       # signed dist to wall plane
+            gx = ((rel @ U_t) - u0) / (u1 - u0) * 2 - 1
+            gy = (v1 - (rel @ V_t)) / (v1 - v0) * 2 - 1         # canvas row 0 = top of patch
+            g = torch.stack([gx, gy], -1).view(1, 1, -1, 2)
+            smp = F.grid_sample(maps, g, mode="bilinear", align_corners=False,
+                                padding_mode="border").view(2, -1)
+            h, d_lat = smp[0], smp[1]
+            w_lat = (1.0 - d_lat / band).clamp(0.0, 1.0)
+            # along the normal: full effect from `reach_in` behind the plane (flatten old
+            # recesses) to just past the relief crest, fading over `band` beyond both ends
+            w_nrm = torch.minimum(1.0 - (fl - (relief_depth + 0.02)) / band,
+                                  1.0 - (-fl - reach_in) / band).clamp(0.0, 1.0)
+            w = w_lat * w_nrm
+            return bv + w * ((fl - h) - bv)                     # bv outside, plane+art inside
 
         full_bbox = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0)
-        out_grid = sample_grid(final_sdf, grid.shape[0], full_bbox, device=self.device)
+        out_grid = sample_grid(final_sdf, int(out_res), full_bbox, device=self.device)
         mesh = grid_to_mesh(out_grid, full_bbox, iso=0.0) if return_mesh else None
         return out_grid.cpu().numpy().astype(np.float32), mesh, rgb
 

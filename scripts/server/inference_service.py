@@ -744,6 +744,9 @@ class PaintReliefReq(BaseModel):
                                          # re-roll UNRELATED facade decoration each call
                                          # (detail_cube_volume defaults to seed=None/random);
                                          # only the painted patch itself should change.
+    out_res: int = 128                  # output SDF resolution — higher than the 96^3 input
+                                         # so the relief keeps the art's lateral detail (the
+                                         # viewer's b64ToVol/raymarch are res-agnostic)
     return_mesh: bool = False
 
 
@@ -795,7 +798,7 @@ def paint_relief_ep(req: PaintReliefReq):
             steps_diff=req.steps, strength=req.strength, sketch_thickness=req.sketch_thickness,
             sketch_scale=req.sketch_scale, relief_depth=req.relief_depth,
             band=req.band, view_res=req.view_res, aspect=req.aspect,
-            return_mesh=req.return_mesh)
+            out_res=int(min(max(req.out_res, 64), 160)), return_mesh=req.return_mesh)
         mesh_b64 = None
         if req.return_mesh and mesh is not None and len(mesh.faces):
             mesh_b64 = _b64(engine().mesh_to_glb(mesh))
