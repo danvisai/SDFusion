@@ -1,5 +1,16 @@
 # Demo build & repo cleanup plan — decided 2026-07-07
 
+## Progress (updated 2026-07-08)
+- **Phase 0 DONE**: branches 12/12, sculpt flows 18/18 incl. new F18 sketch-relief gate;
+  F16 rerun-once policy (`d530171`).
+- **Phase 1 DONE**: dirty-state checkpoint (`78d3dae`); import closure tracked — 24
+  missing modules + web vendor/samples + launch scripts; `.gitignore` `datasets/` rule
+  fixed (`3771d1f`).
+- **Phase 2 DONE**: `upstream-training` branch at `3771d1f`; main amputated 2,402
+  upstream files → 117 tracked (`d7d0cbc`); PROOF: fresh clone + symlinked artifacts
+  served both gate suites green (12/12 + 18/18, reports 20260708T163415Z/164620Z).
+- **Phase 2.5 NEXT**: window bug → relief persistence → weathering wiring → Layer-A eval.
+
 Decisions (user, 2026-07-07): upstream training code moves to a **branch** (not deleted
 outright); demo = **runnable bundle + walkthrough video**; **Stage 3a included** in the
 bundle; **no disk purge yet** (git-level cleanup only).
