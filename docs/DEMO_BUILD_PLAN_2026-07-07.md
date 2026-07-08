@@ -9,7 +9,18 @@
 - **Phase 2 DONE**: `upstream-training` branch at `3771d1f`; main amputated 2,402
   upstream files → 117 tracked (`d7d0cbc`); PROOF: fresh clone + symlinked artifacts
   served both gate suites green (12/12 + 18/18, reports 20260708T163415Z/164620Z).
-- **Phase 2.5 NEXT**: window bug → relief persistence → weathering wiring → Layer-A eval.
+- **Phase 2.5 DONE (2026-07-08)**:
+  1. "Non-convex window burial" = PHANTOM — a frame double-transform in
+     test_interior_pull's own measurement; ops were on-wall all along. Test fixed, B13
+     non-convex gate added (`178c447`).
+  2. Relief stack: /paint_relief prior_sdf_b64 chaining + client reliefChain + F19 gate.
+  3. Weathering wired into textured export (before UV unwrap; +7k verts at 0.9, coverage
+     steady) and /neural_render_town (new weather fields, index.html sends them).
+     2+3 committed `cc52bdc`, gates 13/13 + 19/19 on the live build.
+  4. Layer-A/AB context-snap eval RUN (`8cabedb`): no visual win over the production
+     xcultural prior, slightly worse mass retention — line PARKED with evidence
+     (outputs/layerA_eval/). NB real.h5 ds[5] is a degenerate slab; check sample occ.
+- **Phase 3 NEXT**: bundle + walkthrough video.
 
 Decisions (user, 2026-07-07): upstream training code moves to a **branch** (not deleted
 outright); demo = **runnable bundle + walkthrough video**; **Stage 3a included** in the
