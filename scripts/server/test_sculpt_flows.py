@@ -450,8 +450,38 @@ def main():
         far = float(diff[: out["res"] // 3].max())               # -z half must stay intact
         assert far < 0.03, f"relief leaked to the far side (max dSDF {far:.3f})"
         panel("F18 sketch relief\nlocal sculpted geometry", g1)
+        S["relief1"] = out                                   # F19 chains a second stroke on this
+        S["relief_before"] = up
         return f"relief on +z wall (zc={zc:.2f}) · {len(zz)} voxels · far side clean ({far:.3f})"
     case("F18 sketch relief -> local sculpted geometry", f18)
+
+    # ---- F19: relief STACK — a second stroke keeps the first relief ------------------
+    def f19():
+        import io as _io
+        from PIL import Image, ImageDraw
+        r = S["plain"]
+        o1, up = S["relief1"], S["relief_before"]
+        g1 = vol(o1["sdf_b64"], o1["res"])
+        img = Image.new("RGBA", (512, 512), (0, 0, 0, 0))   # second stroke, clearly apart
+        ImageDraw.Draw(img).ellipse([110, 150, 210, 250], fill=(176, 137, 104, 255))
+        buf = _io.BytesIO(); img.save(buf, format="PNG")
+        o2 = post("/paint_relief", {
+            "base_sdf_b64": r["sdf_b64"], "res": 64, "center": r["center"],
+            "scale": r["scale"], "building_class": "RESIDENTIAL", "style": "modern",
+            "cam": {"pos": [0.0, 0.1, 2.2], "look": [0.0, 0.0, 0.0], "fov": 40.0},
+            "paint_png_b64": base64.b64encode(buf.getvalue()).decode(),
+            "seed": 6, "steps": 12, "composer_seed": 0, "return_mesh": False,
+            "prior_sdf_b64": o1["sdf_b64"], "prior_res": o1["res"]}, timeout=1800)
+        g2 = vol(o2["sdf_b64"], o2["res"])
+        added = np.abs(g2 - g1)
+        assert float(added.max()) > 0.05, f"second stroke added nothing (max {added.max():.3f})"
+        m1 = np.abs(g1 - up) > 0.04                          # first relief's region
+        persist = float(np.abs(g2 - up)[m1].max())
+        assert persist > 0.04, f"first relief LOST after second stroke (max {persist:.3f})"
+        panel("F19 relief stack\nboth strokes present", g2)
+        return (f"stroke2 adds {int((added > 0.04).sum())} vox · "
+                f"relief1 ({int(m1.sum())} vox) persists (d={persist:.2f})")
+    case("F19 relief stack persists across strokes", f19)
 
     # ---- report -------------------------------------------------------------------
     stamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")

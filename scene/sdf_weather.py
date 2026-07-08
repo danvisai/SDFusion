@@ -133,3 +133,20 @@ def weather_grid(grid, voxel_m, seed=0, intensity=0.5, y0_m=0.0,
         + np.minimum(erosion, 0.0) * 0.35 * band_w               # slight accretion -> pitted
     offset = np.clip(offset, -0.08, 0.35 * intensity + 1e-6)
     return (g + offset).astype(np.float32)
+
+
+def weather_cube_grid(grid, center, scale, seed=0, intensity=0.5):
+    """weather_grid adapter for CUBE-FRAME grids (the detail_cube_volume/bake contract:
+    SDF values in cube units over [-1,1]^3 covering center +- scale meters). weather_grid
+    thinks in meters, so convert values and voxel size through `scale` and hand it the
+    real ground height (cube y=-1 sits at center_y - scale meters). Added 2026-07-08 so
+    the textured export and neural render see the same aging the geometry export does."""
+    g = np.asarray(grid, np.float32)
+    if intensity <= 0:
+        return g.copy()
+    s = float(scale)
+    R = g.shape[0]
+    vox = 2.0 * s / (R - 1)
+    y0_m = float(center[1]) - s
+    out_m = weather_grid(g * s, (vox, vox, vox), seed=seed, intensity=intensity, y0_m=y0_m)
+    return (out_m / s).astype(np.float32)

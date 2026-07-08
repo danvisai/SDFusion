@@ -586,6 +586,8 @@ class TownRenderBuilding(BaseModel):
     recipe_params: List[float]
     edits: List[dict] = Field(default_factory=list)        # sculpt ops (world frame)
     style_ref_b64: Optional[str] = None                    # per-building style image
+    weather: float = 0.0                                   # Layer 2.5a aging (2026-07-08:
+    weather_seed: Optional[int] = None                     # now honored here too)
 
 
 class NeuralRenderTownReq(BaseModel):
@@ -622,6 +624,10 @@ def neural_render_town(req: NeuralRenderTownReq):
             grid = sdf_t[0, 0].detach().cpu().numpy().astype(np.float32)
             g96 = r.detail_cube_volume(grid, c, s, building_class=b.building_class,
                                        style=b.style, res_out=96)
+            if b.weather and b.weather > 0:
+                from scene.sdf_weather import weather_cube_grid
+                g96 = weather_cube_grid(g96, c, s, seed=int(b.weather_seed or 0),
+                                        intensity=float(b.weather))
             items.append({"vol": _t.as_tensor(g96, device=r.device)[None, None],
                           "center": _t.as_tensor(np.asarray(c, np.float32), device=r.device),
                           "scale": float(s),
@@ -747,6 +753,16 @@ class PaintReliefReq(BaseModel):
     out_res: int = 128                  # output SDF resolution — higher than the 96^3 input
                                          # so the relief keeps the art's lateral detail (the
                                          # viewer's b64ToVol/raymarch are res-agnostic)
+    prior_sdf_b64: Optional[str] = None  # RELIEF STACK: a previous /paint_relief output to
+                                         # sculpt on top of, so strokes accumulate instead of
+                                         # each re-deriving from raw massing and dropping the
+                                         # last relief (2026-07-08). When set, base_sdf_b64/
+                                         # detail_edits/composer_seed are ignored — the prior
+                                         # already contains massing+details+earlier reliefs.
+                                         # st.base_b64 stays raw massing on the client, so the
+                                         # Bake contract is untouched (Bake still knows nothing
+                                         # about reliefs).
+    prior_res: int = 128                # resolution of prior_sdf_b64
     return_mesh: bool = False
 
 
@@ -768,20 +784,26 @@ def paint_relief_ep(req: PaintReliefReq):
     import numpy as np
     r = refiner()
     try:
-        grid = np.frombuffer(_b.b64decode(req.base_sdf_b64.split(",")[-1]),
-                             dtype="<f4").reshape(req.res, req.res, req.res).copy()
-        if req.detail_edits:
-            from refine import volume_to_sdf
-            from scene.sdf_edit import EditableBuilding, EditOp
-            from scene.sdf_primitives import sample_grid
-            comp = EditableBuilding(volume_to_sdf(grid, r.device),
-                                    [EditOp.from_dict(d) for d in req.detail_edits]).composed()
-            grid = sample_grid(comp, req.res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
-                               device=r.device).cpu().numpy()
-        grid96 = r.detail_cube_volume(grid, req.center, req.scale,
-                                      building_class=req.building_class, style=req.style,
-                                      seed=req.composer_seed, res_out=96,
-                                      detail_edits=req.detail_edits)
+        if req.prior_sdf_b64:
+            # relief stack: fuse the new stroke into the PREVIOUS paint output directly
+            grid96 = np.frombuffer(_b.b64decode(req.prior_sdf_b64.split(",")[-1]),
+                                   dtype="<f4").reshape(req.prior_res, req.prior_res,
+                                                        req.prior_res).copy()
+        else:
+            grid = np.frombuffer(_b.b64decode(req.base_sdf_b64.split(",")[-1]),
+                                 dtype="<f4").reshape(req.res, req.res, req.res).copy()
+            if req.detail_edits:
+                from refine import volume_to_sdf
+                from scene.sdf_edit import EditableBuilding, EditOp
+                from scene.sdf_primitives import sample_grid
+                comp = EditableBuilding(volume_to_sdf(grid, r.device),
+                                        [EditOp.from_dict(d) for d in req.detail_edits]).composed()
+                grid = sample_grid(comp, req.res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
+                                   device=r.device).cpu().numpy()
+            grid96 = r.detail_cube_volume(grid, req.center, req.scale,
+                                          building_class=req.building_class, style=req.style,
+                                          seed=req.composer_seed, res_out=96,
+                                          detail_edits=req.detail_edits)
         from PIL import Image
         # NOT .convert("RGB") -- alpha carries which pixels were actually painted
         paint_img = Image.open(_io.BytesIO(_b.b64decode(req.paint_png_b64.split(",")[-1])))

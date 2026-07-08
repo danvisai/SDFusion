@@ -220,6 +220,15 @@ def export_town_textured(refiner, buildings, pipe, unit=100.0, ground=True,
         grid96 = refiner.detail_cube_volume(grid64, c, s,
                                             building_class=b.get("building_class", "RESIDENTIAL"),
                                             style=b.get("style", "modern"), res_out=res96)
+        wx = float(b.get("weather") or 0.0)
+        if wx > 0:
+            # Layer 2.5a on the TEXTURED path too (2026-07-08): weather the detailed cube
+            # grid BEFORE the bake unwraps it, so the UV atlas is generated for the
+            # weathered geometry itself — no seam mismatch, and the aged surface picks up
+            # matching shading in the diffusion views.
+            from scene.sdf_weather import weather_cube_grid
+            grid96 = weather_cube_grid(grid96, c, s, seed=int(b.get("weather_seed") or 0),
+                                       intensity=wx)
         ref = None
         if b.get("style_ref_b64"):
             ref = Image.open(_io.BytesIO(

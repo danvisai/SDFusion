@@ -175,8 +175,10 @@
     rectified onto that wall's plane, the model composes a bas-relief for the flat patch (a
     dedicated scribble ControlNet reads the SHAPE you drew), and the result is sculpted into
     the SDF as an actual raised/carved relief. Strokes across a corner or roofline get
-    clipped to the dominant wall. Orbit is disabled while sketching. Click
-    <b>Generate relief</b> when your sketch is ready — drawing itself never submits.</div>
+    clipped to the dominant wall. Reliefs stack: each new stroke sculpts on top of the
+    previous result (editing the massing or details resets them). Orbit is disabled while
+    sketching. Click <b>Generate relief</b> when your sketch is ready — drawing itself
+    never submits.</div>
     <div class="row">
       <div><label>Color</label><input type="color" id="paintColor" value="#b08968" style="width:100%;height:30px;padding:2px;background:#0d1219;border:1px solid var(--line);border-radius:6px"/></div>
       <div><label>Brush size <span class="val" id="pbv">40 px</span></label><input type="range" id="paintBrush" min="15" max="110" value="40"/></div>
@@ -397,13 +399,18 @@ function cubeToWorldOp(op, center, scale){ const o={...op};
   if(op.smooth) o.smooth=op.smooth*scale; if(op.round_r) o.round_r=op.round_r*scale; return o; }
 function b64ToVol(b64, res){ const bin=atob(b64); const buf=new ArrayBuffer(bin.length); const u8=new Uint8Array(buf); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); const data=new Float32Array(buf); const tex=new THREE.Data3DTexture(data,res,res,res); tex.format=THREE.RedFormat; tex.type=THREE.FloatType; tex.minFilter=THREE.LinearFilter; tex.magFilter=THREE.LinearFilter; tex.wrapR=tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping; tex.needsUpdate=true; return tex; }
 
-function setVolume(b64,res){ st.base_b64=b64; st.res=res; const tex=b64ToVol(b64,res); if(uniforms.uVol.value) uniforms.uVol.value.dispose(); uniforms.uVol.value=tex; uniforms.uHasVol.value=1;
+function setVolume(b64,res){ st.base_b64=b64; st.res=res; reliefChain=null; const tex=b64ToVol(b64,res); if(uniforms.uVol.value) uniforms.uVol.value.dispose(); uniforms.uVol.value=tex; uniforms.uHasVol.value=1;
   if(typeof preview!=='undefined' && preview){ preview=null; const b=$('detPrev'); b.classList.remove('on'); b.textContent='👁 Detail preview (bake quality)'; } }
 
 // default size tuple (cube units) for a freshly added primitive of each kind
 function defaultSize(kind, s){ if(kind==='sphere') return [s]; if(kind==='cylinder') return [s*0.7, s*1.4]; if(kind==='cone') return [28, s*1.6]; if(kind==='gable'||kind==='hip') return [s*1.6, s*1.6, s*1.2, s*0.8]; return [s,s,s]; }
 
 function pushEditUniforms(){
+  // any edit change invalidates the relief stack: the chained volume baked the OLD
+  // massing/detail in, and sculpting further strokes onto it would resurrect stale
+  // geometry (declared below near the paint section; all callers are user-event
+  // handlers, so the let is initialized long before this runs)
+  reliefChain=null;
   uniforms.uNumPrims.value = Math.min(edits.length, MAXP);
   for(let i=0;i<uniforms.uNumPrims.value;i++){
     const e=edits[i]; uniforms.uKind.value[i]=KIND[e.kind]; uniforms.uMode.value[i]=(e.mode==='add'?0:1);
@@ -712,13 +719,22 @@ $('applyTown').onclick=async()=>{
 // happens directly on the 3D view exactly as you were already looking at it. Orbit is
 // frozen only while paint mode is active, so the stroke's camera stays valid; texture_bake's
 // trace_view now supports non-square aspect (matches the shader's uTan*uAspect) so the
-// unprojection stays correct for whatever angle/zoom you were at. Each stroke is derived
-// FRESH from the true massing (st.base_b64/edits), the same one-shot contract /bake_texture
-// already uses — it updates the live shader texture directly (like Detail preview) rather
-// than st.base_b64, so it can never desync the mass-editing/bake pipeline's "raw massing"
-// invariant or double-apply composer detail on a later Bake.
+// unprojection stays correct for whatever angle/zoom you were at. The FIRST stroke derives
+// from the true massing (st.base_b64/edits); later strokes chain on the previous stroke's
+// own output (reliefChain -> prior_sdf_b64), so reliefs ACCUMULATE within the session
+// (2026-07-08). Only the live shader texture is updated — never st.base_b64 — so the
+// mass-editing/bake pipeline's "raw massing" invariant holds and composer detail can't
+// double-apply on a later Bake (which, as before, knows nothing about reliefs). Any
+// massing/detail edit resets the chain (see pushEditUniforms/setVolume).
 const paintCv = $('paintCv'), paintCtx = paintCv.getContext('2d');
 let paintOn = false, painting = false, lastReliefGlb = null;
+// RELIEF STACK (2026-07-08): the last /paint_relief output. Sent back as prior_sdf_b64 on
+// the next stroke so reliefs ACCUMULATE within a sculpt session instead of each stroke
+// re-deriving from raw massing and dropping the previous one. st.base_b64 stays raw
+// massing (Bake/Detail-preview contract untouched — Bake still knows nothing of reliefs).
+// Any massing/detail edit invalidates the chain (it baked the OLD detail in), see
+// pushEditUniforms.
+let reliefChain = null, reliefChainRes = 128;
 function paintCvSize(){                              // match #cv's ACTUAL on-screen pixels
   const w=Math.round(cv.clientWidth), h=Math.round(cv.clientHeight);
   if(paintCv.width!==w) paintCv.width=w;
@@ -774,7 +790,10 @@ async function submitPaint(){
       style_ref_b64:st.styleRef||null, seed:Math.floor(Math.random()*1e6),
       strength:+$('paintStrength').value, sketch_thickness:+$('sketchPrecision').value,
       sketch_scale:sketchScaleFromSlider(+$('sketchPrecision').value),
-      relief_depth:+$('paintDepth').value, return_mesh:true});
+      relief_depth:+$('paintDepth').value,
+      prior_sdf_b64:reliefChain, prior_res:reliefChainRes,   // relief stack: sculpt onto the
+      return_mesh:true});                                    // previous stroke's output
+    reliefChain=r.sdf_b64; reliefChainRes=r.res;             // next stroke chains on this one
     const tex=b64ToVol(r.sdf_b64, r.res);                    // LIVE PREVIEW only — st.base_b64
     if(uniforms.uVol.value) uniforms.uVol.value.dispose();   // stays untouched, so Bake/Detail
     uniforms.uVol.value=tex; uniforms.uHasVol.value=1;       // preview keep deriving from the
