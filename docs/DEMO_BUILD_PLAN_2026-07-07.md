@@ -20,7 +20,23 @@
   4. Layer-A/AB context-snap eval RUN (`8cabedb`): no visual win over the production
      xcultural prior, slightly worse mass retention — line PARKED with evidence
      (outputs/layerA_eval/). NB real.h5 ds[5] is a degenerate slab; check sample occ.
-- **Phase 3 NEXT**: bundle + walkthrough video.
+- **Phase 3 DONE (2026-07-08)**:
+  - README rewritten around the demo (`aee1e97`); `scripts/make_demo_bundle.py` (`f7a…/
+    committed`) assembles code (git archive main) + stripped Stage3a ckpts (opt/sched
+    dropped, 11G->3.9G each, inference-identical) + all serving ckpts + ornaments +
+    pinned requirements + run_demo.sh.
+  - Bundle PROOF: server launched from the assembled bundle passed both gates
+    (13/13 + 19/19). Deliverables: `../demo_bundle/` (8.24 GB dir) and
+    `../demo_bundle.tar` (7.86 GB).
+  - The video run caught a real gap the gates couldn't: the global `*.png` gitignore had
+    silently excluded the town page's sample images (404 from any fresh clone) — force-
+    tracked in `c3314cd`, bundle patched + re-tarred.
+  - Walkthrough clips (VP8 webm, 1400x900, recorded headless against the bundle server;
+    no H.264 encoder on this cluster): `outputs/demo_video/01_town_from_image` (0:38),
+    `02_edit_weather_ornament_render` (4:51 — restyle/weathering/ornament/photoreal),
+    `03_sculptor_make_architecture` (1:05), `04_sketch_relief` (1:47, stacked reliefs +
+    lion prompt). Recorder script preserved in the session scratchpad; chromium needs
+    browser-PER-CLIP under --single-process (context close kills the browser).
 
 Decisions (user, 2026-07-07): upstream training code moves to a **branch** (not deleted
 outright); demo = **runnable bundle + walkthrough video**; **Stage 3a included** in the
