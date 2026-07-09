@@ -73,6 +73,20 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     S = {}
 
+    def manual_details(r):
+        """Hand-built window/door detail ops on the RECT walls — the gates' detail-op
+        source since /propose_details (the removed AI-detailing feature) is gone."""
+        scale, ctr = r["scale"], r["center"]
+        m = lambda v: v / scale
+        cy = lambda c: (c - ctr[1]) / scale
+        ops = [dict(kind="box", center=[m(7.0), cy(6.0), m(z)],
+                    size=[m(0.45), m(0.8), m(0.5)], mode="subtract", smooth=0.0,
+                    det="window") for z in (-6.0, -3.0, 0.0, 3.0, 6.0)]
+        ops.append(dict(kind="box", center=[m(0.0), cy(1.1), m(9.0)],
+                        size=[m(0.6), m(1.1), m(0.4)], mode="subtract", smooth=0.0,
+                        det="door"))
+        return ops
+
     def b1():
         h = get("/health")
         assert h["status"] == "ok", h
@@ -146,25 +160,13 @@ def main():
         return f"tagged on-surface {['%.1f' % d for d in ds]} vox · untagged untouched"
     case("B5 details RE-SNAP after snap (bug regression)", b5)
 
-    def b6():
-        r = post("/propose_details", {"base_sdf_b64": S["plain"]["sdf_b64"], "res": 64,
-                                      "building_class": "RELIGIOUS", "seed": 0})
-        assert r["n"] >= 3, f"only {r['n']} ops"
-        g0 = vol(S["plain"]["sdf_b64"])
-        vox = 2.0 / 63
-        wall = [o for o in r["ops"] if o.get("det") in ("window", "door", "balcony", "column")]
-        ds = [abs(sdf_at(g0, o["center"])) / vox for o in wall]
-        assert not ds or float(np.median(ds)) < 5.0, f"wall ops median {np.median(ds):.1f} vox off surface"
-        S["ops"] = r["ops"]
-        return f"{r['n']} ops, wall-dist med={np.median(ds):.1f} vox" if ds else f"{r['n']} ops"
-    case("B6 AI details (layout planner)", b6)
 
     def b7():
         r = post("/snap_sdf", {"base_sdf_b64": S["plain"]["sdf_b64"], "res": 64, "edits": [],
                                "strength": 0.5, "return_mesh": True,
                                "center": S["plain"]["center"], "scale": S["plain"]["scale"],
                                "detail": True, "building_class": "RESIDENTIAL", "style": "modern",
-                               "detail_edits": [w for w in S.get("ops", [])][:8]})
+                               "detail_edits": manual_details(S["plain"])})
         assert r["mesh_glb_b64"], "no mesh"
         nv = glb_verts(r["mesh_glb_b64"])
         assert nv > 1000, f"verts={nv}"
@@ -238,27 +240,6 @@ def main():
         return f"{r['n_buildings']} buildings from mask"
     case("B10 image -> town", b10)
 
-    def b13():
-        # NON-CONVEX guard: AI details must land on walls of a U/courtyard footprint too —
-        # including the courtyard-facing inner walls. The 2026-07-03 "buries windows in
-        # solid mass" report turned out to be a measurement bug in a foundations script
-        # (fixed 2026-07-08); this asserts the real property with the real SDF so any
-        # future regression is caught by the gates, not by eye.
-        w, d, cw, cd = 20, 16, 6, 8
-        ufp = [[-w/2, -d/2], [w/2, -d/2], [w/2, d/2], [w/2-cw, d/2], [w/2-cw, d/2-cd],
-               [-w/2+cw, d/2-cd], [-w/2+cw, d/2], [-w/2, d/2]]
-        r = post("/building_sdf", {"footprint": ufp, "style": "modern",
-                                   "building_class": "RESIDENTIAL", "height": 14, "seed": 3})
-        g0 = vol(r["sdf_b64"])
-        det = post("/propose_details", {"base_sdf_b64": r["sdf_b64"], "res": 64,
-                                        "building_class": "RESIDENTIAL", "seed": 0})
-        vox = 2.0 / 63
-        wall = [o for o in det["ops"] if o.get("det") in ("window", "door", "balcony", "column")]
-        assert len(wall) >= 4, f"only {len(wall)} wall ops on the U footprint"
-        ds = [abs(sdf_at(g0, o["center"])) / vox for o in wall]
-        assert max(ds) < 2.5, f"wall op {max(ds):.1f} vox off surface (buried or floating)"
-        return f"{len(wall)} wall ops on U-footprint, worst {max(ds):.1f} vox"
-    case("B13 non-convex (U) details stay on walls", b13)
 
     stamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     with open(os.path.join(OUT, f"report_{stamp}.csv"), "w", newline="") as f:

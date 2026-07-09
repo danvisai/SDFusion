@@ -53,7 +53,7 @@ Then open:
   ornament, texture-bake or photoreal-render the whole town, export glTF for Unreal.
 - **`http://localhost:8099/sculpt.html`** — the SDF Sculptor: raymarched live editing.
   Place primitives and let *Make it architecture* interpret them (tower/wing/dormer with
-  windows and roofs), ask the planner for *AI details*, carve, bake textures, or sketch a
+  windows and roofs), carve, bake textures, or sketch a
   rough shape on a wall and have it sculpted into real bas-relief geometry (*Sketch
   relief*; reliefs stack, and a prompt like "a lion head" steers the motif).
 

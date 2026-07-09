@@ -901,7 +901,7 @@ class OrnamentBuildingReq(BaseModel):
 def ornament_building(req: OrnamentBuildingReq):
     """Layer 2.5b: place a heritage-scan relief using the ALREADY-TRAINED part-layout
     planner (picks a plausible flush-wall slot from the massing — the same model that places
-    balconies/columns in /propose_details) + CoherentPartRefiner (deconflicts it against the
+    balconies/columns) + CoherentPartRefiner (deconflicts it against the
     building's existing detail ops — the same X-Part model coherent-add uses). No external
     API and no hand-coded placement rule in this path; retrieval (WHICH relief) stays a
     small seeded style/culture-affinity choice over the local library (data/ornaments_v1).
@@ -1123,31 +1123,11 @@ def rebuild_building(req: RebuildBuildingReq):
                     position_xz=[0.0, 0.0])
 
 
-class ProposeDetailsReq(BaseModel):
-    base_sdf_b64: str                   # cube-frame massing volume (from /building_sdf or a snap)
-    res: int = 64
-    building_class: str = "RESIDENTIAL"
-    temperature: float = 0.7
-    max_ops: int = 14
-    seed: Optional[int] = None          # deterministic proposals (tests)
-
-
-@app.post("/propose_details")
-def propose_details(req: ProposeDetailsReq):
-    """LEARNED detail proposal: the part-layout planner samples typed part boxes for this
-    massing, snap-to-surface projects them, returns them as sculptor detail EditOps."""
-    import base64 as _b
-    import numpy as np
-    from layout_detail import propose_detail_ops
-    try:
-        grid = np.frombuffer(_b.b64decode(req.base_sdf_b64.split(",")[-1]),
-                             dtype="<f4").reshape(req.res, req.res, req.res).copy()
-        ops = propose_detail_ops(grid, building_class=req.building_class,
-                                 device=refiner().device, temperature=req.temperature,
-                                 max_ops=req.max_ops, seed=req.seed)
-    except Exception as ex:
-        raise HTTPException(400, f"propose_details failed: {ex}")
-    return {"ops": ops, "n": len(ops)}
+# NOTE (2026-07-08): the /propose_details endpoint (planner-proposed detail layouts, the
+# sculptor's "AI detailing" panel) was removed per user decision — it wasn't producing
+# layouts worth shipping. layout_detail.propose_detail_ops itself STAYS: interpret_mass's
+# learned typing (_learned_type_scores) samples it internally, and ornament placement uses
+# the same planner via propose_ornament_slot.
 
 
 class RecohereReq(BaseModel):

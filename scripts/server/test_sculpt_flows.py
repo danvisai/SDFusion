@@ -1,11 +1,11 @@
 """SCULPT WORKFLOW SUITE — every flow a user can click in sculpt.html, asserted + photographed.
 
 Mirrors the UI exactly (same payloads the JS sends). Quantitative checks per flow:
-  F1  generate -> AI details -> snap (no masses)   base volume BIT-EXACT preserved
+  F1  generate -> detail ops -> snap (no masses)   base volume BIT-EXACT preserved
   F2  generate -> roof detail -> snap (no masses)  base preserved, roof ops untouched
   F3  generate -> place mass -> snap (localized)   base crisp OUTSIDE mask, edit adapted
   F4  place mass -> interpret (architecture) -> snap   constructions survive the snap
-  F5  AI details -> re-cohere                       ops stay on the surface
+  F5  detail ops -> re-cohere                       ops stay on the surface
   F6  bake with ONLY details                        massing fidelity kept (fp IoU), detailed mesh
   F7  GLOBAL re-mold opt-in                          actually changes the massing (sane occ)
   F8  town sculpt (refine_with_edit sdedit)          detailed mesh back
@@ -92,25 +92,40 @@ def main():
                                    "building_class": "RESIDENTIAL", "height": 16})
         return r, vol(r["sdf_b64"])
 
-    # ---- F1: AI details then snap with NO mass edits -> base preserved ----------
+    def manual_details(r):
+        """Hand-built window/door detail ops on the RECT walls (meters -> cube via the
+        response frame). The detail-op SOURCE for these gates since /propose_details (the
+        removed AI-detailing feature) is gone — the invariants under test (details survive
+        snaps, re-snap onto moved walls, bake crisp) are properties of the detail LAYER,
+        not of where the ops came from."""
+        scale, ctr = r["scale"], r["center"]
+        m = lambda v: v / scale
+        cy = lambda c: (c - ctr[1]) / scale
+        ops = [dict(kind="box", center=[m(7.0), cy(6.0), m(z)],
+                    size=[m(0.45), m(0.8), m(0.5)], mode="subtract", smooth=0.0,
+                    det="window") for z in (-6.0, -3.0, 0.0, 3.0, 6.0)]
+        ops.append(dict(kind="box", center=[m(0.0), cy(1.1), m(9.0)],
+                        size=[m(0.6), m(1.1), m(0.4)], mode="subtract", smooth=0.0,
+                        det="door"))
+        return ops
+
+    # ---- F1: detail ops then snap with NO mass edits -> base preserved ----------
     def f1():
         r, g0 = fresh()
         S["plain"] = r
-        det = post("/propose_details", {"base_sdf_b64": r["sdf_b64"], "res": 64,
-                                        "building_class": "RESIDENTIAL", "seed": 0})
-        assert det["n"] >= 3, f"planner gave {det['n']} ops"
+        ops = manual_details(r)
         snap = post("/snap_sdf", {"base_sdf_b64": r["sdf_b64"], "res": 64, "edits": [],
                                   "strength": 0.5, "local": True,
-                                  "resnap_detail_ops": det["ops"]})
+                                  "resnap_detail_ops": ops})
         g1 = vol(snap["sdf_b64"])
         dmax = float(np.abs(g1 - g0).max())
         assert dmax < 1e-5, f"base CHANGED under details-only snap (max dSDF={dmax:.4f})"
-        kept = snap.get("resnapped_ops") or det["ops"]
-        assert len(kept) == det["n"], f"detail ops lost ({len(kept)}/{det['n']})"
+        kept = snap.get("resnapped_ops") or ops
+        assert len(kept) == len(ops), f"detail ops lost ({len(kept)}/{len(ops)})"
         panel("F1 details-only snap\nbase bit-exact", g1)
-        S["det_ops"] = det["ops"]
-        return f"base bit-exact (d={dmax:.1e}) · {det['n']} details kept"
-    case("F1 AI details -> snap = base preserved", f1)
+        S["det_ops"] = ops
+        return f"base bit-exact (d={dmax:.1e}) · {len(ops)} details kept"
+    case("F1 detail ops -> snap = base preserved", f1)
 
     # ---- F2: roof detail (UI roof_gable ops) then snap ---------------------------
     def f2():
@@ -195,7 +210,7 @@ def main():
         med = float(np.median(ds)) if ds else 0.0
         assert med < 5.0, f"re-cohered ops off surface (med={med:.1f} vox)"
         return f"{rc['n']} kept, {rc['dropped']} dropped · med {med:.1f} vox"
-    case("F5 AI details -> re-cohere on-surface", f5)
+    case("F5 detail ops -> re-cohere on-surface", f5)
 
     # ---- F6: bake with ONLY details — massing fidelity ---------------------------
     def f6():
@@ -283,11 +298,10 @@ def main():
     # ---- F11: details get ADJUSTED (re-cohered) after a wall-moving snap ------------
     def f11():
         r = S["plain"]
-        det = post("/propose_details", {"base_sdf_b64": r["sdf_b64"], "res": 64,
-                                        "building_class": "RESIDENTIAL", "seed": 1})
+        det_ops = manual_details(r)
         snap = post("/snap_sdf", {"base_sdf_b64": r["sdf_b64"], "res": 64, "edits": [],
                                   "strength": 0.5, "local": False, "adjust": True,
-                                  "resnap_detail_ops": det["ops"]})
+                                  "resnap_detail_ops": det_ops})
         g1 = vol(snap["sdf_b64"])
         ops = snap.get("resnapped_ops") or []
         assert ops, "no adjusted ops back"
@@ -298,7 +312,7 @@ def main():
               for o in wall]
         med = float(np.median(ds)) if ds else 0.0
         assert med < 3.0, f"adjusted details off the NEW surface (med={med:.1f} vox)"
-        return f"{len(ops)}/{det['n']} ops adjusted onto new walls · med {med:.1f} vox"
+        return f"{len(ops)}/{len(det_ops)} ops adjusted onto new walls · med {med:.1f} vox"
     case("F11 details re-cohere after wall-moving snap", f11)
 
     # ---- F12: photoreal neural render (style picker backend) ------------------------

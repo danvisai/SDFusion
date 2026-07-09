@@ -54,7 +54,7 @@
   <div class="sub"><b>① Generate</b> a building → <b>② place a mass</b> and let the AI
   <b>make it architecture</b> → <b>③ AI-detail</b> it → <b>④ preview, bake</b>.
   Everything is placed procedurally — no generative re-molding, nothing goes moldy.</div>
-  <div id="eInfo">place a mass, then 🧠 — or go straight to ✨ AI details</div>
+  <div id="eInfo">place a mass, then 🧠 Make it architecture</div>
 
   <details class="step" id="stepGen" open>
   <summary>① Building</summary>
@@ -114,26 +114,8 @@
   </div>
   </details>
 
-  <details class="step" id="stepDetail">
-  <summary>③ AI detailing</summary>
-  <div class="card">
-    <button class="sm" id="aiDetails">✨ AI details (layout planner)</button>
-    <div class="help">A model trained on real buildings places windows / doors / towers
-    on <i>this</i> massing. Details stay crisp through every snap.</div>
-    <label style="margin-top:8px">Place by hand</label>
-    <div class="grid3">
-      <button class="sec sm" data-det="door">door</button>
-      <button class="sec sm" data-det="window">window</button>
-      <button class="sec sm" data-det="chimney">chimney</button>
-      <button class="sec sm" data-det="balcony">balcony</button>
-      <button class="sec sm" data-det="roof_gable">gable roof</button>
-      <button class="sec sm" data-det="roof_hip">hip roof</button>
-    </div>
-  </div>
-  </details>
-
   <details class="step" id="stepFinish">
-  <summary>④ Preview · Bake</summary>
+  <summary>③ Preview · Bake</summary>
   <div class="card">
     <div class="help">🧠 Make it architecture already places everything procedurally —
     building this .glb never runs the generative massing prior, so nothing here can turn
@@ -147,7 +129,7 @@
   </details>
 
   <details class="step" id="stepPhoto">
-  <summary>⑤ Photoreal (style by image)</summary>
+  <summary>④ Photoreal (style by image)</summary>
   <div class="card">
     <label>Style reference <span class="val" id="refName">none</span></label>
     <div class="row">
@@ -167,7 +149,7 @@
   </details>
 
   <details class="step" id="stepPaint">
-  <summary>⑥ Sketch relief <span class="tag">experimental</span></summary>
+  <summary>⑤ Sketch relief <span class="tag">experimental</span></summary>
   <div class="card">
     <button id="paintMode">🖌 Sketch mode: off</button>
     <div class="help">This is a sketch tool, not a paint bucket: drag out a rough, vague
@@ -475,36 +457,10 @@ function addPrim(kind){ if(!st.base_b64){ $('eInfo').textContent='generate a bui
   $('eInfo').textContent=`${kind} placed (${mode}) — drag the gizmo to position it, then 🧠 Make it architecture`;
 }
 
-// ---- semantic details (layer 'detail'): crisp analytic elements that are NOT sent through
-// the massing prior — the prior melts fine features (a carved door fills back in), so massing
-// snaps and details persist, re-applied at high res on bake. Sizes in METERS via cube scale.
-function addDetail(kind){ if(!st.base_b64){ $('eInfo').textContent='generate a building first'; return; }
-  const m=v=>v/st.scale;                                  // meters -> cube units
-  const cx=c=>(c-st.center[0])/st.scale, cy=c=>(c-st.center[1])/st.scale, cz=c=>(c-st.center[2])/st.scale;
-  const B=fpB(st.footprint), h=st.height;
-  const zF=cz(B.z1), x0=cx((B.x0+B.x1)/2), yG=cy(0);      // front facade plane, center x, ground y
-  const W=(B.x1-B.x0), D=(B.z1-B.z0);
-  const out=[]; const grp='g'+Date.now();   // multi-op details re-snap as ONE group
-  if(kind==='door'){
-    out.push({kind:'box', center:[x0, yG+m(1.15), zF], size:[m(0.7), m(1.15), m(0.45)], mode:'subtract', smooth:0, layer:'detail', grp, det:'door'});
-    out.push({kind:'box', center:[x0, yG+m(2.5), zF+m(0.45)], size:[m(1.1), m(0.07), m(0.55)], mode:'add', smooth:0, layer:'detail', grp, det:'balcony'}); // canopy: protrudes like a balcony
-  } else if(kind==='window'){
-    out.push({kind:'box', center:[x0-m(2.2), yG+m(0.55*h), zF], size:[m(0.6), m(0.7), m(0.3)], mode:'subtract', smooth:0, layer:'detail', grp, det:'window'});
-  } else if(kind==='chimney'){
-    out.push({kind:'box', center:[cx(B.x1)-m(W*0.18), cy(h)+m(1.0), cz(B.z1)-m(D*0.2)], size:[m(0.45), m(1.4), m(0.45)], mode:'add', smooth:0, layer:'detail', grp, det:'chimney'});
-  } else if(kind==='balcony'){
-    const yB=yG+m(0.6*h);
-    out.push({kind:'box', center:[x0+m(2.2), yB, zF+m(0.8)], size:[m(1.3), m(0.09), m(0.85)], mode:'add', smooth:0, layer:'detail', grp, det:'balcony'});       // slab
-    out.push({kind:'box', center:[x0+m(2.2), yB+m(0.5), zF+m(1.55)], size:[m(1.3), m(0.5), m(0.06)], mode:'add', smooth:0, layer:'detail', grp, det:'balcony'}); // parapet
-  } else if(kind==='roof_gable'||kind==='roof_hip'){
-    const yCut=yG+m(0.78*h);
-    out.push({kind:'box', center:[x0, yCut+m(h), cz((B.z0+B.z1)/2)], size:[m(W), m(h), m(D)], mode:'subtract', smooth:0, layer:'detail', grp, det:'roof'});  // flatten top (det:'roof' = never resnapped)
-    out.push({kind:(kind==='roof_gable'?'gable':'hip'), center:[x0, yCut, cz((B.z0+B.z1)/2)],
-              size:[m(W*1.06), m(D*1.06), m(0.02), m(0.30*h)], mode:'add', smooth:0, layer:'detail', grp, det:'roof'});
-  }
-  out.forEach(e=>edits.push(e)); sel=edits.length-1; pushEditUniforms(); refreshSel();
-  $('eInfo').textContent=`${kind} added (detail layer — crisp, survives snap)`;
-}
+// NOTE (2026-07-08): the "③ AI detailing" panel (planner-proposed details + place-by-hand
+// buttons) was removed per user decision — detail elements now come from Make-it-architecture
+// constructions and the facade composer. The 'detail' layer plumbing (layer:'detail', det:
+// tags, resnap groups) stays: constructions and the town round-trip still use it.
 
 // ---- API ----
 async function gen(){ if(busy) return; busy=true; $('gen').disabled=true; $('info').textContent='generating…'; const t=performance.now();
@@ -559,17 +515,6 @@ $('gen').onclick=gen; $('bake').onclick=bake;
 $('mAdd').onclick=()=>{ mode='add'; $('mAdd').classList.add('on'); $('mSub').classList.remove('on'); };
 $('mSub').onclick=()=>{ mode='subtract'; $('mSub').classList.add('on'); $('mAdd').classList.remove('on'); };
 document.querySelectorAll('[data-prim]').forEach(b=>b.onclick=()=>addPrim(b.dataset.prim));
-document.querySelectorAll('[data-det]').forEach(b=>b.onclick=()=>addDetail(b.dataset.det));
-// learned detail proposal: planner samples typed part boxes for THIS massing -> detail layer
-$('aiDetails').onclick=async()=>{ if(busy||!st.base_b64) return; busy=true; $('aiDetails').disabled=true;
-  $('eInfo').textContent='planner proposing details…'; const t=performance.now();
-  try{ const r=await post('/propose_details',{base_sdf_b64:st.base_b64, res:st.res, building_class:st.cls});
-    edits=edits.filter(e=>e.layer!=='detail');           // replace previous proposal
-    r.ops.forEach(o=>edits.push({...o, rot_y:0, round_r:0, layer:'detail'}));
-    sel=edits.length-1; pushEditUniforms(); refreshSel();
-    $('stepFinish').open=true;
-    $('eInfo').textContent=`planner placed ${r.n} elements · ${((performance.now()-t)/1000).toFixed(1)}s — drag/resize, then Bake`;
-  }catch(e){ $('eInfo').textContent='AI details error: '+e.message; } busy=false; $('aiDetails').disabled=false; };
 // learned interior re-coherence (set refiner) was REMOVED from the demo (2026-06-15): it pulled
 // exterior windows inward and carved holes. Elements now stay on the EXTERIOR where placed.
 // /recohere_details endpoint is kept but unwired. Exterior facade coherence lives in /recohere_facade.
