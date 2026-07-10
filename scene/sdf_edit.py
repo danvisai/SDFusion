@@ -35,7 +35,7 @@ from scene.sdf_primitives import (
     sample_grid, grid_to_mesh,
 )
 
-PALETTE = ("box", "rounded_box", "sphere", "cylinder", "cone", "gable", "hip")
+PALETTE = ("box", "rounded_box", "sphere", "cylinder", "cone", "gable", "hip", "element")
 
 
 @dataclass
@@ -48,6 +48,9 @@ class EditOp:
     smooth: float = 0.0                # blend radius; 0 = hard CSG
     rot_y: float = 0.0                 # degrees about world Y
     round_r: float = 0.0               # corner rounding for box
+    lib_id: int = -1                   # kind='element': index into data/element_library_v1
+                                       # (real BuildingNet component geometry, Phase R3 of
+                                       # GENERATIVE_MAKE_IT_ARCHITECTURE_BUILD_SPEC)
 
     def to_dict(self):
         return asdict(self)
@@ -77,6 +80,17 @@ def _primitive(op: EditOp) -> SDF:
         prim = sdf_gable_roof(s[0], s[1], s[2], s[3], center_xz=(0.0, 0.0))
     elif k == "hip":
         prim = sdf_hip_roof(s[0], s[1], s[2], s[3], center_xz=(0.0, 0.0))
+    elif k == "element":
+        # real library geometry stretched to fill the op's box; device follows the query
+        # points at call time (the lib caches per-device tensors)
+        from scene.element_lib import element_sdf
+        _fns = {}
+
+        def prim(p, _lid=int(op.lib_id), _half=tuple(float(v) for v in s[:3])):
+            dev = str(p.device)
+            if dev not in _fns:
+                _fns[dev] = element_sdf(_lid, _half, device=p.device)
+            return _fns[dev](p)
     else:
         raise ValueError(f"unknown primitive '{k}'; palette={PALETTE}")
     if abs(op.rot_y) > 1e-6:

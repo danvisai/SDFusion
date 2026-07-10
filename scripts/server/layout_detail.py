@@ -695,6 +695,47 @@ def interpret_mass(grid, op, building_class="RESIDENTIAL", style="modern",
            "p_types": {k: round(v, 3) for k, v in sorted(p_types.items(),
                                                          key=lambda kv: -kv[1])}}
 
+    # ---- 2a. RETRIEVAL-FIT (Phase R, GENERATIVE_MAKE_IT_ARCHITECTURE spec 2026-07-08):
+    # for types where the element library has enough real geometry, fit an actual
+    # BuildingNet component into the placement instead of the hand-coded template —
+    # the box BECOMES architecture harvested from a real building. Same seed contract:
+    # 🎲 re-roll walks through different retrieved instances. Any failure falls through
+    # to the procedural construction below.
+    if mode == "add" and kind in ("tower", "dome", "chimney", "dormer"):
+        try:
+            import element_fit as ef
+            pools = {"tower": ("tower",), "dome": ("dome",),
+                     "chimney": ("chimney", "roof_structure"),
+                     "dormer": ("roof_structure",)}[kind]
+            y_span = max(float(y_top - y_ground), 1e-6)
+            half = [float(max(e[0], 0.02)), float(max(e[1], 0.02)),
+                    float(max(e[2], 0.02))]
+            if kind == "tower":
+                # fit the element to the VISIBLE span of the user's box: from the local
+                # roofline up to the box top. Fitting the full box (or ground->top)
+                # buries the element's wide base inside the massing and only its thin
+                # cap clears the roof — a real minaret read as a nub (verify sheets,
+                # 2026-07-09). Slight sink so the base fuses with the roof.
+                base_y = max(float(bot_of_op), float(y_local_top) - 0.03)
+                hy = max((float(top_of_op) - base_y) / 2, 0.05)
+                half[1] = hy
+                cy = base_y + hy - 0.015
+            else:
+                cy = float(y_local_top + half[1] * 0.85)       # re-seat on the local roof
+            aspect = (half[0] / half[1], half[2] / half[1])
+            lid, mrow = ef.retrieve(pools, aspect,
+                                    (float(c[1]) - y_ground) / y_span, building_class,
+                                    seed=int(rng.integers(1 << 31)))
+            if lid is not None:
+                out["ops"] = [ef.element_op(lid, [float(c[0]), cy, float(c[2])], half,
+                                            rot_y=float(op.get("rot_y", 0.0)), det=kind)]
+                out["element"] = {"lib_id": lid, "type": mrow["type"],
+                                  "source_building": mrow["building"]}
+                out["source"] += "+library"
+                return out
+        except Exception as ex:
+            print(f"[interpret] element retrieval unavailable ({ex}); procedural fallback")
+
     # ---- 2. CONSTRUCT it (sampled proportions; class statistics for options) -----
     if kind in ("window", "door"):
         cc = _snap_to_surface(occ, kind, c, e)

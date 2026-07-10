@@ -987,7 +987,8 @@ def interpret_mass_ep(req: InterpretMassReq):
         raise HTTPException(400, f"interpret failed: {ex}")
     return {"kind": out["kind"], "n": len(out["ops"]), "ops": out["ops"],
             "source": out.get("source", "rules"), "p_types": out.get("p_types", {}),
-            "coherent": out["coherent"]}
+            "coherent": out["coherent"],
+            "element": out.get("element")}   # retrieval-fit provenance (Phase R, 2026-07-08)
 
 
 # -- world-meter frame bridge for the town page (index.html) ----------------
@@ -1079,7 +1080,8 @@ def interpret_mass_world(req: InterpretMassWorldReq):
         raise HTTPException(400, f"interpret failed: {ex}")
     return {"kind": out["kind"], "n": len(world_ops), "ops": world_ops,
             "source": out.get("source", "rules"), "p_types": out.get("p_types", {}),
-            "coherent": out["coherent"]}
+            "coherent": out["coherent"],
+            "element": out.get("element")}   # retrieval-fit provenance (Phase R, 2026-07-08)
 
 
 class RebuildBuildingReq(BaseModel):

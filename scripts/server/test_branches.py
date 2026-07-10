@@ -218,13 +218,22 @@ def main():
         r = post("/interpret_mass", {"base_sdf_b64": S["plain"]["sdf_b64"], "res": 64,
                                      "op": tall})
         assert r["kind"] == "tower", f"tall corner mass read as '{r['kind']}'"
-        assert r["n"] >= 3, f"tower construction too thin ({r['n']} ops)"
+        # two valid constructions since Phase R (2026-07-09): a retrieval-fit ELEMENT op
+        # (one op of real library geometry, with provenance) or the procedural multi-op
+        # template (shaft + cap + window carves)
+        if any(o.get("kind") == "element" for o in r["ops"]):
+            el = r.get("element") or {}
+            assert el.get("lib_id", -1) >= 0, "element op without library provenance"
+            built = f"element from {el.get('source_building', '?')[:22]}"
+        else:
+            assert r["n"] >= 3, f"procedural tower too thin ({r['n']} ops)"
+            built = f"{r['n']} procedural ops"
         carve = {"kind": "box", "center": [0.0, 0.1, 0.7], "size": [0.05, 0.05, 0.05],
                  "mode": "subtract", "smooth": 0.0}
         r2 = post("/interpret_mass", {"base_sdf_b64": S["plain"]["sdf_b64"], "res": 64,
                                       "op": carve})
         assert r2["kind"] in ("window", "door"), f"wall carve read as '{r2['kind']}'"
-        return f"tower ({r['n']} ops) · carve -> {r2['kind']}"
+        return f"tower ({built}) · carve -> {r2['kind']}"
     case("B12 smart add (interpret placed mass)", b12)
 
     def b10():

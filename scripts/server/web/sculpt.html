@@ -395,7 +395,7 @@ function pushEditUniforms(){
   reliefChain=null;
   uniforms.uNumPrims.value = Math.min(edits.length, MAXP);
   for(let i=0;i<uniforms.uNumPrims.value;i++){
-    const e=edits[i]; uniforms.uKind.value[i]=KIND[e.kind]; uniforms.uMode.value[i]=(e.mode==='add'?0:1);
+    const e=edits[i]; uniforms.uKind.value[i]=KIND[e.kind]??KIND.box; uniforms.uMode.value[i]=(e.mode==='add'?0:1); // element ops (library geometry) show as their box; true shape in Detail preview/Bake
     uniforms.uCenter.value[i].set(e.center[0],e.center[1],e.center[2]);
     const s=e.size; uniforms.uSize.value[i].set(s[0]||0, s[1]||0, s[2]||0, s[3]||0);
     uniforms.uSmooth.value[i]=e.smooth||0; uniforms.uRotY.value[i]=(e.rot_y||0)*Math.PI/180; uniforms.uRound.value[i]=e.round_r||0;
@@ -541,8 +541,12 @@ async function interpretSel(reroll){
     // grp, so this is identical to the old splice for that case.
     edits = srcOp.grp ? edits.filter(e=>e.grp!==srcOp.grp) : edits.filter((e,i)=>i!==sel);
   }
+  if(preview){ setVolume(preview.b64, preview.res); preview=null;   // leave element/detail
+    $('detPrev').classList.remove('on');                            // preview before editing
+    $('detPrev').textContent='👁 Detail preview (bake quality)'; }
   busy=true; $('interp').disabled=$('reroll').disabled=true;
   $('eInfo').textContent='making sense of the mass…'; const t=performance.now();
+  let hadElement=false;
   try{
     const r=await post('/interpret_mass',{base_sdf_b64:st.base_b64, res:st.res, op:wire(srcOp),
                                           building_class:st.cls, style:st.style, seed,
@@ -552,9 +556,15 @@ async function interpretSel(reroll){
     lastInterp={srcOp, grp, seed};
     sel=edits.length-1; pushEditUniforms(); refreshSel();
     const coh=r.coherent?' · aligned to neighbors (learned)':'';
-    $('eInfo').textContent=`${r.kind.toUpperCase()} · ${r.n} ops · typed by ${r.source}${coh} · ${((performance.now()-t)/1000).toFixed(1)}s — 🎲 re-roll for a variation`;
+    const el=r.element?` · real geometry: ${r.element.source_building.slice(0,26)}`:'';
+    $('eInfo').textContent=`${r.kind.toUpperCase()} · ${r.n} ops · typed by ${r.source}${coh}${el} · ${((performance.now()-t)/1000).toFixed(1)}s — 🎲 re-roll for a variation`;
+    hadElement=r.ops.some(o=>o.kind==='element');
   }catch(e){ edits.push(srcOp); sel=edits.length-1; pushEditUniforms(); $('eInfo').textContent='interpret error: '+e.message; }
   busy=false; refreshSel();
+  // a retrieved element's REAL shape can't render in the primitive shader (it shows as its
+  // box) — auto-open the server-composed preview so the user sees the actual architecture;
+  // re-roll/interpret restores sculpt view first (see the preview-restore at the top)
+  if(hadElement) $('detPrev').onclick();
 }
 $('interp').onclick=()=>interpretSel(false);
 $('reroll').onclick=()=>interpretSel(true);
