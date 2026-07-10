@@ -75,6 +75,60 @@ def volume_to_sdf(grid, device):
     return f
 
 
+def split_detail_edits(detail_edits):
+    """Split before the first element so the deferred suffix keeps exact CSG order."""
+    edits = list(detail_edits or [])
+    first_element = len(edits)
+    for i, op in enumerate(edits):
+        mode = str(op.get("mode", "add"))
+        if mode not in ("add", "subtract"):
+            raise ValueError(f"edit mode must be add|subtract, got {mode}")
+        if op.get("kind") == "element":
+            first_element = min(first_element, i)
+    return edits[:first_element], edits[first_element:]
+
+
+def precompose_detail_edits(grid, detail_edits, device):
+    """Precompose the safe prefix and return the ordered suffix for output resolution."""
+    prefix, deferred = split_detail_edits(detail_edits)
+    if not prefix:
+        return np.asarray(grid, np.float32), deferred
+    comp = EditableBuilding(volume_to_sdf(grid, device),
+                            [EditOp.from_dict(op) for op in prefix]).composed()
+    res = int(np.asarray(grid).shape[0])
+    out = sample_grid(comp, res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
+                      device=device).cpu().numpy()
+    return out, deferred
+
+
+def world_edit_to_cube(op, center, scale):
+    """Convert a world-meter EditOp to a cube-frame EditOp without changing semantics."""
+    o = dict(op)
+    c, s = np.asarray(center, np.float32), float(scale)
+    o["center"] = ((np.asarray(op["center"], np.float32) - c) / s).tolist()
+    size = [float(v) for v in op.get("size", [1.0, 1.0, 1.0])]
+    o["size"] = ([size[0]] + [v / s for v in size[1:]]
+                 if op.get("kind", "box") == "cone" else [v / s for v in size])
+    for key in ("smooth", "round_r"):
+        if key in o:
+            o[key] = float(o[key]) / s
+    return o
+
+
+def cube_edit_to_world(op, center, scale):
+    """Convert a cube-frame EditOp to world meters without changing semantics."""
+    o = dict(op)
+    c, s = np.asarray(center, np.float32), float(scale)
+    o["center"] = (np.asarray(op["center"], np.float32) * s + c).tolist()
+    size = [float(v) for v in op.get("size", [1.0, 1.0, 1.0])]
+    o["size"] = ([size[0]] + [v * s for v in size[1:]]
+                 if op.get("kind", "box") == "cone" else [v * s for v in size])
+    for key in ("smooth", "round_r"):
+        if key in o:
+            o[key] = float(o[key]) * s
+    return o
+
+
 def _bbox(footprint, height, edits, pad=0.18):
     poly = np.asarray(footprint, float)
     x0, z0 = float(poly[:, 0].min()), float(poly[:, 1].min())
@@ -711,7 +765,8 @@ class Refiner:
 
     @torch.no_grad()
     def detail_cube_volume(self, grid, center, scale, building_class="RESIDENTIAL",
-                           style="modern", seed=None, res_out=96, detail_edits=None):
+                           style="modern", seed=None, res_out=96, detail_edits=None,
+                           deferred_edits=None):
         """LIVE DETAIL PREVIEW: compose the ② composer detail (windows/bands/plinth/roof/
         landmarks — the bake-quality treatment) onto a cube-frame massing volume and return
         it as a cube-frame SDF volume the viewer can raymarch directly. Same construction
@@ -737,6 +792,21 @@ class Refiner:
             q[..., 1] = q[..., 1] + ymin_w
             return cube((q - c_t) / s) * s
 
+        # Callers precompose only the prefix before the first element. The remaining suffix
+        # is converted here and applied in order after composer detail at output resolution.
+        if deferred_edits is None:
+            _prefix, deferred_edits = split_detail_edits(detail_edits)
+        world_edits = []
+        for op in (detail_edits or []):
+            world_op = cube_edit_to_world(op, c, s)
+            world_op["center"][1] -= ymin_w
+            world_edits.append(world_op)
+        world_deferred = []
+        for op in (deferred_edits or []):
+            world_op = cube_edit_to_world(op, c, s)
+            world_op["center"][1] -= ymin_w
+            world_deferred.append(world_op)
+
         sdf = placed
         try:
             from scene.composer_detail import compose_detail, get_composer
@@ -746,14 +816,7 @@ class Refiner:
                 # cube-frame [-1,1] (rel. to center/scale) -> the world-meter frame `placed`
                 # expects (Y measured from the building's own base): world = cube*s + c,
                 # then Y needs the same ymin_w correction `placed` applies internally.
-                add_ops = []
-                for op in (detail_edits or []):
-                    if str(op.get("mode", "add")) != "add":
-                        continue
-                    cw = np.asarray(op["center"], np.float32) * s + c
-                    cw[1] -= ymin_w
-                    sw = np.asarray(op["size"][:3], np.float32) * s
-                    add_ops.append({**op, "center": cw.tolist(), "size": sw.tolist()})
+                add_ops = [op for op in world_edits if str(op.get("mode", "add")) == "add"]
                 from scene.composer_detail import auto_roof_flag
                 sdf, _lay, _dec = compose_detail(placed, poly, height_w, building_class,
                                                  style=style, seed=seed,
@@ -761,6 +824,24 @@ class Refiner:
                                                  composer=get_composer(dev), add_ops=add_ops)
         except Exception as exc:
             print(f"[detail preview] composer unavailable ({exc}); plain massing")
+        if world_deferred:
+            from scene.sdf_edit import EditOp, _primitive
+            from scene.sdf_primitives import (sdf_smooth_subtract, sdf_smooth_union,
+                                              sdf_subtract, sdf_union)
+            # Real-library shells can be sub-voxel at the target resolution. Thicken only
+            # element primitives; later regular edits in the deferred suffix remain exact.
+            thick_m = 0.6 * (2.0 * s / max(res_out - 1, 1))
+            for raw, op in zip(deferred_edits, world_deferred):
+                wop = EditOp.from_dict(op)
+                prim = _primitive(wop)
+                if raw.get("kind") == "element":
+                    prim = (lambda f=prim, t=thick_m: (lambda q: f(q) - t))()
+                if wop.mode == "add":
+                    sdf = (sdf_smooth_union(sdf, prim, wop.smooth) if wop.smooth > 0
+                           else sdf_union(sdf, prim))
+                else:
+                    sdf = (sdf_smooth_subtract(sdf, prim, wop.smooth) if wop.smooth > 0
+                           else sdf_subtract(sdf, prim))
         gq = torch.linspace(-1, 1, res_out, device=dev)
         Z, Y, X = torch.meshgrid(gq, gq, gq, indexing="ij")
         pw = torch.stack([X * s + c[0], Y * s + c[1] - ymin_w, Z * s + c[2]], -1).reshape(-1, 3)

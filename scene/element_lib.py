@@ -33,7 +33,8 @@ _cache = {}              # (lib_id, device) -> (tensor crop, tensor crop_half)
 def meta():
     global _meta
     if _meta is None:
-        _meta = json.load(open(LIB / "meta.json"))
+        with open(LIB / "meta.json") as f:
+            _meta = json.load(f)
     return _meta
 
 

@@ -202,7 +202,7 @@ def export_town_textured(refiner, buildings, pipe, unit=100.0, ground=True,
     import numpy as np
     import trimesh
     from PIL import Image
-    from refine import _bbox
+    from refine import _bbox, split_detail_edits, world_edit_to_cube
     from scene.sdf_edit import recipe_base_sdf, EditableBuilding, EditOp
     import texture_bake as tb
 
@@ -212,14 +212,20 @@ def export_town_textured(refiner, buildings, pipe, unit=100.0, ground=True,
         poly = np.asarray(b["footprint"], np.float32)
         h = float(b["height"])
         base = recipe_base_sdf(b["style"], b["recipe_params"], poly, h, device=refiner.device)
-        if b.get("edits"):
-            base = EditableBuilding(base, [EditOp.from_dict(d) for d in b["edits"]]).composed()
+        prefix_edits, deferred_edits = split_detail_edits(b.get("edits"))
+        if prefix_edits:
+            base = EditableBuilding(base,
+                                    [EditOp.from_dict(d) for d in prefix_edits]).composed()
         bbox = _bbox(poly, h, b.get("edits", []))
         sdf_t, _fp, _hn, c, s = refiner._recipe_to_frame_n(base, bbox, margin=1.3)
         grid64 = sdf_t[0, 0].detach().cpu().numpy().astype(np.float32)
+        cube_edits = [world_edit_to_cube(op, c, s) for op in b.get("edits", [])]
+        cube_deferred = [world_edit_to_cube(op, c, s) for op in deferred_edits]
         grid96 = refiner.detail_cube_volume(grid64, c, s,
                                             building_class=b.get("building_class", "RESIDENTIAL"),
-                                            style=b.get("style", "modern"), res_out=res96)
+                                            style=b.get("style", "modern"), res_out=res96,
+                                            detail_edits=cube_edits,
+                                            deferred_edits=cube_deferred)
         wx = float(b.get("weather") or 0.0)
         if wx > 0:
             # Layer 2.5a on the TEXTURED path too (2026-07-08): weather the detailed cube

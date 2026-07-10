@@ -224,7 +224,25 @@ def main():
         if any(o.get("kind") == "element" for o in r["ops"]):
             el = r.get("element") or {}
             assert el.get("lib_id", -1) >= 0, "element op without library provenance"
-            built = f"element from {el.get('source_building', '?')[:22]}"
+            assert el.get("type"), "element provenance missing source type"
+            assert el.get("source_building"), "element provenance missing source building"
+            assert float(el.get("source_rel_height", 0.0)) > 0, \
+                "element provenance missing source-relative height"
+            assert float(el.get("solidity", 0.0)) >= 0.12, \
+                f"ineligible element solidity={el.get('solidity')}"
+            # Regression for the 2026-07-09 voxel-crush failure: the real element must be
+            # composed analytically by the public preview path, not disappear after a 64^3
+            # pre-bake. Compare against the same composed facade with no element edit.
+            dv = {"base_sdf_b64": S["plain"]["sdf_b64"], "res": 64,
+                  "center": S["plain"]["center"], "scale": S["plain"]["scale"],
+                  "building_class": "RESIDENTIAL", "style": "modern", "seed": 17,
+                  "res_out": 96}
+            g_plain = vol(post("/detail_volume", dv)["sdf_b64"], 96)
+            g_element = vol(post("/detail_volume", {**dv, "detail_edits": r["ops"]})["sdf_b64"],
+                            96)
+            added = int(((g_element <= 0) & (g_plain > 0)).sum())
+            assert added > 100, f"retrieved element vanished at output resolution ({added} voxels)"
+            built = f"element from {el['source_building'][:22]} · {added} visible vox"
         else:
             assert r["n"] >= 3, f"procedural tower too thin ({r['n']} ops)"
             built = f"{r['n']} procedural ops"

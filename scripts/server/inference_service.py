@@ -503,19 +503,15 @@ def detail_volume(req: DetailVolumeReq):
     except Exception as ex:
         raise HTTPException(400, f"bad base_sdf_b64: {ex}")
     try:
+        deferred_edits = []
         if req.detail_edits:   # user ops first (same order as the bake)
-            from refine import volume_to_sdf
-            from scene.sdf_edit import EditableBuilding, EditOp
-            from scene.sdf_primitives import sample_grid
-            import torch as _t
-            comp = EditableBuilding(volume_to_sdf(grid, r.device),
-                                    [EditOp.from_dict(d) for d in req.detail_edits]).composed()
-            grid = sample_grid(comp, req.res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
-                               device=r.device).cpu().numpy()
+            from refine import precompose_detail_edits
+            grid, deferred_edits = precompose_detail_edits(grid, req.detail_edits, r.device)
         out = r.detail_cube_volume(grid, req.center, req.scale,
                                    building_class=req.building_class, style=req.style,
                                    seed=req.seed, res_out=req.res_out,
-                                   detail_edits=req.detail_edits)
+                                   detail_edits=req.detail_edits,
+                                   deferred_edits=deferred_edits)
     except Exception as ex:
         raise HTTPException(400, f"detail volume failed: {ex}")
     return {"sdf_b64": _b64(out.astype("<f4").tobytes()), "res": int(out.shape[0])}
@@ -552,17 +548,14 @@ def neural_render(req: NeuralRenderReq):
     except Exception as ex:
         raise HTTPException(400, f"bad base_sdf_b64: {ex}")
     try:
+        deferred_edits = []
         if req.detail_edits:
-            from refine import volume_to_sdf
-            from scene.sdf_edit import EditableBuilding, EditOp
-            from scene.sdf_primitives import sample_grid
-            comp = EditableBuilding(volume_to_sdf(grid, r.device),
-                                    [EditOp.from_dict(d) for d in req.detail_edits]).composed()
-            grid = sample_grid(comp, req.res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
-                               device=r.device).cpu().numpy()
+            from refine import precompose_detail_edits
+            grid, deferred_edits = precompose_detail_edits(grid, req.detail_edits, r.device)
         grid96 = r.detail_cube_volume(grid, req.center, req.scale,
                                       building_class=req.building_class, style=req.style,
-                                      res_out=96, detail_edits=req.detail_edits)
+                                      res_out=96, detail_edits=req.detail_edits,
+                                      deferred_edits=deferred_edits)
         import neural_appearance as na
         ref = None
         if req.style_ref_b64:
@@ -609,7 +602,7 @@ def neural_render_town(req: NeuralRenderTownReq):
     r = refiner()
     try:
         import neural_appearance as na
-        from refine import _bbox
+        from refine import _bbox, split_detail_edits, world_edit_to_cube
         from scene.sdf_edit import recipe_base_sdf, EditableBuilding, EditOp
         from PIL import Image
         items, refs = [], []
@@ -617,13 +610,18 @@ def neural_render_town(req: NeuralRenderTownReq):
         for b in req.buildings[:12]:                       # latency cap
             base = recipe_base_sdf(b.style, b.recipe_params, b.footprint, b.height,
                                    device=r.device)
-            if b.edits:
-                base = EditableBuilding(base, [EditOp.from_dict(d) for d in b.edits]).composed()
+            prefix_edits, deferred_edits = split_detail_edits(b.edits)
+            if prefix_edits:
+                base = EditableBuilding(base,
+                                        [EditOp.from_dict(d) for d in prefix_edits]).composed()
             bbox = _bbox(b.footprint, b.height, b.edits)
             sdf_t, _fp, _hn, c, s = r._recipe_to_frame_n(base, bbox, margin=1.3)
             grid = sdf_t[0, 0].detach().cpu().numpy().astype(np.float32)
+            cube_edits = [world_edit_to_cube(op, c, s) for op in b.edits]
+            cube_deferred = [world_edit_to_cube(op, c, s) for op in deferred_edits]
             g96 = r.detail_cube_volume(grid, c, s, building_class=b.building_class,
-                                       style=b.style, res_out=96)
+                                       style=b.style, res_out=96, detail_edits=cube_edits,
+                                       deferred_edits=cube_deferred)
             if b.weather and b.weather > 0:
                 from scene.sdf_weather import weather_cube_grid
                 g96 = weather_cube_grid(g96, c, s, seed=int(b.weather_seed or 0),
@@ -677,17 +675,14 @@ def bake_texture(req: BakeTextureReq):
     try:
         grid = np.frombuffer(_b.b64decode(req.base_sdf_b64.split(",")[-1]),
                              dtype="<f4").reshape(req.res, req.res, req.res).copy()
+        deferred_edits = []
         if req.detail_edits:
-            from refine import volume_to_sdf
-            from scene.sdf_edit import EditableBuilding, EditOp
-            from scene.sdf_primitives import sample_grid
-            comp = EditableBuilding(volume_to_sdf(grid, r.device),
-                                    [EditOp.from_dict(d) for d in req.detail_edits]).composed()
-            grid = sample_grid(comp, req.res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
-                               device=r.device).cpu().numpy()
+            from refine import precompose_detail_edits
+            grid, deferred_edits = precompose_detail_edits(grid, req.detail_edits, r.device)
         grid96 = r.detail_cube_volume(grid, req.center, req.scale,
                                       building_class=req.building_class, style=req.style,
-                                      res_out=96, detail_edits=req.detail_edits)
+                                      res_out=96, detail_edits=req.detail_edits,
+                                      deferred_edits=deferred_edits)
         import neural_appearance as na
         import texture_bake as tb
         ref = None
@@ -792,18 +787,17 @@ def paint_relief_ep(req: PaintReliefReq):
         else:
             grid = np.frombuffer(_b.b64decode(req.base_sdf_b64.split(",")[-1]),
                                  dtype="<f4").reshape(req.res, req.res, req.res).copy()
+            deferred_edits = []
             if req.detail_edits:
-                from refine import volume_to_sdf
-                from scene.sdf_edit import EditableBuilding, EditOp
-                from scene.sdf_primitives import sample_grid
-                comp = EditableBuilding(volume_to_sdf(grid, r.device),
-                                        [EditOp.from_dict(d) for d in req.detail_edits]).composed()
-                grid = sample_grid(comp, req.res, (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0),
-                                   device=r.device).cpu().numpy()
+                from refine import precompose_detail_edits
+                grid, deferred_edits = precompose_detail_edits(
+                    grid, req.detail_edits, r.device,
+                )
             grid96 = r.detail_cube_volume(grid, req.center, req.scale,
                                           building_class=req.building_class, style=req.style,
                                           seed=req.composer_seed, res_out=96,
-                                          detail_edits=req.detail_edits)
+                                          detail_edits=req.detail_edits,
+                                          deferred_edits=deferred_edits)
         from PIL import Image
         # NOT .convert("RGB") -- alpha carries which pixels were actually painted
         paint_img = Image.open(_io.BytesIO(_b.b64decode(req.paint_png_b64.split(",")[-1])))
@@ -1009,13 +1003,8 @@ def _op_scale_size(kind, size, f):
 
 
 def _op_world_to_cube(op, c, s):
-    o = dict(op)
-    o["center"] = [(float(v) - float(cv)) / s for v, cv in zip(op["center"], c)]
-    o["size"] = _op_scale_size(op.get("kind", "box"), op.get("size", [1, 1, 1]), 1.0 / s)
-    for k in ("smooth", "round_r"):
-        if op.get(k):
-            o[k] = float(op[k]) / s
-    return o
+    from refine import world_edit_to_cube
+    return world_edit_to_cube(op, c, s)
 
 
 def _op_cube_to_world(op, c, s):

@@ -720,17 +720,27 @@ def interpret_mass(grid, op, building_class="RESIDENTIAL", style="modern",
                 hy = max((float(top_of_op) - base_y) / 2, 0.05)
                 half[1] = hy
                 cy = base_y + hy - 0.015
+                # if the visible protrusion is SQUAT, a tower squashed into it reads as
+                # a broken pancake ('things look weird', 2026-07-09) — architecturally a
+                # squat rooftop mass is a rooftop STRUCTURE (pavilion/tank/penthouse):
+                # retrieve from those pools instead, exactly the 'box becomes a water
+                # tank / another floor' behavior the feature exists for.
+                if 2 * hy < 1.1 * 2 * max(half[0], half[2]):
+                    pools = ("roof_structure", "chimney", "dome")
             else:
                 cy = float(y_local_top + half[1] * 0.85)       # re-seat on the local roof
             aspect = (half[0] / half[1], half[2] / half[1])
             lid, mrow = ef.retrieve(pools, aspect,
                                     (float(c[1]) - y_ground) / y_span, building_class,
-                                    seed=int(rng.integers(1 << 31)))
+                                    seed=int(rng.integers(1 << 31)),
+                                    box_rel_y=2.0 * half[1] / y_span)
             if lid is not None:
                 out["ops"] = [ef.element_op(lid, [float(c[0]), cy, float(c[2])], half,
                                             rot_y=float(op.get("rot_y", 0.0)), det=kind)]
                 out["element"] = {"lib_id": lid, "type": mrow["type"],
-                                  "source_building": mrow["building"]}
+                                  "source_building": mrow["building"],
+                                  "source_rel_height": float(mrow["ext_rel"][1]),
+                                  "solidity": float(mrow["solidity"])}
                 out["source"] += "+library"
                 return out
         except Exception as ex:
