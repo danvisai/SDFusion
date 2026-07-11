@@ -22,7 +22,8 @@ faceindex fixture and parsed through the actual extraction pipeline, not mocked)
 **Vocabulary (fixed a priori, not invented for this ticket):** massing = wall(1), roof(4) —
 CONTEXT.md's "base mass ... overall roof form". Detail = window(2), door(6), tower(7),
 column(12), balcony(14), chimney(15), balcony_upper(16), stairs(17), dome(22) — CONTEXT.md's
-"windows, doors, balconies, cornices..." extended with the ADD-element vocabulary
+"windows, doors, balconies..." (cornices/ornament have no confirmed BuildingNet label, so are
+untested, not smuggled in some other way) extended with the ADD-element vocabulary
 `build_element_library.py` (ticket 04) already shipped and tested. Excluded: `undetermined`
 (noise bucket), `ground`/`floor` (site, not building), the roof-vs-roof_structure reuse of
 label 4 (a component-position heuristic for what to retrieve, not a distinct semantic label),
