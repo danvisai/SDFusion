@@ -28,7 +28,7 @@ experiment decisions in `docs/adr/0002-experiment-design.md` (D1–D4). Vocabula
   `scripts/appearance/texture_bake.py::make_cameras` + SDF trace, **neutral gbuffer/normal shader — NOT
   the SDXL bake**) and `scripts/eval/fid.py` (clean-fid/pytorch-fid). *Done:* FID(real,real)≈0 sanity.
 - **I0.3 `s*` coincidence TEST** (parallel; no training) — new `scripts/eval/measure_scale_spectrum.py`.
-  **`s*` is fixed a priori** (`k` voxels at the working res, ≈0.5 m) — this script does **not** choose it;
+  **`s*` is fixed a priori** (1.0 m = 5 voxels @96³, ≈3 @64³; ADR 0004) — this script does **not** choose it;
   it measures whether each BuildingNet semantic-detail category falls below the fixed `s*` and massing
   above. *Done:* the coincidence figure (pass or fail); the fixed `s*` recorded in `CONTEXT.md`.
 

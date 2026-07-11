@@ -63,9 +63,10 @@ the semantic detail set and the sub-s* scale band **coincide**.
 _Avoid_: fine geometry, decoration (ornament is one kind of detail, not all of it)
 
 **Detail scale (s\*)**:
-The spatial scale separating massing from detail, **fixed a priori** as `k` voxels at the working
-resolution (≈0.5 m) — *not* chosen from data. The massing/detail **coincidence is then a TEST**
-against this fixed `s*` (and can fail), never a line drawn to fit the result.
+The spatial scale separating massing from detail, **fixed a priori** at **1.0 m = 5 voxels @96³**
+(≈3 voxels @64³) — tied to the 64³ massing generator's resolution limit, *not* chosen from data
+(ADR 0004). The massing/detail **coincidence is then a TEST** against this fixed `s*` (and can fail),
+never a line drawn to fit the result.
 _Avoid_: cutoff, threshold (name it s* everywhere)
 
 **Massing fidelity**:

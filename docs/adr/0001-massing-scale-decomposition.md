@@ -15,7 +15,7 @@ The research claim is **massing-scale decomposition**: footprint-conditioned gen
 *well-posed for coarse massing but ill-posed for fine detail at achievable data scale*, so the
 correct factorization is **generate the mass, compose/retrieve the detail**.
 
-- **Boundary (defined in advance, not post-hoc):** fix a detail scale `s*` (~0.5 m) AND a
+- **Boundary (defined in advance, not post-hoc):** fix a detail scale `s*` (1.0 m = 5 vox @96³; ADR 0004) AND a
   semantic detail set (windows, doors, balconies, cornices, ornament, facade articulation); the
   *finding* is that the semantic-detail set and the sub-`s*` high-frequency band **coincide**.
 - **Durability defense:** *data-efficiency + real-fidelity*. In the regime academic and most

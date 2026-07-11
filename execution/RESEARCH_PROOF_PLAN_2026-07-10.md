@@ -42,7 +42,7 @@ Unchanged from rev2 (D1–D4). Summary:
 ## 3. The metric split mirrors the thesis
 Massing is determined by the footprint ⇒ **paired** (Chamfer/IoU). Detail is underdetermined ⇒
 **distributional** (FID). Working resolution **≥ 96³**, identical neutral shader across all arms.
-`s*` (≈0.5 m) is **fixed a priori**; the scale-spectrum measurement *tests* the massing/detail coincidence.
+`s*` (1.0 m = 5 vox @96³, ADR 0004) is **fixed a priori**; the scale-spectrum measurement *tests* the massing/detail coincidence.
 
 ## 4. Feasibility — have vs. gaps
 **Have:** Stage 3a prior (C1a/C1b) + SDEdit; residual result (C1c, done); element-library build script,

@@ -20,9 +20,10 @@ starving the monolith would make "equal data" false and void the headline. The c
 measures the real result: *retrieval degrades more gracefully than training as detail data shrinks.*
 
 ## D3 — `s*` is fixed a priori; the coincidence is a test
-`s*` is fixed **before** looking at results, as `k` voxels at the working resolution (≈0.5 m). The
-scale-spectrum measurement then **tests** whether semantic-detail categories fall below `s*` and
-massing above — it does **not** choose `s*`. This keeps "fixed in advance" true and makes the
+`s*` is fixed **before** looking at results, at **1.0 m = 5 voxels @96³** (≈3 @64³), tied to the 64³
+massing grid's resolution limit (ADR 0004 — corrects an earlier loose ≈0.5 m). The scale-spectrum
+measurement then **tests** whether semantic-detail categories fall below `s*` and massing above — it
+does **not** choose `s*`. This keeps "fixed in advance" true and makes the
 coincidence a genuine, falsifiable finding rather than a line fit to the outcome.
 
 ## D4 — Drop the web-scale giant
