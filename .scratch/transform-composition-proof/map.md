@@ -31,6 +31,7 @@ and retrieved composition beats a real-pair monolith for detail at equal data (C
 
 - [Validate the Element Retrieval Baseline](issues/02-validate-element-retrieval-baseline.md) - Phase R now enforces bounded, solid retrieval and preserves ordered recipe edits through analytic output-resolution realization; CPU gates pass, with full CUDA suites recorded as environment-blocked. (Full CUDA branch + sculpt-flow suites since re-verified GREEN 8/8+11/11+19/19 on a fresh server from the committed code — 2026-07-10.)
 - [Freeze Leakage-Safe BuildingNet Splits](issues/03-freeze-buildingnet-splits.md) - `scripts/foundations/make_splits.py` (TDD, 10 contract tests green) freezes a deterministic class-stratified sealed test set + nested train_25 ⊂ train_50 ⊂ train_100 (277 / 392 / 785 / 1572 over 1849) at `data/splits_v1/` (seed 0). Unblocks ticket 04.
+- [Make the Element-Library Builder Leakage-Safe](issues/04-make-library-builder-leakage-safe.md) - `build_element_library.py` gains `--include-ids`/`--exclude-ids` (exclude wins), `--out`/`--no-qa`, and a `manifest.json` leakage audit (asserted empty). TDD 7/7 + integration proof: zero test contributors, byte-identical re-builds, and a removal proof (test buildings that contribute when included are absent when excluded). Unblocks tickets 05, 08.
 
 ## Not yet specified
 

@@ -127,14 +127,52 @@ def sdf_crop(verts, faces, res=RES, n_samp=180_000):
     return sdf.astype(np.float16)
 
 
+def load_id_list(path):
+    """Load a JSON list of building ids (e.g. a `data/splits_v1/*.json` split), or None."""
+    if path is None:
+        return None
+    with open(path) as f:
+        return set(json.load(f))
+
+
+def select_building_ids(all_names, include_ids=None, exclude_ids=None):
+    """Building ids to build from: restrict to `include_ids` (if given), then drop `exclude_ids`
+    (exclude ALWAYS wins over include). Deterministic (sorted). Ids absent from the universe are
+    ignored. This is the leakage-safe seam: a held-out test split passed as `exclude_ids` can never
+    contribute an element regardless of the include set.
+    """
+    names = list(all_names)
+    if include_ids is not None:
+        inc = set(include_ids)
+        names = [n for n in names if n in inc]
+    if exclude_ids:
+        exc = set(exclude_ids)
+        names = [n for n in names if n not in exc]
+    return sorted(names)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="debug: only first N buildings")
+    ap.add_argument("--include-ids", default=None,
+                    help="JSON list of building ids to restrict to (e.g. data/splits_v1/train_100.json)")
+    ap.add_argument("--exclude-ids", default=None,
+                    help="JSON list of building ids to exclude, e.g. the sealed test split "
+                         "(data/splits_v1/test.json). Exclude wins over include.")
+    ap.add_argument("--out", default=str(OUT_DATA), help="output library dir")
+    ap.add_argument("--qa-out", default=str(OUT_QA), help="QA montage dir")
+    ap.add_argument("--no-qa", action="store_true", help="skip QA montages (headless/fast builds)")
     a = ap.parse_args()
-    OUT_DATA.mkdir(parents=True, exist_ok=True)
-    OUT_QA.mkdir(parents=True, exist_ok=True)
+    out_data = Path(a.out)
+    out_qa = Path(a.qa_out)
+    out_data.mkdir(parents=True, exist_ok=True)
+    if not a.no_qa:
+        out_qa.mkdir(parents=True, exist_ok=True)
 
-    names = sorted(p.stem.replace("_label", "") for p in CLBL.glob("*_label.json"))
+    all_names = sorted(p.stem.replace("_label", "") for p in CLBL.glob("*_label.json"))
+    include_ids = load_id_list(a.include_ids)
+    exclude_ids = load_id_list(a.exclude_ids)
+    names = select_building_ids(all_names, include_ids, exclude_ids)
     if a.limit:
         names = names[:a.limit]
     crops, meta = [], []
@@ -212,10 +250,28 @@ def main():
     if not crops:
         print("no elements extracted!")
         sys.exit(1)
-    np.save(OUT_DATA / "elements_f16.npy", np.stack(crops))
-    json.dump(meta, open(OUT_DATA / "meta.json", "w"))
-    print(f"[done] {len(crops)} elements -> {OUT_DATA}  by type: {dict(per_type)}")
+    np.save(out_data / "elements_f16.npy", np.stack(crops))
+    json.dump(meta, open(out_data / "meta.json", "w"))
 
+    # leakage audit: no excluded (e.g. held-out test) building may contribute an element
+    contributing = sorted({m["building"] for m in meta})
+    exc = exclude_ids or set()
+    leak = sorted(set(contributing) & exc)
+    manifest = dict(
+        include_ids=a.include_ids, exclude_ids=a.exclude_ids,
+        n_universe=len(all_names), n_selected=len(names),
+        n_excluded_in_universe=len(sorted(exc & set(all_names))),
+        n_elements=len(crops), n_contributing_buildings=len(contributing),
+        by_type=dict(per_type), leakage_excluded_contributors=leak,
+        contributing_buildings=contributing,
+    )
+    json.dump(manifest, open(out_data / "manifest.json", "w"), indent=2)
+    print(f"[done] {len(crops)} elements -> {out_data}  by type: {dict(per_type)}")
+    assert not leak, f"LEAKAGE: excluded buildings contributed elements: {leak[:5]}"
+
+    if a.no_qa:
+        print("[QA] skipped (--no-qa)")
+        return
     # QA montages: marching-cubes renders of random crops per type
     import matplotlib
     matplotlib.use("Agg")
@@ -243,9 +299,9 @@ def main():
             ax.view_init(elev=14, azim=-60)
         fig.suptitle(f"element library v1 — {t} ({len(idx)} instances)")
         fig.tight_layout()
-        fig.savefig(OUT_QA / f"montage_{t}.png", dpi=95)
+        fig.savefig(out_qa / f"montage_{t}.png", dpi=95)
         plt.close(fig)
-    print(f"[QA] montages -> {OUT_QA}")
+    print(f"[QA] montages -> {out_qa}")
 
 
 if __name__ == "__main__":
