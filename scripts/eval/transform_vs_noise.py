@@ -39,6 +39,15 @@ Run:  TORCH_HOME=external/torch_hub env -u LD_PRELOAD -u LD_LIBRARY_PATH \
 """
 from __future__ import annotations
 
+import os
+
+# On a shared many-core node, leaving these unset lets numpy/scipy/torch's BLAS backends each
+# spawn a thread pool sized to nproc independently -> massive oversubscription (ticket 05 hit this
+# exact stall on this node: 121 threads/40 cores). Cap BEFORE numpy/torch import so their thread
+# pools initialize small; respects an explicit caller override.
+for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+    os.environ.setdefault(_v, "4")
+
 import argparse
 import hashlib
 import json
