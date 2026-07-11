@@ -1,0 +1,115 @@
+{
+  "provenance": {
+    "name": "torchvision.inception_v3",
+    "weights": "Inception_V3_Weights.DEFAULT (IMAGENET1K_V1)",
+    "feature": "pre-logits avgpool 2048-d",
+    "preprocess": "resize 299 bilinear + ImageNet mean/std",
+    "feature_dim": 2048,
+    "weights_url": "https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth",
+    "packages": {
+      "torch": "2.8.0+cu126",
+      "torchvision": "0.23.0+cu126"
+    },
+    "git_rev": "08289fb15625e3502cd6979db4085443b5078c70"
+  },
+  "cameras": {
+    "n_views": 6,
+    "kind": "orbit",
+    "params": [
+      {
+        "cam_pos": [
+          0.0,
+          0.5405703961261743,
+          2.543183761907895
+        ],
+        "look": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "fov": 38.0
+      },
+      {
+        "cam_pos": [
+          2.2024617443043124,
+          0.5405703961261743,
+          1.2715918809539477
+        ],
+        "look": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "fov": 38.0
+      },
+      {
+        "cam_pos": [
+          2.2024617443043124,
+          0.5405703961261743,
+          -1.2715918809539468
+        ],
+        "look": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "fov": 38.0
+      },
+      {
+        "cam_pos": [
+          3.114501853664028e-16,
+          0.5405703961261743,
+          -2.543183761907895
+        ],
+        "look": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "fov": 38.0
+      },
+      {
+        "cam_pos": [
+          -2.2024617443043115,
+          0.5405703961261743,
+          -1.2715918809539486
+        ],
+        "look": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "fov": 38.0
+      },
+      {
+        "cam_pos": [
+          -2.2024617443043124,
+          0.5405703961261743,
+          1.2715918809539477
+        ],
+        "look": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "fov": 38.0
+      }
+    ]
+  },
+  "sdf_working_res": 96,
+  "image_res": 256,
+  "n_requested": 48,
+  "n_rendered": 48,
+  "n_failed": 0,
+  "failures": [],
+  "split_half_buildings": 24,
+  "images_per_half": 144,
+  "render_deterministic": true,
+  "bootstrap": "group-level (per building)",
+  "fid_real_vs_real": 132.96411074813096,
+  "ci95": [
+    152.62562450757952,
+    183.45408748453505
+  ],
+  "undersampled_for_reliable_fid": true
+}

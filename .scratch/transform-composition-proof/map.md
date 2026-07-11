@@ -33,6 +33,7 @@ and retrieved composition beats a real-pair monolith for detail at equal data (C
 - [Freeze Leakage-Safe BuildingNet Splits](issues/03-freeze-buildingnet-splits.md) - `scripts/foundations/make_splits.py` (TDD, 10 contract tests green) freezes a deterministic class-stratified sealed test set + nested train_25 ⊂ train_50 ⊂ train_100 (277 / 392 / 785 / 1572 over 1849) at `data/splits_v1/` (seed 0). Unblocks ticket 04.
 - [Make the Element-Library Builder Leakage-Safe](issues/04-make-library-builder-leakage-safe.md) - `build_element_library.py` gains `--include-ids`/`--exclude-ids` (exclude wins), `--out`/`--no-qa`, and a `manifest.json` leakage audit (asserted empty). TDD 7/7 + integration proof: zero test contributors, byte-identical re-builds, and a removal proof (test buildings that contribute when included are absent when excluded). Unblocks tickets 05, 08.
 - [Lock the Experiment Operating Point](issues/01-lock-experiment-operating-point.md) - `docs/adr/0004`: res 96³ (preflight escape → 128³); `s*` = 1.0 m = 5 vox @96³ tied to the 64³ massing-grid limit (corrects the loose ≈0.5 m; propagated to CONTEXT + ADRs 0001/0002 + plans); monolith coarse input = low-pass primary + footprint-extrude variant. Unblocks tickets 05, 06.
+- [Build the Neutral Facade and FID Harness](issues/05-build-neutral-facade-fid-harness.md) - `scripts/eval/{fid,render_facades,sanity_real_vs_real}.py` (TDD, 22 contract tests). Fixed a real 64³-vs-96³ resolution-parity bug (`resample_sdf_grid`), pinned extractor provenance, group-aware bootstrap for correlated views, plus two bugs CAUGHT DURING VERIFICATION (a `--res` conflation between SDF voxel grid and image pixel size; a BLAS thread-oversubscription stall, 121 threads/40 cores, fixed via capped `OMP/MKL/OPENBLAS_NUM_THREADS`). Discovered and permanently guarded (`fid.undersampled`, warns) a genuine FID small-sample/high-dimension bias: at 48 buildings/144 images (< the 2048-d feature dim) the point estimate falls outside its own bootstrap CI, confirmed via synthetic data — not a bug, but tickets 07/08's headline FID needs substantially more samples than this sanity scale. Rendering is arm-agnostic by construction, ready for the monolith/decomposition arms.
 
 ## Not yet specified
 
@@ -43,6 +44,9 @@ and retrieved composition beats a real-pair monolith for detail at equal data (C
   measured throughput, memory use, and validation behavior of the first full-data run.
 - Which qualitative cases and failure examples deserve final paper figures; select only after the
   quantitative results expose the representative regimes.
+- Minimum sample count for a trustworthy headline FID (ticket 05 finding: N must substantially exceed
+  the 2048-d Inception feature dimensionality — the 48-building/144-image sanity scale is provably
+  too small). Concrete views-per-building / test-set-fraction budget for tickets 07/08 is undecided.
 
 ## Out of scope
 
