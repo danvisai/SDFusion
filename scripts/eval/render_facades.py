@@ -76,3 +76,15 @@ def load_buildingnet_sdf(building_id, native_res=64, working_res=WORKING_RES, de
     with h5py.File(p, "r") as f:
         g = np.asarray(f["pc_sdf_sample"]).reshape(native_res, native_res, native_res).astype(np.float32)
     return resample_sdf_grid(g, working_res, device=device)
+
+
+def load_buildingnet_footprint(building_id, native_res=64):
+    """Load BuildingNet's own precomputed top-down `(native_res, native_res)` footprint mask
+    from `ori_sample_grid.h5`'s `footprint` field -- independent ground truth for checking that
+    a derived `occ.any(axis=1)` mask uses the right up-axis (verified against real data: axis=1
+    gives IoU=1.0, axis=0/2 give ~0.06 -- ticket 07)."""
+    import h5py
+    p = REPO / "data/BuildingNet_dataset_v0_1/resolution_64" / building_id / "ori_sample_grid.h5"
+    with h5py.File(p, "r") as f:
+        fp = np.asarray(f["footprint"])
+    return fp[0] if fp.ndim == 3 else fp

@@ -1,0 +1,31 @@
+{
+  "fraction": "train_100",
+  "split_dir": "data/splits_v1",
+  "working_res": 96,
+  "s_star_voxels": 5,
+  "coarse_resolution": 19,
+  "coarse_input": "low_pass (primary, ADR 0004): resample the same building's real SDF down to a grid whose voxel pitch matches s*, then back up to working_res via trilinear resample_sdf_grid",
+  "n_requested": 1572,
+  "n_built": 1572,
+  "n_failed": 0,
+  "failures": [],
+  "leakage_excluded_contributors": [],
+  "class_balance": {
+    "COMMERCIAL": 105,
+    "PUBLIC": 48,
+    "RELIGIOUS": 378,
+    "RESIDENTIAL": 1041
+  },
+  "footprint_axis_check": {
+    "mean_iou": 1.0,
+    "min_iou": 1.0,
+    "n_below_0_5": 0
+  },
+  "occupancy_frac": {
+    "target_mean": 0.014301820970168043,
+    "coarse_mean": 0.01216022598227775
+  },
+  "command": "scripts/foundations/build_monolith_pairs.py --fraction train_100 --split-dir data/splits_v1 --out data/monolith_pairs_v1",
+  "git_rev": "fc3645b025955edd7decefd78252ab75d048d584",
+  "dirty_digest": "865a564908aa"
+}
