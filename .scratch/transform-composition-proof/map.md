@@ -29,7 +29,8 @@ and retrieved composition beats a real-pair monolith for detail at equal data (C
 
 <!-- Closed-ticket pointers are appended here. Accepted ADRs are context, not synthetic tickets. -->
 
-- [Validate the Element Retrieval Baseline](issues/02-validate-element-retrieval-baseline.md) - Phase R now enforces bounded, solid retrieval and preserves ordered recipe edits through analytic output-resolution realization; CPU gates pass, with full CUDA suites recorded as environment-blocked.
+- [Validate the Element Retrieval Baseline](issues/02-validate-element-retrieval-baseline.md) - Phase R now enforces bounded, solid retrieval and preserves ordered recipe edits through analytic output-resolution realization; CPU gates pass, with full CUDA suites recorded as environment-blocked. (Full CUDA branch + sculpt-flow suites since re-verified GREEN 8/8+11/11+19/19 on a fresh server from the committed code — 2026-07-10.)
+- [Freeze Leakage-Safe BuildingNet Splits](issues/03-freeze-buildingnet-splits.md) - `scripts/foundations/make_splits.py` (TDD, 10 contract tests green) freezes a deterministic class-stratified sealed test set + nested train_25 ⊂ train_50 ⊂ train_100 (277 / 392 / 785 / 1572 over 1849) at `data/splits_v1/` (seed 0). Unblocks ticket 04.
 
 ## Not yet specified
 

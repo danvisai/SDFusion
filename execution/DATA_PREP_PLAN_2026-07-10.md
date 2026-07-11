@@ -39,9 +39,11 @@ This asymmetry **is the thesis in the data itself**. Two consequences:
 
 ## 3. Prep tasks (in order)
 
-**P1 — Frozen held-out real TEST split (blocks everything).**
+**P1 — Frozen held-out real TEST split (blocks everything). DONE (ticket 03).**
 - From BuildingNet, hold out a fixed ~15 % test set, stratified by class, sealed as
-  `data/splits_v1/test_ids.json`. Never enters any training set OR any element library.
+  `data/splits_v1/test.json`. Never enters any training set OR any element library.
+  Built by `scripts/foundations/make_splits.py` (seed 0): test 277 / train_25 392 / train_50 785 /
+  train_100 1572 over 1849; nested + disjoint + full-coverage verified.
 - Per test building derive: footprint (ground projection) + height (massing target) + neutral-shaded
   real facade renders (FID-real). Reuse the element-library OBJ parser.
 

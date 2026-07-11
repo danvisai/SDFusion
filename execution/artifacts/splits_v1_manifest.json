@@ -1,0 +1,49 @@
+{
+  "seed": 0,
+  "test_frac": 0.15,
+  "total_buildings": 1849,
+  "counts": {
+    "test": 277,
+    "train_25": 392,
+    "train_50": 785,
+    "train_100": 1572
+  },
+  "class_balance": {
+    "test": {
+      "COMMERCIAL": 18,
+      "PUBLIC": 8,
+      "RELIGIOUS": 67,
+      "RESIDENTIAL": 184
+    },
+    "train_25": {
+      "COMMERCIAL": 26,
+      "PUBLIC": 12,
+      "RELIGIOUS": 94,
+      "RESIDENTIAL": 260
+    },
+    "train_50": {
+      "COMMERCIAL": 52,
+      "PUBLIC": 24,
+      "RELIGIOUS": 189,
+      "RESIDENTIAL": 520
+    },
+    "train_100": {
+      "COMMERCIAL": 105,
+      "PUBLIC": 48,
+      "RELIGIOUS": 378,
+      "RESIDENTIAL": 1041
+    }
+  },
+  "universe_class_balance": {
+    "COMMERCIAL": 123,
+    "PUBLIC": 56,
+    "RELIGIOUS": 445,
+    "RESIDENTIAL": 1225
+  },
+  "invariants": {
+    "sealed_test_disjoint": true,
+    "nested": true,
+    "full_coverage": true
+  },
+  "command": "scripts/foundations/make_splits.py --seed 0 --test-frac 0.15 --out data/splits_v1"
+}
