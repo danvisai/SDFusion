@@ -318,7 +318,9 @@ def main():
         solidity_by_type=solidity_by_type, scale_by_type=scale_by_type,
         frozen_config=dict(res=RES, min_faces=MIN_FACES,
                            max_per_type_per_bldg=MAX_PER_TYPE_PER_BLDG, max_per_type=MAX_PER_TYPE,
-                           types=TYPES),
+                           # TYPES keys are ints; json.dump would silently stringify them, so a
+                           # consumer indexing with the original int label id would KeyError.
+                           types={str(k): v for k, v in TYPES.items()}),
     )
     json.dump(manifest, open(out_data / "manifest.json", "w"), indent=2)
     print(f"[done] {len(crops)} elements -> {out_data}  by type: {dict(per_type)}")
