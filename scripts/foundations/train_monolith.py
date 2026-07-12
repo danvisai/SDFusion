@@ -135,7 +135,6 @@ def main():
                               num_workers=a.num_workers, drop_last=True, persistent_workers=a.num_workers > 0)
     val_loader = DataLoader(val_ds, batch_size=a.batch_size, shuffle=False,
                             num_workers=0)
-    val_loader_capped = val_loader  # DataLoader has no native cap; enforced in the loop below
 
     channel_mults = tuple(int(x) for x in a.channel_mults.split(","))
     net = MonolithUNet(base_channels=a.base_channels, channel_mults=channel_mults).to(a.device)
@@ -197,7 +196,7 @@ def main():
 
         if step % a.val_every == 0 or step == a.steps:
             capped = []
-            for i, b in enumerate(val_loader_capped):
+            for i, b in enumerate(val_loader):
                 if i >= a.val_batches:
                     break
                 capped.append(b)

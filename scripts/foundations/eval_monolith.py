@@ -17,7 +17,9 @@ Run:  env -u LD_PRELOAD -u LD_LIBRARY_PATH ./sdfusion/bin/python scripts/foundat
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -42,6 +44,19 @@ def load_model(ckpt_path, device):
     net.load_state_dict(state["model"])
     net.eval()
     return GaussianDiffusion(net, timesteps=cfg["timesteps"], device=device), cfg, state["step"]
+
+
+def _git_provenance():
+    try:
+        rev = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
+    except Exception:  # noqa: BLE001
+        return dict(git_rev=None, dirty_digest=None)
+    try:
+        status = subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO, text=True)
+    except Exception:  # noqa: BLE001
+        status = ""
+    digest = hashlib.sha1(status.encode()).hexdigest()[:12] if status.strip() else None
+    return dict(git_rev=rev, dirty_digest=digest)
 
 
 def _montage(rows, out_path: Path, cell=224):
@@ -154,6 +169,7 @@ def main():
         gen_occ_frac=dict(mean=float(gen_fracs.mean()), median=float(np.median(gen_fracs))),
         target_occ_frac=dict(mean=float(target_fracs.mean()), median=float(np.median(target_fracs))),
         montage=a.montage_out if rows else None,
+        **_git_provenance(),
     )
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     json.dump(manifest, open(a.out, "w"), indent=2)
