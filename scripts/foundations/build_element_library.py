@@ -11,8 +11,19 @@ Windows/doors are deliberately excluded: carves stay procedural in Phase R; the 
 value is the ADD vocabulary interpret_mass can't build today (real towers/domes/chimneys/
 rooftop structures/balconies/stairs/columns).
 
-Out: data/element_library_v1/{elements_f16.npy (N,48,48,48 float16 SDF), meta.json}
-     outputs/element_library_v1/montage_<type>.png  (QA)
+Ticket 08 (`--include-ids data/splits_v1/train_100.json --exclude-ids data/splits_v1/test.json
+--out data/element_library_train100_v1`) additionally quantifies each build: per-element
+`crop_solidity` (same occupied-fraction definition `scripts/server/element_fit.py`'s
+`_solidity` computes lazily at serve time, here written once at build time as `solidity.npy`)
+and `scale_rel` (the element's own characteristic scale relative to its source building, the
+existing `ext_rel` metadata), aggregated per type into the manifest plus a QA histogram figure
+-- NEVER pointed at `data/element_library_v1` by default for an experiment build, since that
+path is the LIVE path `scene/element_lib.py` serves the sculptor from (Phase R quality work
+predates and is an input to this experiment, not something to overwrite in place).
+
+Out: data/element_library_v1/{elements_f16.npy (N,48,48,48 float16 SDF), meta.json,
+     solidity.npy, manifest.json}
+     outputs/element_library_v1/montage_<type>.png, distributions.png  (QA)
 Run:  ./sdfusion/bin/python scripts/foundations/build_element_library.py [--limit N]
 """
 from __future__ import annotations
@@ -40,6 +51,9 @@ RES = 48
 MIN_FACES = 60
 MAX_PER_TYPE_PER_BLDG = 4
 MAX_PER_TYPE = 3000
+MIN_SOLIDITY = 0.12  # matches scripts/server/element_fit.py's MIN_SOLIDITY (Phase R2 retrieval
+                      # threshold) -- reported here, not filtered, so the manifest documents the
+                      # same usable-pool figure retrieval will actually see
 
 
 def parse_obj(path):
@@ -125,6 +139,31 @@ def sdf_crop(verts, faces, res=RES, n_samp=180_000):
     vox = 2.0 / (res - 1)
     sdf = (distance_transform_edt(outside) - distance_transform_edt(inside)) * vox
     return sdf.astype(np.float16)
+
+
+def crop_solidity(crop) -> float:
+    """Fraction of the crop's voxels that are inside the surface (sdf<=0) -- the same
+    definition `scripts/server/element_fit.py`'s `_solidity` fallback computes lazily at
+    serve time; measured once here at build time instead."""
+    return float((np.asarray(crop, np.float32) <= 0).mean())
+
+
+def scale_rel(meta_entry: dict) -> float:
+    """An element's characteristic scale relative to its source building: the largest of its
+    three `ext_rel` (extent / source building height) axes."""
+    return float(max(meta_entry["ext_rel"]))
+
+
+def distribution_stats(values) -> dict:
+    """n/mean/median/min/max/p10/p90 of `values`, or an all-`None` shape for an empty pool
+    (an adopted type with zero surviving instances is a valid, reportable outcome, not a
+    crash)."""
+    arr = np.asarray(list(values), np.float64)
+    if arr.size == 0:
+        return dict(n=0, mean=None, median=None, min=None, max=None, p10=None, p90=None)
+    return dict(n=int(arr.size), mean=float(arr.mean()), median=float(np.median(arr)),
+                min=float(arr.min()), max=float(arr.max()),
+                p10=float(np.percentile(arr, 10)), p90=float(np.percentile(arr, 90)))
 
 
 def load_id_list(path):
@@ -253,6 +292,16 @@ def main():
     np.save(out_data / "elements_f16.npy", np.stack(crops))
     json.dump(meta, open(out_data / "meta.json", "w"))
 
+    solidity = np.asarray([crop_solidity(c) for c in crops], np.float32)
+    np.save(out_data / "solidity.npy", solidity)
+    scales = np.asarray([scale_rel(m) for m in meta], np.float32)
+    types_arr = np.asarray([m["type"] for m in meta])
+    types_present = sorted(set(types_arr.tolist()))
+    solidity_by_type = {t: distribution_stats(solidity[types_arr == t]) for t in types_present}
+    scale_by_type = {t: distribution_stats(scales[types_arr == t]) for t in types_present}
+    pool_size_above_min_solidity = {
+        t: int(((types_arr == t) & (solidity >= MIN_SOLIDITY)).sum()) for t in types_present}
+
     # leakage audit: no excluded (e.g. held-out test) building may contribute an element
     contributing = sorted({m["building"] for m in meta})
     exc = exclude_ids or set()
@@ -264,6 +313,12 @@ def main():
         n_elements=len(crops), n_contributing_buildings=len(contributing),
         by_type=dict(per_type), leakage_excluded_contributors=leak,
         contributing_buildings=contributing,
+        min_solidity_threshold=MIN_SOLIDITY,
+        pool_size_above_min_solidity=pool_size_above_min_solidity,
+        solidity_by_type=solidity_by_type, scale_by_type=scale_by_type,
+        frozen_config=dict(res=RES, min_faces=MIN_FACES,
+                           max_per_type_per_bldg=MAX_PER_TYPE_PER_BLDG, max_per_type=MAX_PER_TYPE,
+                           types=TYPES),
     )
     json.dump(manifest, open(out_data / "manifest.json", "w"), indent=2)
     print(f"[done] {len(crops)} elements -> {out_data}  by type: {dict(per_type)}")
@@ -302,6 +357,22 @@ def main():
         fig.savefig(out_qa / f"montage_{t}.png", dpi=95)
         plt.close(fig)
     print(f"[QA] montages -> {out_qa}")
+
+    # solidity/scale distribution figure (ticket 08): one row per type, so a skeletal-heavy
+    # or scale-outlier type is visible at a glance, not just as a mean in the manifest.
+    fig, axes = plt.subplots(len(types_present), 2,
+                             figsize=(8, 2.2 * len(types_present)), squeeze=False)
+    for ri, t in enumerate(types_present):
+        idx = types_arr == t
+        axes[ri][0].hist(solidity[idx], bins=20, range=(0, 1), color="#c9b790")
+        axes[ri][0].axvline(MIN_SOLIDITY, color="red", linestyle="--", linewidth=1)
+        axes[ri][0].set_title(f"{t} solidity (n={int(idx.sum())})", fontsize=8)
+        axes[ri][1].hist(scales[idx], bins=20, color="#8caac9")
+        axes[ri][1].set_title(f"{t} scale (ext_rel max)", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_qa / "distributions.png", dpi=110)
+    plt.close(fig)
+    print(f"[QA] distributions -> {out_qa / 'distributions.png'}")
 
 
 if __name__ == "__main__":
