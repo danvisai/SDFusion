@@ -106,7 +106,7 @@ the full budget) was decisive: **per-building generated occupancy already tracke
 closely** (e.g. 8.6% vs 9.1% real, 2.6% vs 2.6% real) where v1 and v2 were both still at
 30-44% regardless of the real building's actual sparsity. Full 15,000-step run, same budget as
 v1/v2 for a controlled comparison: **mean generated occupancy 1.57% (median 0.06%) against mean
-real occupancy 1.66% (median 0.06%)** over the same 32 class-balanced held-out buildings --
+real occupancy 1.66% (median 0.09%)** over the same 32 class-balanced held-out buildings --
 essentially matched, both in the mean and (loosely) the heavily-skewed median, a dramatic
 reversal of v1's 32.5% and v2's 51.5%. Per-building agreement is close throughout, not just in
 aggregate (e.g. `RESIDENTIALhouse_mesh0642`: 8.70% generated vs 9.00% real;
