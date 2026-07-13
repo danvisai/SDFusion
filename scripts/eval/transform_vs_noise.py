@@ -146,7 +146,7 @@ def sample_both_arms(model, data):
     return noise_sdf, blockout_sdf
 
 
-def _git_provenance():
+def git_provenance():
     try:
         rev = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
     except Exception:  # noqa: BLE001
@@ -308,7 +308,7 @@ def main():
         fid=dict(from_noise_vs_real=fid_noise, blockout_vs_real=fid_block),
         cameras=dict(n_views=a.views), image_res=a.img_res, sdf_working_res=rf.WORKING_RES,
         montage=a.montage_out if montage_rows else None,
-        **_git_provenance(),
+        **git_provenance(),
     )
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     json.dump(manifest, open(a.out, "w"), indent=2)

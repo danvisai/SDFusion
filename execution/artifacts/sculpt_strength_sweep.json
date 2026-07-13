@@ -1,0 +1,193 @@
+{
+  "strengths": [
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9
+  ],
+  "edit_cases": [
+    "tower",
+    "dome",
+    "carve"
+  ],
+  "per_sample": [
+    {
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9963348971944961
+    },
+    {
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9683204238171159
+    },
+    {
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.9372590671956514
+    },
+    {
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.9101939499472056
+    },
+    {
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.894413839760317
+    },
+    {
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9952256972073511
+    },
+    {
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.9670631115739476
+    },
+    {
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.9322137462283226
+    },
+    {
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.9036817678458112
+    },
+    {
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.8921515760576498
+    },
+    {
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9948029561402945
+    },
+    {
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.9828741051607992
+    },
+    {
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.9423406015369946
+    },
+    {
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.8956027612874441
+    },
+    {
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.8700085319105472
+    }
+  ],
+  "failures": [],
+  "summary": [
+    {
+      "strength": 0.1,
+      "n_cases": 3,
+      "mean_iou_to_edit": 0.9954545168473805,
+      "min_iou_to_edit": 0.9948029561402945,
+      "max_iou_to_edit": 0.9963348971944961
+    },
+    {
+      "strength": 0.3,
+      "n_cases": 3,
+      "mean_iou_to_edit": 0.972752546850621,
+      "min_iou_to_edit": 0.9670631115739476,
+      "max_iou_to_edit": 0.9828741051607992
+    },
+    {
+      "strength": 0.5,
+      "n_cases": 3,
+      "mean_iou_to_edit": 0.9372711383203228,
+      "min_iou_to_edit": 0.9322137462283226,
+      "max_iou_to_edit": 0.9423406015369946
+    },
+    {
+      "strength": 0.7,
+      "n_cases": 3,
+      "mean_iou_to_edit": 0.9031594930268203,
+      "min_iou_to_edit": 0.8956027612874441,
+      "max_iou_to_edit": 0.9101939499472056
+    },
+    {
+      "strength": 0.9,
+      "n_cases": 3,
+      "mean_iou_to_edit": 0.8855246492428379,
+      "min_iou_to_edit": 0.8700085319105472,
+      "max_iou_to_edit": 0.894413839760317
+    }
+  ],
+  "fid_by_strength": {
+    "0.1": {
+      "point": 319.4931925623847,
+      "ci95": [
+        292.7006277220557,
+        370.18082864607265
+      ],
+      "undersampled": true
+    },
+    "0.3": {
+      "point": 319.67440589301975,
+      "ci95": [
+        292.7206697246896,
+        370.61157342771816
+      ],
+      "undersampled": true
+    },
+    "0.5": {
+      "point": 319.56590181502685,
+      "ci95": [
+        292.68783008863994,
+        370.4168855244193
+      ],
+      "undersampled": true
+    },
+    "0.7": {
+      "point": 319.0541748310828,
+      "ci95": [
+        292.3390850916437,
+        369.5400536216455
+      ],
+      "undersampled": true
+    },
+    "0.9": {
+      "point": 318.58251615977355,
+      "ci95": [
+        291.8275481367138,
+        369.0380835523173
+      ],
+      "undersampled": true
+    }
+  },
+  "real_reference": {
+    "n": 8,
+    "ids": [
+      "COMMERCIALhotel_building_mesh0162",
+      "COMMERCIALoffice_building_mesh1702",
+      "COMMERCIALoffice_building_mesh2982",
+      "COMMERCIALschool_building_mesh0043",
+      "PUBLICcity_hall_mesh0451",
+      "PUBLICoffice_building_mesh3229",
+      "RELIGIOUScathedral_mesh0640",
+      "RELIGIOUSchurch_mesh0606"
+    ]
+  },
+  "cameras": {
+    "n_views": 6
+  },
+  "image_res": 256,
+  "sdf_working_res": 96,
+  "montage": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/sculpt_strength_sweep/montage.png",
+  "curve": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/sculpt_strength_sweep/faithfulness_vs_realism.png",
+  "git_rev": "7823ea3a4ca200b9e2457cb191b6c30739fe0202",
+  "dirty_digest": "55b28b6544ff"
+}

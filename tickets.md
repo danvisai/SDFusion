@@ -143,13 +143,14 @@ faithfulness-versus-realism curve for review.
 
 **Blocked by:** Establish Neutral Geometry Evaluation.
 
-**Status (2026-07-12): NEXT UP.** Was already unblocked early but got skipped over when ticket
-"Train and Evaluate the Full-Data Monolith" was picked up first, deviating from
-`execution/IMPLEMENTATION_PLAN_2026-07-10.md`'s prescribed order (sculpt sweep before any
-training). Resuming now per the 2026-07-12 pivot (see map.md).
+**Status: prototype built (2026-07-13), awaiting user review** —
+`scripts/eval/sculpt_strength_sweep.py`. Faithfulness (IoU to the pre-snap edit) declines
+monotonically and modestly with strength across the 3 canonical edit cases; realism (facade FID)
+is flat but honestly undersampled at this small prototype's scale. Not a closed decision — see
+the ticket's own "Left for the user's review" note and map.md.
 
-- [ ] Strength is the controlled variable across fixed edit cases.
-- [ ] The prototype exposes successes and failures at every operating point.
+- [x] Strength is the controlled variable across fixed edit cases.
+- [x] The prototype exposes successes and failures at every operating point.
 
 ## Train and Evaluate the Full-Data Monolith
 
