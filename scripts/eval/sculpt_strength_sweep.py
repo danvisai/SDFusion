@@ -13,6 +13,11 @@ function `/snap_sdf` calls (`scripts/server/inference_service.py:snap_sdf`), so 
 code path without needing a separately-running server (matches tickets 07/09/11's in-process
 convention).
 
+The edits land on `BASE_BUILDING_ID`, a real, held-out (Stage3a-clean) BuildingNet building --
+not a synthetic recipe-default box (the first version of this sweep used one and it stayed too
+visually flat across strength for a meaningful review; a real building's own massing gives the
+edits and the snap something more complex to act on).
+
 Faithfulness = `iou_to_edit`, the IoU `snap_volume` already returns between its output and the
 pre-snap edited input -- this project's established "did the snap keep what the user placed"
 metric (`eval_harness.py`'s own `fp_iou`/`iou` convention). Realism = neutral-facade FID
@@ -67,6 +72,12 @@ EDIT_CASES = [
 STRENGTHS = [0.1, 0.3, 0.5, 0.7, 0.9]
 N_VIEWS = 6          # matches ticket 05's sanity-run convention
 N_REAL_REF = 8        # matches diagnose_massing_diversity.py's default footprint count
+# A genuinely complex real, held-out (Stage3a-clean) BuildingNet building -- not the flat
+# procedural recipe-default box originally used here. Ticket 09's own qualitative montage
+# already flagged this one as visually distinctive (real target vs. generated failure modes).
+# Excluded from the real-reference population below so the sweep's base isn't also counted as
+# one of the "real" comparison renders.
+BASE_BUILDING_ID = "PUBLICcity_hall_mesh0451"
 
 
 def summarize_by_strength(rows: list) -> list:
@@ -89,16 +100,11 @@ def summarize_by_strength(rows: list) -> list:
     return out
 
 
-def build_base_grid(refiner, device):
-    """A deterministic 64^3 procedural "modern" recipe building (eval_harness.py's own base) --
-    no recipe-diffusion sampling, so bit-identical across runs; the edits are applied ON this
-    fixed base, not on a re-sampled one."""
-    from models.networks.diff_recipe import build_diff_recipe
-    _, default_fn, _ = build_diff_recipe("modern")
-    params = default_fn(device).detach().cpu().numpy()
-    poly = np.array([[-7, -9], [7, -9], [7, 9], [-7, 9]], np.float32)
-    grid, _c, _s, _hn = refiner.building_volume(poly, "modern", params, 16.0, margin=1.05)
-    return grid
+def load_base_grid(device):
+    """`BASE_BUILDING_ID`'s real, native 64^3 SDF (un-resampled -- `working_res=64` matches the
+    live sculptor's own cube-frame resolution) -- deterministic and bit-identical across runs
+    (loaded from disk, not sampled); the edits are applied ON this fixed base."""
+    return rf.load_buildingnet_sdf(BASE_BUILDING_ID, native_res=64, working_res=64, device=device)
 
 
 def composed_edit_grid(base_grid, edit, device):
@@ -122,7 +128,7 @@ def real_reference_images(cams, n_ref, img_res, device):
     real-facade population every strength's FID is compared against (ADR 0002/0004:
     representation parity, one real reference set, not re-derived per strength)."""
     tiers, _ = held_out_population()
-    ids = tiers["clean"][:n_ref]
+    ids = [b for b in tiers["clean"] if b != BASE_BUILDING_ID][:n_ref]
     imgs = []
     for bid in ids:
         real96 = rf.load_buildingnet_sdf(bid, working_res=rf.WORKING_RES, device=device)
@@ -208,7 +214,7 @@ def main():
 
     print("[*] loading the deployed live prior (Refiner.snap_volume -- the exact /snap_sdf code path)...")
     refiner = Refiner(SimpleNamespace(device=device))
-    base_grid = build_base_grid(refiner, device)
+    base_grid = load_base_grid(device)
 
     cams = rf.orbit_cameras(n_views=a.views)
     print(f"[*] rendering {a.n_real_ref} real held-out reference buildings...")

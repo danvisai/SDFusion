@@ -15,77 +15,77 @@
     {
       "case": "tower",
       "strength": 0.1,
-      "iou_to_edit": 0.9963348971944961
+      "iou_to_edit": 0.9641186537364518
     },
     {
       "case": "tower",
       "strength": 0.3,
-      "iou_to_edit": 0.9683204238171159
+      "iou_to_edit": 0.8808584948174853
     },
     {
       "case": "tower",
       "strength": 0.5,
-      "iou_to_edit": 0.9372590671956514
+      "iou_to_edit": 0.8011817310763334
     },
     {
       "case": "tower",
       "strength": 0.7,
-      "iou_to_edit": 0.9101939499472056
+      "iou_to_edit": 0.7044507258180425
     },
     {
       "case": "tower",
       "strength": 0.9,
-      "iou_to_edit": 0.894413839760317
+      "iou_to_edit": 0.6356872470956794
     },
     {
       "case": "dome",
       "strength": 0.1,
-      "iou_to_edit": 0.9952256972073511
+      "iou_to_edit": 0.9585517613051786
     },
     {
       "case": "dome",
       "strength": 0.3,
-      "iou_to_edit": 0.9670631115739476
+      "iou_to_edit": 0.8866473631746333
     },
     {
       "case": "dome",
       "strength": 0.5,
-      "iou_to_edit": 0.9322137462283226
+      "iou_to_edit": 0.8042450686301246
     },
     {
       "case": "dome",
       "strength": 0.7,
-      "iou_to_edit": 0.9036817678458112
+      "iou_to_edit": 0.7074660824134154
     },
     {
       "case": "dome",
       "strength": 0.9,
-      "iou_to_edit": 0.8921515760576498
+      "iou_to_edit": 0.6235253693734968
     },
     {
       "case": "carve",
       "strength": 0.1,
-      "iou_to_edit": 0.9948029561402945
+      "iou_to_edit": 0.960724259075759
     },
     {
       "case": "carve",
       "strength": 0.3,
-      "iou_to_edit": 0.9828741051607992
+      "iou_to_edit": 0.861864781263809
     },
     {
       "case": "carve",
       "strength": 0.5,
-      "iou_to_edit": 0.9423406015369946
+      "iou_to_edit": 0.7800152297148659
     },
     {
       "case": "carve",
       "strength": 0.7,
-      "iou_to_edit": 0.8956027612874441
+      "iou_to_edit": 0.7204480457578646
     },
     {
       "case": "carve",
       "strength": 0.9,
-      "iou_to_edit": 0.8700085319105472
+      "iou_to_edit": 0.6993831919814958
     }
   ],
   "failures": [],
@@ -93,77 +93,77 @@
     {
       "strength": 0.1,
       "n_cases": 3,
-      "mean_iou_to_edit": 0.9954545168473805,
-      "min_iou_to_edit": 0.9948029561402945,
-      "max_iou_to_edit": 0.9963348971944961
+      "mean_iou_to_edit": 0.9611315580391299,
+      "min_iou_to_edit": 0.9585517613051786,
+      "max_iou_to_edit": 0.9641186537364518
     },
     {
       "strength": 0.3,
       "n_cases": 3,
-      "mean_iou_to_edit": 0.972752546850621,
-      "min_iou_to_edit": 0.9670631115739476,
-      "max_iou_to_edit": 0.9828741051607992
+      "mean_iou_to_edit": 0.8764568797519758,
+      "min_iou_to_edit": 0.861864781263809,
+      "max_iou_to_edit": 0.8866473631746333
     },
     {
       "strength": 0.5,
       "n_cases": 3,
-      "mean_iou_to_edit": 0.9372711383203228,
-      "min_iou_to_edit": 0.9322137462283226,
-      "max_iou_to_edit": 0.9423406015369946
+      "mean_iou_to_edit": 0.7951473431404413,
+      "min_iou_to_edit": 0.7800152297148659,
+      "max_iou_to_edit": 0.8042450686301246
     },
     {
       "strength": 0.7,
       "n_cases": 3,
-      "mean_iou_to_edit": 0.9031594930268203,
-      "min_iou_to_edit": 0.8956027612874441,
-      "max_iou_to_edit": 0.9101939499472056
+      "mean_iou_to_edit": 0.7107882846631076,
+      "min_iou_to_edit": 0.7044507258180425,
+      "max_iou_to_edit": 0.7204480457578646
     },
     {
       "strength": 0.9,
       "n_cases": 3,
-      "mean_iou_to_edit": 0.8855246492428379,
-      "min_iou_to_edit": 0.8700085319105472,
-      "max_iou_to_edit": 0.894413839760317
+      "mean_iou_to_edit": 0.6528652694835574,
+      "min_iou_to_edit": 0.6235253693734968,
+      "max_iou_to_edit": 0.6993831919814958
     }
   ],
   "fid_by_strength": {
     "0.1": {
-      "point": 319.4931925623847,
+      "point": 247.84292886803786,
       "ci95": [
-        292.7006277220557,
-        370.18082864607265
+        219.83945494123265,
+        320.5977763679057
       ],
       "undersampled": true
     },
     "0.3": {
-      "point": 319.67440589301975,
+      "point": 237.4619290800395,
       "ci95": [
-        292.7206697246896,
-        370.61157342771816
+        208.4086125282742,
+        317.9213439950134
       ],
       "undersampled": true
     },
     "0.5": {
-      "point": 319.56590181502685,
+      "point": 231.15140016255532,
       "ci95": [
-        292.68783008863994,
-        370.4168855244193
+        203.97288693491177,
+        311.47051915022206
       ],
       "undersampled": true
     },
     "0.7": {
-      "point": 319.0541748310828,
+      "point": 238.81916736992332,
       "ci95": [
-        292.3390850916437,
-        369.5400536216455
+        213.90492688741654,
+        312.1243425241298
       ],
       "undersampled": true
     },
     "0.9": {
-      "point": 318.58251615977355,
+      "point": 234.08878705430413,
       "ci95": [
-        291.8275481367138,
-        369.0380835523173
+        214.37356048298835,
+        305.86108647636013
       ],
       "undersampled": true
     }
@@ -175,10 +175,10 @@
       "COMMERCIALoffice_building_mesh1702",
       "COMMERCIALoffice_building_mesh2982",
       "COMMERCIALschool_building_mesh0043",
-      "PUBLICcity_hall_mesh0451",
       "PUBLICoffice_building_mesh3229",
       "RELIGIOUScathedral_mesh0640",
-      "RELIGIOUSchurch_mesh0606"
+      "RELIGIOUSchurch_mesh0606",
+      "RELIGIOUSchurch_mesh1029"
     ]
   },
   "cameras": {
@@ -188,6 +188,6 @@
   "sdf_working_res": 96,
   "montage": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/sculpt_strength_sweep/montage.png",
   "curve": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/sculpt_strength_sweep/faithfulness_vs_realism.png",
-  "git_rev": "7823ea3a4ca200b9e2457cb191b6c30739fe0202",
-  "dirty_digest": "55b28b6544ff"
+  "git_rev": "7015735a7e0127ba4b18ac3b9803e6a782f6c920",
+  "dirty_digest": "ca6f2d523cac"
 }
