@@ -161,5 +161,60 @@ class GaussianDiffusionTest(unittest.TestCase):
         self.assertLess(float(clamped.abs().max()), 20.0)
 
 
+class PredictX0Test(unittest.TestCase):
+    """ticket 11's v3 follow-up: an alternative parameterization where the network predicts
+    x0 directly instead of noise."""
+
+    def _net(self):
+        return mu.MonolithUNet(base_channels=4, channel_mults=(1, 2), temb_dim=8)
+
+    def test_p_losses_targets_x0_not_noise(self):
+        # Same shape as test_zero_surface_weight_matches_plain_mse, but for predict_x0=True:
+        # the loss must be MSE(pred, x0), not MSE(pred, noise).
+        torch.manual_seed(0)
+        net = self._net()
+        x0 = torch.randn(2, 1, 8, 8, 8)
+        coarse = torch.randn(2, 1, 8, 8, 8)
+        t = torch.tensor([5, 20])
+        noise = torch.randn_like(x0)
+        diff = md.GaussianDiffusion(net, timesteps=50, surface_weight=0.0, predict_x0=True)
+        loss = diff.p_losses(x0, coarse, t=t, noise=noise)
+        noisy = md.q_sample(x0, t, noise, diff.alphas_cumprod)
+        pred = net(noisy, coarse, t)
+        import torch.nn.functional as F
+        expected = F.mse_loss(pred, x0)
+        self.assertAlmostEqual(float(loss), float(expected), places=5)
+
+    def test_ddim_sample_zero_init_output_matches_zero_prediction(self):
+        # MonolithUNet's output conv is zero-initialized (forward always returns 0 for an
+        # untrained model). Under predict_x0, x0_pred is then 0 at every step, so eps is
+        # driven entirely by x itself -- confirm this runs and stays finite/bounded rather
+        # than assuming eps-prediction's math still applies unchanged.
+        diff = md.GaussianDiffusion(self._net(), timesteps=50, predict_x0=True)
+        coarse = torch.randn(1, 1, 8, 8, 8)
+        out = diff.ddim_sample(coarse, shape=(1, 1, 8, 8, 8), ddim_steps=5, seed=0)
+        self.assertEqual(out.shape, (1, 1, 8, 8, 8))
+        self.assertTrue(torch.isfinite(out).all())
+
+    def test_ddim_sample_reproducible_under_predict_x0(self):
+        diff = md.GaussianDiffusion(self._net(), timesteps=50, predict_x0=True)
+        coarse = torch.randn(1, 1, 8, 8, 8)
+        a = diff.ddim_sample(coarse, shape=(1, 1, 8, 8, 8), ddim_steps=5, seed=7)
+        b = diff.ddim_sample(coarse, shape=(1, 1, 8, 8, 8), ddim_steps=5, seed=7)
+        self.assertTrue(torch.equal(a, b))
+
+    def test_clip_x0_still_bounds_output_under_predict_x0(self):
+        # Under predict_x0, the model's output IS x0_pred directly -- an overconfident model
+        # predicting a huge constant x0 must still be clamped to the declared data range.
+        class ExplodingX0Model:
+            def __call__(self, x, coarse, t):
+                return torch.full_like(x, 100.0)
+
+        diff = md.GaussianDiffusion(ExplodingX0Model(), timesteps=50, predict_x0=True)
+        coarse = torch.randn(1, 1, 8, 8, 8)
+        clamped = diff.ddim_sample(coarse, shape=(1, 1, 8, 8, 8), ddim_steps=10, seed=0, clip_x0=1.0)
+        self.assertLessEqual(float(clamped.abs().max()), 1.0 + 1e-4)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

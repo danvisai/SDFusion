@@ -43,7 +43,9 @@ def load_model(ckpt_path, device):
     net = MonolithUNet(base_channels=cfg["base_channels"], channel_mults=tuple(cfg["channel_mults"])).to(device)
     net.load_state_dict(state["model"])
     net.eval()
-    return GaussianDiffusion(net, timesteps=cfg["timesteps"], device=device), cfg, state["step"]
+    return (GaussianDiffusion(net, timesteps=cfg["timesteps"], device=device,
+                              predict_x0=cfg.get("predict_x0", False)),
+            cfg, state["step"])
 
 
 def _git_provenance():

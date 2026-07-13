@@ -109,6 +109,8 @@ def main():
                     help="0 = plain MSE; measured surface-band voxel fraction on train_100 is "
                          "~2.9%%, so e.g. 20 raises its share of the loss to ~38%% -- see ticket "
                          "11 answer for the pre-registered derivation")
+    ap.add_argument("--predict-x0", action="store_true",
+                    help="predict x0 directly instead of noise (ticket 11 v3 follow-up)")
     ap.add_argument("--num-workers", type=int, default=4)
     ap.add_argument("--log-every", type=int, default=50)
     ap.add_argument("--val-every", type=int, default=500)
@@ -140,12 +142,14 @@ def main():
     net = MonolithUNet(base_channels=a.base_channels, channel_mults=channel_mults).to(a.device)
     n_params = sum(p.numel() for p in net.parameters())
     diffusion = GaussianDiffusion(net, timesteps=a.timesteps, device=a.device,
-                                  surface_band=a.surface_band, surface_weight=a.surface_weight)
+                                  surface_band=a.surface_band, surface_weight=a.surface_weight,
+                                  predict_x0=a.predict_x0)
     optimizer = torch.optim.AdamW(net.parameters(), lr=a.lr)
 
     config = dict(base_channels=a.base_channels, channel_mults=list(channel_mults),
                  timesteps=a.timesteps, lr=a.lr, batch_size=a.batch_size,
                  surface_band=a.surface_band, surface_weight=a.surface_weight,
+                 predict_x0=a.predict_x0,
                  val_frac=a.val_frac, seed=a.seed, n_train=len(train_ids), n_val=len(val_ids),
                  n_params=n_params)
 

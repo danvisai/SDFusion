@@ -34,12 +34,23 @@ def q_sample(x0: torch.Tensor, t: torch.Tensor, noise: torch.Tensor,
 
 
 class GaussianDiffusion:
-    """Ties a noise-prediction network to a fixed linear schedule. `model(noisy, coarse, t)`
-    must return predicted noise of the same shape as `noisy`."""
+    """Ties a network to a fixed linear schedule. With `predict_x0=False` (default),
+    `model(noisy, coarse, t)` must return predicted NOISE of the same shape as `noisy`
+    (the original DDPM objective). With `predict_x0=True`, `model(...)` returns predicted
+    X0 directly instead -- ticket 11's follow-up (see the ticket answer's "v3" entry): an
+    unweighted and a surface-weighted epsilon-prediction monolith both substantially
+    over-generated occupied volume (32.5% and 51.5% mean vs ~1.7% real). X0-prediction is
+    tried as a more structurally-motivated fix than loss reweighting: (a) at low noise the
+    objective becomes closer to direct reconstruction, which ties the loss more tightly to
+    getting voxel SIGN right rather than to matching a noise vector; (b) `ddim_sample`'s
+    division by a near-zero term then falls at LOW `t` (the model's already-refined, late
+    steps) instead of at HIGH `t` (the from-scratch first steps), which is structurally
+    safer -- see `ddim_sample`."""
 
     def __init__(self, model, timesteps: int = 1000, beta_start: float = 1e-4,
                  beta_end: float = 2e-2, device: str = "cpu",
-                 surface_band: float = 0.3, surface_weight: float = 1.0):
+                 surface_band: float = 0.3, surface_weight: float = 1.0,
+                 predict_x0: bool = False):
         self.model = model
         self.timesteps = timesteps
         self.device = device
@@ -52,15 +63,19 @@ class GaussianDiffusion:
         # surface band. Verified empirically (ticket 11 answer): an unweighted 15k-step
         # checkpoint reached near-zero aggregate loss (~0.001) while DDIM sampling still
         # produced ~30% occupancy against ~2% real targets -- the loss was "converged" on the
-        # trivial part of the volume, not the part that matters.
+        # trivial part of the volume, not the part that matters. A pre-registered attempt to
+        # fix this with surface_weight=20 made results WORSE (51.5% occupancy) -- see the
+        # ticket answer's "v2" entry. Kept here, defaulted to inert (surface_weight=1.0 has
+        # no `if` gate; pass 0 to disable), for anyone who wants to combine reweighting with
+        # `predict_x0` in future work; not re-tried together with `predict_x0` in ticket 11.
         self.surface_band = surface_band
         self.surface_weight = surface_weight
+        self.predict_x0 = predict_x0
 
     def p_losses(self, x0: torch.Tensor, coarse: torch.Tensor, t: torch.Tensor | None = None,
                  noise: torch.Tensor | None = None) -> torch.Tensor:
-        """Noise-prediction MSE, weighted up near the true surface (`|x0| < surface_band`) so
-        the thin informative region isn't drowned out by the constant-background majority of
-        the volume (see `__init__`)."""
+        """MSE against the network's target (noise, or x0 directly if `predict_x0`), optionally
+        weighted up near the true surface (`|x0| < surface_band`, see `__init__`)."""
         b = x0.shape[0]
         if t is None:
             t = torch.randint(0, self.timesteps, (b,), device=x0.device)
@@ -68,8 +83,9 @@ class GaussianDiffusion:
             noise = torch.randn_like(x0)
         noisy = q_sample(x0, t, noise, self.alphas_cumprod)
         pred = self.model(noisy, coarse, t)
+        target = x0 if self.predict_x0 else noise
         weight = 1.0 + self.surface_weight * (x0.abs() < self.surface_band).float()
-        return (weight * (pred - noise) ** 2).mean()
+        return (weight * (pred - target) ** 2).mean()
 
     @torch.no_grad()
     def ddim_sample(self, coarse: torch.Tensor, shape, ddim_steps: int = 50,
@@ -79,13 +95,17 @@ class GaussianDiffusion:
         output.
 
         `x0_pred` is clamped to `+-clip_x0` (the data's own known range -- training divides by
-        `TRUNC` so real inputs live in [-1, 1]) every step. Without this, dividing by
-        `sqrt(alphas_cumprod[t])` -- which is tiny at high t, by design -- amplifies any error
-        in an imperfectly-trained `eps` prediction, and that error compounds multiplicatively
-        over `ddim_steps`; verified empirically against an early checkpoint: unclamped sampling
-        diverged to values outside [-16, 7] and ~65% predicted occupancy on real buildings with
-        ~1-5% true occupancy. This is the standard `clip_denoised` DDPM/DDIM practice, not a new
-        hyperparameter search."""
+        `TRUNC` so real inputs live in [-1, 1]) every step, regardless of parameterization.
+        With `predict_x0=False`, `x0_pred` is recovered by dividing by `sqrt(alphas_cumprod[t])`
+        -- tiny at HIGH `t` by design -- which amplifies any error in an imperfectly-trained
+        `eps` prediction, compounding over every remaining step; verified empirically against
+        an early checkpoint: unclamped sampling diverged to values outside [-16, 7] and ~65%
+        predicted occupancy on real buildings with ~1-5% true occupancy. This is the standard
+        `clip_denoised` DDPM/DDIM practice, not a new hyperparameter search. With
+        `predict_x0=True` the model emits `x0_pred` directly (clamped the same way) and `eps`
+        is derived by dividing by `sqrt(1-alphas_cumprod[t])` instead -- tiny at LOW `t`, i.e.
+        the model's late, already-refined steps, structurally less exposed to this failure
+        mode than dividing at the very first (highest-noise) steps."""
         device = coarse.device
         generator = torch.Generator(device=device if device.type != "mps" else "cpu")
         generator.manual_seed(seed)
@@ -95,11 +115,18 @@ class GaussianDiffusion:
         step_indices = torch.unique_consecutive(step_indices)
         for i, t in enumerate(step_indices):
             t_batch = torch.full((shape[0],), int(t), device=device, dtype=torch.long)
-            eps = self.model(x, coarse, t_batch)
+            pred = self.model(x, coarse, t_batch)
             ac_t = self.alphas_cumprod[t]
-            x0_pred = (x - (1 - ac_t).sqrt() * eps) / ac_t.sqrt().clamp(min=1e-8)
-            if clip_x0 > 0:
-                x0_pred = x0_pred.clamp(-clip_x0, clip_x0)
+            if self.predict_x0:
+                x0_pred = pred
+                if clip_x0 > 0:
+                    x0_pred = x0_pred.clamp(-clip_x0, clip_x0)
+                eps = (x - ac_t.sqrt() * x0_pred) / (1 - ac_t).sqrt().clamp(min=1e-8)
+            else:
+                x0_pred = (x - (1 - ac_t).sqrt() * pred) / ac_t.sqrt().clamp(min=1e-8)
+                if clip_x0 > 0:
+                    x0_pred = x0_pred.clamp(-clip_x0, clip_x0)
+                eps = pred
             ac_next = self.alphas_cumprod[step_indices[i + 1]] if i + 1 < len(step_indices) \
                 else torch.tensor(1.0, device=device)
             x = ac_next.sqrt() * x0_pred + (1 - ac_next).sqrt() * eps

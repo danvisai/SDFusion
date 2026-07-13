@@ -1,0 +1,247 @@
+{
+  "checkpoint": "logs_building/monolith_v3/ckpt/monolith_steps-latest.pth",
+  "checkpoint_step": 15000,
+  "ddim_steps": 1000,
+  "reproducibility": {
+    "same_seed_bit_identical": true,
+    "different_seed_differs": true
+  },
+  "n_quant": 32,
+  "per_building": [
+    {
+      "building": "COMMERCIALhotel_building_mesh0504",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.012117739076967593,
+      "coarse_occ_frac": 0.00029613353587962964,
+      "gen_occ_frac": 0.006611011646412037
+    },
+    {
+      "building": "COMMERCIALhouse_mesh0798",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.053966380931712965,
+      "coarse_occ_frac": 0.05047042281539352,
+      "gen_occ_frac": 0.05198386863425926
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh0330",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.00016954210069444444,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh1502",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.00020797164351851852,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh2148",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.09097516095196759,
+      "coarse_occ_frac": 0.08733452690972222,
+      "gen_occ_frac": 0.08994095413773148
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh3666",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.026041666666666668,
+      "coarse_occ_frac": 0.022182888454861112,
+      "gen_occ_frac": 0.022853144892939815
+    },
+    {
+      "building": "COMMERCIALpalace_mesh1272",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.025231255425347224,
+      "coarse_occ_frac": 0.021703649450231483,
+      "gen_occ_frac": 0.022379557291666668
+    },
+    {
+      "building": "COMMERCIALpalace_mesh1314",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.000782154224537037,
+      "coarse_occ_frac": 3.3908420138888887e-06,
+      "gen_occ_frac": 0.00016276041666666666
+    },
+    {
+      "building": "COMMERCIALtemple_mesh0758",
+      "cls": "COMMERCIAL",
+      "target_occ_frac": 0.0008205837673611111,
+      "coarse_occ_frac": 1.1302806712962962e-06,
+      "gen_occ_frac": 0.0003153483072916667
+    },
+    {
+      "building": "PUBLICcastle_mesh3328",
+      "cls": "PUBLIC",
+      "target_occ_frac": 0.0,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "PUBLIChouse_mesh3576",
+      "cls": "PUBLIC",
+      "target_occ_frac": 0.0007075557002314815,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "PUBLICvilla_mesh3962",
+      "cls": "PUBLIC",
+      "target_occ_frac": 0.02385344328703704,
+      "coarse_occ_frac": 0.01764820240162037,
+      "gen_occ_frac": 0.022182888454861112
+    },
+    {
+      "building": "RELIGIOUScathedral_mesh0049",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 6.781684027777777e-06,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RELIGIOUScathedral_mesh0715",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.0002475314670138889,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0185",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.02427277741608796,
+      "coarse_occ_frac": 0.022150110315393517,
+      "gen_occ_frac": 0.023115370008680556
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0229",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.0004306369357638889,
+      "coarse_occ_frac": 1.9214771412037038e-05,
+      "gen_occ_frac": 0.0008646647135416666
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0272",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.0003763834635416667,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0298",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.0006397388599537037,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0339",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.004610414858217593,
+      "coarse_occ_frac": 0.0009743019386574075,
+      "gen_occ_frac": 0.005808512369791667
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0354",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.004275851779513889,
+      "coarse_occ_frac": 0.002396195023148148,
+      "gen_occ_frac": 0.0035603841145833335
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0575",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 0.08941650390625,
+      "coarse_occ_frac": 0.08543339482060185,
+      "gen_occ_frac": 0.0875515407986111
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0671",
+      "cls": "RELIGIOUS",
+      "target_occ_frac": 5.199291087962963e-05,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RESIDENTIALcastle_mesh0771",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.01435230396412037,
+      "coarse_occ_frac": 0.002560085720486111,
+      "gen_occ_frac": 0.012661404079861112
+    },
+    {
+      "building": "RESIDENTIALcity_hall_mesh0361",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.0001537181712962963,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0060",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.01889264142071759,
+      "coarse_occ_frac": 0.016829879195601853,
+      "gen_occ_frac": 0.01817039207175926
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0379",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.041462085865162035,
+      "coarse_occ_frac": 0.03911110206886574,
+      "gen_occ_frac": 0.040415445963541664
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0440",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 6.329571759259259e-05,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0456",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.0008827492042824075,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0642",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.09003702799479167,
+      "coarse_occ_frac": 0.08699205186631945,
+      "gen_occ_frac": 0.0870327419704861
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0684",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.0006646050347222222,
+      "coarse_occ_frac": 4.521122685185185e-06,
+      "gen_occ_frac": 0.00037299262152777775
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0776",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.00023622866030092592,
+      "coarse_occ_frac": 0.0,
+      "gen_occ_frac": 7.120768229166667e-05
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0782",
+      "cls": "RESIDENTIAL",
+      "target_occ_frac": 0.004532425491898148,
+      "coarse_occ_frac": 0.0036361129195601853,
+      "gen_occ_frac": 0.004057707609953704
+    }
+  ],
+  "gen_occ_frac": {
+    "mean": 0.015655199686686196,
+    "median": 0.0006188286675347222
+  },
+  "target_occ_frac": {
+    "mean": 0.016577473393192998,
+    "median": 0.0008516664858217593
+  },
+  "montage": "outputs/monolith_v3/montage.png",
+  "git_rev": "7aea527a71e11a7b436f150109ce092cce950746",
+  "dirty_digest": "fcfab135cd56"
+}
