@@ -13,27 +13,41 @@ function `/snap_sdf` calls (`scripts/server/inference_service.py:snap_sdf`), so 
 code path without needing a separately-running server (matches tickets 07/09/11's in-process
 convention).
 
-The edits land on `BASE_BUILDING_ID`, a real, held-out (Stage3a-clean) BuildingNet building --
-not a synthetic recipe-default box (the first version of this sweep used one and it stayed too
-visually flat across strength for a meaningful review; a real building's own massing gives the
-edits and the snap something more complex to act on).
+The edits land on EVERY building in `BASE_BUILDING_IDS` -- all 27 real, held-out (Stage3a-clean)
+BuildingNet buildings (`held_out_population()`'s "clean" tier), not one synthetic recipe-default
+box (the first version of this sweep used a single box, and then a single real building; both
+were too small a distinct-shape population for a trustworthy FID -- see "Sample size" below).
 
 Faithfulness = `iou_to_edit`, the IoU `snap_volume` already returns between its output and the
 pre-snap edited input -- this project's established "did the snap keep what the user placed"
 metric (`eval_harness.py`'s own `fp_iou`/`iou` convention). Realism = neutral-facade FID
-(CONTEXT.md: detail fidelity is measured DISTRIBUTIONALLY) against a fixed real BuildingNet
-reference population (ticket 09's held-out "clean" tier, reused rather than re-derived) --
-rendered through ticket 05's shared neutral shader for representation parity.
+(CONTEXT.md: detail fidelity is measured DISTRIBUTIONALLY), rendered through ticket 05's shared
+neutral shader for representation parity.
 
-This is a PROTOTYPE (wayfinder ticket type): small and cheap on purpose, to review with the
-user, not a scaled headline result. At 3 edit cases x N_VIEWS renders per strength, the pooled
-FID sample is far below ticket 05's own >=2048-d undersampling floor -- `fid.undersampled` WILL
-fire; reported, not hidden (tickets 05/06/09's convention).
+Sample size: ticket 05 established that FID needs N (per arm) to substantially exceed the 2048-d
+Inception feature dimensionality, and flags `fid.undersampled` otherwise. The GENERATED side is
+capped at `len(BASE_BUILDING_IDS) * len(EDIT_CASES)` = 81 DISTINCT shapes -- the true ceiling of
+this project's leakage-safe held-out population crossed with its canonical edit vocabulary; no
+more of either exists without inventing a new selection policy or a new edit vocabulary, which
+this ticket doesn't do. `N_VIEWS` is set high enough (28) that 81 shapes x 28 views = 2268 pooled
+IMAGES clears the raw 2048 threshold per strength, but the group-aware bootstrap (below) still
+resamples at the 81-shape level, since multiple camera views of the same shape are correlated,
+not independent -- so this clears the codebase's own established check while being explicit that
+the EFFECTIVE distinct-sample count remains 81, short of Heusel et al.'s >=10,000 recommendation
+(cited in fid.py). The REAL reference side has no such ceiling: it's ground truth, never fed to
+the model, so it draws `N_REAL_REF` buildings from `data/splits_v1/train_100.json` (ticket 03's
+frozen, leakage-audited TRAIN split -- disjoint from `test.json` by construction, verified 0
+overlap) rather than the tiny 27-building test-side "clean" tier, giving genuinely more distinct
+real shapes, not just more views of few.
+
+This is a PROTOTYPE (wayfinder ticket type): the montage still only visualizes a handful of bases
+(`--montage-bases`) for a reviewable image size, even though the full `BASE_BUILDING_IDS`
+population is swept for the faithfulness/FID statistics.
 
 Out: execution/artifacts/sculpt_strength_sweep.json,
      outputs/sculpt_strength_sweep/{montage.png, faithfulness_vs_realism.png}
 Run:  TORCH_HOME=external/torch_hub env -u LD_PRELOAD -u LD_LIBRARY_PATH \
-        ./sdfusion/bin/python scripts/eval/sculpt_strength_sweep.py [--n-real-ref N]
+        ./sdfusion/bin/python scripts/eval/sculpt_strength_sweep.py [--n-bases N] [--n-real-ref N]
 """
 from __future__ import annotations
 
@@ -70,20 +84,28 @@ EDIT_CASES = [
 # this ticket IS the dedicated full-range sweep, so it also samples the low/high extremes that
 # convention doesn't need to revisit every checkpoint.
 STRENGTHS = [0.1, 0.3, 0.5, 0.7, 0.9]
-N_VIEWS = 6          # matches ticket 05's sanity-run convention
-N_REAL_REF = 8        # matches diagnose_massing_diversity.py's default footprint count
-# A genuinely complex real, held-out (Stage3a-clean) BuildingNet building -- not the flat
-# procedural recipe-default box originally used here. Ticket 09's own qualitative montage
-# already flagged this one as visually distinctive (real target vs. generated failure modes).
-# Excluded from the real-reference population below so the sweep's base isn't also counted as
-# one of the "real" comparison renders.
-BASE_BUILDING_ID = "PUBLICcity_hall_mesh0451"
+# High enough that len(BASE_BUILDING_IDS) * len(EDIT_CASES) * N_VIEWS clears fid.py's 2048-d
+# undersampling floor (81 * 28 = 2268) -- see the module docstring's "Sample size" section for
+# why this doesn't fully solve undersampling (views of the same shape are correlated).
+N_VIEWS = 28
+N_REAL_REF = 200      # distinct real buildings from train_100.json -- no ceiling here, so this
+                      # lever is genuine additional distinct-shape diversity, not view inflation
+
+
+def all_base_building_ids():
+    """Every real, held-out (Stage3a-clean) BuildingNet id (`held_out_population()`'s "clean"
+    tier) -- the full 27-building ceiling of this project's leakage-safe test population, all
+    used as edit bases (not just one) for a large enough distinct-shape count. Not called at
+    import time (reads split files from disk) -- keeps this module importable data-free, matching
+    `test_sculpt_strength_sweep.py`'s own "fast, data-free" contract test convention."""
+    tiers, _ = held_out_population()
+    return tiers["clean"]
 
 
 def summarize_by_strength(rows: list) -> list:
-    """rows: one dict per (edit case, strength) sample, each with "strength" and
-    "iou_to_edit" -- aggregates faithfulness across the fixed edit cases at each strength into
-    one summary row per distinct strength, sorted ascending (the x-axis of the
+    """rows: one dict per (base building, edit case, strength) sample, each with "strength" and
+    "iou_to_edit" -- aggregates faithfulness across every base/edit-case sample at each strength
+    into one summary row per distinct strength, sorted ascending (the x-axis of the
     faithfulness-vs-realism plot)."""
     by_strength: dict = {}
     for row in rows:
@@ -92,7 +114,7 @@ def summarize_by_strength(rows: list) -> list:
     for strength in sorted(by_strength):
         ious = by_strength[strength]
         out.append(dict(
-            strength=strength, n_cases=len(ious),
+            strength=strength, n_samples=len(ious),
             mean_iou_to_edit=float(np.mean(ious)),
             min_iou_to_edit=float(min(ious)),
             max_iou_to_edit=float(max(ious)),
@@ -100,11 +122,11 @@ def summarize_by_strength(rows: list) -> list:
     return out
 
 
-def load_base_grid(device):
-    """`BASE_BUILDING_ID`'s real, native 64^3 SDF (un-resampled -- `working_res=64` matches the
-    live sculptor's own cube-frame resolution) -- deterministic and bit-identical across runs
-    (loaded from disk, not sampled); the edits are applied ON this fixed base."""
-    return rf.load_buildingnet_sdf(BASE_BUILDING_ID, native_res=64, working_res=64, device=device)
+def load_base_grid(building_id, device):
+    """`building_id`'s real, native 64^3 SDF (un-resampled -- `working_res=64` matches the live
+    sculptor's own cube-frame resolution) -- deterministic and bit-identical across runs (loaded
+    from disk, not sampled); the edits are applied ON this fixed base."""
+    return rf.load_buildingnet_sdf(building_id, native_res=64, working_res=64, device=device)
 
 
 def composed_edit_grid(base_grid, edit, device):
@@ -123,12 +145,21 @@ def composed_edit_grid(base_grid, edit, device):
         return edited(pts).reshape(R, R, R).cpu().numpy().astype(np.float32)
 
 
+def real_reference_building_ids(n_ref):
+    """`n_ref` ids from `train_100.json` (ticket 03's frozen, leakage-audited TRAIN split) --
+    disjoint from `test.json` by construction (verified: 0 overlap), so this never collides with
+    `BASE_BUILDING_IDS` (drawn from the test-side "clean" tier) without needing a per-run
+    exclusion check. Ground truth for FID is never fed to the model, so it doesn't need to be
+    held-out from Stage3a's own training the way the edited/generated side does."""
+    ids = json.load(open(REPO / "data/splits_v1/train_100.json"))
+    return ids[:n_ref]
+
+
 def real_reference_images(cams, n_ref, img_res, device):
-    """Renders of `n_ref` real, held-out (Stage3a-clean) BuildingNet buildings -- the FIXED
-    real-facade population every strength's FID is compared against (ADR 0002/0004:
-    representation parity, one real reference set, not re-derived per strength)."""
-    tiers, _ = held_out_population()
-    ids = [b for b in tiers["clean"] if b != BASE_BUILDING_ID][:n_ref]
+    """Renders of `n_ref` real BuildingNet buildings -- the FIXED real-facade population every
+    strength's FID is compared against (ADR 0002/0004: representation parity, one real reference
+    set, not re-derived per strength)."""
+    ids = real_reference_building_ids(n_ref)
     imgs = []
     for bid in ids:
         real96 = rf.load_buildingnet_sdf(bid, working_res=rf.WORKING_RES, device=device)
@@ -176,11 +207,11 @@ def _curve_plot(summary, fid_by_strength, out_path: Path):
     ys = [fid_by_strength[row["strength"]]["point"] for row in summary]
     fig, ax = plt.subplots(figsize=(5, 4))
     ax.plot(xs, ys, "o-", color="#2b6cb0")
-    n_total = max((row["n_cases"] for row in summary), default=0)
+    n_total = max((row["n_samples"] for row in summary), default=0)
     for row, x, y in zip(summary, xs, ys):
         label = f"s={row['strength']}"
-        if row["n_cases"] < n_total:      # a point built from fewer than the full case set
-            label += f" ({row['n_cases']}/{n_total})"
+        if row["n_samples"] < n_total:    # a point built from fewer than the full sample set
+            label += f" ({row['n_samples']}/{n_total})"
         ax.annotate(label, (x, y), textcoords="offset points", xytext=(6, 6), fontsize=8)
     ax.set_xlabel("edit faithfulness (mean IoU to pre-snap edit)")
     ax.set_ylabel("realism (facade FID vs. real, lower = more realistic)")
@@ -196,6 +227,11 @@ def main():
                                   formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--strengths", default=None,
                     help="comma-separated override of the default STRENGTHS list")
+    ap.add_argument("--n-bases", type=int, default=None,
+                    help="debug: use only the first N of the 27 base buildings")
+    ap.add_argument("--montage-bases", type=int, default=3,
+                    help="how many base buildings to visualize in the montage (all are still "
+                         "swept for the faithfulness/FID statistics)")
     ap.add_argument("--n-real-ref", type=int, default=N_REAL_REF)
     ap.add_argument("--views", type=int, default=N_VIEWS)
     ap.add_argument("--img-res", type=int, default=256)
@@ -212,45 +248,68 @@ def main():
     from refine import Refiner
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    base_ids = all_base_building_ids()
+    if a.n_bases:
+        base_ids = base_ids[: a.n_bases]
+    n_shapes = len(base_ids) * len(EDIT_CASES)
+    print(f"[*] {len(base_ids)} base buildings x {len(EDIT_CASES)} edit cases = "
+          f"{n_shapes} distinct shapes x {a.views} views = {n_shapes * a.views} pooled images/strength")
+
     print("[*] loading the deployed live prior (Refiner.snap_volume -- the exact /snap_sdf code path)...")
     refiner = Refiner(SimpleNamespace(device=device))
-    base_grid = load_base_grid(device)
 
     cams = rf.orbit_cameras(n_views=a.views)
-    print(f"[*] rendering {a.n_real_ref} real held-out reference buildings...")
+    print(f"[*] rendering {a.n_real_ref} real reference buildings (train_100.json)...")
     real_ids, real_imgs = real_reference_images(cams, a.n_real_ref, a.img_res, device)
     real_stack = np.stack([im for views in real_imgs for im in views])
     real_groups = np.repeat(np.arange(len(real_imgs)), [len(v) for v in real_imgs])
     ext = fidmod.InceptionExtractor(device=device)
     real_feat = ext.features(real_stack)
+    print(f"[*] real reference: {len(real_ids)} buildings, {len(real_stack)} images")
 
     rows, montage_rows, failures = [], [], []
     pooled_by_strength = {s: dict(imgs=[], groups=[]) for s in strengths}
-    for case_i, (name, edit) in enumerate(EDIT_CASES):
-        edited_grid = composed_edit_grid(base_grid, edit, device)
-        cells = [("base", base_grid), ("edited (pre-snap)", edited_grid)]
-        for s in strengths:
-            try:
-                # Fixed seed before EVERY call (same shape/device each time -> bit-identical
-                # raw noise draw): strength is otherwise confounded with `sdedit`'s one
-                # unseeded `torch.randn_like` noise draw (DDIM reverse steps are themselves
-                # deterministic at ddim_eta=0.0) -- this isolates strength as the sole
-                # controlled variable the ticket asks for.
-                torch.manual_seed(a.seed)
-                snapped, iou_to_edit = refiner.snap_volume(base_grid, [edit], strength=s)
-                snapped96 = rf.resample_sdf_grid(snapped, rf.WORKING_RES, device=device)
-                views = rf.render_sdf_neutral(snapped96, cameras=cams, res=a.img_res, device=device)
-            except Exception as ex:  # noqa: BLE001
-                failures.append(dict(case=name, strength=s, error=f"{type(ex).__name__}: {str(ex)[:120]}"))
-                print(f"  {name:8s} s={s} FAILED: {failures[-1]['error']}", flush=True)
-                cells.append((f"s={s}\nFAILED", None))
-                continue
-            rows.append(dict(case=name, strength=s, iou_to_edit=float(iou_to_edit)))
-            print(f"  {name:8s} s={s}  iou_to_edit={iou_to_edit:.3f}", flush=True)
-            pooled_by_strength[s]["imgs"].extend(views)
-            pooled_by_strength[s]["groups"].extend([case_i] * len(views))
-            cells.append((f"s={s}\niou={iou_to_edit:.2f}", snapped))
-        montage_rows.append((name, cells))
+    shape_i = 0
+    for base_i, base_id in enumerate(base_ids):
+        base_grid = load_base_grid(base_id, device)
+        # BuildingNet's native 64^3 SDFs vary continuously in occupancy (ticket 09: 0.02%-6.4%
+        # across this same held-out population, some meshes near-empty/non-watertight) --
+        # recorded per row so a near-zero `carve` IoU on a near-empty building reads as data
+        # sparsity (a fixed absolute voxel edit on a near-empty base), not a snap failure.
+        base_occ_frac = float((base_grid <= 0).mean())
+        want_montage = base_i < a.montage_bases
+        for name, edit in EDIT_CASES:
+            edited_grid = composed_edit_grid(base_grid, edit, device)
+            cells = [("base", base_grid), ("edited (pre-snap)", edited_grid)] if want_montage else None
+            for s in strengths:
+                try:
+                    # Fixed seed before EVERY call (same shape/device each time -> bit-identical
+                    # raw noise draw): strength is otherwise confounded with `sdedit`'s one
+                    # unseeded `torch.randn_like` noise draw (DDIM reverse steps are themselves
+                    # deterministic at ddim_eta=0.0) -- this isolates strength as the sole
+                    # controlled variable the ticket asks for.
+                    torch.manual_seed(a.seed)
+                    snapped, iou_to_edit = refiner.snap_volume(base_grid, [edit], strength=s)
+                    snapped96 = rf.resample_sdf_grid(snapped, rf.WORKING_RES, device=device)
+                    views = rf.render_sdf_neutral(snapped96, cameras=cams, res=a.img_res, device=device)
+                except Exception as ex:  # noqa: BLE001
+                    failures.append(dict(base=base_id, case=name, strength=s,
+                                         error=f"{type(ex).__name__}: {str(ex)[:120]}"))
+                    print(f"  {base_id:38s} {name:8s} s={s} FAILED: {failures[-1]['error']}", flush=True)
+                    if want_montage:
+                        cells.append((f"s={s}\nFAILED", None))
+                    continue
+                rows.append(dict(base=base_id, case=name, strength=s, iou_to_edit=float(iou_to_edit),
+                                 base_occ_frac=base_occ_frac))
+                print(f"  [{base_i+1}/{len(base_ids)}] {base_id:38s} {name:8s} s={s}  "
+                      f"iou_to_edit={iou_to_edit:.3f}", flush=True)
+                pooled_by_strength[s]["imgs"].extend(views)
+                pooled_by_strength[s]["groups"].extend([shape_i] * len(views))
+                if want_montage:
+                    cells.append((f"s={s}\niou={iou_to_edit:.2f}", snapped))
+            if want_montage:
+                montage_rows.append((f"{base_id}\n{name}", cells))
+            shape_i += 1
 
     _montage(montage_rows, Path(a.montage_out))
     print(f"[save] {a.montage_out}")
@@ -264,7 +323,8 @@ def main():
         point, lo, hi = fidmod.bootstrap_fid_ci(gen_feat, real_feat, n_boot=a.n_boot, seed=a.seed,
                                                 groups_a=np.asarray(pooled["groups"]),
                                                 groups_b=real_groups)
-        fid_by_strength[s] = dict(point=point, ci95=[lo, hi],
+        fid_by_strength[s] = dict(point=point, ci95=[lo, hi], n_generated=len(pooled["imgs"]),
+                                  n_real=len(real_stack),
                                   undersampled=bool(fidmod.undersampled(gen_feat, real_feat)))
         print(f"[fid] s={s}: {fid_by_strength[s]}")
 
@@ -274,9 +334,10 @@ def main():
 
     manifest = dict(
         strengths=strengths, edit_cases=[name for name, _ in EDIT_CASES],
+        base_building_ids=base_ids, n_distinct_shapes=n_shapes,
         per_sample=rows, failures=failures, summary=summary,
         fid_by_strength={str(s): v for s, v in fid_by_strength.items()},
-        real_reference=dict(n=len(real_ids), ids=real_ids),
+        real_reference=dict(n=len(real_ids), ids=real_ids, source="data/splits_v1/train_100.json"),
         cameras=dict(n_views=a.views), image_res=a.img_res, sdf_working_res=rf.WORKING_RES,
         montage=a.montage_out, curve=a.curve_out,
         **git_provenance(),

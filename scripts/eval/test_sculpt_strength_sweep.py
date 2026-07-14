@@ -1,10 +1,10 @@
 """Contract tests for the C1b sculpt strength sweep (ticket 10).
 
-Fast + data-free: exercises the one pure seam -- aggregating per-(case, strength) rows into
+Fast + data-free: exercises the one pure seam -- aggregating per-(base, case, strength) rows into
 per-strength faithfulness stats for the faithfulness-vs-realism plot -- without touching the
-GPU model. The snap/render/FID pipeline itself is verified separately by an integration run
-(see the ticket answer), matching this project's established convention for GPU-dependent code
-(tickets 05/09).
+GPU model or reading data files (`all_base_building_ids`/`real_reference_building_ids` do both
+and are verified separately by an integration run, see the ticket answer, matching this project's
+established convention for GPU/data-dependent code -- tickets 05/09).
 
 Run: env -u LD_PRELOAD -u LD_LIBRARY_PATH ./sdfusion/bin/python \
      scripts/eval/test_sculpt_strength_sweep.py
@@ -30,7 +30,7 @@ class SummarizeByStrengthTest(unittest.TestCase):
         self.assertEqual(len(out), 1)
         row = out[0]
         self.assertEqual(row["strength"], 0.5)
-        self.assertEqual(row["n_cases"], 3)
+        self.assertEqual(row["n_samples"], 3)
         self.assertAlmostEqual(row["mean_iou_to_edit"], 0.8)
         self.assertAlmostEqual(row["min_iou_to_edit"], 0.6)
         self.assertAlmostEqual(row["max_iou_to_edit"], 1.0)

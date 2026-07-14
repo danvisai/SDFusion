@@ -144,11 +144,14 @@ faithfulness-versus-realism curve for review.
 **Blocked by:** Establish Neutral Geometry Evaluation.
 
 **Status: prototype built (2026-07-13), awaiting user review** —
-`scripts/eval/sculpt_strength_sweep.py`. Re-run on a real complex held-out building
-(`PUBLICcity_hall_mesh0451`) after the user judged the first pass's procedural-box base too
-visually flat to review: faithfulness now spans 0.96→0.62-0.70 across the 3 canonical edit cases;
-realism (facade FID) shows real movement but is honestly undersampled at this small prototype's
-scale. Not a closed decision — see the ticket's own "Left for the user's review" note and map.md.
+`scripts/eval/sculpt_strength_sweep.py`. Scaled up to all 27 Stage3a-clean held-out buildings ×
+3 edits = 81 distinct shapes + 200 real reference buildings so `fid.undersampled` finally reads
+false at every strength, per the user's own request to increase the sample count — but the
+bootstrap point estimate still falls outside its own CI at every strength (effective N is the
+81/200 distinct-shape count, not the inflated image count), so this isn't fully trustworthy
+either; disclosed, not hidden. Also newly quantified: 56% of the held-out population has
+occupancy <0.5% (median 0.31%), relevant beyond this ticket. Not a closed decision — see the
+ticket's own "Left for the user's review" note and map.md.
 
 - [x] Strength is the controlled variable across fixed edit cases.
 - [x] The prototype exposes successes and failures at every operating point.
