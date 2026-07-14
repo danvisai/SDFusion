@@ -177,14 +177,24 @@ it with the same contract as the monolith.
 
 **Blocked by:** Establish Neutral Geometry Evaluation; Build a Leakage-Safe Retrieval Slice.
 
-**Status: PAUSED (2026-07-12), not blocked.** Fully scoped and code-verified (Stage3a SDEdit
-massing + `propose_detail_ops` learned placement + `element_fit.retrieve` against
-`element_library_train100_v1` + `EditableBuilding` CSG composition) but deprioritized by the
-project owner in favor of the massing/shape-quality thread (ticket "Prototype the Sculpt Transform
-Sweep", above). See map.md's "Pivot (2026-07-12)" section before resuming.
+**Status: done (2026-07-13)** — resumed after the project owner was explicitly asked and chose
+to resume C2 over the massing/shape-quality thread. `scripts/foundations/generate_decomposition_arm.py`.
+Despite the "fully scoped and code-verified" framing above, the actual chain had never been
+assembled anywhere — this was new orchestration code. **277/277 succeeded, 0 failures.**
+109/277 buildings got ≥1 retrieved element (class-concentrated: RELIGIOUS 61/67, RESIDENTIAL
+46/184, PUBLIC 2/8, COMMERCIAL 0/18). Massing IoU (mean 0.102, median 0.055) matches ticket 09's
+own clean-27 numbers. See map.md and the ticket file for the full methodology, the `max_ops`
+truncation bug caught and fixed, and code-review findings (traceability gap, mislabeled paired
+IoU) closed.
 
-- [ ] Every output traces to allowed massing and element sources.
-- [ ] Results use the same resolution, renderer, metrics, and failure policy as the monolith.
+- [x] Every output traces to allowed massing and element sources. (`retrieved_elements` per
+      building: `lib_id`, `element_type`, `source_building`)
+- [ ] Results use the same resolution, renderer, metrics, and failure policy as the monolith. —
+      resolution (96³) and failure policy match by construction; the actual head-to-head
+      re-evaluation of `monolith_v3` through this same harness is "Decide the Full-Data C2
+      Kill-Gate"'s job, not this ticket's (its own Question scopes to generation + harness
+      compatibility, not the comparison itself). Harness compatibility separately verified
+      (`verify_decomposition_harness_compat.py`, 20/20 clean).
 
 ## Decide the Full-Data C2 Kill-Gate
 

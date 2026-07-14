@@ -1,0 +1,200 @@
+{
+  "n_checked": 20,
+  "n_failed": 0,
+  "failures": [],
+  "checks": [
+    {
+      "building": "COMMERCIALcastle_mesh0904",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALcity_hall_mesh0258",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALhotel_building_mesh0162",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALhotel_building_mesh0295",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALhotel_building_mesh0461",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALhotel_building_mesh1211",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALmuseum_mesh0079",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALmuseum_mesh0112",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh0246",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh0490",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh1259",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh1702",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh2206",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh2574",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh2982",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh3311",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALschool_building_mesh0043",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "COMMERCIALvilla_mesh0846",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "PUBLICcity_hall_mesh0451",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    },
+    {
+      "building": "PUBLICmonastery_mesh0235",
+      "shape": [
+        96,
+        96,
+        96
+      ],
+      "n_views_rendered": 6
+    }
+  ],
+  "fid_sanity": {
+    "point": 210.54965987453144,
+    "ci95": [
+      218.69696186675768,
+      239.7264304353256
+    ],
+    "undersampled": true,
+    "n_generated": 120,
+    "n_real": 120,
+    "note": "sanity check only -- NOT ticket 13's headline comparison, undersampled expected at this n"
+  },
+  "git_rev": "be3b8a88c017d943ad7b772bfcb9c7fdcbff9c55",
+  "dirty_digest": "cc0605ddf415"
+}
