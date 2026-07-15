@@ -177,15 +177,22 @@ it with the same contract as the monolith.
 
 **Blocked by:** Establish Neutral Geometry Evaluation; Build a Leakage-Safe Retrieval Slice.
 
-**Status: done (2026-07-13)** — resumed after the project owner was explicitly asked and chose
-to resume C2 over the massing/shape-quality thread. `scripts/foundations/generate_decomposition_arm.py`.
-Despite the "fully scoped and code-verified" framing above, the actual chain had never been
-assembled anywhere — this was new orchestration code. **277/277 succeeded, 0 failures.**
-109/277 buildings got ≥1 retrieved element (class-concentrated: RELIGIOUS 61/67, RESIDENTIAL
-46/184, PUBLIC 2/8, COMMERCIAL 0/18). Massing IoU (mean 0.102, median 0.055) matches ticket 09's
-own clean-27 numbers. See map.md and the ticket file for the full methodology, the `max_ops`
+**Status: done (2026-07-13, extended 2026-07-14)** — resumed after the project owner was
+explicitly asked and chose to resume C2 over the massing/shape-quality thread.
+`scripts/foundations/generate_decomposition_arm.py`. Despite the "fully scoped and code-verified"
+framing above, the actual chain had never been assembled anywhere — this was new orchestration
+code. **277/277 succeeded, 0 failures.** Massing IoU (mean 0.102, median 0.055) matches ticket
+09's own clean-27 numbers. See map.md and the ticket file for the full methodology, the `max_ops`
 truncation bug caught and fixed, and code-review findings (traceability gap, mislabeled paired
 IoU) closed.
+
+**2026-07-14 follow-up** (user: grow the retrieval pool): the real bottleneck was a single
+global `MIN_SOLIDITY=0.12` starving architecturally thin types (visually confirmed the rejected
+low-solidity crops were legitimate architecture, not junk) — fixed with a per-type threshold
+table in `element_fit.py`. Extended retrieval to `balcony`/`column` (the only other types
+`propose_detail_ops` can emit). Caught a real `IndexError`-in-waiting on cylinder-shaped column
+ops before it shipped. Rerun: **158/277 buildings (57%, up from 39%)** now get retrieval; total
+retrieved ops 473 (up from 175), `column` now the dominant type (286).
 
 - [x] Every output traces to allowed massing and element sources. (`retrieved_elements` per
       building: `lib_id`, `element_type`, `source_building`)

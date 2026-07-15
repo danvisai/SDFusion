@@ -32,10 +32,17 @@ class PoolsForTypeTest(unittest.TestCase):
     def test_chimney_pools_over_chimney_and_roof_structure(self):
         self.assertEqual(gda.pools_for_type("chimney"), ("chimney", "roof_structure"))
 
-    def test_dead_pool_types_are_not_retrieval_eligible(self):
-        # balcony/balcony_upper/stairs/column: dead or borderline pools in the leakage-safe
-        # library (ticket 12's own finding) -- explicitly out of scope, not attempted.
-        for det in ("balcony", "balcony_upper", "stairs", "column", "window", "door"):
+    def test_balcony_pools_over_balcony_only(self):
+        self.assertEqual(gda.pools_for_type("balcony"), ("balcony",))
+
+    def test_column_pools_over_column_only(self):
+        self.assertEqual(gda.pools_for_type("column"), ("column",))
+
+    def test_types_propose_detail_ops_never_emits_are_not_retrieval_eligible(self):
+        # window/door: always procedural by design. roof/stairs/balcony_upper: gained usable
+        # library pools (2026-07-14) but propose_detail_ops itself never emits an op for them
+        # ("massing already has a roof") -- nothing to ever upgrade, so not in RETRIEVAL_POOLS.
+        for det in ("window", "door", "roof", "stairs", "balcony_upper"):
             self.assertIsNone(gda.pools_for_type(det))
 
 
@@ -47,6 +54,13 @@ class OpHalfExtentTest(unittest.TestCase):
     def test_sphere_op_returns_a_symmetric_bounding_box(self):
         op = dict(kind="sphere", size=[0.25])
         self.assertEqual(gda.op_half_extent(op), [0.25, 0.25, 0.25])
+
+    def test_cylinder_op_returns_radius_half_height_radius(self):
+        # propose_detail_ops emits "column" as kind="cylinder", size=[radius, height] -- a
+        # 2-element size, not a 3-element box half-extent (the bug this test guards against:
+        # indexing size[2] on a cylinder op raises IndexError without this branch).
+        op = dict(kind="cylinder", size=[0.04, 0.3])
+        self.assertEqual(gda.op_half_extent(op), [0.04, 0.15, 0.04])
 
 
 class YExtentFromOccupancyTest(unittest.TestCase):
@@ -81,6 +95,12 @@ class RetrievalParamsTest(unittest.TestCase):
         params = gda.retrieval_params(op, y_ground=-1.0, y_top=1.0)
         self.assertAlmostEqual(params["aspect"][0], 1.0)
         self.assertAlmostEqual(params["aspect"][1], 1.0)
+
+    def test_cylinder_op_computes_aspect_from_radius_and_half_height(self):
+        op = dict(kind="cylinder", center=[0.0, 0.0, 0.0], size=[0.04, 0.3])
+        params = gda.retrieval_params(op, y_ground=-1.0, y_top=1.0)
+        self.assertAlmostEqual(params["aspect"][0], 0.04 / 0.15)
+        self.assertAlmostEqual(params["aspect"][1], 0.04 / 0.15)
 
     def test_degenerate_y_span_returns_none(self):
         op = dict(kind="box", center=[0.0, 0.0, 0.0], size=[0.1, 0.1, 0.1])

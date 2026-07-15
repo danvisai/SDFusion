@@ -28,9 +28,28 @@ from scene import element_lib
 # how many instances a type needs before retrieval-fit takes over from the procedural
 # template (spec R5)
 MIN_POOL = 8
-MIN_SOLIDITY = 0.12
+MIN_SOLIDITY = 0.12  # default/fallback for any type not in MIN_SOLIDITY_BY_TYPE
+# A single global solidity floor systematically starves architecturally thin types: the raw
+# (pre-filter) solidity distribution is naturally much lower for stairs/balconies/columns than
+# for solid towers/domes (2026-07-14 investigation -- at 0.12, every type loses 77-100% of its
+# raw pool, and balcony_upper/stairs are fully dead: 0/171 and 0/223 elements clear it). Visual
+# QA of the newly-unlocked low-solidity crops per type
+# (outputs/element_library_v1/qa_per_type_solidity_relax.png) confirmed they're legitimate thin
+# architecture (railings, staircases, colonnades), not the skeletal/broken fragments this filter
+# exists to exclude -- so solid types keep the original bar and thin types get their own,
+# evidence-backed lower one, rather than loosening the filter everywhere.
+MIN_SOLIDITY_BY_TYPE = {
+    "tower": 0.12, "dome": 0.12, "chimney": 0.12,
+    "roof_structure": 0.08, "column": 0.05, "balcony": 0.05,
+    "balcony_upper": 0.04, "stairs": 0.03,
+}
 MAX_RELATIVE_SCALE_RATIO = 3.0
 MAX_ASPECT_RATIO = 4.0
+
+
+def solidity_threshold_for(type_name):
+    """The (possibly type-specific) minimum solidity a candidate of `type_name` must clear."""
+    return MIN_SOLIDITY_BY_TYPE.get(type_name, MIN_SOLIDITY)
 
 
 class RetrievalFeatures(NamedTuple):
@@ -41,6 +60,7 @@ class RetrievalFeatures(NamedTuple):
     types: np.ndarray
     classes: np.ndarray
     solidity: np.ndarray
+    min_solidity: np.ndarray  # per-row threshold (type-specific), precomputed once
 
 
 def _solidity(n_elements):
@@ -88,7 +108,8 @@ def _features():
     # Solidity is the occupied fraction of the element's own crop. Skeletal pieces
     # (crosses, railings, open shells) fill almost nothing and read broken when stretched.
     sol = _solidity(len(m))
-    return RetrievalFeatures(m, asp, yfr, rel, typ, cls, sol)
+    min_sol = np.asarray([solidity_threshold_for(t) for t in typ], np.float32)
+    return RetrievalFeatures(m, asp, yfr, rel, typ, cls, sol, min_sol)
 
 
 _F = None
@@ -98,7 +119,7 @@ def pool_size(types):
     global _F
     if _F is None:
         _F = _features()
-    return int((np.isin(_F.types, list(types)) & (_F.solidity >= MIN_SOLIDITY)).sum())
+    return int((np.isin(_F.types, list(types)) & (_F.solidity >= _F.min_solidity)).sum())
 
 
 def retrieve(types, box_aspect_xz, y_frac, building_class="RESIDENTIAL",
@@ -115,8 +136,8 @@ def retrieve(types, box_aspect_xz, y_frac, building_class="RESIDENTIAL",
         _F = _features()
     m = _F.meta
     asp, yfr, rel = _F.aspect, _F.y_fraction, _F.relative_extent
-    typ, cls, sol = _F.types, _F.classes, _F.solidity
-    candidates = np.where(np.isin(typ, list(types)) & (sol >= MIN_SOLIDITY))[0]
+    typ, cls, sol, min_sol = _F.types, _F.classes, _F.solidity, _F.min_solidity
+    candidates = np.where(np.isin(typ, list(types)) & (sol >= min_sol))[0]
     ta = np.log(np.clip(np.asarray(box_aspect_xz, np.float32), 1e-3, 1e3))
     la = np.log(np.clip(asp[candidates], 1e-3, 1e3))
     eligible = (np.abs(la - ta[None]) <= np.log(MAX_ASPECT_RATIO)).all(axis=1)
@@ -134,8 +155,8 @@ def retrieve(types, box_aspect_xz, y_frac, building_class="RESIDENTIAL",
     if box_rel_y is not None:
         d = d + 1.2 * np.abs(np.log(np.clip(rel[sel, 1], 1e-3, 10.0))
                              - np.log(max(float(box_rel_y), 1e-3)))  # relative SCALE match
-    d = d - 0.4 * np.log(np.clip(sol[sel] / MIN_SOLIDITY, 1.0,
-                                 1.0 / MIN_SOLIDITY))              # prefer solid pieces
+    sol_ratio = sol[sel] / min_sol[sel]                            # per-type normalized
+    d = d - 0.4 * np.log(np.clip(sol_ratio, 1.0, 1.0 / min_sol[sel]))  # prefer solid pieces
     same_cls = np.char.startswith(cls[sel].astype(str), building_class.upper()[:6])
     d = d + np.where(same_cls, 0.0, 0.6)                          # class affinity
     order = np.argsort(d)[:max(k, 1)]

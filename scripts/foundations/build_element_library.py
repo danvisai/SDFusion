@@ -37,6 +37,9 @@ from pathlib import Path
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO / "scripts" / "server"))
+from element_fit import MIN_SOLIDITY_BY_TYPE, solidity_threshold_for  # noqa: E402
+
 BN = REPO / "data/BuildingNet_dataset_v0_1"
 OBJ = BN / "OBJ_MODELS"
 CLBL = BN / "model_data/obj/component_labels"
@@ -51,9 +54,10 @@ RES = 48
 MIN_FACES = 60
 MAX_PER_TYPE_PER_BLDG = 4
 MAX_PER_TYPE = 3000
-MIN_SOLIDITY = 0.12  # matches scripts/server/element_fit.py's MIN_SOLIDITY (Phase R2 retrieval
-                      # threshold) -- reported here, not filtered, so the manifest documents the
-                      # same usable-pool figure retrieval will actually see
+# `MIN_SOLIDITY_BY_TYPE`/`solidity_threshold_for` are imported from element_fit.py (single
+# source of truth, Phase R2 retrieval thresholds -- per-type since 2026-07-14) -- reported
+# here, not filtered, so the manifest documents the same usable-pool figure retrieval will
+# actually see
 
 
 def parse_obj(path):
@@ -300,7 +304,8 @@ def main():
     solidity_by_type = {t: distribution_stats(solidity[types_arr == t]) for t in types_present}
     scale_by_type = {t: distribution_stats(scales[types_arr == t]) for t in types_present}
     pool_size_above_min_solidity = {
-        t: int(((types_arr == t) & (solidity >= MIN_SOLIDITY)).sum()) for t in types_present}
+        t: int(((types_arr == t) & (solidity >= solidity_threshold_for(t))).sum())
+        for t in types_present}
 
     # leakage audit: no excluded (e.g. held-out test) building may contribute an element
     contributing = sorted({m["building"] for m in meta})
@@ -313,7 +318,7 @@ def main():
         n_elements=len(crops), n_contributing_buildings=len(contributing),
         by_type=dict(per_type), leakage_excluded_contributors=leak,
         contributing_buildings=contributing,
-        min_solidity_threshold=MIN_SOLIDITY,
+        min_solidity_threshold=MIN_SOLIDITY_BY_TYPE,
         pool_size_above_min_solidity=pool_size_above_min_solidity,
         solidity_by_type=solidity_by_type, scale_by_type=scale_by_type,
         frozen_config=dict(res=RES, min_faces=MIN_FACES,
@@ -367,7 +372,7 @@ def main():
     for ri, t in enumerate(types_present):
         idx = types_arr == t
         axes[ri][0].hist(solidity[idx], bins=20, range=(0, 1), color="#c9b790")
-        axes[ri][0].axvline(MIN_SOLIDITY, color="red", linestyle="--", linewidth=1)
+        axes[ri][0].axvline(solidity_threshold_for(t), color="red", linestyle="--", linewidth=1)
         axes[ri][0].set_title(f"{t} solidity (n={int(idx.sum())})", fontsize=8)
         axes[ri][1].hist(scales[idx], bins=20, color="#8caac9")
         axes[ri][1].set_title(f"{t} scale (ext_rel max)", fontsize=8)

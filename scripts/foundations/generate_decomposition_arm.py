@@ -19,16 +19,21 @@ Pipeline per building:
      construction (CONTEXT.md: "Composition" = retrieval + LEARNED PLACEMENT + procedural
      instantiation -- placement is this step, independent of whether a given op then gets
      upgraded to a retrieved element).
-  3. RETRIEVAL UPGRADE: only `tower`/`dome`/`chimney` ops are attempted against
-     `element_library_train100_v1` (ticket 08's leakage-safe library, redirected in via
-     `use_train100_library()` -- never the live `element_library_v1`, which has no leakage
-     manifest at all). `balcony`, `balcony_upper`, `stairs`, `column` are excluded from
-     retrieval by explicit project-owner decision (2026-07-13): their pools in this library are
-     dead or borderline (balcony=5, balcony_upper=0, stairs=0, column=8 elements above
-     `MIN_SOLIDITY` -- all at or below `MIN_POOL=8`, ticket 08's own flagged gap) --
-     realized procedurally instead, same as window/door always are. A retrieval attempt that
-     comes back empty (aspect/scale filtering drops the pool below `MIN_POOL=8` even for a
-     nonempty type) also falls back to the original procedural op, never a hard failure.
+  3. RETRIEVAL UPGRADE: `tower`/`dome`/`chimney`/`balcony`/`column` ops -- every ADD type
+     `propose_detail_ops` can emit -- are attempted against `element_library_train100_v1`
+     (ticket 08's leakage-safe library, redirected in via `use_train100_library()` -- never the
+     live `element_library_v1`, which has no leakage manifest at all). Originally scoped to just
+     tower/dome/chimney (2026-07-13): balcony/column had dead-or-borderline pools under a single
+     global `MIN_SOLIDITY=0.12`. Fixed 2026-07-14: that threshold systematically starved
+     architecturally thin types (visual QA confirmed the newly-unlocked low-solidity crops are
+     legitimate thin architecture, not the skeletal fragments the filter exists to exclude), so
+     `element_fit.py` now uses a per-type threshold table -- balcony/column now clear `MIN_POOL=8`
+     comfortably (65/85 elements) and are included here too. `balcony_upper`/`stairs` also gained
+     usable pools but are NOT retrieval targets here: `propose_detail_ops` never emits an op for
+     either (explicitly skipped -- "massing already has a roof"), so there would be nothing to
+     upgrade. A retrieval attempt that comes back empty (aspect/scale filtering drops the pool
+     below `MIN_POOL=8` even for a nonempty type) falls back to the original procedural op, never
+     a hard failure.
   4. COMPOSE: `EditableBuilding` CSG-unions the (possibly-upgraded) ops onto the massing SDF,
      sampled to `WORKING_RES=96` (ADR 0004's locked shared resolution -- ticket 05/09/10/11 all
      render/compare at this res, never mixed).
@@ -82,13 +87,20 @@ WORKING_RES = 96         # ADR 0004's locked shared resolution
 MAX_DETAIL_OPS = 40
 TRAIN100_LIB = REPO / "data/element_library_train100_v1"
 
-# Only types with a usable retrieval pool in the leakage-safe library (project-owner decision,
-# 2026-07-13 -- ticket 08 already flagged balcony/balcony_upper/stairs as dead and column as
-# borderline at MIN_POOL=8; those types stay procedural, same as window/door always are).
+# Every ADD-type `propose_detail_ops` can actually emit (window/door are always procedural by
+# design; `roof`/`stairs`/`balcony_upper` are explicitly skipped inside `propose_detail_ops`
+# itself -- "massing already has a roof" -- so no op with those `det` values is ever produced,
+# independent of library pool size). Originally scoped to tower/dome/chimney only (2026-07-13):
+# balcony/balcony_upper/stairs/column had dead-or-borderline pools in the leakage-safe library
+# at the old global MIN_SOLIDITY=0.12. Extended to balcony/column (2026-07-14) after fixing that
+# threshold to be per-type (element_fit.py's MIN_SOLIDITY_BY_TYPE) -- balcony_upper/stairs are
+# NOT added despite now having usable pools, since propose_detail_ops can never emit ops for them.
 RETRIEVAL_POOLS = {
     "tower": ("tower",),
     "dome": ("dome",),
     "chimney": ("chimney", "roof_structure"),
+    "balcony": ("balcony",),
+    "column": ("column",),
 }
 
 
@@ -98,12 +110,16 @@ def pools_for_type(det_type):
 
 def op_half_extent(op):
     """3-vector half-extent for retrieval-aspect scoring, regardless of primitive kind --
-    `propose_detail_ops` emits `dome` as a `sphere` (`size=[radius]`), which has no per-axis
-    aspect on its own, so a symmetric bounding box is the natural stand-in (real dome elements
-    are themselves roughly axis-symmetric)."""
+    `propose_detail_ops` emits `dome` as a `sphere` (`size=[radius]`) and `column` as a
+    `cylinder` (`size=[radius, height]`), neither of which is a 3-element box half-extent on
+    its own, so both get a natural bounding-box stand-in (real dome/column elements are
+    themselves roughly axis-symmetric in the plane orthogonal to their long axis)."""
     if op["kind"] == "sphere":
         r = float(op["size"][0])
         return [r, r, r]
+    if op["kind"] == "cylinder":
+        r, h = float(op["size"][0]), float(op["size"][1])
+        return [r, h / 2, r]
     size = op["size"]
     return [float(size[0]), float(size[1]), float(size[2])]
 

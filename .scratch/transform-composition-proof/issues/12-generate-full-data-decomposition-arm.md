@@ -1,7 +1,7 @@
 # Generate the Full-Data Decomposition Arm
 
 Type: task
-Status: done (2026-07-13)
+Status: done (2026-07-13, extended 2026-07-14)
 Blocked by: 03, 08
 
 ## Question
@@ -115,3 +115,89 @@ review as not scope creep): the full head-to-head FID/paired-IoU comparison agai
 also still needs to build a render+FID+IoU pass for the monolith itself (`eval_monolith.py` never
 computed one — only occupancy stats on a `train_100`-internal validation slice, not `test.json`
 at all).
+
+## Follow-up (2026-07-14): fixed the retrieval-pool bottleneck and extended scope
+
+User request: find more ways to grow the retrieval pool for tower/dome/etc. Investigated two
+candidate levers before landing on the real one:
+
+- **External data (dead end):** `data/lod3_tum` (CityGML LoD3, TUM) was already flagged unused
+  for elements in an earlier data audit. Confirmed why: its semantic vocabulary is only
+  `window`/`door`/`roof` — CityGML LoD3 doesn't tag towers/domes/chimneys/balconies as discrete
+  objects at all, so there's nothing to extract for this vocabulary regardless of population size.
+- **`MIN_SOLIDITY=0.12` (the real bottleneck):** checked the *raw* (pre-filter) solidity
+  distribution per type in `element_library_train100_v1` and found a single global threshold was
+  systematically starving architecturally thin types — every type loses 77-100% of its raw pool
+  at 0.12, and `balcony_upper`/`stairs` are *fully* dead (max solidity 0.117/0.106, just under the
+  bar). Visual QA of a sample of the newly-unlockable low-solidity crops
+  (`outputs/element_library_v1/qa_per_type_solidity_relax.png`) confirmed they're legitimate thin
+  architecture — recognizable staircases, railed balcony decks, colonnades/porticos — not the
+  skeletal/broken fragments the filter exists to exclude.
+
+**Fix:** `scripts/server/element_fit.py` now uses `MIN_SOLIDITY_BY_TYPE`, a per-type threshold
+table, instead of one global scalar — solid types (tower/dome/chimney) keep the original 0.12
+bar since they already cleared it fine; thin types get their own, evidence-backed lower bar.
+`build_element_library.py` imports the same table (single source of truth) for its manifest
+reporting. No re-extraction needed — crops and solidity were always stored, only the *filter*
+was wrong — so `data/element_library_train100_v1/manifest.json`'s `pool_size_above_min_solidity`
+was patched in place (old global-0.12 figures preserved under
+`pool_size_above_min_solidity_history` for provenance):
+
+| type | old pool (0.12) | new pool | new threshold |
+|---|---|---|---|
+| tower | 122 | 122 | 0.12 (unchanged) |
+| dome | 104 | 104 | 0.12 (unchanged) |
+| chimney | 48 | 48 | 0.12 (unchanged) |
+| roof_structure | 12 | 51 | 0.08 |
+| column | 8 | 85 | 0.05 |
+| balcony | 5 | 65 | 0.05 |
+| balcony_upper | 0 | 72 | 0.04 |
+| stairs | 0 | 32 | 0.03 |
+
+Added 5 new tests to `test_element_retrieval_baseline.py` covering the per-type behavior
+(threshold lookup + fallback, a thin type below the old global bar but above its own now
+retrieves successfully, and a type below even its *own* lower bar still correctly returns
+nothing — confirming relaxation didn't silently remove filtering altogether). 13/13 pass; the
+existing 8 (all using `type="tower"`, unaffected since its threshold didn't change) still pass
+unmodified.
+
+**Extended ticket 12's own scope to match:** `generate_decomposition_arm.py`'s `RETRIEVAL_POOLS`
+was originally tower/dome/chimney only (2026-07-13 decision, when balcony/column had dead-or-
+borderline pools). Re-examined which types `propose_detail_ops` can actually emit at all —
+window/door are always procedural by design, and `roof`/`stairs`/`balcony_upper` are explicitly
+skipped inside `propose_detail_ops` itself ("massing already has a roof"), so no op ever carries
+those `det` values regardless of library pool size. That leaves five real ADD candidates:
+tower/dome/chimney/balcony/column — added the newly-viable balcony/column to `RETRIEVAL_POOLS`.
+`balcony_upper`/`stairs` gained usable pools too but are **not** retrieval targets here: there's
+nothing for them to ever upgrade.
+
+**A real bug caught before it could ship:** `propose_detail_ops` emits `column` as
+`kind="cylinder"`, `size=[radius, height]` (2 elements) — `op_half_extent` only handled
+`sphere`/box-shaped ops and would have raised `IndexError` on `size[2]` the first time a real
+column op reached retrieval scoring. Fixed with a cylinder branch
+(`half = [radius, height/2, radius]`); added 2 new tests (`op_half_extent` and
+`retrieval_params` on a cylinder op) that would have caught this before any integration run.
+Smoke-tested end-to-end (20 buildings) before the full rerun specifically to prove this path
+works, not just pass unit tests in isolation — confirmed `column`/`balcony` `det_type`s appearing
+in `retrieved_elements`, 0 crashes.
+
+**Full rerun result — 277/277 succeeded, 0 failures:**
+
+- **158/277 buildings (57%, up from 39%) got at least one retrieved element.** Of 4,150 ops:
+  473 retrieved (up from 175), 127 fell back to procedural after an empty pool, 3,550 stayed
+  procedural by design.
+- Retrieved `det_type` breakdown: `column` 286 (now the dominant retrieved type — columns/
+  porches/colonnades apparently common across every building class, unlike towers which
+  concentrate in religious architecture), `tower` 98, `chimney` 69, `dome` 13, `balcony` 7.
+- Class breakdown shifted accordingly: COMMERCIAL 0/18 → **7/18**, PUBLIC 2/8 → **4/8**,
+  RESIDENTIAL 46/184 → **85/184** (nearly doubled), RELIGIOUS 61/67 → 62/67 (already saturated).
+- Massing fidelity unchanged (mean 0.102, median 0.055) — expected, since only the detail
+  composition step changed, not massing generation.
+- Harness compatibility re-verified clean (20/20, `n_failed=0`).
+- Full regression pass: 44/44 tests green across `test_element_retrieval_baseline.py` (13),
+  `test_build_element_library.py` (16), `test_generate_decomposition_arm.py` (15).
+
+This directly changes what "the decomposition arm" looks like for ticket 13's eventual
+comparison: retrieval is no longer a rare event concentrated in religious buildings, but a
+majority-case behavior across the population. Whether that changes the eventual C2 verdict is
+still ticket 13's question to answer, not this one's.

@@ -227,6 +227,77 @@ class ElementRetrievalBaselineTest(unittest.TestCase):
         i = lambda value: int(round((value + 1.0) * 0.5 * 47))
         self.assertGreater(float(realized[i(0.0), i(-0.43), i(0.0)]), 0.0)
 
+    def _write_thin_type_library(self, thin_type, thin_solidity, n_thin=12, n_below_own_bar=8):
+        """A library of `thin_type` elements at `thin_solidity` (below the old global 0.12 but
+        meant to sit above that type's own, lower `MIN_SOLIDITY_BY_TYPE` bar), plus a block
+        genuinely below even that type's own bar -- so a threshold regression (accidentally
+        dropping the filter entirely) is distinguishable from the intended relaxation."""
+        g = np.linspace(-1.0, 1.0, 16, dtype=np.float32)
+        z, y, x = np.meshgrid(g, g, g, indexing="ij")
+
+        def crop_at_solidity(target):
+            # a solid ball's occupied fraction is monotonic in radius; binary-search it so the
+            # fixture's actual crop solidity (occ<=0 fraction) lands close to `target`.
+            lo, hi = 0.0, 1.5
+            for _ in range(30):
+                mid = (lo + hi) / 2
+                occ = (np.sqrt(x * x + y * y + z * z) - mid) <= 0
+                if occ.mean() < target:
+                    lo = mid
+                else:
+                    hi = mid
+            return (np.sqrt(x * x + y * y + z * z) - hi).astype(np.float16)
+
+        above = crop_at_solidity(thin_solidity)
+        below = crop_at_solidity(1e-4)  # far below any type's own bar
+        rows, crops = [], []
+        for i in range(n_thin):
+            rows.append({"type": thin_type, "building": f"RESIDENTIAL_thin_{i:02d}",
+                        "cls": "RESIDENTIAL", "aspect": [1.0, 1.0], "y_frac": 0.8,
+                        "ext_rel": [0.1, 0.1, 0.1]})
+            crops.append(above)
+        for i in range(n_below_own_bar):
+            rows.append({"type": thin_type, "building": f"RESIDENTIAL_dead_{i:02d}",
+                        "cls": "RESIDENTIAL", "aspect": [1.0, 1.0], "y_frac": 0.8,
+                        "ext_rel": [0.1, 0.1, 0.1]})
+            crops.append(below)
+        with open(self.lib / "meta.json", "w") as f:
+            json.dump(rows, f)
+        np.save(self.lib / "elements_f16.npy", np.stack(crops))
+
+    def test_solidity_threshold_for_known_types_matches_the_per_type_table(self):
+        self.assertEqual(element_fit.solidity_threshold_for("stairs"), 0.03)
+        self.assertEqual(element_fit.solidity_threshold_for("balcony_upper"), 0.04)
+        self.assertEqual(element_fit.solidity_threshold_for("tower"), 0.12)
+
+    def test_solidity_threshold_for_unknown_type_falls_back_to_the_default(self):
+        self.assertEqual(element_fit.solidity_threshold_for("gargoyle"),
+                         element_fit.MIN_SOLIDITY)
+
+    def test_pool_size_admits_a_thin_type_below_the_old_global_bar(self):
+        # stairs' own bar is 0.03; 0.05 would have been rejected outright under the old
+        # single global MIN_SOLIDITY=0.12.
+        self._write_thin_type_library("stairs", thin_solidity=0.05)
+        self.assertEqual(element_fit.pool_size(("stairs",)), 12)
+
+    def test_retrieve_succeeds_for_a_thin_type_below_the_old_global_bar(self):
+        self._write_thin_type_library("stairs", thin_solidity=0.05, n_thin=12)
+        lid, row = element_fit.retrieve(("stairs",), (1.0, 1.0), 0.8,
+                                        building_class="RESIDENTIAL", seed=0, box_rel_y=0.1)
+        self.assertIsNotNone(lid)
+        self.assertEqual(row["type"], "stairs")
+        self.assertLess(row["solidity"], 0.12)          # would have failed the old global bar
+        self.assertGreaterEqual(row["solidity"], element_fit.solidity_threshold_for("stairs"))
+
+    def test_retrieve_still_rejects_elements_below_the_types_own_lower_bar(self):
+        # only the "dead" block (~1e-4 solidity, below stairs' own 0.03) -- pool stays empty,
+        # confirming relaxation didn't silently remove filtering altogether.
+        self._write_thin_type_library("stairs", thin_solidity=0.05, n_thin=0, n_below_own_bar=12)
+        self.assertEqual(element_fit.pool_size(("stairs",)), 0)
+        lid, _row = element_fit.retrieve(("stairs",), (1.0, 1.0), 0.8,
+                                         building_class="RESIDENTIAL", seed=0, box_rel_y=0.1)
+        self.assertIsNone(lid)
+
     def test_invalid_mode_in_deferred_suffix_is_rejected(self):
         self._write_library()
         from scripts.server.refine import Refiner

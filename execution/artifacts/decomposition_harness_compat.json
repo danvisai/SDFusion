@@ -185,16 +185,16 @@
     }
   ],
   "fid_sanity": {
-    "point": 210.54965987453144,
+    "point": 214.0333316245651,
     "ci95": [
-      218.69696186675768,
-      239.7264304353256
+      221.6102754596578,
+      243.3796697664603
     ],
     "undersampled": true,
     "n_generated": 120,
     "n_real": 120,
     "note": "sanity check only -- NOT ticket 13's headline comparison, undersampled expected at this n"
   },
-  "git_rev": "be3b8a88c017d943ad7b772bfcb9c7fdcbff9c55",
-  "dirty_digest": "cc0605ddf415"
+  "git_rev": "be69768a60c25f15b84e80c70055200736648847",
+  "dirty_digest": "bc8a0af930c5"
 }
