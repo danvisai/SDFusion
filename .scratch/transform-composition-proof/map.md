@@ -96,3 +96,6 @@ Ticket 12 is done as of this same day; see its own Decisions-so-far entry above.
 - Phase G crop-inpainting as a product feature. Revisit only if an experiment result makes a tightly
   scoped generative-element ablation necessary.
 - A Hunyuan3D-2 comparison: ADR 0002 rejects it because it cannot take the task's footprint input.
+- [Run the Equal-Data Detail Scaling Curve](issues/14-run-detail-data-scaling-curve.md) (2026-07-15) - presupposed a passing 100% kill-gate ("if the full-data kill-gate supports continuing"); ticket 13 resolved FAIL, so there is no supported result to scale. Project owner chose to proceed to the evidence package rather than pursue remediation.
+- [Test Massing-Source Robustness](issues/15-test-massing-source-robustness.md) (2026-07-15) - presupposed a "supported C2 comparison" to repeat with a different massing source; none exists after ticket 13's FAIL.
+- [Test LoD3 Element Enrichment](issues/16-test-lod3-element-enrichment.md) (2026-07-15) - presupposed a "supported decomposition evaluation" to enrich; none exists after ticket 13's FAIL. Also independently a likely dead end per ticket 12's own finding that `lod3_tum`'s vocabulary (window/door/roof only) has no discrete tower/dome/balcony objects to extract.

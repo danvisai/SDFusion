@@ -237,6 +237,12 @@ detail-data scaling trends.
 
 **Blocked by:** Decide the Full-Data C2 Kill-Gate.
 
+**Status: out of scope (2026-07-15).** This ticket only applies "if the full-data kill-gate supports
+continuing" (its own precondition). Decide the Full-Data C2 Kill-Gate resolved **FAIL** — decomposition
+does not win detail fidelity despite winning massing fidelity — so per the PRD there is no supported
+result to scale down to 25%/50%. Project owner confirmed proceeding straight to the evidence package
+rather than pursuing remediation.
+
 - [ ] Each fraction gives both arms exactly the same BuildingNet detail ids.
 - [ ] Trends include uncertainty and do not overclaim behavior beyond observed data.
 
@@ -246,6 +252,12 @@ detail-data scaling trends.
 without contaminating the headline comparison.
 
 **Blocked by:** Decide the Full-Data C2 Kill-Gate.
+
+**Status: out of scope (2026-07-15).** Both halves of this ticket presuppose a "supported" C2 result
+to test robustness of or enrich — Decide the Full-Data C2 Kill-Gate resolved **FAIL**, so neither
+applies. The LoD3-enrichment half was also independently a likely dead end regardless: ticket 12's
+own finding is that `lod3_tum`'s CityGML vocabulary (window/door/roof only) has no discrete
+tower/dome/balcony objects to extract.
 
 - [ ] The recipe-massing arm changes only the massing source.
 - [ ] LoD3 enrichment remains isolated from the equal-BuildingNet-data headline.
@@ -265,7 +277,11 @@ preferences under a declared protocol when participant recruitment is approved.
 **What to build:** Generate the paper draft, related work, figures, tables, protocols, limitations,
 negative results, and reproducibility references from recorded experiment artifacts.
 
-**Blocked by:** Capture the Existing Residual Transform Evidence; Test the Fixed Detail-Scale Coincidence; Measure Transform Versus From-Noise Sampling; Prototype the Sculpt Transform Sweep; Run the Equal-Data Scaling Curve; Run the Massing and Element-Data Ablations; Validate Detail Preference with Two-AFC.
+**Blocked by:** Capture the Existing Residual Transform Evidence; Test the Fixed Detail-Scale Coincidence; Measure Transform Versus From-Noise Sampling; Prototype the Sculpt Transform Sweep; Validate Detail Preference with Two-AFC.
+
+**2026-07-15:** dropped "Run the Equal-Data Scaling Curve" and "Run the Massing and Element-Data
+Ablations" from the blockers above — both were ruled out of scope after Decide the Full-Data C2
+Kill-Gate resolved FAIL (see their own status entries above and map.md's Out of scope section).
 
 - [ ] Every manuscript claim and number traces to a recorded artifact.
 - [ ] Core research claims, demo-wrapper features, limitations, and negative results are explicit.

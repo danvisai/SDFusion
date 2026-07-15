@@ -2,7 +2,10 @@
 
 Type: task
 Status: open
-Blocked by: 06, 09, 10, 14, 15, 16, 17
+Blocked by: 06, 09, 10, 17
+
+(2026-07-15: dropped 14, 15, 16 from blockers -- all three ruled out of scope after ticket 13's
+kill-gate FAIL, see their own files and map.md's Out of scope section.)
 
 ## Question
 
