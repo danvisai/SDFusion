@@ -1,0 +1,112 @@
+{
+  "n_pairs": 20,
+  "seed": 0,
+  "population_size": 277,
+  "render_style": "mesh",
+  "consent_text": "This is a short visual comparison. You will see pairs of 3D building renders, side by side. For each pair, click the one that looks more like a real building. There are no right or wrong answers, no personal data is collected, and your choices are saved only as which SIDE (left/right) you picked per pair -- not who you are. You can stop at any time; partial responses are still useful. This is a research prototype, not a finished study -- your feedback on the format itself is as valuable as your picks.",
+  "answer_key": [
+    {
+      "building": "COMMERCIALhotel_building_mesh0461",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh1259",
+      "left": "monolith",
+      "right": "decomposition"
+    },
+    {
+      "building": "PUBLICmonastery_mesh0235",
+      "left": "monolith",
+      "right": "decomposition"
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0683",
+      "left": "monolith",
+      "right": "decomposition"
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh3055",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RELIGIOUSmosque_mesh0405",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh3714",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh4033",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh4904",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh5265",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh6120",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh7032",
+      "left": "monolith",
+      "right": "decomposition"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh7146",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh9582",
+      "left": "monolith",
+      "right": "decomposition"
+    },
+    {
+      "building": "RESIDENTIALpalace_mesh0507",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALschool_building_mesh0807",
+      "left": "monolith",
+      "right": "decomposition"
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh2816",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh4574",
+      "left": "decomposition",
+      "right": "monolith"
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh4964",
+      "left": "monolith",
+      "right": "decomposition"
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh5715",
+      "left": "monolith",
+      "right": "decomposition"
+    }
+  ],
+  "out_dir": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/two_afc_study",
+  "git_rev": "03e86f2ffb6762c7036b86e05f1fd30771380553",
+  "dirty_digest": "a07dc6ff7e1a"
+}
