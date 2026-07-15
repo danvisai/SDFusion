@@ -1,7 +1,7 @@
 # Decide the Full-Data C2 Kill-Gate
 
 Type: research
-Status: open
+Status: resolved (2026-07-15) -- gate = FAIL, see Answer
 Blocked by: 05, 11, 12
 
 ## Question
