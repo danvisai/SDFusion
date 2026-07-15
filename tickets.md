@@ -210,10 +210,25 @@ including uncertainty and failure localization.
 
 **Blocked by:** Train and Evaluate the Full-Data Monolith; Generate and Evaluate the Full-Data Decomposition.
 
-**Status: blocked** on "Generate and Evaluate the Full-Data Decomposition" (paused, see above).
+**Status: done (2026-07-15). Gate = FAIL.** `scripts/foundations/generate_monolith_arm.py`
+generated `monolith_v3`'s held-out outputs on the same 277-id population ticket 12 used
+(277/277 succeeded). `scripts/foundations/decide_c2_kill_gate.py` compared both arms through one
+shared render+FID+IoU harness. Decomposition wins footprint massing IoU (0.472 vs 0.390, +0.081)
+but loses detail FID (143.7 vs 116.2, higher/worse) — the PRD's AND rule means winning massing
+doesn't save the gate. Both FID point estimates fall outside their own 95% CI (ticket 10's known
+small-sample-per-group artifact), disclosed not hidden. Failure localization: the compose/
+retrieval step itself costs only ~0.009 mean IoU relative to base massing (not a retrieval-quality
+problem); monolith has a bimodal 26% near-empty collapse rate (73/277) vs. 74% averaging 0.515 IoU
+when it doesn't collapse. Montage shows decomposition looks more building-like than the monolith's
+often-fragmentary output despite losing on FID — flagged as a real limitation of judging
+architectural realism via neutral-render + ImageNet-Inception FID, not necessarily of the shapes.
+Chamfer distance and the PRD's blinded two-AFC study remain unimplemented (disclosed gaps). Per
+the PRD, this stops "Run the Equal-Data Scaling Curve" below. Full writeup, code-review findings,
+and the remediation-branch framing in the ticket file and map.md.
 
-- [ ] Detail fidelity and comparable massing fidelity are evaluated under the preregistered contract.
-- [ ] A failed gate stops scaling work and identifies the next diagnostic question.
+- [x] Detail fidelity and comparable massing fidelity are evaluated under the preregistered contract.
+- [x] A failed gate stops scaling work and identifies the next diagnostic question. — see map.md's
+      "Not yet specified" remediation-branch entry.
 
 ## Run the Equal-Data Scaling Curve
 
