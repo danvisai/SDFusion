@@ -74,12 +74,35 @@ Ticket 12 is done as of this same day; see its own Decisions-so-far entry above.
 - The remediation branch, now that the 100% C2 kill-gate has failed (see [Decide the Full-Data C2
   Kill-Gate](issues/13-decide-c2-kill-gate.md)). Ruled out as the primary cause: retrieval quality
   (`composition_iou_drop` ≈ 0.009, compose step barely moves IoU) and leakage (flat across tiers).
-  Still open: whether to pursue a stronger/non-collapsing massing source (the base-massing-to-
-  full-volume-IoU gap is present before any composition), a fix for the monolith's 26% near-empty
-  collapse rate, or a different detail-fidelity metric less sensitive to the visual-contradiction
+  **2026-07-15 update:** the monolith's "26% near-empty collapse" is no longer vague — a manual
+  2AFC pilot (ticket 17) traced it precisely: all 73 near-empty outputs are byte-identical, caused
+  by an empty (zero-occupancy) coarse conditioning input (`low_pass_sdf` loses all signal for
+  sufficiently sparse real buildings), and 21.3% of `train_100`'s own training pairs have the same
+  empty-coarse pattern — the model was trained on this degenerate case repeatedly, not surprised by
+  it at eval time. See `scripts/foundations/diagnose_monolith_collapse.py` /
+  `execution/artifacts/monolith_collapse_diagnosis.json`. The concrete, evidence-backed fix is
+  ADR 0004's own named footprint-extrusion fallback coarse input, applied when `low_pass_sdf`
+  degenerates to empty — at both training and generation time. Separately confirmed: broadly
+  filtering "sparse" buildings out of the corpus is NOT the right response (only 2/73 have
+  literally zero real ground-truth voxels; the other 71 are real, legitimately sparse buildings —
+  filtering them would bias the equal-data comparison toward easy cases and shrink an already-
+  scarce corpus). Still open: whether to pursue the footprint-extrusion fix, a stronger/non-
+  collapsing massing source (the base-massing-to-full-volume-IoU gap is present before any
+  composition), or a different detail-fidelity metric less sensitive to the visual-contradiction
   limitation ticket 13 flagged (FID via neutral-render + ImageNet-Inception features scoring the
   monolith's fragmentary output as more "realistic" than decomposition's recognizably building-like
   output) — e.g. the still-unimplemented blinded two-AFC study PRD user story 33 asks for.
+- **Future data-sourcing lead (2026-07-15, not yet scoped or started):** [ZAHA](https://github.com/oloocki/zaha)
+  (WACV 2025) — 601M annotated Mobile Laser Scanning points over Bavaria/Munich, CC0-1.0, real
+  (not synthetic), with facade-element classes (windows, doors, balconies, molding, decorative
+  elements, columns, arches, stairs) matching exactly the vocabulary gap `lod3_tum`'s CityGML data
+  can't fill. Genuinely additional data, not redundant with the existing `data/lod3_tum` (that's
+  CityGML parametric surfaces; ZAHA is point clouds — different modality, confirmed by inspecting
+  both). Would need a real, new extraction pipeline (segment element instances → reconstruct a
+  mesh per instance → voxelize to the SDF-crop format `element_fit.py` expects) — primarily
+  strengthens the decomposition arm's retrieval library, not the monolith's coarse-to-detail
+  training pairs directly. Project owner explicitly deferred this — mark for pickup after current
+  tickets close, do not start yet.
 - The interpretation and paper narrative if the fixed-a-priori `s*` coincidence test fails.
 - Exact training schedules and compute allocation beyond the 100% kill-gate; derive these from the
   measured throughput, memory use, and validation behavior of the first full-data run.

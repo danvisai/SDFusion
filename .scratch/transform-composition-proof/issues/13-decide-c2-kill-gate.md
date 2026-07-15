@@ -82,6 +82,65 @@ collapse. Fairly uniform across building classes (COMMERCIAL 0.475, RELIGIOUS 0.
 "near-empty/fragmentary" caveat — it's not a vague concern, it's a measured 26% collapse rate,
 with the non-collapsed 74% substantially outperforming decomposition on full-volume IoU.
 
+### Addendum (2026-07-15): why the monolith collapses — traced, not just observed
+
+Discovered as a side effect of ticket 17's manual 2AFC pilot, not part of this ticket's original
+scope, and now formalized as a reproducible check:
+`scripts/foundations/diagnose_monolith_collapse.py` /
+`execution/artifacts/monolith_collapse_diagnosis.json`.
+
+**The 73 near-empty outputs are not independently collapsed noise — they are byte-identical, one
+single fixed grid, all 73 of them (`n_distinct_grids_among_near_empty=1`).** This traces cleanly to
+the coarse conditioning input: `GaussianDiffusion.ddim_sample`'s own contract is "equal inputs +
+equal seed → bit-identical output" (`models/monolith_diffusion.py`), and
+`generate_monolith_arm.py` passes the same fixed `seed=0` for every building. All 73 near-empty
+outputs have an exactly zero-occupancy coarse input (`mean=0.0, max=0.0`); all 204 non-empty
+outputs have strictly positive coarse-input occupancy (`min=1.1e-6`) — a clean, total separation,
+no overlap. The model isn't failing on unfamiliar inputs at eval time: **21.3% of `train_100`'s own
+1572 training pairs (335 of them) also have exactly zero-occupancy coarse input.** The model was
+trained on this exact degenerate case repeatedly, under unweighted MSE loss (`surface_weight=0.0`)
+— converging to one fixed, uninformative output for it is the loss-minimizing thing to do when the
+coarse input gives it nothing to condition on.
+
+Mechanism: for buildings sparse enough, ADR 0004's `low_pass_sdf` coarse-extraction step
+(downsample to `s*` resolution, upsample back) loses all signal — the model receives a literal
+blank input.
+
+This was raised as a project-owner question — "why are we training on bad inputs, should we clean
+the data" — and checked directly rather than assumed either way:
+
+- **Of the 73, only 2 have literally zero real ground-truth voxels**
+  (`COMMERCIALoffice_building_mesh1702`, `RESIDENTIALhouse_mesh2317`) — genuinely broken data,
+  worth auditing and excluding from the corpus.
+- **The other 71 are real, legitimately sparse buildings** (5 to 1321 occupied voxels out of
+  884,736 at 96³, median 179) — thin towers, minimal structures, real architectural diversity, not
+  corrupted data. **Broadly filtering "sparse" buildings out of the corpus was considered and
+  rejected**: it would bias the equal-data comparison toward easy, dense buildings and shrink an
+  already-scarce leakage-safe corpus (~1849 BuildingNet shapes is the entire real-detail dataset
+  this whole research thread is built on — that scarcity is the founding constraint, not a
+  data-hygiene oversight).
+- **"Use other massive data files instead" was also checked directly** (`du -sh data/*/`, not
+  assumed from memory): `data/real_massing_v1` (51G, PLATEAU/Japanese LoD2) is facade-less by
+  construction — no detail signal exists in it regardless of size. `data/BuildingNet_dataset_v0_1`
+  (386G) is already the primary source in active use, not sitting unused.
+  `data/detail_pairs_v1` (11G) is synthetic — targets are our own composer's output, already
+  ruled out as a valid baseline source. `data/lod3_tum` (46M) is real but small and already
+  explored in ticket 12 (window/door/roof vocabulary only). There is no hidden pile of unused,
+  massive, real-detail data on disk.
+
+**Recommended fix**, evidence-backed rather than speculative: ADR 0004's own already-named
+footprint-extrusion fallback coarse input, applied when `low_pass_sdf` degenerates to empty/near-
+empty, at **both training and generation time** — gives the model real signal instead of a blank
+input, without narrowing the population or requiring new data. Not attempted in this ticket; left
+for the remediation-branch decision (map.md's Not yet specified).
+
+A separate, larger data-sourcing lead was also surfaced and explicitly deferred by the project
+owner (not started): [ZAHA](https://github.com/oloocki/zaha) (WACV 2025), 601M CC0-licensed real
+Mobile Laser Scanning points with a facade-element vocabulary (balconies, columns, decorative
+elements, arches) that could meaningfully expand the retrieval library beyond `lod3_tum` — see
+map.md's Not yet specified section. This would help the decomposition arm's element diversity, not
+directly the monolith's coarse-input collapse above.
+
 ### Visual contradiction — read before trusting the FID number alone
 
 The montage (`outputs/c2_kill_gate/montage.png`) shows something the FID number doesn't capture:

@@ -1,0 +1,35 @@
+{
+  "n_near_empty_outputs": 73,
+  "n_non_empty_outputs": 204,
+  "near_empty_threshold": 0.0001,
+  "n_distinct_grids_among_near_empty": 1,
+  "all_near_empty_are_byte_identical": true,
+  "real_ground_truth": {
+    "n_zero_voxel_broken": 2,
+    "n_sparse_but_real": 71,
+    "zero_voxel_ids": [
+      "COMMERCIALoffice_building_mesh1702",
+      "RESIDENTIALhouse_mesh2317"
+    ],
+    "sparse_but_real_voxel_range": [
+      5,
+      1321
+    ]
+  },
+  "eval_coarse_input": {
+    "near_empty_group_mean": 0.0,
+    "near_empty_group_max": 0.0,
+    "near_empty_group_n_exactly_zero": 73,
+    "non_empty_group_mean": 0.013909632863562088,
+    "non_empty_group_min": 1.1302806712962962e-06
+  },
+  "train_100_coarse_input": {
+    "n_pairs": 1572,
+    "n_with_empty_coarse": 335,
+    "fraction_with_empty_coarse": 0.21310432569974555,
+    "median_occ": 0.0014795373987268518,
+    "mean_occ": 0.01216022598227775
+  },
+  "git_rev": "9305f33597cfe73de2044afd7f472e499a9a354c",
+  "dirty_digest": "682f24262fe6"
+}

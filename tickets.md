@@ -226,6 +226,14 @@ Chamfer distance and the PRD's blinded two-AFC study remain unimplemented (discl
 the PRD, this stops "Run the Equal-Data Scaling Curve" below. Full writeup, code-review findings,
 and the remediation-branch framing in the ticket file and map.md.
 
+**2026-07-15 addendum:** the 26% collapse rate above is now traced, not just measured — all 73
+near-empty outputs are byte-identical, caused by an exactly-zero-occupancy coarse input (21.3% of
+`train_100`'s own training pairs have the same pattern, so this is trained-in, not an eval
+surprise). Recommended fix: ADR 0004's own footprint-extrusion fallback, at training and
+generation time. Full mechanism, the genuinely-broken-vs-sparse-but-real data split, and why
+broadly filtering sparse buildings was rejected: see the ticket file's own addendum section and
+`scripts/foundations/diagnose_monolith_collapse.py`.
+
 - [x] Detail fidelity and comparable massing fidelity are evaluated under the preregistered contract.
 - [x] A failed gate stops scaling work and identifies the next diagnostic question. — see map.md's
       "Not yet specified" remediation-branch entry.
