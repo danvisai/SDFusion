@@ -1,5 +1,7 @@
 # Spec: Solid, Footprint-Matching Massing Generation
 
+> ✅ **DONE (2026-07-20).** The LoD2-only from-scratch retrain executed and **passed the #27 gate** (footprint-IoU 0.43→0.89, collapse 0%, solid non-fragmenting; visual sign-off given). Map #24's destination is reached. See `retrain-result.md`.
+
 PRD companion to the Wayfinder map [Solid, Footprint-Matching Massing Generation](https://github.com/danvisai/SDFusion/issues/24). Decisions here mirror that map's tickets; when a ticket resolves, reflect its decision back into this spec.
 
 ## Problem Statement

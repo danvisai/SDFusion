@@ -1,5 +1,7 @@
 # Retrain Recipe & Go/No-Go Plan — the hand-off
 
+> ✅ **EXECUTED (2026-07-16 → 2026-07-20): gate PASSED.** Baseline no-go → from-scratch LoD2 retrain (120k iters, ~54 h) → #27 gate passed (footprint-IoU 0.89). Full outcome in `retrain-result.md`.
+
 Resolves [Settle the multi-corpus massing retrain recipe and go/no-go plan](https://github.com/danvisai/SDFusion/issues/30). This is the implementation-ready plan; every map decision folds in here. Execution (running it) is the hand-off — the map is planning-only.
 
 ## Data — LoD2-only

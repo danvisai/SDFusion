@@ -1,5 +1,7 @@
 # Baseline Gate Eval (Checkpoint 0) — result: NO-GO, retrain warranted
 
+> **Follow-up:** the from-scratch LoD2 retrain this NO-GO triggered subsequently **PASSED** the gate (footprint-IoU 0.43→0.89). See `retrain-result.md`.
+
 Execution of the #30 plan's Checkpoint 0: run the **deployed** Stage3a (`logs_building/2026-06-08…stage3a-hybrid-clean`, 20k steps) on LoD2 held-out (`real.h5` test split, deterministic) and score against the [#27 gate](https://github.com/danvisai/SDFusion/issues/27). Script `scripts/foundations/baseline_gate_eval.py`; artifacts `execution/artifacts/baseline_gate_eval.json`, `outputs/baseline_gate_eval/montage.png`.
 
 ## Result (n=60)
