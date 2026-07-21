@@ -88,7 +88,21 @@ class TestSmoothness(unittest.TestCase):
 
 VQ_CLEAN = REPO / "logs_building/vqvae_clean_ft/vqvae_clean.pth"
 REAL_H5 = REPO / "data/real_massing_v1/real.h5"
+RETRAIN_CKPT = REPO / "logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth"
 _GPU_SMOKE = bool(os.environ.get("RUN_GPU_SMOKE")) and VQ_CLEAN.exists() and REAL_H5.exists()
+_WARM_SMOKE = _GPU_SMOKE and RETRAIN_CKPT.exists()
+
+
+def _ft_args(**over):
+    """A retrain_prior_hybrid args namespace for building a training opt in the smoke tests."""
+    from types import SimpleNamespace
+    base = dict(device="cuda", vq_ckpt="logs_building/vqvae_clean_ft/vqvae_clean.pth",
+                finetune_from=None, use_smooth=1, smooth_weight=0.5, smooth_kind="grad_tv",
+                smooth_sigma=0.05, smooth_every=1, lr=1e-4, total_iters=10, use_extra_cond=0,
+                use_region=1, p_uncond=0.0, repa=0, repa_weight=0.5, repa_stop_frac=0.75,
+                adaln=0, bag3d_h5=str(REAL_H5), bag_ratio=0.5)
+    base.update(over)
+    return SimpleNamespace(**base)
 
 
 @unittest.skipUnless(_GPU_SMOKE, "training smoke: set RUN_GPU_SMOKE=1 (needs the clean VQVAE + real.h5)")
@@ -101,19 +115,12 @@ class TestSmoothnessInTrainingLoss(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from types import SimpleNamespace
         import retrain_prior_hybrid as rp
         from datasets.bag3d_dataset import Bag3dDataset
         from models.stage3a_model import Stage3aModel
         if not torch.cuda.is_available():
             raise unittest.SkipTest("no CUDA")
-        args = SimpleNamespace(
-            device="cuda", vq_ckpt="logs_building/vqvae_clean_ft/vqvae_clean.pth",
-            finetune_from=None, use_smooth=1, smooth_weight=0.5, smooth_kind="grad_tv",
-            smooth_sigma=0.05, smooth_every=1, lr=1e-4, total_iters=10,
-            use_extra_cond=0, use_region=1, p_uncond=0.0, repa=0, repa_weight=0.5,
-            repa_stop_frac=0.75, adaln=0, bag3d_h5=str(REAL_H5), bag_ratio=0.5)
-        opt = rp.build_opt(args, ckpt_dir="/tmp")
+        opt = rp.build_opt(_ft_args(), ckpt_dir="/tmp")
         ds = Bag3dDataset(); ds.initialize(opt, "train")
         from torch.utils.data import DataLoader
         cls.batch = next(iter(DataLoader(ds, batch_size=2, shuffle=False)))
@@ -144,6 +151,24 @@ class TestSmoothnessInTrainingLoss(unittest.TestCase):
             self.assertNotIn("smooth", ld, "no smooth term when the regularizer is gated off")
         finally:
             self.model.sm_enabled = True
+
+
+@unittest.skipUnless(_WARM_SMOKE, "warm-start smoke: set RUN_GPU_SMOKE=1 (needs the map-#24 ckpt)")
+class TestWarmStartEma(unittest.TestCase):
+    """Warm-start must re-sync the EMA shadow to the loaded weights. The ema_df deepcopy happens
+    before load_ckpt, so without the fix ema_df keeps random init -> a short fine-tune ships a
+    contaminated EMA. Assert ema_df == df right after a warm-start init."""
+
+    def test_ema_resynced_to_loaded_weights(self):
+        import retrain_prior_hybrid as rp
+        from models.stage3a_model import Stage3aModel
+        if not torch.cuda.is_available():
+            self.skipTest("no CUDA")
+        opt = rp.build_opt(_ft_args(finetune_from=str(RETRAIN_CKPT)), ckpt_dir="/tmp")
+        m = Stage3aModel(); m.initialize(opt)
+        dfp, emp = dict(m.df.named_parameters()), dict(m.ema_df.named_parameters())
+        mism = [k for k in dfp if not torch.allclose(dfp[k], emp[k])]
+        self.assertEqual(mism, [], "every ema_df param must equal df after a warm-start resync")
 
 
 if __name__ == "__main__":

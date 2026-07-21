@@ -307,6 +307,13 @@ class Stage3aModel(BaseModel):
             # fine-tune at ~0 LR. The driver pins a constant low LR instead.
             warm = bool(getattr(opt, "warm_start", False))
             self.load_ckpt(opt.ckpt, load_opt=self.isTrain and not warm)
+            if warm and getattr(self, "use_ema", False):
+                # The ema_df deepcopy above captured the RANDOM pre-load weights; re-sync it to the
+                # loaded weights so the EMA shadow starts from the pretrained model. Otherwise a
+                # short warm-start fine-tune's EMA stays ~decay^iters contaminated by random init
+                # (e.g. 0.999^2000 ~ 14%), corrupting the sampled-cleaner EMA weights it ships.
+                self.ema_df.load_state_dict(self.df.state_dict())
+                cprint("[*] warm-start: re-synced EMA shadow to loaded weights", "blue")
 
         # Renderer for visuals.
         self.renderer = init_mesh_renderer(
