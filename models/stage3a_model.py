@@ -65,6 +65,36 @@ def _soft_footprint_bce(corrected, target, tau: float):
     return F.binary_cross_entropy(p, t)
 
 
+def _sdf_field_smoothness(sdf, target, sigma: float, kind: str = "grad_tv", eps: float = 1e-8):
+    """Phase-2 surface-fidelity regularizer (map #34): a surface-band smoothness penalty on the
+    decoded, predicted-x0 SDF field (B,1,D,H,W). Concentrated near the surface via the band
+    exp(-|target|/sigma) (target = GT SDF), so it smooths the geometry's level set without touching
+    the saturated far field; a small weight keeps crisp edges. Two forms:
+
+      grad_tv : mean in-band |Laplacian(sdf)| (curvature). A flat/locally-linear wall has ~0
+                curvature, so planar walls are free while mid-scale waviness is penalized — the
+                form best targeting the observed roughness.
+      eikonal : mean in-band (|grad sdf| - 1)^2 — pushes toward a metric SDF (edge-preserving).
+
+    All finite-difference stencils share the (D-2,H-2,W-2) interior grid. Returns a scalar tensor.
+    """
+    c = sdf[:, :, 1:-1, 1:-1, 1:-1]
+    band = torch.exp(-target[:, :, 1:-1, 1:-1, 1:-1].abs() / max(sigma, 1e-6))
+    denom = band.sum().clamp_min(eps)
+    if kind == "eikonal":
+        gx = (sdf[:, :, 2:, 1:-1, 1:-1] - sdf[:, :, :-2, 1:-1, 1:-1]) * 0.5
+        gy = (sdf[:, :, 1:-1, 2:, 1:-1] - sdf[:, :, 1:-1, :-2, 1:-1]) * 0.5
+        gz = (sdf[:, :, 1:-1, 1:-1, 2:] - sdf[:, :, 1:-1, 1:-1, :-2]) * 0.5
+        per = (torch.sqrt(gx * gx + gy * gy + gz * gz + eps) - 1.0) ** 2
+    else:  # grad_tv (default): discrete Laplacian magnitude
+        lap = (sdf[:, :, 2:, 1:-1, 1:-1] + sdf[:, :, :-2, 1:-1, 1:-1]
+               + sdf[:, :, 1:-1, 2:, 1:-1] + sdf[:, :, 1:-1, :-2, 1:-1]
+               + sdf[:, :, 1:-1, 1:-1, 2:] + sdf[:, :, 1:-1, 1:-1, :-2]
+               - 6.0 * c)
+        per = lap.abs()
+    return (band * per).sum() / denom
+
+
 # ---------------------------------------------------------------------------
 
 class Stage3aModel(BaseModel):
@@ -201,6 +231,17 @@ class Stage3aModel(BaseModel):
         self.gd_band_sigma = float(gd.get("band_sigma", 0.05))
         self.gd_fp_tau = float(gd.get("fp_tau", 0.05))
 
+        # Phase-2 surface-fidelity smoothness regularizer (map #34). GATED (default OFF ->
+        # no change to existing configs); enable for the warm-start smoothing fine-tune. Decodes
+        # predicted-x0 to SDF and penalizes in-band curvature (grad_tv) / eikonal deviation, small
+        # weight so it flattens waviness without erasing crisp walls/edges. See _sdf_field_smoothness.
+        sm = self.df_conf.get("smoothness", {})
+        self.sm_enabled = bool(getattr(opt, "use_smooth", sm.get("enabled", False)))
+        self.sm_weight = float(getattr(opt, "smooth_weight", sm.get("weight", 0.05)))
+        self.sm_kind = str(getattr(opt, "smooth_kind", sm.get("kind", "grad_tv")))
+        self.sm_sigma = float(getattr(opt, "smooth_sigma", sm.get("sigma", 0.05)))
+        self.sm_every = int(getattr(opt, "smooth_every", sm.get("every_k_steps", 1)))
+
         # REPA (training-gaps step 4, arXiv 2410.06940) — GATED, training-only: align the
         # UNet middle_block features with DINOv2 features of depth renders of the clean SDF.
         self.use_repa = bool(getattr(opt, "use_repa", False)) and self.isTrain
@@ -261,7 +302,11 @@ class Stage3aModel(BaseModel):
                     p.requires_grad_(False)
 
         if opt.ckpt:
-            self.load_ckpt(opt.ckpt, load_opt=self.isTrain)
+            # warm_start (Phase-2 fine-tune): load the pretrained weights but start a FRESH
+            # optimizer/scheduler — restoring the 120k checkpoint's end-of-cosine state would
+            # fine-tune at ~0 LR. The driver pins a constant low LR instead.
+            warm = bool(getattr(opt, "warm_start", False))
+            self.load_ckpt(opt.ckpt, load_opt=self.isTrain and not warm)
 
         # Renderer for visuals.
         self.renderer = init_mesh_renderer(
@@ -531,22 +576,26 @@ class Stage3aModel(BaseModel):
             loss_dict["repa"] = r.detach()
             loss_dict["total"] = loss.detach()
 
-        # Optional guardrail: decode predicted x0 to SDF every K steps,
-        # add (surface-band SmoothL1 + footprint BCE) against GT SDF.
-        if (self.gd_enabled
-                and self.gd_every > 0
-                and (self._step % self.gd_every == 0)):
-            with torch.no_grad():
-                pass  # decoder eval mode; latent path requires grad
+        # Optional aux terms that both need the decoded predicted-x0 SDF: the guardrail
+        # (surface-band SmoothL1 + footprint BCE, every gd_every steps) and the Phase-2 smoothness
+        # regularizer (grad_tv/eikonal, every sm_every steps). Decode ONCE when either fires.
+        need_gd = self.gd_enabled and self.gd_every > 0 and (self._step % self.gd_every == 0)
+        need_sm = self.sm_enabled and self.sm_every > 0 and (self._step % self.sm_every == 0)
+        if need_gd or need_sm:
             x0_lat = self._predict_x0_from_eps(x_noisy, t, eps_pred) / self.scale_factor
             sdf_pred = self.vqvae.decode_no_quant(x0_lat)
-            band = _surface_band_smooth_l1(sdf_pred, self.x,
-                                           sigma=self.gd_band_sigma)
-            fp_b = _soft_footprint_bce(sdf_pred, self.x, tau=self.gd_fp_tau)
-            aux = self.gd_band_weight * band + self.gd_fp_weight * fp_b
+            aux = torch.zeros((), device=loss.device)
+            if need_gd:
+                band = _surface_band_smooth_l1(sdf_pred, self.x, sigma=self.gd_band_sigma)
+                fp_b = _soft_footprint_bce(sdf_pred, self.x, tau=self.gd_fp_tau)
+                aux = aux + self.gd_band_weight * band + self.gd_fp_weight * fp_b
+                loss_dict["band"] = band.detach()
+                loss_dict["fp"] = fp_b.detach()
+            if need_sm:
+                sm_val = _sdf_field_smoothness(sdf_pred, self.x, sigma=self.sm_sigma, kind=self.sm_kind)
+                aux = aux + self.sm_weight * sm_val
+                loss_dict["smooth"] = sm_val.detach()
             loss = loss + aux
-            loss_dict["band"] = band.detach()
-            loss_dict["fp"] = fp_b.detach()
             loss_dict["total"] = loss.detach()
 
         self.loss_df = loss

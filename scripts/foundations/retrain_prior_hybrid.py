@@ -23,11 +23,18 @@ VQ_CLEAN = "logs_building/vqvae_clean_ft/vqvae_clean.pth"
 
 
 def build_opt(args, ckpt_dir):
+    # Phase-2 warm-start (map #34): fine-tune an existing checkpoint (weights only; load_ckpt
+    # keeps a FRESH optimizer via warm_start) with the SDF-field smoothness regularizer on.
+    finetune_ckpt = str(REPO / args.finetune_from) if args.finetune_from else None
     return SimpleNamespace(
         isTrain=True, device=args.device,
         df_cfg=str(REPO / "configs/stage3a_sdf_diffusion.yaml"),
         vq_cfg=str(REPO / "configs/vqvae_bnet.yaml"),
-        vq_ckpt=str(REPO / args.vq_ckpt), ckpt=None,
+        vq_ckpt=str(REPO / args.vq_ckpt), ckpt=finetune_ckpt,
+        warm_start=bool(finetune_ckpt),
+        # SDF-field smoothness regularizer (gated; default OFF preserves the from-scratch recipe)
+        use_smooth=bool(args.use_smooth), smooth_weight=args.smooth_weight,
+        smooth_kind=args.smooth_kind, smooth_sigma=args.smooth_sigma, smooth_every=args.smooth_every,
         ddim_steps=50, debug="0", gpu_ids=[0] if args.device == "cuda" else [],
         ckpt_dir=str(ckpt_dir),
         lr=args.lr, warmup_steps=1000, cosine_total_steps=args.total_iters,
@@ -79,11 +86,21 @@ def main():
     ap.add_argument("--repa_stop_frac", type=float, default=0.75,
                     help="stop alignment after this fraction of total iters (2505.16792)")
     ap.add_argument("--adaln", type=int, default=0, help="1 = adaLN cond-into-time-embedding (gap #1)")
+    # Phase-2 surface-fidelity fine-tune (map #34)
+    ap.add_argument("--finetune_from", default=None,
+                    help="warm-start ckpt (repo-relative); fresh optimizer at a constant --lr")
+    ap.add_argument("--use_smooth", type=int, default=0, help="1 = SDF-field smoothness regularizer")
+    ap.add_argument("--smooth_weight", type=float, default=0.05)
+    ap.add_argument("--smooth_kind", default="grad_tv", choices=["grad_tv", "eikonal"])
+    ap.add_argument("--smooth_sigma", type=float, default=0.05)
+    ap.add_argument("--smooth_every", type=int, default=1, help="apply the smoothness term every K steps")
     args = ap.parse_args()
 
     stamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     name = args.name or (f"{stamp}-stage3a-hybrid-clean"
-                         + ("-repa" if args.repa else "") + ("-adaln" if args.adaln else ""))
+                         + ("-repa" if args.repa else "") + ("-adaln" if args.adaln else "")
+                         + ("-ftsmooth" if args.finetune_from and args.use_smooth else
+                            "-ft" if args.finetune_from else ""))
     logdir = REPO / "logs_building" / name; ckpt_dir = logdir / "ckpt"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     print(f"[run] {logdir}")
@@ -97,6 +114,13 @@ def main():
     loader = DataLoader(ds, batch_size=args.bs, shuffle=True, num_workers=0, drop_last=True)
     model = Stage3aModel(); model.initialize(opt)
     model.switch_train()
+    if args.finetune_from:
+        # Constant low LR: the self-contained loop never steps the LambdaLR scheduler, and a
+        # warm-start smoothing fine-tune wants a gentle fixed LR (not the from-scratch cosine).
+        for g in model.optimizer.param_groups:
+            g["lr"] = args.lr
+        print(f"[ft] warm-start from {args.finetune_from}; smooth={bool(args.use_smooth)} "
+              f"({args.smooth_kind} w={args.smooth_weight}); constant lr={args.lr}", flush=True)
 
     logf = open(logdir / "loss_log.txt", "a")
     t0 = time.time(); it = 0
