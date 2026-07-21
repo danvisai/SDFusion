@@ -650,7 +650,9 @@ class Stage3aModel(BaseModel):
             batch_size=ctx.shape[0],
             shape=(zC, D, H, W),
             conditioning=cond,
-            unconditional_guidance_scale=uc_scale or self.uc_scale,
+            # is-None (not `or`): an explicit uc_scale=0.0 means pure-unconditional and must NOT
+            # fall back to the default (matches sdedit()); 0.0 is a valid Phase-1 guidance sweep point.
+            unconditional_guidance_scale=(self.uc_scale if uc_scale is None else uc_scale),
             unconditional_conditioning=uc,
             eta=ddim_eta,
             quantize_x0=False,
@@ -826,9 +828,17 @@ class Stage3aModel(BaseModel):
                 cprint(f"[*] Layer-B: expanded global_proj input {old_in}->{w.shape[1]} (element_type zero-init)", "blue")
             return sd
         self.df.load_state_dict(_fit_in_conv(state["df"]))
+        # EMA weights sample cleaner; inference only. Phase-1 surface-fidelity knob (map #34):
+        # opt.use_ema selects EMA (ema_df) vs the raw weights at inference. Default ON (absent ->
+        # True) preserves the deployed path the map #24 gate ran on; set False to score the raw
+        # config. NB distinct from the train-time self.use_ema (~line 255, default False), which
+        # instead controls whether an EMA shadow is *maintained* during training.
         if not getattr(self, "isTrain", False) and "ema_df" in state:
-            self.df.load_state_dict(_fit_in_conv(state["ema_df"]))   # EMA weights sample cleaner; inference only
-            cprint("[*] Stage3a using EMA weights (ema_df)", "blue")
+            if bool(getattr(self.opt, "use_ema", True)):
+                self.df.load_state_dict(_fit_in_conv(state["ema_df"]))
+                cprint("[*] Stage3a using EMA weights (ema_df)", "blue")
+            else:
+                cprint("[*] Stage3a using RAW weights (use_ema=False; ema_df present but skipped)", "yellow")
         if "vqvae" in state:
             self.vqvae.load_state_dict(state["vqvae"])
         if "fp_encoder" in state:

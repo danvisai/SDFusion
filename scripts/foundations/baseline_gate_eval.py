@@ -29,15 +29,20 @@ import sys; sys.path.insert(0, str(REPO))
 CKPT = "logs_building/2026-06-08T11-50-42-stage3a-hybrid-clean/ckpt/stage3a_steps-latest.pth"
 
 
-def build_opt(device, ckpt=CKPT, use_region=False, use_extra_cond=True):
+def build_opt(device, ckpt=CKPT, use_region=False, use_extra_cond=True, use_ema=True):
     """Opt for the deployed model by default; pass use_region=True, use_extra_cond=False to score
-    the from-scratch LoD2 retrain checkpoints (which changed the conditioning)."""
+    the from-scratch LoD2 retrain checkpoints (which changed the conditioning).
+
+    Phase-1 surface-fidelity knob (map #34): `use_ema` selects the checkpoint's EMA weights
+    (ema_df) vs the raw training weights at inference. Default True mirrors the deployed path
+    (the map #24 gate ran with EMA on); pass False to score the raw-weights config for comparison.
+    """
     return SimpleNamespace(
         isTrain=False, device=device, debug="0", gpu_ids=[0], ckpt_dir="/tmp",
         df_cfg="configs/stage3a_sdf_diffusion.yaml",
         vq_cfg="configs/vqvae_bnet.yaml",
         vq_ckpt="logs_building/vqvae_clean_ft/vqvae_clean.pth",
-        ckpt=ckpt, ddim_steps=100,
+        ckpt=ckpt, ddim_steps=100, use_ema=use_ema,
         use_region=use_region, num_regions=4, region_emb_dim=16, use_extra_cond=use_extra_cond,
         latent_size_HW=(16, 16), latent_size_D=16,
         bag3d_h5="data/real_massing_v1/real.h5", trunc_thres=0.2, augment=False,
@@ -93,10 +98,14 @@ def fp_iou(gen_occ, real_fp):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=2)
-    ap.add_argument("--ddim", type=int, default=100)
+    ap.add_argument("--ddim", type=int, default=100, help="DDIM steps (Phase-1 knob: sweep 100->250/500)")
     ap.add_argument("--ckpt", default=CKPT, help="Stage3a checkpoint to score")
     ap.add_argument("--use_region", type=int, default=0, help="1 for the LoD2-retrain checkpoints")
     ap.add_argument("--use_extra_cond", type=int, default=1, help="0 for the LoD2-retrain checkpoints")
+    ap.add_argument("--use_ema", type=int, default=1,
+                    help="Phase-1 knob (map #34): 1=EMA weights (deployed default), 0=raw weights")
+    ap.add_argument("--guidance", type=float, default=1.0,
+                    help="Phase-1 knob (map #34): CFG unconditional_guidance_scale (1.0=plain conditional)")
     ap.add_argument("--tag", default="", help="suffix for artifact/montage filenames")
     a = ap.parse_args()
 
@@ -106,9 +115,11 @@ def main():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     opt = build_opt(device, ckpt=a.ckpt, use_region=bool(a.use_region),
-                    use_extra_cond=bool(a.use_extra_cond)); opt.ddim_steps = a.ddim
+                    use_extra_cond=bool(a.use_extra_cond), use_ema=bool(a.use_ema)); opt.ddim_steps = a.ddim
 
     print(f"[load] Stage3a from {a.ckpt}", flush=True)
+    print(f"[cfg]  use_ema={bool(a.use_ema)} ddim={a.ddim} guidance={a.guidance} "
+          f"use_region={bool(a.use_region)} use_extra_cond={bool(a.use_extra_cond)}", flush=True)
     model = Stage3aModel(); model.initialize(opt)
 
     ds = Bag3dDataset(); ds.initialize(opt, phase="test")
@@ -121,7 +132,7 @@ def main():
         data = {k: (v.unsqueeze(0).to(device) if torch.is_tensor(v) else v)
                 for k, v in item.items() if torch.is_tensor(v)}
         with torch.no_grad():
-            sdf = model.inference(data, ddim_steps=opt.ddim_steps)  # (1,1,64,64,64)
+            sdf = model.inference(data, ddim_steps=opt.ddim_steps, uc_scale=a.guidance)  # (1,1,64,64,64)
         gen = sdf.detach().cpu().numpy()[0, 0]
         occ = gen <= 0
         real_fp = item["fp"].numpy()[0]
@@ -166,6 +177,7 @@ def main():
     rev = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(REPO),
                          capture_output=True, text=True).stdout.strip()
     meta = dict(git_rev=rev, ckpt=a.ckpt, n=len(rows), ddim=a.ddim, seed=0,
+                use_ema=bool(a.use_ema), guidance=a.guidance,
                 use_region=bool(a.use_region), use_extra_cond=bool(a.use_extra_cond))
     suffix = f"_{a.tag}" if a.tag else ""
     out = REPO / f"execution/artifacts/baseline_gate_eval{suffix}.json"
