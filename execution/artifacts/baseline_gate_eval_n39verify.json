@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "git_rev": "e88698f",
+    "ckpt": "logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth",
+    "n": 6,
+    "ddim": 100,
+    "seed": 0,
+    "use_ema": true,
+    "guidance": 1.0,
+    "use_region": true,
+    "use_extra_cond": false
+  },
+  "gate": {
+    "n": 6,
+    "collapse_rate": 0.0,
+    "collapse_pass": true,
+    "lcc_ge90_frac": 1.0,
+    "lcc_pass": true,
+    "fp_iou_median": 0.8763555098265023,
+    "fp_iou_p10": 0.49282499918895994,
+    "fp_iou_pass": true,
+    "real_fp_self_iou_median": 1.0,
+    "OVERALL_SCALAR_PASS": true
+  },
+  "per_corpus": {
+    "0": {
+      "n": 2,
+      "fp_iou_median": 0.6573831018192314,
+      "lcc_ge90_frac": 1.0,
+      "collapse_rate": 0.0
+    },
+    "1": {
+      "n": 3,
+      "fp_iou_median": 0.8946808510638298,
+      "lcc_ge90_frac": 1.0,
+      "collapse_rate": 0.0
+    },
+    "2": {
+      "n": 1,
+      "fp_iou_median": 0.9070373588184187,
+      "lcc_ge90_frac": 1.0,
+      "collapse_rate": 0.0
+    }
+  },
+  "per_building": [
+    {
+      "idx": 192,
+      "region": 1,
+      "gen_occ": 0.12292861938476562,
+      "collapsed": false,
+      "lcc": 0.9995655546935609,
+      "fp_iou": 0.5289139633286318,
+      "real_occ": 0.07512283325195312,
+      "real_fp_self_iou": 1.0
+    },
+    {
+      "idx": 452,
+      "region": 0,
+      "gen_occ": 0.14017105102539062,
+      "collapsed": false,
+      "lcc": 0.9993196353245339,
+      "fp_iou": 0.45673603504928806,
+      "real_occ": 0.014492034912109375,
+      "real_fp_self_iou": 1.0
+    },
+    {
+      "idx": 363,
+      "region": 1,
+      "gen_occ": 0.30394744873046875,
+      "collapsed": false,
+      "lcc": 0.9999748989683476,
+      "fp_iou": 0.8946808510638298,
+      "real_occ": 0.14258575439453125,
+      "real_fp_self_iou": 1.0
+    },
+    {
+      "idx": 219,
+      "region": 2,
+      "gen_occ": 0.37810516357421875,
+      "collapsed": false,
+      "lcc": 0.9999899110151537,
+      "fp_iou": 0.9070373588184187,
+      "real_occ": 0.4833984375,
+      "real_fp_self_iou": 1.0
+    },
+    {
+      "idx": 29,
+      "region": 1,
+      "gen_occ": 0.3293418884277344,
+      "collapsed": false,
+      "lcc": 0.9996988475125963,
+      "fp_iou": 0.9342546063651591,
+      "real_occ": 0.27796173095703125,
+      "real_fp_self_iou": 1.0
+    },
+    {
+      "idx": 603,
+      "region": 0,
+      "gen_occ": 0.22729110717773438,
+      "collapsed": false,
+      "lcc": 1.0,
+      "fp_iou": 0.8580301685891748,
+      "real_occ": 0.19370269775390625,
+      "real_fp_self_iou": 1.0
+    }
+  ]
+}

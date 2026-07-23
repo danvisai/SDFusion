@@ -110,6 +110,10 @@ def main():
             for ci, (title, m) in enumerate(variants):
                 ax = fig.add_subplot(6, 3, ri * 3 + ci + 1, projection="3d")
                 ax.set_axis_off()
+                # Binary occ @0.5 is INTENTIONAL here (deliberately exempt from the #39 continuous-SDF
+                # fix): this is a SOLIDITY probe -- fillholes/colfill are binary morphological fills with
+                # no continuous SDF -- not a surface-fidelity montage. All 3 columns stay binary so the
+                # occupancy comparison is apples-to-apples.
                 if m.sum() > 8:
                     try:
                         v, f, *_ = measure.marching_cubes(m.astype(np.float32), 0.5)

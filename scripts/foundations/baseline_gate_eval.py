@@ -136,7 +136,8 @@ def main():
         gen = sdf.detach().cpu().numpy()[0, 0]
         occ = gen <= 0
         real_fp = item["fp"].numpy()[0]
-        real_occ = item["sdf"].numpy()[0] <= 0
+        real_sdf = item["sdf"].numpy()[0]
+        real_occ = real_sdf <= 0
         gen_occ_frac = float(occ.mean())
         rows.append(dict(idx=int(idx), region=int(item["region_id"]),
                          gen_occ=gen_occ_frac, collapsed=bool(gen_occ_frac < 1e-4),
@@ -144,7 +145,9 @@ def main():
                          real_occ=float(real_occ.mean()),
                          real_fp_self_iou=fp_iou(real_occ, real_fp)))  # sanity: should be ~1.0
         if len(montage) < 6:
-            montage.append((item["region_id"].item(), real_occ.copy(), occ.copy()))
+            # store the CONTINUOUS SDF (not binary occ): meshed at 0.0 like the production path,
+            # so the montage shows true surfaces, not a binary marching-cubes staircase (#39).
+            montage.append((item["region_id"].item(), real_sdf.copy(), gen.copy()))
         print(f"  [{j+1}/{len(pick)}] region={rows[-1]['region']} gen_occ={gen_occ_frac*100:.2f}% "
               f"lcc={rows[-1]['lcc']:.3f} fp_iou={rows[-1]['fp_iou']:.3f} "
               f"real_self_iou={rows[-1]['real_fp_self_iou']:.3f} real_occ={rows[-1]['real_occ']*100:.1f}%", flush=True)
@@ -157,9 +160,9 @@ def main():
         for ri, (reg, rocc, gocc) in enumerate(montage):
             for ci, (title, m) in enumerate([("real LoD2", rocc), ("generated", gocc)]):
                 ax = fig.add_subplot(len(montage), 2, ri * 2 + ci + 1, projection="3d"); ax.set_axis_off()
-                if m.sum() > 8:
+                if (m <= 0).sum() > 8 and (m > 0).any():
                     try:
-                        v, f, *_ = measure.marching_cubes(m.astype(np.float32), 0.5)
+                        v, f, *_ = measure.marching_cubes(m.astype(np.float32), 0.0)
                         ax.plot_trisurf(v[:, 0], v[:, 2], f, v[:, 1], color=(0.72, 0.68, 0.55), lw=0)
                         ax.set_xlim(0, 64); ax.set_ylim(0, 64); ax.set_zlim(0, 64)
                     except Exception: pass
