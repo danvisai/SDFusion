@@ -19,7 +19,7 @@ from scipy import ndimage
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO)); sys.path.insert(0, str(REPO / "scripts" / "foundations"))
-from baseline_gate_eval import build_opt  # reuse the tested model-loading opt
+from baseline_gate_eval import build_opt, mesh_sdf_surface  # reuse the tested opt + SDF mesher (#43)
 
 CKPT = "logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth"
 
@@ -92,18 +92,15 @@ def main():
     # geometry montage: A GT | B roundtrip | C sample
     try:
         import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
-        from skimage import measure
         outdir = REPO / "outputs/surface_roughness"; outdir.mkdir(parents=True, exist_ok=True)
         fig = plt.figure(figsize=(9, 3 * len(tri)))
         for ri, (og, orr, os_) in enumerate(tri):
             for ci, (title, m) in enumerate([("A: real GT", og), ("B: VQVAE round-trip", orr), ("C: prior sample", os_)]):
                 ax = fig.add_subplot(len(tri), 3, ri * 3 + ci + 1, projection="3d"); ax.set_axis_off()
-                if (m <= 0).sum() > 8 and (m > 0).any():
-                    try:
-                        v, f, *_ = measure.marching_cubes(m.astype(np.float32), 0.0)
-                        ax.plot_trisurf(v[:, 0], v[:, 2], f, v[:, 1], color=(0.72, 0.68, 0.55), lw=0)
-                        ax.set_xlim(0, 64); ax.set_ylim(0, 64); ax.set_zlim(0, 64)
-                    except Exception: pass
+                v, f = mesh_sdf_surface(m)  # continuous SDF @0.0 -> crisp faces, not a staircase (#43)
+                if v is not None:
+                    ax.plot_trisurf(v[:, 0], v[:, 2], f, v[:, 1], color=(0.72, 0.68, 0.55), lw=0)
+                    ax.set_xlim(0, 64); ax.set_ylim(0, 64); ax.set_zlim(0, 64)
                 if ri == 0: ax.set_title(title)
         fig.savefig(outdir / "ladder_montage.png", dpi=90, bbox_inches="tight"); plt.close(fig)
         # slice montage: mid-height SDF field (field noise vs render artifact)

@@ -56,6 +56,27 @@ def lcc_frac(occ):
     return float(np.bincount(lab.ravel())[1:].max() / n) if k else 0.0
 
 
+def mesh_sdf_surface(vol):
+    """Marching-cubes surface of a CONTINUOUS SDF at level 0.0 -- the production convention
+    (scene/sdf_primitives, scene/run_demo). Returns (verts, faces), or (None, None) when the field
+    has no usable zero crossing (all-solid or empty) so callers skip instead of crashing.
+
+    Pass the continuous SDF, never a binary 0/1 occupancy: isosurfacing a mask at 0.5 staircases
+    every non-axis-aligned face (the #39 render artifact); the 0.0 crossing of the real field comes
+    out crisp. This is the one honest way to mesh an SDF surface in the eval harness (#43)."""
+    from skimage import measure  # lazy: keep this module import-light (no skimage at load)
+    vol = np.asarray(vol, dtype=np.float32)
+    # parity with the pre-extraction inline guard: proceed only with >8 non-positive voxels AND
+    # some positive voxel (a zero crossing). Anything less -> skip so callers don't crash.
+    if int((vol <= 0.0).sum()) <= 8 or not bool((vol > 0.0).any()):
+        return None, None
+    try:
+        verts, faces, *_ = measure.marching_cubes(vol, 0.0)
+    except (ValueError, RuntimeError):
+        return None, None
+    return verts, faces
+
+
 def score_gate(rows):
     """Pure #27 acceptance-gate scoring over per-building rows. No GPU/torch."""
     a = {k: np.array([r[k] for r in rows], float) for k in ("gen_occ", "lcc", "fp_iou")}
@@ -155,17 +176,14 @@ def main():
     # visual montage: real GT vs generated
     try:
         import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
-        from skimage import measure
         fig = plt.figure(figsize=(6, 3 * len(montage)))
         for ri, (reg, rocc, gocc) in enumerate(montage):
             for ci, (title, m) in enumerate([("real LoD2", rocc), ("generated", gocc)]):
                 ax = fig.add_subplot(len(montage), 2, ri * 2 + ci + 1, projection="3d"); ax.set_axis_off()
-                if (m <= 0).sum() > 8 and (m > 0).any():
-                    try:
-                        v, f, *_ = measure.marching_cubes(m.astype(np.float32), 0.0)
-                        ax.plot_trisurf(v[:, 0], v[:, 2], f, v[:, 1], color=(0.72, 0.68, 0.55), lw=0)
-                        ax.set_xlim(0, 64); ax.set_ylim(0, 64); ax.set_zlim(0, 64)
-                    except Exception: pass
+                v, f = mesh_sdf_surface(m)  # continuous SDF @0.0 -> crisp faces, not a staircase (#43)
+                if v is not None:
+                    ax.plot_trisurf(v[:, 0], v[:, 2], f, v[:, 1], color=(0.72, 0.68, 0.55), lw=0)
+                    ax.set_xlim(0, 64); ax.set_ylim(0, 64); ax.set_zlim(0, 64)
                 if ri == 0: ax.set_title(title)
                 if ci == 0: ax.text2D(-0.1, 0.5, f"region {reg}", transform=ax.transAxes, fontsize=8)
         suffix = f"_{a.tag}" if a.tag else ""

@@ -22,6 +22,54 @@ def _row(lcc=0.95, fp=0.70, gen_occ=0.15, region=0):
                 real_fp_self_iou=1.0, region=region)
 
 
+class TestMeshSdfSurface(unittest.TestCase):
+    """#43: the shared continuous-SDF surface-meshing seam. Pure CPU (numpy + skimage), no model.
+    Meshing the CONTINUOUS field at 0.0 (not a binarized mask at 0.5) is what keeps faces crisp
+    instead of staircased (#39); these pin that contract and the no-zero-crossing guard."""
+
+    @staticmethod
+    def _wall(D=12, level_shift=0.0):
+        # a planar wall: SDF linear along axis 0, so its 0-crossing is a single flat plane.
+        ax = (np.arange(D, dtype=np.float32) - (D - 1) / 2.0) - level_shift
+        return np.broadcast_to(ax[:, None, None], (D, D, D)).copy()
+
+    def test_flat_sdf_meshes_planar_not_staircased(self):
+        v, f = bge.mesh_sdf_surface(self._wall())
+        self.assertIsNotNone(v)
+        self.assertGreater(len(v), 0)
+        self.assertGreater(len(f), 0)
+        x_spread = float(v[:, 0].max() - v[:, 0].min())
+        self.assertLess(x_spread, 1.0, "a planar wall must mesh flat, not as a staircase")
+
+    def test_all_solid_field_is_guarded(self):
+        self.assertEqual(bge.mesh_sdf_surface(np.full((10, 10, 10), -1.0, np.float32)), (None, None))
+
+    def test_empty_field_is_guarded(self):
+        self.assertEqual(bge.mesh_sdf_surface(np.full((10, 10, 10), 1.0, np.float32)), (None, None))
+
+    def test_guard_boundary_skips_at_exactly_eight_voxels(self):
+        # parity with the pre-extraction inline guard (proceed only when >8 non-positive voxels):
+        # a field with EXACTLY 8 non-positive voxels must skip, not mesh.
+        vol = np.ones((6, 6, 6), np.float32)
+        vol[1:3, 1:3, 1:3] = -1.0                 # a 2x2x2 = 8-voxel solid core
+        self.assertEqual(int((vol <= 0.0).sum()), 8)
+        self.assertEqual(bge.mesh_sdf_surface(vol), (None, None))
+
+    def test_isosurface_taken_at_zero_not_half(self):
+        vol = self._wall(D=12)                # values ..., -0.5, +0.5, ... spaced by 1 along axis 0
+        v, _ = bge.mesh_sdf_surface(vol)
+        center = (vol.shape[0] - 1) / 2.0     # the 0-level sits here (5.5); a 0.5-level would be ~6.0
+        self.assertLess(abs(float(v[:, 0].mean()) - center), 0.25,
+                        "surface must sit at the 0-level, not the 0.5-level")
+
+    def test_random_finite_field_returns_finite_mesh(self):
+        vol = np.random.default_rng(0).standard_normal((12, 12, 12)).astype(np.float32)
+        v, f = bge.mesh_sdf_surface(vol)
+        self.assertIsNotNone(v)
+        self.assertTrue(np.isfinite(v).all())
+        self.assertEqual(f.shape[1], 3)
+
+
 class TestMetrics(unittest.TestCase):
     def test_lcc_solid_block_is_one(self):
         occ = np.zeros((16, 16, 16), bool); occ[4:12, 4:12, 4:12] = True
