@@ -69,6 +69,11 @@ as a *future new effort* if crisp geometry ever becomes load-bearing, but neithe
 `logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth` — solid,
 footprint-matching massing on EMA weights (#27 gate PASS).
 
+Figure — [`compare_map24_vs_phase1ema.png`](compare_map24_vs_phase1ema.png): the accepted map-#24 montage
+(lod2-final, n=60, fp-IoU 0.888) beside the Phase-1 EMA baseline (p1-A, n=16, fp-IoU 0.847). Same
+generator config (EMA·d100·g1, same checkpoint), different sample draw — visually identical solid-but-rough
+character, both #27 PASS. Committed as durable evidence (repo `*.png` is otherwise gitignored; force-added).
+
 **What "defer downstream" means concretely:** crispness is handled *outside* the diffusion prior — either a
 post-hoc geometric cleanup (plane-fit / RANSAC planarity snap on the extracted mesh) or masked by the
 neural **appearance** layer (Layer 3), which renders façades/materials over the base mass and does not
