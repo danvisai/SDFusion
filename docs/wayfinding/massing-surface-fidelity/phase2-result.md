@@ -56,3 +56,29 @@ field-*smoothness* objective on the decoded output is the wrong tool — it roun
 
 The massing-surface-fidelity map does **not** reach crisp surfaces via its planned levers. Closing it here
 with this negative result; option (1)/(2) would be a new effort.
+
+## Decision (2026-07-23): **Option 3 — accept + defer.** Map CLOSED.
+
+User chose option (3). The map-#24 massing is **accepted as-is**: it passes the #27 solidity/footprint
+gate, and surface crispness is **deferred downstream** rather than pursued further in the prior. This closes
+the Massing-Surface-Fidelity map ([#34](https://github.com/danvisai/SDFusion/issues/34)) with a documented
+negative result — options (1) edge-aware/planarity objective and (2) edge-preserving codec remain available
+as a *future new effort* if crisp geometry ever becomes load-bearing, but neither is scheduled.
+
+**Accepted deliverable (unchanged):** the map-#24 checkpoint
+`logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth` — solid,
+footprint-matching massing on EMA weights (#27 gate PASS).
+
+**What "defer downstream" means concretely:** crispness is handled *outside* the diffusion prior — either a
+post-hoc geometric cleanup (plane-fit / RANSAC planarity snap on the extracted mesh) or masked by the
+neural **appearance** layer (Layer 3), which renders façades/materials over the base mass and does not
+require crisp base-mesh edges. No prior retrain is on the critical path.
+
+**Housekeeping (done 2026-07-23):** the two failed fine-tune checkpoint dirs
+(`…-ftsmooth-eikonal-w01` 43G + `…-ftsmooth-gradtv-w04` 57G = **~100 GB**) were **deleted** to reclaim
+scratch. Durable evidence retained: the two gate-eval JSONs (`execution/artifacts/baseline_gate_eval_ftsmooth-*.json`),
+the two montages (`outputs/baseline_gate_eval/montage_ftsmooth-*-raw.png`), and the two training loss logs
+(`execution/artifacts/ftsmooth-{eikonal-w01,gradtv-w04}_loss_log.txt` — the logs confirm the mechanism:
+eikonal `smooth` stuck at ~0.94 the whole run [frozen-decoder cap], grad_tv `smooth` fell to ~0.004 but
+rounded the geometry). The regularizer code (`_sdf_field_smoothness` + `--use_smooth` plumbing) stays in the
+tree, gated OFF by default, with its contract tests — reusable if option (1) is ever taken up.
