@@ -69,6 +69,12 @@ fp-IoU after = 0.890 (v1: 0.886) — marginally better; the before/after montage
 from v1. Train loss dropped a little (0.00565 -> 0.00304) but the *validation* roughness on real samples did
 not move.
 
+Confirmed at **gate scale** (n=60 re-gate WITH the v2 refiner): all #27 criteria PASS — collapse 0, LCC 100%,
+median 0.900, p10 0.812. Next to v1-refined (0.894 / 0.825) and unrefined (0.883 / 0.777): the v1/v2
+differences (~0.01) are within independent-sample-draw noise (the paired n=24 footprint had v2 +0.003), so v2
+is *not* distinguishable from v1 at the gate either. Side-by-side montage `compare-v1-v2-montage.png`: the
+"refined" columns are pixel-for-pixel indistinguishable.
+
 **Conclusion: the residual-refiner + synthetic-pairing recipe is already at its ceiling in v1** (~0.00474 vs
 the 0.00412 GT floor); more of the same training does not close the remaining gap. That gap is the
 *architectural* ceiling — a bounded residual on a ±0.2-truncated SDF, the synthetic-vs-real domain gap, and
