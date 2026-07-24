@@ -164,11 +164,21 @@ def _mask_to_polygon(mask, x0, x1, z0, z1, n=16):
 
 
 class Refiner:
+    # #48: the #46 surface-crispness RefineUNet3D (map #24's post-process, docs/wayfinding/
+    # massing-surface-fidelity/refiner-v1-result.md) -- wired here as an OPTIONAL frozen
+    # post-process on a produced 64^3 cube-frame SDF (surface_refine=True on /building_sdf,
+    # /snap_sdf). It was trained + validated against the map-#24 LoD2-fromscratch-region prior's
+    # output specifically; this demo's live snap prior (continue-stage3a-xcultural-warmstart-ft)
+    # is a DIFFERENT checkpoint (see refine.py's _load_sdedit / CONTEXT.md's core-vs-wrapper
+    # caveat), so applying it here is an untested cross-model generalization -- default OFF.
+    _REFINER_V1_CKPT = REPO / "outputs/refiner_v1/refiner_unet_v1.pth"
+
     def __init__(self, engine, res: int = 64):
         self.engine = engine
         self.device = engine.device
         self.res = res
         self._sd_lock = threading.Lock()
+        self._surface_refiner = None
 
     # -- read the edited shape --------------------------------------------
     def _edited(self, base_state, edits):
@@ -382,11 +392,46 @@ class Refiner:
         mesh = grid_to_mesh(out_grid, full_bbox, iso=0.0) if return_mesh else None
         return out_grid.cpu().numpy().astype(np.float32), mesh, rgb
 
+    # -- #48: optional post-process — #46 surface-crispness refiner -------
+    def _load_surface_refiner(self):
+        """Lazy-load the frozen RefineUNet3D (see _REFINER_V1_CKPT docstring above). Returns
+        None (and caches that) when the checkpoint is missing, so callers can no-op safely."""
+        if self._surface_refiner is None:
+            if not self._REFINER_V1_CKPT.exists():
+                self._surface_refiner = False
+            else:
+                from scripts.foundations.baseline_gate_eval import load_refiner
+                self._surface_refiner = load_refiner(str(self._REFINER_V1_CKPT), device=self.device)
+        return self._surface_refiner or None
+
+    def apply_surface_refiner(self, grid):
+        """Run the #46 refiner on a (R,R,R) cube-frame SDF numpy array (any R divisible by 8 —
+        trained at R=64, the /building_sdf and /snap_sdf resolution). Identity (returns `grid`
+        unchanged, cast to float32) if the checkpoint isn't present."""
+        ref = self._load_surface_refiner()
+        g = np.asarray(grid, np.float32)
+        if ref is None:
+            return g
+        with torch.no_grad():
+            x = torch.as_tensor(g, device=self.device)[None, None]
+            out = ref(x)[0, 0].detach().cpu().numpy().astype(np.float32)
+        return out
+
     # -- SDEdit mode: the learned massing prior (3D BAG) ------------------
     def _mk_stage3a(self, ckpt, use_extra_cond=False, use_adaln=False):
         from types import SimpleNamespace
         from models.stage3a_model import Stage3aModel
-        vq = REPO / "logs_building/2025-05-19T19-58-28-vqvae-building-all-res64-LR1e-4-T0.2-release/ckpt/vqvae_steps-latest.pth"
+        # #48 finding: this vq_ckpt is ONLY the fallback used while `Stage3aModel.initialize`
+        # constructs self.vqvae; every stage3a ckpt this refiner loads (hybrid-clean, the
+        # xcultural-warmstart snap prior, and the map-#24 LoD2 generator) embeds its OWN
+        # "vqvae" state and `load_ckpt` unconditionally overwrites self.vqvae with it right
+        # after (models/stage3a_model.py load_ckpt, ~L898-899) -- so this path never survives
+        # past initialize(). Pointed at the current clean VQVAE (vqvae_clean_ft, the same one
+        # baseline_gate_eval.py's build_opt uses) for hygiene/consistency; confirmed via
+        # meta-device state-dict inspection that this is a documentation-only change with ZERO
+        # effect on inference (the embedded vqvae always wins). Do not read this as "the demo
+        # now runs on the clean VQVAE" -- it already did, per-checkpoint, before this edit too.
+        vq = REPO / "logs_building/vqvae_clean_ft/vqvae_clean.pth"
         opt = SimpleNamespace(
             isTrain=False, device=self.device,
             df_cfg=str(REPO / "configs/stage3a_sdf_diffusion.yaml"),

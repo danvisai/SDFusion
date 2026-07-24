@@ -338,6 +338,8 @@ class BuildingSdfReq(BaseModel):
                                    # sample_params(seed=None) is non-deterministic, and even
                                    # a matched seed only reproduces the diffusion draw, not
                                    # a params array the caller already has in hand)
+    surface_refine: bool = False  # #48: optional #46 RefineUNet3D post-process (opt-in — see
+                                   # Refiner._REFINER_V1_CKPT docstring for the cross-model caveat)
 
 
 class SdfResp(BaseModel):
@@ -371,6 +373,8 @@ def building_sdf(req: BuildingSdfReq):
             grid, c, s, _hn = r.building_volume(local, req.style, params, req.height, res=req.res)
         if req.sdedit_strength > 0:    # generate-time realism: snap the fresh massing
             grid, _ = r.snap_volume(grid, [], strength=float(req.sdedit_strength))
+        if req.surface_refine:
+            grid = r.apply_surface_refiner(grid)
     except Exception as ex:
         raise HTTPException(400, f"building_sdf failed: {ex}")
     return SdfResp(sdf_b64=_b64(grid.astype("<f4").tobytes()), res=int(grid.shape[0]),
@@ -405,6 +409,9 @@ class SnapSdfReq(BaseModel):
     building_class: str = "RESIDENTIAL"
     style: str = "modern"
     seed: Optional[int] = None
+    surface_refine: bool = False  # #48: optional #46 RefineUNet3D post-process on the snapped
+                                   # 64^3 volume, before mesh bake / detail (opt-in — see
+                                   # Refiner._REFINER_V1_CKPT docstring for the cross-model caveat)
 
 
 class SnapResp(BaseModel):
@@ -432,6 +439,8 @@ def snap_sdf(req: SnapSdfReq):
         snapped, iou = r.snap_volume(grid, req.edits, strength=req.strength,
                                      steps=req.sdedit_steps, autoguidance=req.autoguidance,
                                      auto_scale=req.auto_scale, local=req.local)
+        if req.surface_refine:
+            snapped = r.apply_surface_refiner(snapped)
     except Exception as ex:
         raise HTTPException(400, f"snap failed: {ex}")
     mesh_b64 = None
