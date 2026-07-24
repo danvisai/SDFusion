@@ -49,6 +49,26 @@ def build_opt(device, ckpt=CKPT, use_region=False, use_extra_cond=True, use_ema=
     )
 
 
+def load_refiner(path, device="cpu"):
+    """Load a trained RefineUNet3D surface-crispness refiner (scripts/foundations/train_refiner.py,
+    #46) as a frozen post-process for a prior's inference SDF. The checkpoint stores
+    {state_dict, base, delta_scale} so the architecture is reconstructed exactly as trained (no
+    guessing hyperparams at gate-eval time). RefineUNet3D's output conv is zero-init (models/
+    networks/refine_unet.py), so an UNTRAINED checkpoint loaded here is provably the identity map
+    -- see the CPU-only contract test in test_baseline_gate_eval.py."""
+    import torch  # lazy: keep this module import-light (see the top-of-file note)
+    from models.networks.refine_unet import RefineUNet3D
+    state = torch.load(path, map_location=device)
+    base = int(state.get("base", 32))
+    delta_scale = float(state.get("delta_scale", 0.25))
+    refiner = RefineUNet3D(base=base, delta_scale=delta_scale)
+    refiner.load_state_dict(state["state_dict"] if "state_dict" in state else state)
+    refiner.eval()
+    for p in refiner.parameters():
+        p.requires_grad = False
+    return refiner.to(device)
+
+
 def lcc_frac(occ):
     n = int(occ.sum())
     if n == 0: return 0.0
@@ -155,6 +175,9 @@ def main():
     ap.add_argument("--guidance", type=float, default=1.0,
                     help="Phase-1 knob (map #34): CFG unconditional_guidance_scale (1.0=plain conditional)")
     ap.add_argument("--tag", default="", help="suffix for artifact/montage filenames")
+    ap.add_argument("--refine", default=None,
+                    help="#46: path to a trained RefineUNet3D checkpoint (train_refiner.py); applied "
+                         "as a frozen post-process to model.inference() output, before occ/gate scoring")
     a = ap.parse_args()
 
     import torch  # lazy: keep module import-light so score_gate is testable without a GPU
@@ -170,6 +193,11 @@ def main():
           f"use_region={bool(a.use_region)} use_extra_cond={bool(a.use_extra_cond)}", flush=True)
     model = Stage3aModel(); model.initialize(opt)
 
+    refiner = None
+    if a.refine:
+        refiner = load_refiner(a.refine, device=device)
+        print(f"[refine] loaded post-process refiner from {a.refine}", flush=True)
+
     ds = Bag3dDataset(); ds.initialize(opt, phase="test")
     rng = np.random.default_rng(0)
     pick = rng.choice(len(ds), size=min(a.n, len(ds)), replace=False)
@@ -181,6 +209,8 @@ def main():
                 for k, v in item.items() if torch.is_tensor(v)}
         with torch.no_grad():
             sdf = model.inference(data, ddim_steps=opt.ddim_steps, uc_scale=a.guidance)  # (1,1,64,64,64)
+            if refiner is not None:
+                sdf = refiner(sdf)  # #46: frozen post-process, prior stays untouched
         gen = sdf.detach().cpu().numpy()[0, 0]
         occ = gen <= 0
         real_fp = item["fp"].numpy()[0]
@@ -214,7 +244,8 @@ def main():
                          capture_output=True, text=True).stdout.strip()
     meta = dict(git_rev=rev, ckpt=a.ckpt, n=len(rows), ddim=a.ddim, seed=0,
                 use_ema=bool(a.use_ema), guidance=a.guidance,
-                use_region=bool(a.use_region), use_extra_cond=bool(a.use_extra_cond))
+                use_region=bool(a.use_region), use_extra_cond=bool(a.use_extra_cond),
+                refine=a.refine)
     suffix = f"_{a.tag}" if a.tag else ""
     out = REPO / f"execution/artifacts/baseline_gate_eval{suffix}.json"
     out.write_text(json.dumps(dict(meta=meta, gate=gate,

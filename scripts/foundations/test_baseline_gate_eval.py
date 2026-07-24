@@ -161,6 +161,31 @@ class TestBuildOpt(unittest.TestCase):
         self.assertEqual(opt.ddim_steps, 100)
 
 
+class TestLoadRefiner(unittest.TestCase):
+    """#46: the load+apply seam for the trained surface-crispness refiner (train_refiner.py) as a
+    frozen post-process on baseline_gate_eval's inference path. Pure CPU, no GPU: RefineUNet3D's
+    output conv is zero-init (models/networks/refine_unet.py), so an UNTRAINED checkpoint is
+    provably the identity map -- this pins that contract plus the checkpoint's
+    {state_dict, base, delta_scale} shape, without needing a real trained weights file."""
+
+    def test_untrained_refiner_is_identity_and_shape_preserving(self):
+        import tempfile
+        import torch
+        from models.networks.refine_unet import RefineUNet3D
+        torch.manual_seed(0)
+        refiner = RefineUNet3D(base=8, delta_scale=0.25)
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "refiner_untrained.pth"
+            torch.save({"state_dict": refiner.state_dict(), "base": 8, "delta_scale": 0.25, "step": 0}, path)
+            loaded = bge.load_refiner(str(path), device="cpu")
+        x = torch.randn(1, 1, 16, 16, 16)  # R divisible by 8, per RefineUNet3D's contract
+        with torch.no_grad():
+            y = loaded(x)
+        self.assertEqual(y.shape, x.shape)
+        self.assertTrue(torch.allclose(y, x, atol=1e-6),
+                        "an untrained (zero-init output layer) refiner must be the identity map")
+
+
 class TestPerCorpus(unittest.TestCase):
     def test_splits_by_region_and_is_nongating(self):
         rows = [_row(fp=0.7, region=0) for _ in range(3)] + [_row(fp=0.4, region=2) for _ in range(2)]
