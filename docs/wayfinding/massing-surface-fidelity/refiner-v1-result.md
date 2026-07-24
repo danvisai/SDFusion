@@ -60,6 +60,23 @@ delta_scale}` and freezes it; `baseline_gate_eval.py --refine <ckpt>` applies it
 before occupancy/gate scoring. A CPU-only contract test (`TestLoadRefiner`) pins that an untrained (zero-init)
 checkpoint is the exact identity map. Deploy as a single-forward (~ms) post-process; the prior is never retrained.
 
+## Follow-up: more training plateaus (v2, 2026-07-24)
+
+A v2 run scaled the *proven* recipe — 8000 steps (from 3000), 4000 pairs / 1600 SDEdit (from 2000/800),
+`p_sdedit=0.6` — to test whether more training improves the result. **It does not.** On the same n=24
+held-out real prior samples: roughness after = **0.00476** (v1: 0.00474) — flat, arguably a hair worse;
+fp-IoU after = 0.890 (v1: 0.886) — marginally better; the before/after montage is visually indistinguishable
+from v1. Train loss dropped a little (0.00565 -> 0.00304) but the *validation* roughness on real samples did
+not move.
+
+**Conclusion: the residual-refiner + synthetic-pairing recipe is already at its ceiling in v1** (~0.00474 vs
+the 0.00412 GT floor); more of the same training does not close the remaining gap. That gap is the
+*architectural* ceiling — a bounded residual on a ±0.2-truncated SDF, the synthetic-vs-real domain gap, and
+the inability to add missing structure — not an under-training problem. Closing it further needs a *different*
+lever (a stronger / structure-aware prior, or a different refiner formulation), a new effort beyond this map.
+v2 was discarded; **v1 remains the deployed refiner.** (Also fixed a bug where `train_refiner.py` hardcoded the
+result-JSON path and clobbered v1's record regardless of `--out_dir`; it now derives the name from `--out_dir`.)
+
 ## Status
 
 **The map-#34 destination is reached:** generated massing renders crisper (flatter faces, cleaner edges),

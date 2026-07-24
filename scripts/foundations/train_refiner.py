@@ -315,7 +315,9 @@ def main():
         montage=str(montage_path), refiner_ckpt=str(ckpt_path),
         wall_time_sec=time.time() - t_start,
     )
-    out = REPO / "execution/artifacts/refiner_v1_train.json"
+    # derive the artifact name from --out_dir so distinct runs don't clobber each other's record
+    # (out_dir "outputs/refiner_v1" -> "refiner_v1_train.json"; keeps the original name for v1).
+    out = REPO / "execution/artifacts" / f"{out_dir.name}_train.json"
     out.write_text(json.dumps(result, indent=2))
     print("\n=== RESULT ===", flush=True)
     print(f"  fp_iou before={result['fp_iou_before_mean']:.3f} after={result['fp_iou_after_mean']:.3f}", flush=True)
