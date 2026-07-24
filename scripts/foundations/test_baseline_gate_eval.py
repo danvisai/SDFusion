@@ -70,6 +70,32 @@ class TestMeshSdfSurface(unittest.TestCase):
         self.assertEqual(f.shape[1], 3)
 
 
+class TestSaveFidelityMontage(unittest.TestCase):
+    """#44: the dedicated, reusable GT-vs-generated fidelity montage. Pure CPU (numpy + matplotlib
+    Agg backend), no model -- checks the function runs end-to-end on synthetic SDF fields and reuses
+    mesh_sdf_surface (not a re-implementation) rather than the pixel content of the figure."""
+
+    def test_writes_a_montage_file_for_each_row(self):
+        import tempfile
+        wall = TestMeshSdfSurface._wall()
+        rows = [(0, wall, wall), (2, wall, wall)]  # (region, real_sdf, gen_sdf)
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "nested" / "montage_test.png"
+            path = bge.save_fidelity_montage(rows, out)
+            self.assertEqual(path, out)
+            self.assertTrue(out.exists())
+            self.assertGreater(out.stat().st_size, 0)
+
+    def test_skips_rows_with_no_zero_crossing_without_crashing(self):
+        import tempfile
+        all_solid = np.full((10, 10, 10), -1.0, np.float32)
+        rows = [(0, all_solid, all_solid)]
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "montage_empty.png"
+            path = bge.save_fidelity_montage(rows, out)
+            self.assertTrue(path.exists())
+
+
 class TestMetrics(unittest.TestCase):
     def test_lcc_solid_block_is_one(self):
         occ = np.zeros((16, 16, 16), bool); occ[4:12, 4:12, 4:12] = True

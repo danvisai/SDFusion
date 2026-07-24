@@ -95,6 +95,33 @@ def score_gate(rows):
     return gate
 
 
+def save_fidelity_montage(rows, path):
+    """#44: dedicated, reusable GT-vs-generated surface-fidelity montage -- one row per building,
+    real LoD2 left / generated right, meshed via mesh_sdf_surface (continuous SDF@0.0, #43) so
+    surfaces render honestly (no binary-occupancy staircase, #39). `rows` is a list of
+    (region_id, real_sdf, gen_sdf) continuous-field triples (the gate loop's `montage` accumulator).
+
+    This is a thin factoring of the gate montage's own real-vs-generated panel into a standalone,
+    importable function -- it does not re-implement meshing (reuses mesh_sdf_surface) and is not a
+    new eval path: the #27 gate montage already renders this pairing at continuous@0. Extracting it
+    lets other scripts reuse the exact same honest rendering without duplicating the plotting loop.
+    """
+    import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(6, 3 * len(rows)))
+    for ri, (reg, rsdf, gsdf) in enumerate(rows):
+        for ci, (title, m) in enumerate([("real LoD2", rsdf), ("generated", gsdf)]):
+            ax = fig.add_subplot(len(rows), 2, ri * 2 + ci + 1, projection="3d"); ax.set_axis_off()
+            v, f = mesh_sdf_surface(m)  # continuous SDF@0.0 -> crisp faces, not a staircase (#43)
+            if v is not None:
+                ax.plot_trisurf(v[:, 0], v[:, 2], f, v[:, 1], color=(0.72, 0.68, 0.55), lw=0)
+                ax.set_xlim(0, 64); ax.set_ylim(0, 64); ax.set_zlim(0, 64)
+            if ri == 0: ax.set_title(title)
+            if ci == 0: ax.text2D(-0.1, 0.5, f"region {reg}", transform=ax.transAxes, fontsize=8)
+    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=90, bbox_inches="tight"); plt.close(fig)
+    return path
+
+
 def per_corpus_diagnostics(rows):
     """Non-gating per-region breakdown (source_id: 0=NL 1=DE 2=JP), per #27 criterion 4."""
     out = {}
@@ -173,22 +200,10 @@ def main():
               f"lcc={rows[-1]['lcc']:.3f} fp_iou={rows[-1]['fp_iou']:.3f} "
               f"real_self_iou={rows[-1]['real_fp_self_iou']:.3f} real_occ={rows[-1]['real_occ']*100:.1f}%", flush=True)
 
-    # visual montage: real GT vs generated
+    # visual montage: real GT vs generated (#44: factored into the reusable save_fidelity_montage)
     try:
-        import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
-        fig = plt.figure(figsize=(6, 3 * len(montage)))
-        for ri, (reg, rocc, gocc) in enumerate(montage):
-            for ci, (title, m) in enumerate([("real LoD2", rocc), ("generated", gocc)]):
-                ax = fig.add_subplot(len(montage), 2, ri * 2 + ci + 1, projection="3d"); ax.set_axis_off()
-                v, f = mesh_sdf_surface(m)  # continuous SDF @0.0 -> crisp faces, not a staircase (#43)
-                if v is not None:
-                    ax.plot_trisurf(v[:, 0], v[:, 2], f, v[:, 1], color=(0.72, 0.68, 0.55), lw=0)
-                    ax.set_xlim(0, 64); ax.set_ylim(0, 64); ax.set_zlim(0, 64)
-                if ri == 0: ax.set_title(title)
-                if ci == 0: ax.text2D(-0.1, 0.5, f"region {reg}", transform=ax.transAxes, fontsize=8)
         suffix = f"_{a.tag}" if a.tag else ""
-        mp = REPO / f"outputs/baseline_gate_eval/montage{suffix}.png"; mp.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(mp, dpi=90, bbox_inches="tight"); plt.close(fig)
+        mp = save_fidelity_montage(montage, REPO / f"outputs/baseline_gate_eval/montage{suffix}.png")
         print(f"montage: {mp}", flush=True)
     except Exception as e:
         print(f"montage skipped: {e}", flush=True)
