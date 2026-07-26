@@ -1,0 +1,49 @@
+{
+  "ckpt": "logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth",
+  "sigma": 0.15,
+  "n_pairs": 300,
+  "steps": 800,
+  "batch": 8,
+  "lr": 0.0002,
+  "base": 24,
+  "delta_scale": 0.25,
+  "seed": 0,
+  "calibration": {
+    "prior_roughness_mean": 0.00550090178148821,
+    "gt_roughness_mean": 0.0035930419981013983,
+    "sigma_sweep_wavy_roughness": {
+      "0.02": 0.004108028340851888,
+      "0.05": 0.004393091454403475,
+      "0.1": 0.005279377568513155,
+      "0.15": 0.006607004266697913,
+      "0.2": 0.008014219522010535,
+      "0.3": 0.010741058038547635,
+      "0.4": 0.01217768364585936
+    }
+  },
+  "train_loss_first": 0.008226942270994186,
+  "train_loss_last": 0.0036246686475351455,
+  "fp_iou_before_mean": 0.8853454415527814,
+  "fp_iou_after_mean": 0.9025513853159456,
+  "fp_iou_before_per_sample": [
+    0.8642629904559915,
+    0.8615274803711634,
+    0.8501189532117367,
+    0.8722442057659695,
+    0.9410175596578118,
+    0.9229014598540146
+  ],
+  "fp_iou_after_per_sample": [
+    0.8896174863387978,
+    0.888560885608856,
+    0.8680781758957655,
+    0.8934568616097278,
+    0.9399005874378672,
+    0.9356943150046598
+  ],
+  "roughness_before_mean": 0.005611853829274575,
+  "roughness_after_mean": 0.0050855261118461685,
+  "gt_roughness_mean": 0.0035930419981013983,
+  "montage": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/refiner_prototype/before_after_montage.png",
+  "refiner_ckpt": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/refiner_prototype/refiner_unet_proto.pth"
+}

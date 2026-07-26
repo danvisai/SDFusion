@@ -1,0 +1,3186 @@
+{
+  "strengths": [
+    0.1,
+    0.3,
+    0.5,
+    0.7,
+    0.9
+  ],
+  "edit_cases": [
+    "tower",
+    "dome",
+    "carve"
+  ],
+  "base_building_ids": [
+    "COMMERCIALhotel_building_mesh0162",
+    "COMMERCIALoffice_building_mesh1702",
+    "COMMERCIALoffice_building_mesh2982",
+    "COMMERCIALschool_building_mesh0043",
+    "PUBLICcity_hall_mesh0451",
+    "PUBLICoffice_building_mesh3229",
+    "RELIGIOUScathedral_mesh0640",
+    "RELIGIOUSchurch_mesh0606",
+    "RELIGIOUSchurch_mesh1029",
+    "RELIGIOUSchurch_mesh1081",
+    "RELIGIOUSmosque_mesh0164",
+    "RELIGIOUSmuseum_mesh1180",
+    "RESIDENTIALhouse_mesh0402",
+    "RESIDENTIALhouse_mesh1740",
+    "RESIDENTIALhouse_mesh2381",
+    "RESIDENTIALhouse_mesh3058",
+    "RESIDENTIALhouse_mesh3799",
+    "RESIDENTIALhouse_mesh3982",
+    "RESIDENTIALhouse_mesh6555",
+    "RESIDENTIALhouse_mesh7032",
+    "RESIDENTIALhouse_mesh7286",
+    "RESIDENTIALhouse_mesh9503",
+    "RESIDENTIALvilla_mesh1410",
+    "RESIDENTIALvilla_mesh1527",
+    "RESIDENTIALvilla_mesh2639",
+    "RESIDENTIALvilla_mesh4209",
+    "RESIDENTIALvilla_mesh5915"
+  ],
+  "n_distinct_shapes": 81,
+  "per_sample": [
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9775739041794088,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8968820052985531,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8206181533646323,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7289737289737289,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6657574104382615,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9538485485251771,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8596621772453308,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7693121693121693,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.3748043818466354,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.2383741888968998,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.007570380884788266,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.000625,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.00039947704822777455,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALhotel_building_mesh0162",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.00101470947265625
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9903163331181407,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9096618357487922,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8279767370676462,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.6894409937888198,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6070994407974715,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.956383144145545,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8605482717520858,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7718253968253969,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6818093949352406,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.4503386004514673,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.0024713654293997433,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 6.745362563237774e-05,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.00036424564726451517,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh1702",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.000202178955078125
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9561965811965812,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9012192966955292,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8473269649740238,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7421514655557209,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.662605435801312,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.938097325734327,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8211073520917568,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7090120261835896,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.3967437874892888,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.3380644388549527,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.10601719197707736,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.10666666666666667,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.003725619110234495,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.000328515111695138,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALoffice_building_mesh2982",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.002410888671875
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9762637016008201,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9282343285113368,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8631466042611282,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7687461176679385,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6692051307948692,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9691502215062424,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.9081792133368065,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.8352615445466232,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.7095001308557969,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.625756196256955,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9756999471737982,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.9166166766646671,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.8439826134202663,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.7481941145101081,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "COMMERCIALschool_building_mesh0043",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.6376619489459956,
+      "base_occ_frac": 0.06438827514648438
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9641186537364518,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8808584948174853,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8011817310763334,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7044507258180425,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6356872470956794,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9585517613051786,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8866473631746333,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.8042450686301246,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.7074660824134154,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.6235253693734968,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.960724259075759,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.861864781263809,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.7800152297148659,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.7204480457578646,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICcity_hall_mesh0451",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.6993831919814958,
+      "base_occ_frac": 0.02460479736328125
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9587861118473363,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.873453246587575,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8242790897644566,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7248238362092881,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6495152494445566,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9636368656469159,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8941909268318764,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.8426940107201119,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.7656174684276487,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.6963437957025537,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9644596651445967,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.8852608537030281,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.849931547723523,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.7746313619787538,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "PUBLICoffice_building_mesh3229",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.7182410423452769,
+      "base_occ_frac": 0.044284820556640625
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9681286811971178,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8870761727821644,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7673198785877843,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.6745569254478906,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6295747451614352,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9624514049116597,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8749581570859073,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7880455027364681,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6942289352269505,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.6177159420289855,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9733722217721246,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.9003384139143209,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.8203146357829858,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.7286715521767916,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUScathedral_mesh0640",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.6517808334384593,
+      "base_occ_frac": 0.025630950927734375
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9742170944195903,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8943770295675952,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8275197945645196,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7219478098788443,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.609055443905899,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9670184696569921,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8933609549176285,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.8178002075275917,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6669881842295635,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.521774421230943,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9680868297424267,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.8923052664774519,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.8157718868344843,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.7411222553537544,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh0606",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.6670687575392038,
+      "base_occ_frac": 0.025760650634765625
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9679199019207192,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8751258811681772,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8206251244276329,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7354209638102381,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6602214800492178,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9450521168446789,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.7941034316094732,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7530735328230109,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6729323308270677,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.46713843432109686,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.0603448275862069,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.005305039787798408,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.0005421621426247876,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1029",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.000720977783203125
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9795049531970635,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9119154388212685,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8305534685699975,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7357924623345697,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6899166703408139,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9786476171836774,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.9046838186787296,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.8406221539670351,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.7518795771560334,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.708345391680502,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9726322638363629,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.9186766232729016,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.8701858075481902,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.8130904804876701,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSchurch_mesh1081",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.7482634262466912,
+      "base_occ_frac": 0.0104217529296875
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9883539507411122,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9535632950063878,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.906099518459069,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.8528284531657213,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.8260610277308419,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9722428160493461,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8636453257471199,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7844596210571072,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6676023860845155,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.49134244654749387,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.5678714859437751,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.4107013738250181,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.36007348438456827,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.3359840954274354,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmosque_mesh0164",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.3015941404566997,
+      "base_occ_frac": 0.000453948974609375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9574245332402722,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8852233676975945,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.809555408095554,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7026343205834201,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6554621848739496,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9299121405750799,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.7890079180251514,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.6611793397787649,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.45816485225505443,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.423186664664364,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.2647058823529412,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.18786692759295498,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.006012024048096192,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0018721014338595073,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RELIGIOUSmuseum_mesh1180",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.004898908124714576,
+      "base_occ_frac": 0.0013427734375
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9436976288108397,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8480848153214774,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7742029266401783,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.6775619402117018,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6055856142584342,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9495069393718042,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8661990432307105,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7971042739802311,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6963094375452887,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.6021129893238434,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.940864879674871,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.8187843376646028,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.7180286709322102,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.6055058940845471,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh0402",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.5283060522912921,
+      "base_occ_frac": 0.053211212158203125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.966119905450899,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9253029223093371,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8501648388616027,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7501078449497751,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.7234505255527365,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9585509625429041,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8598620201662834,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7880792500498637,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.5118845247681251,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.4372113726144773,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.2946927374301676,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.14149443561208266,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.006027965808587381,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0002057189878625797,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh1740",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.00031462088183738593,
+      "base_occ_frac": 0.000827789306640625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.7881045152418061,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.5875794402943472,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.4482658959537572,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.279498077312285,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.19351011143210894,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.8785435908387166,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.747748664461969,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.6259893244984355,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.31728403993633336,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.15395595971344736,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.47327044025157233,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.21931942919868277,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.1196515004840271,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.06340094399795893,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh2381",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.05072636341986187,
+      "base_occ_frac": 0.0128936767578125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9937166900420757,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9520367568779067,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8820559158073775,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.8002976928801786,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.734025781322452,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9748150256118384,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8577985323549032,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.8017960720464028,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6874125536739518,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.4847703429427841,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.3147410358565737,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.24615384615384617,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.008032973041174243,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0003440712227431078,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3058",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0006101281269066504,
+      "base_occ_frac": 0.0002593994140625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9605336297943302,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8318535966660627,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7544459644322845,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.6752873563218391,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6059434968017058,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9435404339250493,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.7482720178372352,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.5539674716609168,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.449685534591195,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.39814970563498736,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.5153538050734312,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.26567844925883694,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.08010118043844856,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.003279835570910045,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3799",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0025274225344993177,
+      "base_occ_frac": 0.001781463623046875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9784645882140927,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8547548934695999,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7362116095835344,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.5756978876587652,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.43355406156801296,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.960294458613494,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8019367610079717,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.6517210359357984,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.48582548136009834,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.4283734172473215,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.8633202298155428,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.673656231541642,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.5251427018211471,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.3271078875793291,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh3982",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.21391689205802802,
+      "base_occ_frac": 0.00311279296875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9676408301567132,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8871093589585644,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7816091954022989,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.63580830239622,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.5516061004309423,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9626829416408574,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8594043389086287,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7661758383490972,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.6864406779661016,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.6134244056219624,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9264902135231317,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.8259066255450388,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.694468411465823,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.6071489506910084,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh6555",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.541158082762727,
+      "base_occ_frac": 0.007633209228515625
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9430172259641175,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8675724532042685,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7703644158628081,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.6446041822255415,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.5350442267264289,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9495848578665916,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8222370395065844,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7029678685307824,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.5494502697750178,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.4625854962177832,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.8322458429804251,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.6670653907496013,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.38181538934111503,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.2221711554370806,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7032",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.20958839299794985,
+      "base_occ_frac": 0.003673553466796875
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9592317107616986,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.7916037987041803,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.6459773727215588,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.5297734411548486,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.4443498978897209,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9532710280373832,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8112578364679205,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.690965769438283,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.5209984340150904,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.36882189607298693,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.8795316370186895,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.6628051303268515,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.4436560229768542,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.40517490604220874,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh7286",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.3817102778527111,
+      "base_occ_frac": 0.00653839111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9560478199718706,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.87381322285517,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7817548305353184,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.6498926462694579,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.5362917096663227,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9249801384632845,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.7612435233160622,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.609733005112668,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.45090789581792784,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.4038316488158093,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.16886543535620052,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.06464530892448513,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.0018728854519091348,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0011019074397750589,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALhouse_mesh9503",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.000421822272215973,
+      "base_occ_frac": 0.00263214111328125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9605137661346729,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8982847773994198,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8453466059006957,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7554260665027264,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.6909694288012872,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9575824445261738,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.822883785583968,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7031057205114069,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.5702939728846929,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.5255644363876071,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.30423940149625933,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.15311510031678988,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.05561613958560523,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0036399971451002784,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1410",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0033853006681514477,
+      "base_occ_frac": 0.00152587890625
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9458708564859168,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8254040726874258,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.6547993554822374,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.5396472893533638,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.45675800670597755,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9692498514173493,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.8739081083748704,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7930853491556367,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.7127814311761211,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.652672044843389,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.9288568750308352,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.851239282200253,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.706496062992126,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.5969418150526246,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh1527",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.5281630998233471,
+      "base_occ_frac": 0.006031036376953125
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9413774255261,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8310234541577826,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7417251755265798,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.6047406175278095,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.5317212456500402,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9319992756247736,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.7758766014834795,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.6422614949124015,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.5287003007016372,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.47694167422181927,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.7554038680318543,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.5866517106001121,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.5408734602463606,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.5086705202312138,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh2639",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.4457252641690682,
+      "base_occ_frac": 0.005062103271484375
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.969804798698658,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.9135097213870516,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.8530256606664114,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.7814081505815502,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.7365614153898248,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.9477133919261135,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.7946088282170328,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.7464472700074795,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.4823815309842041,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.40597132859239193,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.23708206686930092,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.2383177570093458,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.07419354838709677,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.0028628685943315204,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh4209",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0004307559767391773,
+      "base_occ_frac": 0.000732421875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "tower",
+      "strength": 0.1,
+      "iou_to_edit": 0.9718226600985221,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "tower",
+      "strength": 0.3,
+      "iou_to_edit": 0.8640625,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "tower",
+      "strength": 0.5,
+      "iou_to_edit": 0.7433242506811989,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "tower",
+      "strength": 0.7,
+      "iou_to_edit": 0.680332034558699,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "tower",
+      "strength": 0.9,
+      "iou_to_edit": 0.630883047379191,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "dome",
+      "strength": 0.1,
+      "iou_to_edit": 0.930186694714699,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "dome",
+      "strength": 0.3,
+      "iou_to_edit": 0.7676287906466934,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "dome",
+      "strength": 0.5,
+      "iou_to_edit": 0.5866301369863014,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "dome",
+      "strength": 0.7,
+      "iou_to_edit": 0.4491196657714115,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "dome",
+      "strength": 0.9,
+      "iou_to_edit": 0.429531490015361,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "carve",
+      "strength": 0.1,
+      "iou_to_edit": 0.2096069868995633,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "carve",
+      "strength": 0.3,
+      "iou_to_edit": 0.19141914191419143,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "carve",
+      "strength": 0.5,
+      "iou_to_edit": 0.0005866331447726797,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "carve",
+      "strength": 0.7,
+      "iou_to_edit": 0.00012900451515803052,
+      "base_occ_frac": 0.0011444091796875
+    },
+    {
+      "base": "RESIDENTIALvilla_mesh5915",
+      "case": "carve",
+      "strength": 0.9,
+      "iou_to_edit": 0.0,
+      "base_occ_frac": 0.0011444091796875
+    }
+  ],
+  "failures": [],
+  "summary": [
+    {
+      "strength": 0.1,
+      "n_samples": 81,
+      "mean_iou_to_edit": 0.8279109221627216,
+      "min_iou_to_edit": 0.0024713654293997433,
+      "max_iou_to_edit": 0.9937166900420757
+    },
+    {
+      "strength": 0.3,
+      "n_samples": 81,
+      "mean_iou_to_edit": 0.7254702991711911,
+      "min_iou_to_edit": 6.745362563237774e-05,
+      "max_iou_to_edit": 0.9535632950063878
+    },
+    {
+      "strength": 0.5,
+      "n_samples": 81,
+      "mean_iou_to_edit": 0.6266039410132951,
+      "min_iou_to_edit": 0.00036424564726451517,
+      "max_iou_to_edit": 0.906099518459069
+    },
+    {
+      "strength": 0.7,
+      "n_samples": 81,
+      "mean_iou_to_edit": 0.5212480567244837,
+      "min_iou_to_edit": 0.0,
+      "max_iou_to_edit": 0.8528284531657213
+    },
+    {
+      "strength": 0.9,
+      "n_samples": 81,
+      "mean_iou_to_edit": 0.45372983900245734,
+      "min_iou_to_edit": 0.0,
+      "max_iou_to_edit": 0.8260610277308419
+    }
+  ],
+  "fid_by_strength": {
+    "0.1": {
+      "point": 66.72119233480453,
+      "ci95": [
+        73.93857763018731,
+        87.76743862255292
+      ],
+      "n_generated": 2268,
+      "n_real": 5600,
+      "undersampled": false
+    },
+    "0.3": {
+      "point": 64.2195816048272,
+      "ci95": [
+        70.72651894102603,
+        86.54026315474228
+      ],
+      "n_generated": 2268,
+      "n_real": 5600,
+      "undersampled": false
+    },
+    "0.5": {
+      "point": 69.19836039324997,
+      "ci95": [
+        75.15436277725739,
+        92.37402042053694
+      ],
+      "n_generated": 2268,
+      "n_real": 5600,
+      "undersampled": false
+    },
+    "0.7": {
+      "point": 72.2975591830853,
+      "ci95": [
+        77.14769341773005,
+        96.14343508223088
+      ],
+      "n_generated": 2268,
+      "n_real": 5600,
+      "undersampled": false
+    },
+    "0.9": {
+      "point": 69.37012249500145,
+      "ci95": [
+        73.70238889180354,
+        93.04429040378402
+      ],
+      "n_generated": 2268,
+      "n_real": 5600,
+      "undersampled": false
+    }
+  },
+  "real_reference": {
+    "n": 200,
+    "ids": [
+      "COMMERCIALcastle_mesh0365",
+      "COMMERCIALcastle_mesh2985",
+      "COMMERCIALchurch_mesh3158",
+      "COMMERCIALcity_hall_mesh0106",
+      "COMMERCIALcity_hall_mesh0527",
+      "COMMERCIALfactory_mesh1454",
+      "COMMERCIALhotel_building_mesh0075",
+      "COMMERCIALhotel_building_mesh0130",
+      "COMMERCIALhotel_building_mesh0139",
+      "COMMERCIALhotel_building_mesh0215",
+      "COMMERCIALhotel_building_mesh0302",
+      "COMMERCIALhotel_building_mesh0328",
+      "COMMERCIALhotel_building_mesh0504",
+      "COMMERCIALhotel_building_mesh0520",
+      "COMMERCIALhotel_building_mesh0555",
+      "COMMERCIALhotel_building_mesh0678",
+      "COMMERCIALhotel_building_mesh0900",
+      "COMMERCIALhotel_building_mesh1154",
+      "COMMERCIALhotel_building_mesh1240",
+      "COMMERCIALhotel_building_mesh1285",
+      "COMMERCIALhouse_mesh0798",
+      "COMMERCIALhouse_mesh2682",
+      "COMMERCIALhouse_mesh3602",
+      "COMMERCIALhouse_mesh5334",
+      "COMMERCIALhouse_mesh6281",
+      "COMMERCIALhouse_mesh6570",
+      "COMMERCIALhouse_mesh6823",
+      "COMMERCIALhouse_mesh7536",
+      "COMMERCIALhouse_mesh7736",
+      "COMMERCIALmuseum_mesh0025",
+      "COMMERCIALmuseum_mesh0336",
+      "COMMERCIALmuseum_mesh0339",
+      "COMMERCIALmuseum_mesh1018",
+      "COMMERCIALmuseum_mesh2219",
+      "COMMERCIALoffice_building_mesh0028",
+      "COMMERCIALoffice_building_mesh0038",
+      "COMMERCIALoffice_building_mesh0057",
+      "COMMERCIALoffice_building_mesh0126",
+      "COMMERCIALoffice_building_mesh0160",
+      "COMMERCIALoffice_building_mesh0166",
+      "COMMERCIALoffice_building_mesh0197",
+      "COMMERCIALoffice_building_mesh0234",
+      "COMMERCIALoffice_building_mesh0249",
+      "COMMERCIALoffice_building_mesh0274",
+      "COMMERCIALoffice_building_mesh0330",
+      "COMMERCIALoffice_building_mesh0394",
+      "COMMERCIALoffice_building_mesh0512",
+      "COMMERCIALoffice_building_mesh0604",
+      "COMMERCIALoffice_building_mesh0640",
+      "COMMERCIALoffice_building_mesh0781",
+      "COMMERCIALoffice_building_mesh0843",
+      "COMMERCIALoffice_building_mesh0853",
+      "COMMERCIALoffice_building_mesh0856",
+      "COMMERCIALoffice_building_mesh0884",
+      "COMMERCIALoffice_building_mesh0978",
+      "COMMERCIALoffice_building_mesh1103",
+      "COMMERCIALoffice_building_mesh1119",
+      "COMMERCIALoffice_building_mesh1242",
+      "COMMERCIALoffice_building_mesh1322",
+      "COMMERCIALoffice_building_mesh1345",
+      "COMMERCIALoffice_building_mesh1502",
+      "COMMERCIALoffice_building_mesh1571",
+      "COMMERCIALoffice_building_mesh1582",
+      "COMMERCIALoffice_building_mesh1616",
+      "COMMERCIALoffice_building_mesh1767",
+      "COMMERCIALoffice_building_mesh1785",
+      "COMMERCIALoffice_building_mesh1837",
+      "COMMERCIALoffice_building_mesh1861",
+      "COMMERCIALoffice_building_mesh1875",
+      "COMMERCIALoffice_building_mesh2060",
+      "COMMERCIALoffice_building_mesh2098",
+      "COMMERCIALoffice_building_mesh2128",
+      "COMMERCIALoffice_building_mesh2148",
+      "COMMERCIALoffice_building_mesh2227",
+      "COMMERCIALoffice_building_mesh2247",
+      "COMMERCIALoffice_building_mesh2261",
+      "COMMERCIALoffice_building_mesh2383",
+      "COMMERCIALoffice_building_mesh2487",
+      "COMMERCIALoffice_building_mesh2529",
+      "COMMERCIALoffice_building_mesh2604",
+      "COMMERCIALoffice_building_mesh2835",
+      "COMMERCIALoffice_building_mesh2859",
+      "COMMERCIALoffice_building_mesh3102",
+      "COMMERCIALoffice_building_mesh3109",
+      "COMMERCIALoffice_building_mesh3164",
+      "COMMERCIALoffice_building_mesh3273",
+      "COMMERCIALoffice_building_mesh3586",
+      "COMMERCIALoffice_building_mesh3616",
+      "COMMERCIALoffice_building_mesh3618",
+      "COMMERCIALoffice_building_mesh3619",
+      "COMMERCIALoffice_building_mesh3666",
+      "COMMERCIALoffice_building_mesh3729",
+      "COMMERCIALpalace_mesh0584",
+      "COMMERCIALpalace_mesh0662",
+      "COMMERCIALpalace_mesh0686",
+      "COMMERCIALpalace_mesh1011",
+      "COMMERCIALpalace_mesh1075",
+      "COMMERCIALpalace_mesh1097",
+      "COMMERCIALpalace_mesh1272",
+      "COMMERCIALpalace_mesh1314",
+      "COMMERCIALpalace_mesh1393",
+      "COMMERCIALtemple_mesh0758",
+      "COMMERCIALtemple_mesh0760",
+      "COMMERCIALvilla_mesh2315",
+      "COMMERCIALvilla_mesh2324",
+      "PUBLICcastle_mesh0120",
+      "PUBLICcastle_mesh2399",
+      "PUBLICcastle_mesh2583",
+      "PUBLICcastle_mesh3057",
+      "PUBLICcastle_mesh3328",
+      "PUBLICchurch_mesh2363",
+      "PUBLICcity_hall_mesh0607",
+      "PUBLICfactory_mesh0697",
+      "PUBLICfactory_mesh0802",
+      "PUBLIChotel_building_mesh0246",
+      "PUBLIChotel_building_mesh0365",
+      "PUBLIChotel_building_mesh0895",
+      "PUBLIChouse_mesh0094",
+      "PUBLIChouse_mesh3576",
+      "PUBLICmuseum_mesh0046",
+      "PUBLICmuseum_mesh0082",
+      "PUBLICmuseum_mesh0147",
+      "PUBLICmuseum_mesh0409",
+      "PUBLICmuseum_mesh0501",
+      "PUBLICmuseum_mesh0739",
+      "PUBLICmuseum_mesh0812",
+      "PUBLICmuseum_mesh2262",
+      "PUBLICoffice_building_mesh0008",
+      "PUBLICoffice_building_mesh0223",
+      "PUBLICoffice_building_mesh0225",
+      "PUBLICoffice_building_mesh0248",
+      "PUBLICoffice_building_mesh2009",
+      "PUBLICoffice_building_mesh2632",
+      "PUBLICpalace_mesh0085",
+      "PUBLICpalace_mesh0682",
+      "PUBLICpalace_mesh0858",
+      "PUBLICpalace_mesh0982",
+      "PUBLICpalace_mesh1165",
+      "PUBLICpalace_mesh1398",
+      "PUBLICpalace_mesh1461",
+      "PUBLICpalace_mesh1475",
+      "PUBLICpalace_mesh1493",
+      "PUBLICschool_building_mesh0034",
+      "PUBLICschool_building_mesh0082",
+      "PUBLICschool_building_mesh0155",
+      "PUBLICschool_building_mesh0260",
+      "PUBLICschool_building_mesh0344",
+      "PUBLICschool_building_mesh0889",
+      "PUBLICschool_building_mesh1131",
+      "PUBLICschool_building_mesh1289",
+      "PUBLICvilla_mesh3962",
+      "PUBLICvilla_mesh5783",
+      "PUBLICvilla_mesh6414",
+      "RELIGIOUScastle_mesh0107",
+      "RELIGIOUScastle_mesh0349",
+      "RELIGIOUScastle_mesh0692",
+      "RELIGIOUScastle_mesh3136",
+      "RELIGIOUScastle_mesh3372",
+      "RELIGIOUScathedral_mesh0045",
+      "RELIGIOUScathedral_mesh0049",
+      "RELIGIOUScathedral_mesh0066",
+      "RELIGIOUScathedral_mesh0085",
+      "RELIGIOUScathedral_mesh0227",
+      "RELIGIOUScathedral_mesh0231",
+      "RELIGIOUScathedral_mesh0233",
+      "RELIGIOUScathedral_mesh0301",
+      "RELIGIOUScathedral_mesh0339",
+      "RELIGIOUScathedral_mesh0357",
+      "RELIGIOUScathedral_mesh0363",
+      "RELIGIOUScathedral_mesh0494",
+      "RELIGIOUScathedral_mesh0593",
+      "RELIGIOUScathedral_mesh0624",
+      "RELIGIOUScathedral_mesh0647",
+      "RELIGIOUScathedral_mesh0715",
+      "RELIGIOUScathedral_mesh0754",
+      "RELIGIOUScathedral_mesh0953",
+      "RELIGIOUScathedral_mesh0960",
+      "RELIGIOUScathedral_mesh0963",
+      "RELIGIOUScathedral_mesh0986",
+      "RELIGIOUScathedral_mesh0989",
+      "RELIGIOUScathedral_mesh1005",
+      "RELIGIOUScathedral_mesh1011",
+      "RELIGIOUSchurch_mesh0013",
+      "RELIGIOUSchurch_mesh0061",
+      "RELIGIOUSchurch_mesh0081",
+      "RELIGIOUSchurch_mesh0086",
+      "RELIGIOUSchurch_mesh0099",
+      "RELIGIOUSchurch_mesh0112",
+      "RELIGIOUSchurch_mesh0114",
+      "RELIGIOUSchurch_mesh0117",
+      "RELIGIOUSchurch_mesh0146",
+      "RELIGIOUSchurch_mesh0153",
+      "RELIGIOUSchurch_mesh0157",
+      "RELIGIOUSchurch_mesh0166",
+      "RELIGIOUSchurch_mesh0168",
+      "RELIGIOUSchurch_mesh0170",
+      "RELIGIOUSchurch_mesh0171",
+      "RELIGIOUSchurch_mesh0173",
+      "RELIGIOUSchurch_mesh0185",
+      "RELIGIOUSchurch_mesh0187"
+    ],
+    "source": "data/splits_v1/train_100.json"
+  },
+  "cameras": {
+    "n_views": 28
+  },
+  "image_res": 256,
+  "sdf_working_res": 96,
+  "montage": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/sculpt_strength_sweep/montage.png",
+  "curve": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/sculpt_strength_sweep/faithfulness_vs_realism.png",
+  "git_rev": "4f4d0de50284ca7e34b11f9efccf8e0213ea9f93",
+  "dirty_digest": "d4e128df7a4b"
+}

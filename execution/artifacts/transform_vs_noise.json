@@ -1,0 +1,302 @@
+{
+  "strength": 0.5,
+  "ddim_steps": null,
+  "guidance": "plain CFG (matched, guide_model=None)",
+  "population": {
+    "n_clean": 27,
+    "n_val_leak": 26,
+    "n_train_leak": 224,
+    "n_unknown": 0,
+    "n_evaluated": 27
+  },
+  "n_succeeded": 27,
+  "n_failed": 0,
+  "failures": [],
+  "per_building": [
+    {
+      "building": "COMMERCIALhotel_building_mesh0162",
+      "iou_noise": 0.008259130210349722,
+      "iou_blockout": 0.02416918429003021,
+      "fp_iou_noise": 0.146163215590743,
+      "fp_iou_blockout": 0.4485981308411215,
+      "real_occupancy_frac": 0.00101470947265625,
+      "real_sdf_min": -0.009873075410723686
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh1702",
+      "iou_noise": 0.0,
+      "iou_blockout": 0.0010940919037199124,
+      "fp_iou_noise": 0.0,
+      "fp_iou_blockout": 0.16560509554140126,
+      "real_occupancy_frac": 0.000202178955078125,
+      "real_sdf_min": -0.0028597265481948853
+    },
+    {
+      "building": "COMMERCIALoffice_building_mesh2982",
+      "iou_noise": 0.010329701429177869,
+      "iou_blockout": 0.020784835384103757,
+      "fp_iou_noise": 0.13531669865642995,
+      "fp_iou_blockout": 0.33175355450236965,
+      "real_occupancy_frac": 0.002410888671875,
+      "real_sdf_min": -0.013221323490142822
+    },
+    {
+      "building": "COMMERCIALschool_building_mesh0043",
+      "iou_noise": 0.3554967010500883,
+      "iou_blockout": 0.22175676925719873,
+      "fp_iou_noise": 0.8350974930362117,
+      "fp_iou_blockout": 0.8681440443213296,
+      "real_occupancy_frac": 0.06438827514648438,
+      "real_sdf_min": -0.24644917249679565
+    },
+    {
+      "building": "PUBLICcity_hall_mesh0451",
+      "iou_noise": 0.13343736840801565,
+      "iou_blockout": 0.20564391995895331,
+      "fp_iou_noise": 0.7230347349177331,
+      "fp_iou_blockout": 0.8838495575221239,
+      "real_occupancy_frac": 0.02460479736328125,
+      "real_sdf_min": -0.15211139619350433
+    },
+    {
+      "building": "PUBLICoffice_building_mesh3229",
+      "iou_noise": 0.19694692860284416,
+      "iou_blockout": 0.24100849641191627,
+      "fp_iou_noise": 0.7723577235772358,
+      "fp_iou_blockout": 0.895429899302866,
+      "real_occupancy_frac": 0.044284820556640625,
+      "real_sdf_min": -0.20383138954639435
+    },
+    {
+      "building": "RELIGIOUScathedral_mesh0640",
+      "iou_noise": 0.23542216082715894,
+      "iou_blockout": 0.2854985546015446,
+      "fp_iou_noise": 0.5773584905660377,
+      "fp_iou_blockout": 0.8544423440453687,
+      "real_occupancy_frac": 0.025630950927734375,
+      "real_sdf_min": -0.2398659884929657
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh0606",
+      "iou_noise": 0.17769922879177377,
+      "iou_blockout": 0.20588877452356447,
+      "fp_iou_noise": 0.6051094890510949,
+      "fp_iou_blockout": 0.8550873586844809,
+      "real_occupancy_frac": 0.025760650634765625,
+      "real_sdf_min": -0.18729881942272186
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh1029",
+      "iou_noise": 0.00201663725737333,
+      "iou_blockout": 0.012386457473162676,
+      "fp_iou_noise": 0.03854389721627409,
+      "fp_iou_blockout": 0.125,
+      "real_occupancy_frac": 0.000720977783203125,
+      "real_sdf_min": -0.012582658790051937
+    },
+    {
+      "building": "RELIGIOUSchurch_mesh1081",
+      "iou_noise": 0.07340804890473765,
+      "iou_blockout": 0.16685721544715448,
+      "fp_iou_noise": 0.41309823677581864,
+      "fp_iou_blockout": 0.8381201044386423,
+      "real_occupancy_frac": 0.0104217529296875,
+      "real_sdf_min": -0.15948514640331268
+    },
+    {
+      "building": "RELIGIOUSmosque_mesh0164",
+      "iou_noise": 0.004792332268370607,
+      "iou_blockout": 0.026147588611272515,
+      "fp_iou_noise": 0.0330188679245283,
+      "fp_iou_blockout": 0.3283582089552239,
+      "real_occupancy_frac": 0.000453948974609375,
+      "real_sdf_min": -0.04061632603406906
+    },
+    {
+      "building": "RELIGIOUSmuseum_mesh1180",
+      "iou_noise": 0.03161397670549085,
+      "iou_blockout": 0.04024960998439937,
+      "fp_iou_noise": 0.06779661016949153,
+      "fp_iou_blockout": 0.27898550724637683,
+      "real_occupancy_frac": 0.0013427734375,
+      "real_sdf_min": -0.02142033725976944
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh0402",
+      "iou_noise": 0.11320986963576345,
+      "iou_blockout": 0.23773784355179703,
+      "fp_iou_noise": 0.6160877513711152,
+      "fp_iou_blockout": 0.8323773103887827,
+      "real_occupancy_frac": 0.053211212158203125,
+      "real_sdf_min": -0.22631734609603882
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh1740",
+      "iou_noise": 0.002955082742316785,
+      "iou_blockout": 0.020544142143253747,
+      "fp_iou_noise": 0.07234042553191489,
+      "fp_iou_blockout": 0.31336405529953915,
+      "real_occupancy_frac": 0.000827789306640625,
+      "real_sdf_min": -0.01936829648911953
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh2381",
+      "iou_noise": 0.03200733803224872,
+      "iou_blockout": 0.0395265372091365,
+      "fp_iou_noise": 0.8094763092269327,
+      "fp_iou_blockout": 0.9441860465116279,
+      "real_occupancy_frac": 0.0128936767578125,
+      "real_sdf_min": -0.046618252992630005
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh3058",
+      "iou_noise": 0.008816120906801008,
+      "iou_blockout": 0.018518518518518517,
+      "fp_iou_noise": 0.23267326732673269,
+      "fp_iou_blockout": 0.5858585858585859,
+      "real_occupancy_frac": 0.0002593994140625,
+      "real_sdf_min": -0.010546885430812836
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh3799",
+      "iou_noise": 0.022157692064894895,
+      "iou_blockout": 0.05439391723936248,
+      "fp_iou_noise": 0.25096030729833546,
+      "fp_iou_blockout": 0.584045584045584,
+      "real_occupancy_frac": 0.001781463623046875,
+      "real_sdf_min": -0.039464570581912994
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh3982",
+      "iou_noise": 0.06559439302722617,
+      "iou_blockout": 0.06412844918757812,
+      "fp_iou_noise": 0.36612702366127026,
+      "fp_iou_blockout": 0.6876456876456877,
+      "real_occupancy_frac": 0.00311279296875,
+      "real_sdf_min": -0.06504278630018234
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh6555",
+      "iou_noise": 0.08015140171366775,
+      "iou_blockout": 0.09977310723668498,
+      "fp_iou_noise": 0.4943820224719101,
+      "fp_iou_blockout": 0.6242331288343558,
+      "real_occupancy_frac": 0.007633209228515625,
+      "real_sdf_min": -0.14046502113342285
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh7032",
+      "iou_noise": 0.032956582171988734,
+      "iou_blockout": 0.06420917959379498,
+      "fp_iou_noise": 0.4105263157894737,
+      "fp_iou_blockout": 0.7305122494432071,
+      "real_occupancy_frac": 0.003673553466796875,
+      "real_sdf_min": -0.0453498438000679
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh7286",
+      "iou_noise": 0.04588866263228841,
+      "iou_blockout": 0.0748041844083478,
+      "fp_iou_noise": 0.5054080629301868,
+      "fp_iou_blockout": 0.7121001390820584,
+      "real_occupancy_frac": 0.00653839111328125,
+      "real_sdf_min": -0.056563008576631546
+    },
+    {
+      "building": "RESIDENTIALhouse_mesh9503",
+      "iou_noise": 0.00988890245391283,
+      "iou_blockout": 0.032689144736842105,
+      "fp_iou_noise": 0.22301690507152144,
+      "fp_iou_blockout": 0.6065259117082533,
+      "real_occupancy_frac": 0.00263214111328125,
+      "real_sdf_min": -0.017024660483002663
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh1410",
+      "iou_noise": 0.007405153175086224,
+      "iou_blockout": 0.024670249145090375,
+      "fp_iou_noise": 0.17170111287758347,
+      "fp_iou_blockout": 0.3058510638297872,
+      "real_occupancy_frac": 0.00152587890625,
+      "real_sdf_min": -0.017892876639962196
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh1527",
+      "iou_noise": 0.030123814792910698,
+      "iou_blockout": 0.051353529925438304,
+      "fp_iou_noise": 0.5279805352798054,
+      "fp_iou_blockout": 0.9316860465116279,
+      "real_occupancy_frac": 0.006031036376953125,
+      "real_sdf_min": -0.09632840007543564
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh2639",
+      "iou_noise": 0.05698849773440223,
+      "iou_blockout": 0.10405446600955187,
+      "fp_iou_noise": 0.3035294117647059,
+      "fp_iou_blockout": 0.52734375,
+      "real_occupancy_frac": 0.005062103271484375,
+      "real_sdf_min": -0.09580190479755402
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh4209",
+      "iou_noise": 0.004541108986615679,
+      "iou_blockout": 0.07174887892376682,
+      "fp_iou_noise": 0.05938242280285035,
+      "fp_iou_blockout": 0.3081081081081081,
+      "real_occupancy_frac": 0.000732421875,
+      "real_sdf_min": -0.021739186719059944
+    },
+    {
+      "building": "RESIDENTIALvilla_mesh5915",
+      "iou_noise": 0.022573984858912596,
+      "iou_blockout": 0.028547439126784216,
+      "fp_iou_noise": 0.23395445134575568,
+      "fp_iou_blockout": 0.40431266846361186,
+      "real_occupancy_frac": 0.0011444091796875,
+      "real_sdf_min": -0.03941754996776581
+    }
+  ],
+  "mean_iou": {
+    "from_noise": 0.06535854886608951,
+    "blockout_sdedit": 0.09030315128899884
+  },
+  "median_iou": {
+    "from_noise": 0.03161397670549085,
+    "blockout_sdedit": 0.05439391723936248
+  },
+  "mean_fp_iou": {
+    "from_noise": 0.3564608067493219,
+    "blockout_sdedit": 0.5915379311530415
+  },
+  "median_fp_iou": {
+    "from_noise": 0.3035294117647059,
+    "blockout_sdedit": 0.6065259117082533
+  },
+  "fid": {
+    "from_noise_vs_real": {
+      "point": 225.22170673274368,
+      "ci95": [
+        222.0257460599377,
+        258.4927386422723
+      ],
+      "undersampled": true
+    },
+    "blockout_vs_real": {
+      "point": 213.26127127929703,
+      "ci95": [
+        216.9577835716412,
+        248.94524738988594
+      ],
+      "undersampled": true
+    }
+  },
+  "cameras": {
+    "n_views": 6
+  },
+  "image_res": 256,
+  "sdf_working_res": 96,
+  "montage": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/transform_vs_noise/montage.png",
+  "git_rev": "6bec080fd188b344e00a4cf17edb6b00aaf2c3f6",
+  "dirty_digest": "c5ad59b97c82"
+}

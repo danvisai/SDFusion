@@ -5,7 +5,10 @@
      #conditioning_key: crossattn
      conditioning_key: hybrid
      timesteps: 1000
-     scale_factor: 0.18215
+     # Computed from this VQVAE on BuildingNet train split (19M latent values):
+     # latent std = 0.4201, scale_factor = 1 / std = 2.3806.
+     # SD's 0.18215 was for its 8x VAE on natural images and is wrong here.
+     scale_factor: 2.380615
  unet:
    params:
      image_size: 16

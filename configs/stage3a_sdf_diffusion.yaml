@@ -1,0 +1,91 @@
+# Stage 3a — Conditional SDF latent diffusion.
+#
+# Conditioning: (footprint, class, height, style).
+#   - footprint: dual-path. (i) FootprintEmbedNet (frozen) -> 256-d global emb
+#     joined to a cross-attention context vector. (ii) _build_fp3d_for ->
+#     (B, 1, D, H, W) spatial channel concatenated into the UNet input.
+#   - class:  nn.Embedding(53, 32)   global emb -> crossattn context.
+#   - style:  nn.Embedding(9, 16)    (8 recipes + 1 "unknown" for unlabeled
+#             BuildingNet; CLIP labeling is queued behind VQVAE-v2 training).
+#   - height: MLP(1 -> 32)            Frame-N Y extent at train time;
+#             metric height (m) / max-Frame-N-extent at inference.
+#   Global vector concatenation: 256+32+16+32 = 336 -> linear proj to
+#   `context_dim` (set to 512 below) -> shape (B, 1, 512) into the spatial
+#   transformer.
+#
+# Backbone: SDFusion's existing DiffusionUNet (3D), with conditioning_key="hybrid"
+# so it accepts both c_concat (footprint) and c_crossattn (global vector).
+#
+# scale_factor is the train-set latent standard-deviation inverse measured on
+# the v1 VQVAE (2.3806). Stage 3a uses v1 because the v2 retrain (2026-05-22)
+# had worse iso=0 IoU due to its aux losses; see Saved_Checkpoint/vqvae_v2_*/
+# for the v2 ckpt if we revisit. If a future VQVAE replaces v1, rerun
+# scripts/compute_scale_factor.py and patch this value.
+
+model:
+  params:
+    linear_start: 0.00085
+    linear_end: 0.012
+    conditioning_key: hybrid
+    timesteps: 1000
+    scale_factor: 2.380615    # measured on v1 VQVAE; see comment block above
+
+unet:
+  params:
+    image_size: 16              # latent spatial side (64 / 2^2 = 16 with ch_mult [1,2,4])
+    in_channels: 4              # 3 latent (z) + 1 footprint (c_concat)
+    out_channels: 3
+    model_channels: 224
+    num_res_blocks: 2
+    attention_resolutions: [4, 2]
+    channel_mult: [1, 2, 4, 4]
+    num_head_channels: 32
+    num_heads: 8
+    dims: 3
+    use_spatial_transformer: true
+    transformer_depth: 1
+    context_dim: 512            # projected global conditioning vector
+    use_checkpoint: true
+    legacy: False
+
+stage3a:
+  # Conditioning encoder dimensions. Embedding dims must match what
+  # models/stage3a_model.py constructs.
+  num_classes: 53
+  num_styles_plus_unknown: 9    # 8 recipe styles + 1 "unknown" sentinel
+  class_emb_dim: 32
+  style_emb_dim: 16
+  height_emb_dim: 32
+  fp_emb_dim: 256               # FootprintEmbedNet output dim (must match retrieval ckpt)
+  fp_emb_ckpt: "Logs_GT/retrieval_footprint_full/ckpt_best.pth"
+  fp3d_concat_scale: 0.5        # scale on the c_concat footprint channel; matches img2shape model
+  context_dim: 512              # global cond projection (must match unet.context_dim)
+  freeze_fp_encoder: True
+
+  # Warm-start finetune of the DEPLOYED prior (logs_building/2026-06-08T11-50-42-stage3a-hybrid-
+  # clean, 20k, trained with era/floors). Must match that ckpt's architecture to load strict:
+  #   use_extra_cond: True  -> builds era_emb/floors_emb (present in the ckpt)
+  #   use_region: False     -> NO region_emb (absent in the ckpt); breadth is the lever, not a new token
+  use_extra_cond: True
+  use_region: False
+  num_regions: 4
+  region_emb_dim: 16
+
+  # Layer-B element-type token (window/door/balcony/pilaster/bay + unknown), classified from the
+  # Layer-A primitive's shape. GATED like use_context/use_region -> off by default (old ckpts load).
+  use_element_type: False
+  num_element_types: 6          # 0=unknown 1=window 2=door 3=balcony 4=pilaster 5=bay
+  element_type_emb_dim: 16
+
+guardrail:
+  # Optional decode-and-supervise auxiliary loss, applied every K steps to
+  # avoid the per-step VQVAE-decode cost. Reuses train_sdf_residual.py:43-62.
+  enabled: True
+  every_k_steps: 50
+  band_weight: 0.5
+  fp_weight: 0.25
+  band_sigma: 0.05
+  fp_tau: 0.05
+
+latent_size_HW: [16, 16]
+latent_size_D: 16
