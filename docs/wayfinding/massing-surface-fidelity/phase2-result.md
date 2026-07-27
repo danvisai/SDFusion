@@ -87,3 +87,23 @@ the two montages (`outputs/baseline_gate_eval/montage_ftsmooth-*-raw.png`), and 
 eikonal `smooth` stuck at ~0.94 the whole run [frozen-decoder cap], grad_tv `smooth` fell to ~0.004 but
 rounded the geometry). The regularizer code (`_sdf_field_smoothness` + `--use_smooth` plumbing) stays in the
 tree, gated OFF by default, with its contract tests — reusable if option (1) is ever taken up.
+
+## Update (2026-07-26): crispness reopened; option (2) tested and ruled out
+
+The "accept + defer" close held only briefly — crispness was reopened as maps
+[#52 "Crisp clean massing"](../crisp-massing-model/) and [#58 "Diffusion latent accuracy"](../diffusion-latent-accuracy/).
+Two conclusions here are now superseded by that work:
+
+- **Option (2) — "revisit the frozen codec" — is DISPROVEN.** This doc's eikonal-cap speculation
+  (that the truncated-SDF VQVAE decoder might be the fidelity ceiling) was tested directly in map #52
+  (#56): `decode(encode(GT))` roughness ≈ **0.0044** ≈ GT floor **0.0041** — the codec round-trips full
+  64³ SDFs *crisply* and is **not** the ceiling. A crisp building is representable at 64³; **the
+  diffusion is the bottleneck.**
+- **The "defer downstream / post-hoc cleanup" fallback is doubly ruled out.** A post-decode SDF refiner
+  (#54) and a latent-space corrector (#58 / #59) both plateau at ~**0.0047**, visibly lumpy — post-hoc
+  correction cannot recover crispness the diffusion never produced.
+
+The live path is now a **retrain-scale change to the diffusion itself** (x0-sharp fine-tune, then a
+query-based implicit decoder if needed), not a codec swap or a downstream mesh cleanup. See the
+`crisp-massing-model/representation-ceiling-menu.md` and `diffusion-latent-accuracy/latent-corrector-result.md`
+for the current source of truth.

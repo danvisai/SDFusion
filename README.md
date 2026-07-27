@@ -7,9 +7,9 @@ compact symbolic recipe rather than a frozen mesh.
 **Maintainer:** Danvi Simhadri (danvisai03@gmail.com).
 Built on top of [SDFusion](https://github.com/yccyenchicheng/SDFusion) — original README
 preserved at `README_UPSTREAM.md`; the training/research surface lives on the
-`upstream-training` branch, `main` is the demo/serving code. Agents: see
-`docs/DEMO_BUILD_PLAN_2026-07-07.md` (current roadmap) and `docs/HANDOFF_*.md`
-(session chronicles).
+`upstream-training` branch, `main` is the demo/serving code. Agents: start at `CONTEXT.md` (research thesis, ubiquitous
+language, and current **Project status**), then `docs/wayfinding/` (the living per-map status
+with tables + montages) and `docs/adr/` (architecture decisions).
 
 ## The design doctrine
 

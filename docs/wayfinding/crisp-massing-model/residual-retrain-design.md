@@ -1,5 +1,10 @@
 # Residual-over-extrusion retrain — design
 
+> **SUPERSEDED (2026-07-26).** The cheap de-risk (#56) showed that SDF-combining the analytic extrusion
+> with the decoded residual on the 64³ grid **corrupts crispness**, so this residual-over-extrusion
+> retrain was not pursued. The ceiling was instead located at the diffusion (not the codec) — see
+> [`representation-ceiling-menu.md`](representation-ceiling-menu.md). Kept as a design record.
+
 Lever ① of [map #52 "Crisp clean massing"](https://github.com/danvisai/SDFusion/issues/52), greenlit by
 [#53](https://github.com/danvisai/SDFusion/issues/53). This is the design; execution follows in tickets
 #56 (cheap de-risk) → #57 (retrain).
