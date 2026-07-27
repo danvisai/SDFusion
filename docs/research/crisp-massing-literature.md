@@ -232,3 +232,49 @@ waviness; post-hoc correction in either SDF or latent space plateaus at 0.0047**
    experimental confirmation (beyond the representation argument above) that the dense-grid
    representation is the actual ceiling, and the vecset rebuild (item 1) becomes the well-evidenced
    next step rather than a speculative one.
+
+---
+
+## Section D — checked and rejected
+
+Papers brought to this thread, verified against source, and found **not applicable**. Recorded so
+they don't get re-litigated.
+
+### Laplacian-regularized eikonal equation (Hahn, Mikula, Frolkovič) — arXiv 2301.11656, math.NA
+
+**Checked:** 2026-07-27, against the arXiv API record and the ar5iv full text.
+
+**What it is.** A classical cell-centered **finite-volume solver** for computing a distance field:
+`−ε·Δu + |∇u| = 1` on `Ω∖Γ`, with Dirichlet `u = 0` on the object `Γ` and the **Soner condition**
+`ν·∇u ≥ 0` on the *computational-domain* boundary to force selection of the viscosity solution on
+non-convex domains. The regularization parameter is annealed with mesh size
+(`ε_n = h_L^(1/(2n))`). Solved by algebraic multigrid with MPI domain decomposition. Stated
+applications: wall distance in turbulence modelling, distance from a thin flame, medial-axis
+transform for mesh generation, cardiac/seismic wave propagation.
+
+**Why it does not help our crispness problem.**
+
+1. **It takes the surface as input and never moves it.** `Γ` enters as a Dirichlet condition. Our
+   indicted failure mode (Section A) is that the **zero level set itself is wavy**. Like any
+   redistancing scheme, this fixes eikonality and shock/medial-axis structure *away* from the
+   interface while holding the interface fixed — run on a decoded lumpy SDF it yields a cleaner far
+   field around the same lumpy building.
+2. **Nothing is differentiable or learning-based**, so it cannot be a loss term or a layer in the
+   diffusion training loop — the only place Section C says a fix can land.
+3. **The step it would improve is not indicted.** #56 measured GT roughness **0.0041** and codec
+   round-trip **0.0044**: our SDF *computation* has essentially no headroom. We also use a
+   **truncated ±0.2** field on a **regular 64³ grid**, so the paper's headline win — cheap accuracy
+   far from the object, on unstructured polyhedra — is for a regime we discard.
+
+**The one real conceptual link, already spent.** `−εΔu + |∇u| = 1` is the vanishing-viscosity idea
+that **StEik** (2305.18414, family 2 above) ported into neural SDF training. #60 ran that neural
+incarnation: the grad_tv-regularized x0-sharp finetune **diverged at w=0.1** and, with w=0.05 +
+grad-clip, was **stable but flat** (0.00547 vs 0.00552 baseline). The only marginally new element
+here is the **annealing schedule** (shrink the regularizer as resolution refines → a t-dependent
+weight instead of our fixed `w`), but #60's problem was not instability — it was that stability
+bought no crispness. That is a micro-tweak on a lever already measured flat, not grounds to reopen
+[#58](https://github.com/danvisai/SDFusion/issues/58).
+
+**Note on a near-miss ID:** arXiv **2301.11445** (one family away, same month) is
+**3DShape2VecSet** — that one *is* relevant and is the head of family 1 / the Section C
+recommendation. Don't confuse the two.
