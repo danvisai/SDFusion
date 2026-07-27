@@ -65,3 +65,35 @@ def surface_weighted_l1(pred, target, band=0.1):
     everywhere term for sign correctness."""
     w = torch.exp(-(target / band) ** 2) + 0.1
     return ((pred - target).abs() * w).sum() / w.sum()
+
+
+def _central_grad(v):
+    """Central-difference spatial gradient of (B,1,D,H,W) -> (B,3,D,H,W) (voxel units; boundary=0).
+    Order of the 3 channels (dz,dy,dx) is irrelevant to the magnitude/cosine terms below."""
+    dz = torch.zeros_like(v); dy = torch.zeros_like(v); dx = torch.zeros_like(v)
+    dz[:, :, 1:-1] = (v[:, :, 2:] - v[:, :, :-2]) * 0.5
+    dy[:, :, :, 1:-1] = (v[:, :, :, 2:] - v[:, :, :, :-2]) * 0.5
+    dx[:, :, :, :, 1:-1] = (v[:, :, :, :, 2:] - v[:, :, :, :, :-2]) * 0.5
+    return torch.cat([dz, dy, dx], dim=1)
+
+
+def sharpness_loss(pred, target, band=0.1, w_nrm=0.05, w_eik=0.01, eps=1e-6):
+    """#54: surface-weighted L1 anchor + SHARPNESS-aware terms that plain L1 (v1/v2) lacks.
+
+    A 'wavy wall' is exactly a surface whose NORMAL wobbles where the crisp target's is constant, so:
+      - normal term: 1 - cos(grad(pred), grad(target)), weighted near the target surface -> pushes the
+        refined normals onto the crisp target's -> de-ripples walls.
+      - eikonal-ish term: |grad(pred)| matched to |grad(target)| near the surface (frame-agnostic: no
+        need for the exact voxel spacing; the crisp target defines the correct gradient profile) ->
+        keeps a valid, non-collapsed distance field.
+    Returns (total_loss, {l1, nrm, eik}) with the components as detached floats for logging."""
+    l1 = surface_weighted_l1(pred, target, band)
+    w = torch.exp(-(target / band) ** 2)                       # (B,1,D,H,W) near-surface weight
+    wsum = w.sum().clamp_min(eps)
+    gp, gt = _central_grad(pred), _central_grad(target)
+    npn = gp.norm(dim=1, keepdim=True); ntn = gt.norm(dim=1, keepdim=True)
+    cos = (gp * gt).sum(dim=1, keepdim=True) / (npn * ntn + eps)
+    nrm = (w * (1.0 - cos)).sum() / wsum
+    eik = (w * (npn - ntn).abs()).sum() / wsum
+    total = l1 + w_nrm * nrm + w_eik * eik
+    return total, {"l1": float(l1.detach()), "nrm": float(nrm.detach()), "eik": float(eik.detach())}
