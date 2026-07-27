@@ -83,7 +83,8 @@ with the footprint injected as conditioning tokens (CLAY's "3D-aware primitive c
 precedent that this is a solved conditioning pattern, not a research risk); (d) marching cubes (or
 FlexiCubes, see family 2) at export time, same as today. This is a **new AE + new diffusion head**,
 i.e. genuinely the "high cost" option already named in `representation-ceiling-menu.md`. The
-project's own known data bottleneck (~1849 real shapes, per prior data-audit findings) applies here
+project's own known data bottleneck applies here — though see the **#64 correction** below: the ~1849
+figure is DETAIL-era; massing has **35,776** shapes. It still applies here
 too or worse — vecset models in the literature are trained on hundreds of thousands to millions of
 shapes (CLAY, Hunyuan3D-2). Our own real-data count doesn't grow just because the representation
 changes, so the sharp-edge-sampling *training signal* (which needs no extra data, just resampling
@@ -144,7 +145,8 @@ of a hand-authored recipe grammar — which would need a **building-scale CAD/B-
 dataset**. None of DeepCAD/SkexGen/SolidGen/BrepGen train on buildings (they use mechanical/Onshape
 CAD parts); a from-scratch building sketch-extrude corpus doesn't obviously exist at the
 hundred-thousand scale these methods were trained at, and this project's own known bottleneck is
-scarce real building data (~1849 shapes) generally. So this family is best read as **literature
+scarce real building data generally (for *detail*; massing has 35,776 — see the #64 correction).
+So this family is best read as **literature
 validation that the project's existing procedural recipe direction is architecturally sound**, not
 as a new investment — the marginal cost of building a learned CAD-sequence generator on top of it
 is high and directly bounded by data availability, and it caps massing to prismatic forms, forfeiting
@@ -204,7 +206,8 @@ waviness; post-hoc correction in either SDF or latent space plateaus at 0.0047**
    sampling), a new cross-attention query decoder, and a new set-transformer/DiT diffusion
    backbone with footprint conditioning re-plumbed as tokens — a from-scratch AE + diffusion
    effort, not a finetune, and one that inherits this project's existing scarce-real-data
-   constraint (the field's exemplars train on 100K–1M+ shapes; we have ~1849).
+   constraint (the field's exemplars train on 100K–1M+ shapes; we have **35,776** for massing — see the
+   #64 correction below, not the ~1849 detail-era figure).
 
 2. **Family 3 (CAD/extrusion) is not a new recommendation — it's literature confirmation that the
    project's existing procedural-recipe path is the right instinct for the prismatic part of the
@@ -278,3 +281,47 @@ bought no crispness. That is a micro-tweak on a lever already measured flat, not
 **Note on a near-miss ID:** arXiv **2301.11445** (one family away, same month) is
 **3DShape2VecSet** — that one *is* relevant and is the head of family 1 / the Section C
 recommendation. Don't confuse the two.
+
+
+---
+
+## Correction (#64, 2026-07-27) — the corpus figure, and what the literature actually says about scale
+
+**The ~1849-shape figure used above is from the BuildingNet / detail-element era and does not apply to
+massing.** [#26](https://github.com/danvisai/SDFusion/issues/26) established
+`data/real_massing_v1/real.h5` = **35,776 real LoD2 buildings** (NL 11,776 / DE 12,000 / JP 12,000),
+verified 2026-07-27. That is a **19× correction**, and it changes the feasibility argument materially.
+
+**What the exemplars actually trained on** (verified against paper text this pass):
+
+| model | training shapes | source |
+|---|---|---|
+| **3DShape2VecSet** (SIGGRAPH 2023) | **ShapeNet-v2, ~51K across 55 categories**, trained *jointly* (not per-category) — AE reaches **IoU 0.965** | paper §experiments |
+| **Dora** (CVPR 2025) | **~400,000** meshes filtered from Objaverse | *"Our training data consists of approximately 400,000 3D meshes carefully filtered from Objaverse."* |
+| **TRELLIS** (CVPR 2025) | **TRELLIS-500K** (Objaverse XL, ABO, 3D-FUTURE, HSSD, Toys4k) | project repo |
+| **Hunyuan3D-2** | Objaverse / Objaverse-XL scale; **exact count not published** | paper does not quantify |
+
+**No paper in this family publishes a training-set-size ablation or scaling curve for the AE.** Dora
+ablates only its architectural contributions (Sharp Edge Sampling, Dual Cross Attention). So "is N shapes
+enough" cannot be answered by citation — only by the two indirect results below.
+
+**The sobering result.** Dora attributes 3DShape2VecSet's weakness directly to data:
+*"3DShape2VecSet consistently underperforms across all detail levels, primarily due to its **limited
+training data** affecting generalization capability."* 3DShape2VecSet trained at **~40K** — essentially
+**our corpus size**. So a vecset AE trained from scratch at our scale is *published* to underperform on
+sharp detail.
+
+**The mitigating result, from the same paper.** Fine-tuning a pretrained vecset VAE onto a new corpus is
+**standard, published practice**: *"we fine-tune Craftsman-VAE on our dataset (denoted as
+Craftsman-VAE†) since both Craftsman-VAE and 3DShape2VecSet were originally trained on smaller
+datasets."* This is the remedy for exactly our situation.
+
+**And our own counter-evidence.** Dora's data-hunger finding is about reconstructing **55 diverse
+Objaverse categories**. We need **one narrow category**. [#56](https://github.com/danvisai/SDFusion/issues/56)
+already showed our *own* VQVAE, trained on our *own* 35,776 buildings, round-trips at **0.0044 ≈ GT
+0.0041** — i.e. at our scale, in our domain, an autoencoder already reconstructs crisply. Narrow domain
+appears to compensate for raw count on the AE half.
+
+**Consequence for the effort:** the durable fix does not require training a vecset AE from scratch. See
+[#64](https://github.com/danvisai/SDFusion/issues/64) and
+`docs/wayfinding/crisp-massing-vecset/data-scale-findings.md`.
