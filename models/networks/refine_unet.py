@@ -60,6 +60,38 @@ class RefineUNet3D(nn.Module):
         return x + delta
 
 
+class LatentCorrectorUNet3D(nn.Module):
+    """(B,C,16,16,16) wavy VQVAE latent -> (B,C,16,16,16) corrected latent (#59: latent-space
+    corrector de-risk). Same residual/zero-init-identity contract as `RefineUNet3D`, but a
+    SIBLING rather than a reuse: it operates on the frozen VQVAE's raw 3-channel latent grid
+    (already only 16^3) instead of a 64^3 decoded SDF, so it only needs 2 downsamples
+    (16->8->4) instead of 3."""
+
+    def __init__(self, channels=3, base=48, delta_scale=1.0):
+        super().__init__()
+        c = base
+        self.e1 = ConvBlock(channels, c)
+        self.e2 = ConvBlock(c, 2 * c)
+        self.pool = nn.MaxPool3d(2)
+        self.bott = ConvBlock(2 * c, 4 * c)
+        self.u2 = nn.ConvTranspose3d(4 * c, 2 * c, 2, 2)
+        self.d2 = ConvBlock(4 * c, 2 * c)
+        self.u1 = nn.ConvTranspose3d(2 * c, c, 2, 2)
+        self.d1 = ConvBlock(2 * c, c)
+        self.out = nn.Conv3d(c, channels, 1)
+        nn.init.zeros_(self.out.weight); nn.init.zeros_(self.out.bias)  # start at identity
+        self.delta_scale = delta_scale
+
+    def forward(self, x):
+        e1 = self.e1(x)
+        e2 = self.e2(self.pool(e1))
+        b = self.bott(self.pool(e2))
+        d2 = self.d2(torch.cat([self.u2(b), e2], 1))
+        d1 = self.d1(torch.cat([self.u1(d2), e1], 1))
+        delta = torch.tanh(self.out(d1)) * self.delta_scale
+        return x + delta
+
+
 def surface_weighted_l1(pred, target, band=0.1):
     """L1 weighted near the TARGET (good) surface so detail is matched, plus a small
     everywhere term for sign correctness."""
