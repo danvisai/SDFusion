@@ -79,6 +79,31 @@ as occupancy jumping to ~0.85, which is how the first TripoSG run failed.
 stands. But two independent frozen codecs across five sampler configurations all land **2.2–3.3x GT** and
 all lose to the deployed dense-grid model. The finding is robust.
 
+## What the surfaces actually look like
+
+![frozen gate montage](frozen-gate-montage.png)
+
+The scalars understated this badly. **The failure mode is periodic corrugation on flat faces** —
+Dora's output is ribbed like corrugated metal across every facade, keeping the overall block shape but
+destroying exactly the flatness that defines LoD2 massing. TripoSG degrades further, into blobby
+cratered surfaces barely readable as buildings.
+
+**This is the artifact class [#63](https://github.com/danvisai/SDFusion/issues/63) warned the metric is
+blind to.** #63 recorded fine-scale striation on flat faces as something `surface_roughness` does not
+detect, and flagged the scalar as necessary-but-not-sufficient. That caveat has now proved decisive:
+striation is not an incidental artifact of these codecs, it is their *characteristic* failure on our
+domain, and judging by roughness alone would have understated it.
+
+The ribbing looks **periodic and aliased**, which points at a concrete mechanism: the decoder's
+frequency positional embedding (8 frequencies) producing standing waves across large flat regions. That
+is consistent with models fit to organic, detail-dense geometry being asked to reconstruct big planar
+facades.
+
+⚠️ **Note on the montage's numbers:** the labels there are roughness of the **raw decoded field**, which
+for these codecs is a normalised TSDF or logits with much steeper gradients — hence values ~0.05–0.12.
+The gate's **0.00984 / 0.01338** are the comparable figures, measured after re-voxelising to metric
+distance. The ranking is identical; only the scale differs.
+
 ## Why this might be happening
 
 Offered as hypothesis, not measurement. Our massing is **near-prismatic and extremely simple** — often
