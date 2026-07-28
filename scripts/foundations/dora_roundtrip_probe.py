@@ -122,7 +122,8 @@ def _stub_absent_deps() -> None:
     # build, so implement FPS directly. Difference from upstream: torch_cluster defaults to a random
     # start, this starts at index 0 -- deterministic, and an equally valid farthest-point subset.
     if "torch_cluster" not in sys.modules:
-        def _fps(pos: torch.Tensor, batch: torch.Tensor, ratio: float) -> torch.Tensor:
+        def _fps(pos: torch.Tensor, batch: torch.Tensor, ratio: float,
+                 random_start: bool = False) -> torch.Tensor:
             out = []
             for b in torch.unique(batch, sorted=True):
                 m = (batch == b).nonzero(as_tuple=True)[0]

@@ -43,10 +43,11 @@ from scripts.foundations.vecset_ceiling_probe import (                       # n
     RES, TRUNC, REF, grid_points, verts_to_world, test_indices,
 )
 from scripts.foundations.dora_roundtrip_probe import (                       # noqa: E402
-    load_dora, sample_surface, sample_sharp_edges, H5,
+    _stub_absent_deps, load_dora, sample_surface, sample_sharp_edges, H5,
 )
 
 SURF = REPO / "data/real_massing_v1"
+TRIPO_VAE = REPO / "external/triposg_vae"
 SOURCES = {"bag3d": "NL", "nrw": "DE", "plateau": "JP"}
 
 
@@ -87,6 +88,12 @@ def main() -> None:
     ap.add_argument("--n_sharp", type=int, default=8192)
     ap.add_argument("--chunk", type=int, default=32768)
     ap.add_argument("--out_dir", default="outputs/dora_frozen_gate")
+    ap.add_argument("--sweep", action="store_true",
+                    help="ablate the sampler: does our coarse/sharp split explain the degradation?")
+    ap.add_argument("--codec", choices=["dora", "triposg"], default="dora",
+                    help="which frozen codec to gate; both satisfy encode/decode-at-query-points")
+    ap.add_argument("--no_sharp", action="store_true",
+                    help="feed a second UNIFORM stream instead of the sharp-edge stream")
     args = ap.parse_args()
 
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
@@ -107,7 +114,31 @@ def main() -> None:
                 picks.append(by_src[s][i])
         i += 1
 
-    model = load_dora(dev)
+    if args.codec == "dora":
+        model = load_dora(dev)
+
+        def encode_query(coarse, sharp, q):
+            _, kl, _ = model.encode(coarse, sharp, sample_posterior=False)
+            lat = model.decode(kl)
+            return torch.cat([model.query(q[:, j:j + args.chunk], lat).float()
+                              for j in range(0, q.shape[1], args.chunk)], dim=1), kl
+    else:
+        # TripoSG's VAE is a separable, MIT-licensed diffusers module whose decode() already takes
+        # the query points -- the same seam, single-stream rather than dual (no sharp branch).
+        # TripoSG also imports torch_cluster.fps (to subsample encoder tokens) and it is absent
+        # here, so register the same pure-torch FPS the Dora path uses before importing.
+        _stub_absent_deps()
+        sys.path.insert(0, str(REPO / "external/TripoSG"))
+        from triposg.models.autoencoders.autoencoder_kl_triposg import TripoSGVAEModel
+        model = TripoSGVAEModel.from_pretrained(str(TRIPO_VAE)).eval().to(dev)
+        print(f"[triposg] loaded  params={sum(p.numel() for p in model.parameters())/1e6:.1f}M")
+
+        def encode_query(coarse, sharp, q):
+            x = torch.cat([coarse, sharp], dim=1)          # one stream; keep the same point budget
+            z = model.encode(x).latent_dist.mode()
+            return torch.cat([model.decode(z, q[:, j:j + args.chunk]).sample.float().squeeze(-1)
+                              for j in range(0, q.shape[1], args.chunk)], dim=1), z
+
     pts = grid_points()
     rows = []
 
@@ -122,16 +153,19 @@ def main() -> None:
             rec["input"] = _rough(_revoxel(v, fc, pts))
 
             mesh = trimesh.Trimesh(np.asarray(v, np.float64), np.asarray(fc), process=False)
+            sh = sample_surface if args.no_sharp else sample_sharp_edges
             coarse = torch.from_numpy(sample_surface(mesh, args.n_coarse, rng))[None].to(dev)
-            sharp = torch.from_numpy(sample_sharp_edges(mesh, args.n_sharp, rng))[None].to(dev)
+            sharp = torch.from_numpy(sh(mesh, args.n_sharp, rng))[None].to(dev)
             with torch.no_grad():
-                _, kl, _ = model.encode(coarse, sharp, sample_posterior=False)
-                lat = model.decode(kl)
                 q = torch.from_numpy(pts.astype(np.float32))[None].to(dev)
-                vals = torch.cat([model.query(q[:, j:j + args.chunk], lat).float()
-                                  for j in range(0, q.shape[1], args.chunk)], dim=1)
-            # positive-inside -> our negative-inside convention
-            field = -vals.view(RES, RES, RES).cpu().numpy()
+                vals, _lat = encode_query(coarse, sharp, q)
+            # Sign convention differs BY CODEC and was determined empirically from occupancy
+            # agreement with GT, not assumed: Dora returns positive-inside (needs negating),
+            # TripoSG is already negative-inside like ours. Getting this wrong inverts the shape
+            # and shows up as occupancy jumping to ~0.85.
+            field = vals.view(RES, RES, RES).cpu().numpy()
+            if args.codec == "dora":
+                field = -field
 
             dv, df = mesh_sdf_surface(np.clip(field, -TRUNC, TRUNC))
             if dv is None:
@@ -148,7 +182,7 @@ def main() -> None:
 
     ok = [r for r in rows if np.isfinite(r["frozen"])]
     agg = {k: float(np.mean([r[k] for r in ok])) for k in ("gt", "input", "frozen")}
-    print(f"\n=== FROZEN GATE (n={len(ok)}, real LoD2 surfaces, stratified) ===")
+    print(f"\n=== FROZEN GATE [{args.codec}] (n={len(ok)}, real LoD2 surfaces, stratified) ===")
     print(f"  GT (stored field)          {agg['gt']:.5f}")
     print(f"  input surface  [CONTROL]   {agg['input']:.5f}   (codec not involved)")
     print(f"  FROZEN codec               {agg['frozen']:.5f}")

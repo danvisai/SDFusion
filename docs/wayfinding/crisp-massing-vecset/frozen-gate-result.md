@@ -47,7 +47,49 @@ Different quantities, both true.
 **Does say** the domain gap #64 predicted is real and large. Dora was trained on ~400,000 Objaverse
 meshes; LoD2 massing is a different world.
 
-## A caveat that must be resolved before spending a training campaign
+## Both caveats now resolved — it is the codec, twice over
+
+### The sampler is not the cause (ablation, n=9, identical buildings)
+
+| sampler config | frozen | vs GT 0.00388 |
+|---|---|---|
+| baseline coarse 8192 / sharp 8192 | 0.00903 | 2.3x |
+| fewer sharp 8192 / 2048 | 0.00906 | 2.3x |
+| **small both 2048 / 2048** | **0.00848** | 2.2x (best) |
+| dense coarse 16384 / 4096 | 0.01013 | 2.6x (worst) |
+| **no sharp stream** (uniform x2) | 0.00970 | 2.5x |
+
+Total spread ~+-8% around 0.0093, against a gap that needs closing by ~60%. **No sampling choice comes
+close.** Two incidental findings: removing the sharp stream makes it *worse*, so sharp-edge sampling is
+genuinely helping (just not enough); and *more* points is worse, consistent with FPS selecting from a
+denser pool of a trivially simple shape.
+
+### A second, independent codec is worse (TripoSG, n=24, same buildings)
+
+| codec | frozen | codec contribution |
+|---|---|---|
+| **Dora-VAE** (Apache-2.0, TSDF) | **0.00984** | **+0.00580** |
+| **TripoSG VAE** (MIT, SDF) | **0.01338** | **+0.00934** |
+
+TripoSG's sign convention is the opposite of Dora's — it is already negative-inside — determined
+empirically from occupancy agreement rather than assumed. Getting it wrong inverts the shape and shows
+as occupancy jumping to ~0.85, which is how the first TripoSG run failed.
+
+**Dora remains the better base**, so [#65](https://github.com/danvisai/SDFusion/issues/65)'s choice
+stands. But two independent frozen codecs across five sampler configurations all land **2.2–3.3x GT** and
+all lose to the deployed dense-grid model. The finding is robust.
+
+## Why this might be happening
+
+Offered as hypothesis, not measurement. Our massing is **near-prismatic and extremely simple** — often
+~12 vertices, large flat faces, hard edges. Both codecs were trained on open-domain organic/complex
+geometry, and both compress into a **fixed 2,048-token latent** regardless of how simple the shape is.
+A cross-attention decoder over frequency-embedded queries, fit to complex surfaces, appears to smooth
+exactly the large flat faces our domain is made of. If so this is out-of-distribution in the *unusual*
+direction, and a fine-tune on our corpus is precisely the right remedy — but it must close a large gap,
+not polish a small one.
+
+## Superseded caveat (kept for the record)
 
 Our buildings are **extremely simple** — often ~12 vertices, essentially a box with a roof. Dora expects
 complex Objaverse geometry, so this is out-of-distribution in the *unusual* direction: trivially simple
