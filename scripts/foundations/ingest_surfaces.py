@@ -106,25 +106,43 @@ def _iter_citygml(source: str, want: dict, max_tiles: int):
                 continue
 
 
-def _iter_bag3d(want: dict):
-    """Yield (id, mesh) for NL by resolving each stored bag_id against the 3DBAG API (#62)."""
-    import trimesh
+def _iter_bag3d(want: dict, workers: int = 16, chunk: int = 512):
+    """Yield (id, mesh) for NL by resolving each stored bag_id against the 3DBAG API (#62).
+
+    The API costs ~2s per building, so sequentially this corpus is ~400 minutes. The calls are
+    I/O-bound, so the network is parallelised across a small thread pool while mesh construction
+    stays on the main thread (keeping trimesh single-threaded). Requests are issued in chunks so
+    fetched JSON does not all accumulate in memory at once.
+    """
+    from concurrent.futures import ThreadPoolExecutor
     from scripts.ingest_3dbag import lod22_mesh
-    for n, bid in enumerate(want):
+
+    def _get(bid):
         try:
             req = urllib.request.Request(f"{BAG_API}/{bid}", headers={"User-Agent": "curl/8"})
             with urllib.request.urlopen(req, timeout=45) as r:
-                d = json.load(r)
-            feat = d.get("feature", d)
-            tr = d.get("metadata", {}).get("transform") or d.get("transform") or feat.get("transform")
-            m = lod22_mesh(feat, tr)
-            if m is not None:
-                yield bid, m
+                return bid, json.load(r)
         except Exception:
-            pass
-        if (n + 1) % 250 == 0:
-            print(f"  ...{n+1}/{len(want)} requested", flush=True)
-        time.sleep(0.02)
+            return bid, None
+
+    ids = list(want)
+    done = 0
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for i in range(0, len(ids), chunk):
+            for bid, d in ex.map(_get, ids[i:i + chunk]):
+                done += 1
+                if d is None:
+                    continue
+                feat = d.get("feature", d)
+                tr = (d.get("metadata", {}) or {}).get("transform") or d.get("transform") \
+                    or feat.get("transform")
+                try:
+                    m = lod22_mesh(feat, tr)
+                except Exception:
+                    m = None
+                if m is not None:
+                    yield bid, m
+            print(f"  ...{done}/{len(ids)} fetched", flush=True)
 
 
 def run(source: str, max_tiles: int, limit: int) -> None:
