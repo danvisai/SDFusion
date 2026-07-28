@@ -49,14 +49,25 @@ def to_frame_n(m):
     to the SDF path because that uses fast-winding-number signing, but NOT to a vecset encoder --
     it consumes face normals, and inverted winding would hand it inside-out surfaces.
     """
-    if m.volume < 0:
-        m.invert()
     v = np.asarray(m.vertices, np.float64)
     ext = m.extents
     c = m.bounds.mean(0)
     s = float(ext.max()) / 2 * MARGIN
     vn = (v - c) / s
     return np.ascontiguousarray(np.stack([vn[:, 0], vn[:, 2], vn[:, 1]], 1), np.float32)
+
+
+def fix_winding(v: np.ndarray, f: np.ndarray) -> np.ndarray:
+    """Return faces wound so normals point OUTWARD, in Frame-N.
+
+    Subtle and previously wrong: the y/z swap in `to_frame_n` is a REFLECTION (determinant -1), so it
+    reverses face orientation. Repairing winding before the swap is silently undone by it. The SDF path
+    never noticed because fast-winding-number signing is orientation-agnostic -- but a vecset encoder
+    consumes face normals, so every building was handed inside-out surfaces.
+    """
+    import trimesh
+    m = trimesh.Trimesh(np.asarray(v, np.float64), np.asarray(f), process=False)
+    return np.asarray(m.faces[:, ::-1] if m.volume < 0 else m.faces, np.int32)
 
 
 def _wanted_ids(source: str):
@@ -155,7 +166,7 @@ def run(source: str, max_tiles: int, limit: int) -> None:
     t0 = time.time()
     for key, m in it:
         vn = to_frame_n(m)
-        fn = np.asarray(m.faces, np.int32)
+        fn = fix_winding(vn, m.faces)
         keys.append(key); verts.append(vn); faces.append(fn)
         vo.append(vo[-1] + len(vn)); fo.append(fo[-1] + len(fn))
         if len(keys) % 250 == 0:

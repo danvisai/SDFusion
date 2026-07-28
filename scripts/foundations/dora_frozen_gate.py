@@ -77,7 +77,14 @@ def load_surfaces():
             vo, fo, rows = f["vert_offset"][:], f["face_offset"][:], f["row"][:]
             V, F = f["verts"][:], f["faces"][:]
         for i, r in enumerate(rows):
-            out[int(r)] = (V[vo[i]:vo[i + 1]], F[fo[i]:fo[i + 1]], src)
+            v, fa = V[vo[i]:vo[i + 1]], F[fo[i]:fo[i + 1]]
+            # Guarantee OUTWARD normals: a vecset encoder consumes them, and the Frame-N y/z swap is a
+            # reflection that silently inverted every stored mesh. Cheap to assert here, so corpora
+            # written before that was understood stay usable.
+            import trimesh as _tm
+            if _tm.Trimesh(np.asarray(v, np.float64), np.asarray(fa), process=False).volume < 0:
+                fa = fa[:, ::-1]
+            out[int(r)] = (v, fa, src)
     return out
 
 

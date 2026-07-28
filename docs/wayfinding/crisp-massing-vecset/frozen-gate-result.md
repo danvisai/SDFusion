@@ -1,4 +1,4 @@
-# The frozen round-trip gate — NEGATIVE
+# The frozen round-trip gate — NEGATIVE, but weaker than first reported
 
 **Date:** 2026-07-28 · **n=24 held-out, stratified NL/DE/JP, real LoD2 surfaces (#62).**
 
@@ -149,3 +149,71 @@ sdfusion/bin/python scripts/foundations/dora_frozen_gate.py --n 24
 ```
 
 Artifact: `outputs/dora_frozen_gate/gate.json` (per-building rows, aggregate, codec delta).
+
+
+---
+
+# ⚠️ CORRECTION (2026-07-28) — the gate ran on inside-out normals
+
+Everything above was measured with **inward-pointing face normals on every building**, which both
+codecs consume as encoder input. The numbers are understated and the "robust" framing was wrong.
+
+## The bug
+
+`to_frame_n` repaired winding *before* reordering CityGML's z-up axes to y-up — but that reorder is a
+**reflection** (determinant −1), so it reversed orientation again. Net: **400/400 sampled surfaces had
+negative volume, 0/12 faces pointing outward.**
+
+The SDF path never noticed, because fast-winding-number signing is orientation-agnostic — which is
+exactly why #62's alignment check passed at IoU 1.0000 and gave false confidence. A **vecset encoder is
+not** orientation-agnostic: it takes `[xyz, normal]` per point.
+
+Fixed at source (wind faces outward *after* the frame transform) and at load (assert outward normals),
+so corpora written before this was understood remain usable.
+
+## Corrected results (n=24, same held-out buildings)
+
+| codec | before (inward) | **after (outward)** | codec contribution |
+|---|---|---|---|
+| **Dora-VAE** | 0.00984 | **0.00796** | +0.00580 → **+0.00392** |
+| **TripoSG VAE** | 0.01338 | **0.00847** | +0.00934 → **+0.00443** |
+
+Per-building surface metrics improved even more sharply than roughness — **Chamfer roughly halved**
+(0.0193 → 0.0094 mean), with the *worst* cases improving most, which is the signature of a systematic
+fault rather than noise. Normal consistency rose 0.9363 → 0.9540.
+
+## What survives, and what does not
+
+**Survives:** both frozen codecs still sit above the deployed **0.00552** and the **0.0047** wall. The
+direction of the conclusion is unchanged — a frozen codec is not usable off the shelf.
+
+**Does not survive:** the *magnitude*, and the claim of robustness. Dora's gap to deployed is now
+**0.0024, not 0.0043** — and TripoSG is no longer dramatically worse than Dora, it is close behind.
+
+**The methodological error is worth naming.** I argued the negative was robust because it held across
+*two codecs × five sampler configurations*. That reasoning was invalid: all seven runs shared the same
+upstream defect. **Variation across downstream conditions cannot establish robustness against a
+common-mode fault.** The ablation controlled for the sampler and the codec, and both were innocent —
+the input was wrong.
+
+## Also corrected: the metric over-penalises this failure mode
+
+`surface_roughness` is a discrete Laplacian on a grid. On a genuinely flat surface it collapses as h²,
+while a fixed-wavelength ripple's does not — so the GT/Dora *ratio* worsens with query resolution
+(14× at 64³, 78× at 256³) even though the decoded surface visibly *improves*. That is the instrument,
+not the geometry. Resolution-independent metrics tell a much better story: **normal consistency 0.954,
+Chamfer ~0.009** (≈1 % of object extent).
+
+And a query decoder's resolution is a free parameter. Evaluating one exclusively on a 64³ grid — the
+very constraint this effort exists to escape — understates it by construction.
+
+## The honest current read
+
+Dora **preserves shape, edge sharpness and planar orientation**, and adds a fine periodic ripple on flat
+faces. That is a categorically different and more tractable defect than the dense-grid failure it would
+replace, which *rounds edges and undulates walls*. A fine-tune targeting "suppress a fixed-wavelength
+ripple on planar regions, where geometry is already correct" is far better posed than "close a roughness
+gap", and the gap it must close is now **0.0024**.
+
+The coverage hypothesis was tested and **refuted**: 0/24 faces unsampled, 0.000 % of area uncovered,
+watertight, no degenerate faces. Decode noise is not a sampling gap.
