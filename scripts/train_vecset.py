@@ -36,9 +36,17 @@ from models.networks.vecset_projection import cosine_alphas          # noqa: E40
 
 
 class LatentSet(torch.utils.data.Dataset):
-    """Precomputed (latent, footprint, height, region), train split only."""
+    """Precomputed (latent, footprint, height, region), train split only.
 
-    def __init__(self, path, held_out=False):
+    With `blockout_path`, also serves the ALIGNED PARTNER: the latent of the footprint extrusion the
+    generator is actually handed at inference. Training from Gaussian corruption of real latents alone
+    left the model unable to start from a blockout -- it denoised in-distribution latents well
+    (cos 0.707 -> 0.935 at s=0.5) yet collapsed on blockouts. Pairs close that gap by construction.
+
+    Rows are matched by corpus id, not by position, since the two passes can drop different buildings.
+    """
+
+    def __init__(self, path, held_out=False, blockout_path=None):
         import h5py
         with h5py.File(path, "r") as f:
             m = (f["held_out"][:] == (1 if held_out else 0))
@@ -46,6 +54,19 @@ class LatentSet(torch.utils.data.Dataset):
             self.fp = f["footprint"][:][m]
             self.h = f["height_m"][:][m]
             self.r = f["region"][:][m]
+            rows = f["row"][:][m]
+        self.zb = None
+        if blockout_path:
+            with h5py.File(blockout_path, "r") as g:
+                brow, bz = g["row"][:], g["latent"][:]
+            idx = {int(r): i for i, r in enumerate(brow)}
+            keep = np.array([i for i, r in enumerate(rows) if int(r) in idx])
+            if len(keep) == 0:
+                raise SystemExit("no rows shared between the latent and blockout caches")
+            self.z, self.fp = self.z[keep], self.fp[keep]
+            self.h, self.r = self.h[keep], self.r[keep]
+            self.zb = bz[[idx[int(rows[i])] for i in keep]]
+            print(f"[pairs] {len(keep)} aligned blockout/real pairs")
         # normalise the latent to unit scale so the noise schedule is well-posed
         self.mu = float(self.z.astype(np.float32).mean())
         self.sd = float(self.z.astype(np.float32).std()) or 1.0
@@ -55,7 +76,8 @@ class LatentSet(torch.utils.data.Dataset):
 
     def __getitem__(self, i):
         z = (self.z[i].astype(np.float32) - self.mu) / self.sd
-        return (torch.from_numpy(z),
+        zb = ((self.zb[i].astype(np.float32) - self.mu) / self.sd) if self.zb is not None else z
+        return (torch.from_numpy(z), torch.from_numpy(zb),
                 torch.from_numpy(self.fp[i].astype(np.float32))[None],
                 torch.tensor(self.h[i], dtype=torch.float32),
                 torch.tensor(int(self.r[i]), dtype=torch.long))
@@ -72,6 +94,17 @@ def main() -> None:
     ap.add_argument("--heads", type=int, default=8)
     ap.add_argument("--timesteps", type=int, default=1000)
     ap.add_argument("--cfg_drop", type=float, default=0.1)
+    ap.add_argument("--blockouts", default=None,
+                    help="aligned blockout latent cache; enables pair training")
+    ap.add_argument("--pair_frac", type=float, default=0.8,
+                    help="fraction of steps corrupted FROM the blockout rather than from the real "
+                         "latent; the remainder keeps a plain denoiser so the manifold is retained")
+    ap.add_argument("--pair_t_min", type=float, default=0.35,
+                    help="pair steps sample t only ABOVE this fraction of the schedule. Below it the "
+                         "target epsilon diverges: it is sqrt(a)/sqrt(1-a)*(blockout-real) + eps, so "
+                         "as a->1 the model would be asked to bridge the pair in one unbounded step. "
+                         "It also sets the floor for inference strength -- projecting below this is "
+                         "asking for a correction the model was never trained to make.")
     ap.add_argument("--out", default="logs_building/vecset_v1")
     ap.add_argument("--log_every", type=int, default=100)
     ap.add_argument("--save_every", type=int, default=2000)
@@ -80,7 +113,7 @@ def main() -> None:
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
 
-    ds = LatentSet(args.latents)
+    ds = LatentSet(args.latents, blockout_path=args.blockouts)
     dl = torch.utils.data.DataLoader(ds, batch_size=args.batch, shuffle=True, drop_last=True,
                                      num_workers=2, persistent_workers=True)
     C, FPRES = ds.z.shape[-1], ds.fp.shape[-1]
@@ -97,14 +130,30 @@ def main() -> None:
 
     step, t0, hist = 0, time.time(), []
     while step < args.steps:
-        for z, fp, h, r in dl:
+        for z, zb, fp, h, r in dl:
             if step >= args.steps:
                 break
-            z, fp, h, r = z.to(dev), fp.to(dev), h.to(dev), r.to(dev)
-            t = torch.randint(0, args.timesteps, (z.shape[0],), device=dev)
+            z, zb = z.to(dev), zb.to(dev)
+            fp, h, r = fp.to(dev), h.to(dev), r.to(dev)
+            use_pair = ds.zb is not None and np.random.rand() < args.pair_frac
+            lo = int(args.pair_t_min * args.timesteps) if use_pair else 0
+            t = torch.randint(lo, args.timesteps, (z.shape[0],), device=dev)
             a = ac[t].view(-1, 1, 1)
             noise = torch.randn_like(z)
-            zt = a.sqrt() * z + (1 - a).sqrt() * noise
+
+            # ALIGNED PAIRS: corrupt FROM the blockout, keep the target as the REAL latent, so the
+            # implied epsilon is whatever carries blockout -> real. That is exactly what inference
+            # does; the earlier model failed only because training corrupted from the real latent
+            # while inference started from a blockout.
+            #
+            # Restricted to high t on purpose. The target is
+            #     sqrt(a)/sqrt(1-a) * (blockout - real) + eps
+            # which diverges as a -> 1, so at low t the objective is ill-posed rather than merely
+            # hard -- the first attempt at this exploded to loss ~40-70 for exactly that reason.
+            src = zb if use_pair else z
+            zt = a.sqrt() * src + (1 - a).sqrt() * noise
+            if use_pair:
+                noise = (zt - a.sqrt() * z) / (1 - a).sqrt()
 
             # per-sample CFG dropout, honestly: split the batch rather than pretend the
             # per-batch flag is per-sample

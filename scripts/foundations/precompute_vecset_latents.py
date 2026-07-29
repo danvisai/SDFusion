@@ -27,6 +27,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from models.shape_codec import Building, DoraCodec                       # noqa: E402
+from scripts.foundations.baseline_gate_eval import mesh_sdf_surface       # noqa: E402
+from scripts.foundations.vecset_ceiling_probe import TRUNC, verts_to_world  # noqa: E402
 from scripts.foundations.dora_roundtrip_probe import load_dora, H5       # noqa: E402
 from scripts.foundations.dora_frozen_gate import load_surfaces           # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import test_indices        # noqa: E402
@@ -40,6 +42,9 @@ def main() -> None:
     ap.add_argument("--n_coarse", type=int, default=8192)
     ap.add_argument("--n_sharp", type=int, default=8192)
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--blockout", action="store_true",
+                    help="encode the footprint EXTRUSION instead of the real surface, giving the "
+                         "aligned-pair partner: what the generator is handed at inference")
     args = ap.parse_args()
 
     import h5py
@@ -60,7 +65,24 @@ def main() -> None:
         for n, r in enumerate(rows):
             v, fc, src = surf[r]
             try:
-                z = codec.encode(Building(verts=v, faces=fc))
+                if args.blockout:
+                    # the same extrusion the generator is handed at inference -- encoding it here is
+                    # what removes the train/inference distribution gap the diagnostic identified
+                    from scripts.foundations.eval_vecset_projection import blockout_sdf
+                    g = np.asarray(f["sdf"][r], np.float32)
+                    ys = np.nonzero((g <= 0).any(axis=(0, 2)))[0]
+                    if len(ys) == 0:
+                        continue
+                    bo = blockout_sdf(np.asarray(f["footprint"][r], np.uint8),
+                                      int(ys.min()), int(ys.max()))
+                    if bo is None:
+                        continue
+                    bv, bf = mesh_sdf_surface(np.clip(bo, -TRUNC, TRUNC))
+                    if bv is None:
+                        continue
+                    z = codec.encode(Building(verts=verts_to_world(bv), faces=bf))
+                else:
+                    z = codec.encode(Building(verts=v, faces=fc))
             except Exception as e:
                 print(f"  [skip] row {r}: {type(e).__name__}"); continue
             lat.append(z[0].cpu().numpy().astype(np.float16))   # fp16: 2048x64 per building
