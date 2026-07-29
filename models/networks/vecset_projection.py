@@ -37,9 +37,17 @@ def cosine_alphas(timesteps: int, s: float = 0.008) -> torch.Tensor:
 class SetSDEdit:
     """Projection over a latent token set. Wraps a denoiser; holds no parameters of its own."""
 
-    def __init__(self, denoiser, timesteps: int = 1000, alphas_cumprod: Optional[torch.Tensor] = None):
+    def __init__(self, denoiser, timesteps: int = 1000, alphas_cumprod: Optional[torch.Tensor] = None,
+                 x0_clamp: float = 3.0):
+        """`x0_clamp` bounds the predicted clean latent. It must match the LATENT SCALE, not be a loose
+        catch-all: training normalises latents to unit variance, so ~3 sigma is the honest bound. A
+        looser clamp lets an unreliable epsilon push the latent far off the codec's manifold, and a
+        vecset decoder given an off-manifold latent returns shredded geometry rather than a blurry
+        shape -- which is exactly the vertical-slat failure the first evaluation rendered.
+        """
         self.net = denoiser
         self.timesteps = timesteps
+        self.x0_clamp = x0_clamp
         self.ac = cosine_alphas(timesteps) if alphas_cumprod is None else alphas_cumprod
 
     # -- the operator ---------------------------------------------------------
@@ -100,7 +108,7 @@ class SetSDEdit:
         for i, t in enumerate(ts):
             eps = self._eps(x, t, footprint, height, region, guidance)
             at = ac[t]
-            x0 = ((x - (1 - at).sqrt() * eps) / at.sqrt()).clamp(-6.0, 6.0)
+            x0 = ((x - (1 - at).sqrt() * eps) / at.sqrt()).clamp(-self.x0_clamp, self.x0_clamp)
             if i + 1 < len(ts):
                 an = ac[ts[i + 1]]
                 x = an.sqrt() * x0 + (1 - an).sqrt() * eps
