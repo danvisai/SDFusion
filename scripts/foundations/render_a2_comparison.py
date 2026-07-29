@@ -30,7 +30,7 @@ MAP24 = "logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_s
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--ckpt", default="logs_building/vecset_v1/vecset_denoiser.pth")
+    ap.add_argument("--ckpt", default="logs_building/vecset_pair_v1/vecset_denoiser.pth")
     ap.add_argument("--latents", default="data/real_massing_v1/vecset_latents.h5")
     ap.add_argument("--n", type=int, default=4)
     ap.add_argument("--size", type=int, default=300)
@@ -91,13 +91,13 @@ def main() -> None:
             with torch.no_grad():
                 gen = s3.inference(data, ddim_steps=opt.ddim_steps, uc_scale=1.0).cpu().numpy()[0, 0]
                 proj = {}
-                for s in (0.2, 0.4):
+                for s in (0.5, 0.65):
                     zp = op.project(blockout=z0, footprint=fpt, height=ht, region=rg,
                                     strength=s, steps=20, seed=0)
                     proj[s] = codec.decode_grid(zp * sd + mu, RES).cpu().numpy()[0, 0]
 
             arms = [("GT (real LoD2)", g), ("blockout (extruded footprint)", bo),
-                    ("A2 projected s=0.2", proj[0.2]), ("A2 projected s=0.4", proj[0.4]),
+                    ("A2-pair projected s=0.5", proj[0.5]), ("A2-pair projected s=0.65", proj[0.65]),
                     ("map-#24 deployed (shipped)", gen)]
             panels = []
             for label, fld in arms:
