@@ -38,10 +38,17 @@ FRAME_LO, FRAME_HI = -1.0, 1.0
 
 @dataclass
 class Building:
-    """One building, in Frame-N, in whichever projections are available.
+    """One building in the **ARRAY frame**, in whichever projections are available.
 
-    `sdf` is (R,R,R) with negative inside. `verts`/`faces` are the surface, wound outward. A codec
-    raises if the projection it needs is absent, rather than silently degrading.
+    `sdf` is (R,R,R) with negative inside, indexed ``[z, y, x]``. `verts`/`faces` are the surface, wound
+    outward, with coordinate components in that **same** ``(z, y, x)`` order -- the order `grid_points`
+    queries in, so `decode_grid` output is directly comparable to a stored SDF. A codec raises if the
+    projection it needs is absent, rather than silently degrading.
+
+    ⚠️ **This is NOT Frame-N.** The recovered surface corpus is in Frame-N and must be converted by
+    `scene.surface_sampling.to_array_frame` before it becomes a `Building`. This docstring previously said
+    "in Frame-N", and encoding the corpus on that reading put every real latent in a transposed frame and
+    cost both A2 training runs (#70). The frames differ by an x<->z swap, which is also a reflection.
     """
     sdf: Optional[np.ndarray] = None
     verts: Optional[np.ndarray] = None

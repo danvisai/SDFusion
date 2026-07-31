@@ -31,9 +31,55 @@ from scripts.foundations.baseline_gate_eval import mesh_sdf_surface       # noqa
 from scripts.foundations.vecset_ceiling_probe import TRUNC, verts_to_world  # noqa: E402
 from scripts.foundations.dora_roundtrip_probe import load_dora, H5       # noqa: E402
 from scripts.foundations.dora_frozen_gate import load_surfaces           # noqa: E402
+from scene.surface_sampling import to_array_frame                        # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import test_indices        # noqa: E402
 
 OUT = REPO / "data/real_massing_v1/vecset_latents.h5"
+
+
+def verify_frame(codec, L: np.ndarray, fps: np.ndarray, n: int = 4, tol: float = 0.85) -> None:
+    """Refuse to write a cache whose latents decode into the wrong frame.
+
+    Decode a few sampled latents and check each reproduces **its own footprint**. A frame error --
+    transpose, flip, axis swap -- moves the mass off the footprint and tanks this instantly, while a
+    correct cache scores ~1.0 because the codec round-trips at ~0.999.
+
+    This exists because the bug class has now bitten twice and **both times the existing verification
+    passed**: #62 aligned surfaces at IoU 1.0000 while every normal was inverted (it validated position,
+    not orientation), and #70 found every real latent x<->z transposed with nothing checking frame at all.
+    Costs seconds against a multi-hour encode, and it is checked against the footprint stored *beside each
+    latent in this very file*, so it cannot drift out of sync with what it validates.
+    """
+    import torch
+    from scripts.foundations.baseline_gate_eval import fp_iou
+    from scripts.foundations.vecset_ceiling_probe import RES
+
+    if n <= 0:
+        print("[verify] SKIPPED -- no frame guard was run on this cache")
+        return
+
+    # `ShapeCodec._device` reads the LATENT's device, not the model's, so it cannot place the latent for
+    # us. Find the codec's own module instead; the contract does not expose one, so this stays local.
+    dev = "cpu"
+    for attr in vars(codec).values():
+        if isinstance(attr, torch.nn.Module):
+            dev = next(attr.parameters()).device
+            break
+
+    idx = np.linspace(0, len(L) - 1, min(n, len(L))).astype(int)
+    scores = []
+    for i in idx:
+        z = torch.from_numpy(L[i].astype(np.float32))[None].to(dev)
+        fld = codec.decode_grid(z, RES).cpu().numpy()[0, 0]
+        scores.append(fp_iou(fld <= 0, fps[i]))
+    lo = float(np.min(scores))
+    print(f"[verify] fp-IoU of decoded latent vs its own footprint on {len(idx)} samples: "
+          f"min {lo:.4f}  median {float(np.median(scores)):.4f}  (need >= {tol})")
+    if lo < tol:
+        raise SystemExit(
+            f"[verify] FRAME CHECK FAILED (min fp-IoU {lo:.4f} < {tol}). The latents do not decode onto "
+            f"their own footprints, so the mesh frame is wrong -- see scene.surface_sampling."
+            f"to_array_frame. NOT writing the cache.")
 
 
 def main() -> None:
@@ -42,6 +88,10 @@ def main() -> None:
     ap.add_argument("--n_coarse", type=int, default=8192)
     ap.add_argument("--n_sharp", type=int, default=8192)
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--verify", type=int, default=4,
+                    help="samples for the write-time frame guard; 0 disables it (don't)")
+    ap.add_argument("--verify_tol", type=float, default=0.85,
+                    help="minimum fp-IoU of a decoded latent against its own footprint")
     ap.add_argument("--blockout", action="store_true",
                     help="encode the footprint EXTRUSION instead of the real surface, giving the "
                          "aligned-pair partner: what the generator is handed at inference")
@@ -82,7 +132,12 @@ def main() -> None:
                         continue
                     z = codec.encode(Building(verts=verts_to_world(bv), faces=bf))
                 else:
-                    z = codec.encode(Building(verts=v, faces=fc))
+                    # The corpus is in Frame-N; everything else in this pipeline -- the blockout above,
+                    # `grid_points`, `decode_grid`, the eval harness -- speaks the ARRAY frame. Encoding
+                    # the corpus verts raw put every real latent in a frame x<->z-transposed from its own
+                    # aligned blockout, so pair training learned "blockout -> transposed building" (#70).
+                    av, af = to_array_frame(v, fc)
+                    z = codec.encode(Building(verts=av, faces=af))
             except Exception as e:
                 print(f"  [skip] row {r}: {type(e).__name__}"); continue
             lat.append(z[0].cpu().numpy().astype(np.float16))   # fp16: 2048x64 per building
@@ -98,6 +153,7 @@ def main() -> None:
     if not lat:
         raise SystemExit("nothing encoded")
     L = np.stack(lat)
+    verify_frame(codec, L, np.stack(fps), n=args.verify, tol=args.verify_tol)
     with h5py.File(args.out, "w") as o:
         o.create_dataset("latent", data=L, compression="lzf")
         o.create_dataset("footprint", data=np.stack(fps), compression="lzf")

@@ -14,6 +14,10 @@ Two streams, matching the vecset recipe:
 swap is one) silently inverts winding, and an encoder fed inside-out normals degrades without erroring
 -- it cost a full round of measurements before it was caught. Signed-distance paths never notice, because
 fast-winding-number signing is orientation-agnostic, so this cannot be delegated to them.
+
+**There are TWO mesh frames in this project and they are not interchangeable** -- see `to_array_frame`.
+Mixing them cost both A2 training runs, so the conversion lives here as one named function rather than as
+an axis-reversal open-coded at each call site.
 """
 from __future__ import annotations
 
@@ -22,6 +26,33 @@ from typing import Optional, Tuple
 import numpy as np
 
 SHARP_DEG = 25.0
+
+
+def to_array_frame(verts: np.ndarray, faces: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Frame-N mesh -> the ARRAY frame the encode/decode/eval path uses. Returns (verts, faces).
+
+    Two frames exist and both are legitimate:
+
+    * **Frame-N** -- what `ingest_surfaces.to_frame_n` writes and what `building_to_sdf` normalises to.
+      The recovered LoD2 surface corpus is in this frame.
+    * **the array frame** -- the stored 64^3 SDF is indexed ``[z, y, x]``, so a mesh extracted from it
+      (marching cubes + `verts_to_world`) has its coordinate components in that same ``(z, y, x)`` order.
+      `grid_points` queries in this order too, so `decode_grid` returns a field directly comparable to the
+      stored SDF. **This is the frame the generator, the codec and the evaluation harness all speak.**
+
+    They differ by an x<->z swap, i.e. reversing the coordinate columns.
+
+    ⚠️ That swap is a **reflection** (determinant -1), so it reverses face orientation. Winding is flipped
+    here to compensate; `ensure_outward` in the samplers is the backstop, not the fix.
+
+    Why this exists: `precompute_vecset_latents.py` encoded blockouts in the array frame and real
+    surfaces in Frame-N, so aligned-pair training learned "blockout -> the TRANSPOSED building". The
+    latents were sound and sat on the codec ceiling; only their orientation was wrong. Keeping the
+    conversion in one named place is the cheap half of not repeating that.
+    """
+    v = np.ascontiguousarray(np.asarray(verts, np.float64)[:, ::-1])
+    f = np.ascontiguousarray(np.asarray(faces)[:, ::-1])
+    return v, f
 
 
 def ensure_outward(mesh):

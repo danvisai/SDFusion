@@ -17,7 +17,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from scene.surface_sampling import (  # noqa: E402
-    ensure_outward, sample_sharp, sample_streams, sample_uniform,
+    ensure_outward, sample_sharp, sample_streams, sample_uniform, to_array_frame,
 )
 
 
@@ -55,6 +55,45 @@ class TestOutwardNormals(unittest.TestCase):
     def test_normals_are_unit_length(self):
         s = sample_uniform(_box(), 500, np.random.default_rng(0))
         np.testing.assert_allclose(np.linalg.norm(s[:, 3:], axis=1), 1.0, atol=1e-5)
+
+
+class TestArrayFrameConversion(unittest.TestCase):
+    """The Frame-N -> array-frame swap that cost both A2 runs (#70)."""
+
+    def test_x_and_z_are_exchanged(self):
+        v = np.array([[1.0, 2.0, 3.0], [-4.0, 5.0, -6.0]])
+        f = np.array([[0, 1, 0]])
+        av, _ = to_array_frame(v, f)
+        np.testing.assert_allclose(av, [[3.0, 2.0, 1.0], [-6.0, 5.0, -4.0]])
+
+    def test_winding_is_flipped_because_the_swap_is_a_reflection(self):
+        # a determinant--1 map reverses orientation; if faces were not reversed too, every normal
+        # would point inward and the encoder would silently eat an inside-out surface
+        v = np.zeros((3, 3))
+        _, af = to_array_frame(v, np.array([[0, 1, 2]]))
+        np.testing.assert_array_equal(af, [[2, 1, 0]])
+
+    def test_volume_stays_positive_for_a_solid(self):
+        import trimesh
+        m = _box()
+        av, af = to_array_frame(m.vertices, m.faces)
+        got = trimesh.Trimesh(av, af, process=False)
+        self.assertGreater(got.volume, 0.0,
+                           "swap+reflip must leave the solid outward-wound")
+        self.assertAlmostEqual(got.volume, m.volume, places=9)
+
+    def test_applying_it_twice_is_the_identity(self):
+        m = _box()
+        v1, f1 = to_array_frame(m.vertices, m.faces)
+        v2, f2 = to_array_frame(v1, f1)
+        np.testing.assert_allclose(v2, np.asarray(m.vertices, np.float64))
+        np.testing.assert_array_equal(f2, np.asarray(m.faces))
+
+    def test_output_is_contiguous_so_downstream_encoders_accept_it(self):
+        m = _box()
+        av, af = to_array_frame(m.vertices, m.faces)
+        self.assertTrue(av.flags["C_CONTIGUOUS"])
+        self.assertTrue(af.flags["C_CONTIGUOUS"])
 
 
 class TestPointsLieOnSurface(unittest.TestCase):
