@@ -118,7 +118,7 @@ def main() -> None:
                 if args.blockout:
                     # the same extrusion the generator is handed at inference -- encoding it here is
                     # what removes the train/inference distribution gap the diagnostic identified
-                    from scripts.foundations.eval_vecset_projection import blockout_sdf
+                    from scripts.foundations.eval_massing_arms import blockout_sdf
                     g = np.asarray(f["sdf"][r], np.float32)
                     ys = np.nonzero((g <= 0).any(axis=(0, 2)))[0]
                     if len(ys) == 0:
