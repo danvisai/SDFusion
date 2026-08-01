@@ -183,7 +183,7 @@ def main() -> None:
         if step >= args.steps:
             raise SystemExit(f"[resume] checkpoint is already at step {step}; --steps must exceed it")
 
-    t0, hist, surf_hist = time.time(), [], []
+    t0, hist, surf_hist, step0 = time.time(), [], [], step
     while step < args.steps:
         for z, zb, fp, h, r in dl:
             if step >= args.steps:
@@ -260,8 +260,10 @@ def main() -> None:
                 sfx = ""
                 if codec is not None:
                     sfx = f"  surf {np.mean(surf_hist[-args.log_every:]):.4f}"
+                # divide by steps taken THIS process, not the absolute counter -- after a --resume
+                # the latter makes the rate look ~4x better than it is
                 print(f"  step {step:6d}/{args.steps}  loss {w:.4f}{sfx}  "
-                      f"{(time.time()-t0)/step:.2f}s/step", flush=True)
+                      f"{(time.time()-t0)/max(step-step0,1):.2f}s/step", flush=True)
             if step % args.save_every == 0 or step == args.steps:
                 blob = {"model": net.state_dict(), "step": step, "args": vars(args),
                         "opt": opt.state_dict(),       # so --resume continues rather than restarts
