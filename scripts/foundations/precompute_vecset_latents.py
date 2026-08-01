@@ -37,10 +37,10 @@ from scripts.foundations.vecset_ceiling_probe import test_indices        # noqa:
 OUT = REPO / "data/real_massing_v1/vecset_latents.h5"
 
 
-def verify_frame(codec, L: np.ndarray, fps: np.ndarray, n: int = 4, tol: float = 0.85) -> None:
+def verify_frame(codec, L: np.ndarray, fps: np.ndarray, n: int = 16, tol: float = 0.85) -> None:
     """Refuse to write a cache whose latents decode into the wrong frame.
 
-    Decode a few sampled latents and check each reproduces **its own footprint**. A frame error --
+    Decode sampled latents and check they reproduce **their own footprints**. A frame error --
     transpose, flip, axis swap -- moves the mass off the footprint and tanks this instantly, while a
     correct cache scores ~1.0 because the codec round-trips at ~0.999.
 
@@ -49,6 +49,15 @@ def verify_frame(codec, L: np.ndarray, fps: np.ndarray, n: int = 4, tol: float =
     not orientation), and #70 found every real latent x<->z transposed with nothing checking frame at all.
     Costs seconds against a multi-hour encode, and it is checked against the footprint stored *beside each
     latent in this very file*, so it cannot drift out of sync with what it validates.
+
+    ⚠️ **Gates on the MEDIAN, not the minimum** -- an earlier version used the minimum and cried wolf on
+    the known-good cache. Some real buildings genuinely do not fill their rasterised footprint in
+    projection (overhangs, setbacks, courtyards): across the 48 held-out buildings of #71's baseline the
+    median is 0.9967 but the floor is **0.7639**, with 2 of 48 under 0.85. At ~4% below tolerance a
+    4-sample minimum fails spuriously about one call in five. The median cannot be moved by those
+    outliers and still catches a frame error decisively -- the transposed cache scored 0.1735 median,
+    the fixed one 0.9966. The minimum is still printed, and a *separate*, much lower floor catches the
+    "everything is wrong" case without inheriting the false-positive rate.
     """
     import torch
     from scripts.foundations.baseline_gate_eval import fp_iou
@@ -72,14 +81,17 @@ def verify_frame(codec, L: np.ndarray, fps: np.ndarray, n: int = 4, tol: float =
         z = torch.from_numpy(L[i].astype(np.float32))[None].to(dev)
         fld = codec.decode_grid(z, RES).cpu().numpy()[0, 0]
         scores.append(fp_iou(fld <= 0, fps[i]))
-    lo = float(np.min(scores))
+    lo, med = float(np.min(scores)), float(np.median(scores))
+    floor = 0.40          # a frame error puts EVERY sample well under this (transposed range 0.17-0.42)
     print(f"[verify] fp-IoU of decoded latent vs its own footprint on {len(idx)} samples: "
-          f"min {lo:.4f}  median {float(np.median(scores)):.4f}  (need >= {tol})")
-    if lo < tol:
+          f"median {med:.4f} (need >= {tol})  min {lo:.4f} (floor {floor})")
+    if med < tol or lo < floor:
+        why = (f"median {med:.4f} < {tol}" if med < tol
+               else f"a sample scored {lo:.4f}, under the {floor} floor")
         raise SystemExit(
-            f"[verify] FRAME CHECK FAILED (min fp-IoU {lo:.4f} < {tol}). The latents do not decode onto "
-            f"their own footprints, so the mesh frame is wrong -- see scene.surface_sampling."
-            f"to_array_frame. NOT writing the cache.")
+            f"[verify] FRAME CHECK FAILED ({why}). The latents do not decode onto their own "
+            f"footprints, so the mesh frame is wrong -- see scene.surface_sampling.to_array_frame. "
+            f"NOT writing the cache.")
 
 
 def main() -> None:
