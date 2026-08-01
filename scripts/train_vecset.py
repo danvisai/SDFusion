@@ -126,6 +126,13 @@ def main() -> None:
                          "makes an unreliable x0_hat contribute ~nothing on its own. ⚠️ Do NOT set "
                          "this at or below --pair_t_min: the two are complementary, and a hard mask "
                          "there silently disables the term on every pair step.")
+    ap.add_argument("--resume", default=None,
+                    help="continue from a checkpoint: restores weights, optimizer state and step "
+                         "count, so --steps is the TOTAL target, not the additional count")
+    ap.add_argument("--archive_every", type=int, default=0,
+                    help="also keep a step-tagged copy this often (0 = only the rolling file). #75 "
+                         "found the quality curve is non-monotonic, so keeping the trajectory is "
+                         "what separates a temporary dip from a real decline.")
     ap.add_argument("--out", default="logs_building/vecset_v1")
     ap.add_argument("--log_every", type=int, default=100)
     ap.add_argument("--save_every", type=int, default=2000)
@@ -160,7 +167,23 @@ def main() -> None:
         print(f"[surf] decoded-surface loss ON  w={args.surf_weight}  "
               f"{args.surf_points} pts x {args.surf_bs} sample(s)  t<={args.surf_t_max}", flush=True)
 
-    step, t0, hist, surf_hist = 0, time.time(), [], []
+    step = 0
+    if args.resume:
+        ck = torch.load(args.resume, map_location="cpu", weights_only=False)
+        net.load_state_dict(ck["model"])
+        step = int(ck["step"])
+        if "opt" in ck:
+            opt.load_state_dict(ck["opt"])
+            print(f"[resume] from {args.resume} at step {step} (optimizer state restored)", flush=True)
+        else:
+            # AdamW's moments are gone, so the first few hundred steps re-estimate them and the loss
+            # bumps before settling. Harmless, but say so rather than let it look like a regression.
+            print(f"[resume] from {args.resume} at step {step} -- ⚠️ no optimizer state in that "
+                  f"checkpoint, AdamW moments restart and the loss will bump briefly", flush=True)
+        if step >= args.steps:
+            raise SystemExit(f"[resume] checkpoint is already at step {step}; --steps must exceed it")
+
+    t0, hist, surf_hist = time.time(), [], []
     while step < args.steps:
         for z, zb, fp, h, r in dl:
             if step >= args.steps:
@@ -240,10 +263,17 @@ def main() -> None:
                 print(f"  step {step:6d}/{args.steps}  loss {w:.4f}{sfx}  "
                       f"{(time.time()-t0)/step:.2f}s/step", flush=True)
             if step % args.save_every == 0 or step == args.steps:
-                torch.save({"model": net.state_dict(), "step": step, "args": vars(args),
-                            "latent_mu": ds.mu, "latent_sd": ds.sd,
-                            "latent_channels": C, "footprint_res": FPRES},
-                           out / "vecset_denoiser.pth")
+                blob = {"model": net.state_dict(), "step": step, "args": vars(args),
+                        "opt": opt.state_dict(),       # so --resume continues rather than restarts
+                        "latent_mu": ds.mu, "latent_sd": ds.sd,
+                        "latent_channels": C, "footprint_res": FPRES}
+                torch.save(blob, out / "vecset_denoiser.pth")
+                # Keep periodic step-tagged copies. #75 found the quality curve is NON-MONOTONIC --
+                # it fell for three consecutive checkpoints and then rose past all of them -- so a
+                # single overwritten file makes the trajectory unrecoverable after the fact, and the
+                # trajectory is the only thing that distinguishes a dip from a decline.
+                if args.archive_every and step % args.archive_every == 0:
+                    torch.save(blob, out / f"vecset_denoiser_step{step}.pth")
 
     json.dump({"steps": step, "final_loss": float(np.mean(hist[-100:])),
                "first_loss": float(np.mean(hist[:100])), "params_M": n_par / 1e6,
