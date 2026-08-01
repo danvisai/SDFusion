@@ -105,6 +105,27 @@ def main() -> None:
                          "as a->1 the model would be asked to bridge the pair in one unbounded step. "
                          "It also sets the floor for inference strength -- projecting below this is "
                          "asking for a correction the model was never trained to make.")
+    ap.add_argument("--surf_weight", type=float, default=0.0,
+                    help="#80: weight of the decoded-surface term. 0 disables it and the codec is "
+                         "never loaded. The latent eps-loss alone was measured (#76) as unable to "
+                         "rank its own candidates -- Spearman +0.12 pooled across error families, "
+                         "i.e. mildly WRONG-signed -- so nothing in it reaches the decoded surface.")
+    ap.add_argument("--surf_points", type=int, default=8192,
+                    help="query points per selected sample. Cheap: cost is dominated by `decode`, "
+                         "not by point count (#76 measured 1k -> 32k as only 0.172s -> 0.313s), so "
+                         "be generous here and stingy with --surf_bs instead.")
+    ap.add_argument("--surf_bs", type=int, default=1,
+                    help="how many batch elements get the surface term. This is the real cost knob: "
+                         "one element at 8192 points adds ~67%% to a 305ms step.")
+    ap.add_argument("--surf_t_max", type=float, default=0.85,
+                    help="hard ceiling: samples above this fraction of the schedule are skipped "
+                         "entirely. The main protection is not this cutoff but the alpha_bar "
+                         "WEIGHTING applied to the term -- x0_hat = (x_t - sqrt(1-a)*eps_hat)/"
+                         "sqrt(a), and 1/sqrt(a) amplifies eps-error without bound as t rises, which "
+                         "is the mechanism #60 measured diverging into rubble. Weighting by alpha_bar "
+                         "makes an unreliable x0_hat contribute ~nothing on its own. ⚠️ Do NOT set "
+                         "this at or below --pair_t_min: the two are complementary, and a hard mask "
+                         "there silently disables the term on every pair step.")
     ap.add_argument("--out", default="logs_building/vecset_v1")
     ap.add_argument("--log_every", type=int, default=100)
     ap.add_argument("--save_every", type=int, default=2000)
@@ -128,7 +149,18 @@ def main() -> None:
     opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=0.01)
     ac = cosine_alphas(args.timesteps).to(dev)
 
-    step, t0, hist = 0, time.time(), []
+    # #80: the codec is loaded ONLY when the surface term is on -- it is 191.6M parameters and
+    # ~2 GB, and every run that does not use it should not pay for it. `differentiable=True` opens
+    # the gradient path; `freeze()` is what keeps the decoder's own weights out of the optimiser.
+    codec = None
+    if args.surf_weight > 0:
+        from models.shape_codec import DoraCodec
+        from scripts.foundations.dora_roundtrip_probe import load_dora
+        codec = DoraCodec(load_dora(dev), differentiable=True).freeze()
+        print(f"[surf] decoded-surface loss ON  w={args.surf_weight}  "
+              f"{args.surf_points} pts x {args.surf_bs} sample(s)  t<={args.surf_t_max}", flush=True)
+
+    step, t0, hist, surf_hist = 0, time.time(), [], []
     while step < args.steps:
         for z, zb, fp, h, r in dl:
             if step >= args.steps:
@@ -165,6 +197,36 @@ def main() -> None:
                                      height=h[mask], region=r[mask], drop_cond=flag)
             loss = torch.nn.functional.mse_loss(pred, noise)
 
+            # #80: the decoded-surface term. Supervised against the decode of the TRUE latent rather
+            # than against real.h5's field -- the codec round-trips at 0.999 so the true decode is the
+            # reachable ceiling anyway, it needs no GT lookup in the loop, and it penalises exactly
+            # the failure #73 identified: a latent that decodes differently from the true one. Both
+            # sides go through the same frozen decoder, so the codec's own error cancels.
+            surf_val = 0.0
+            if codec is not None:
+                # x0_hat is the same target in both regimes: for pair steps `noise` was redefined so
+                # that zt = sqrt(a)*z + sqrt(1-a)*noise, hence x0_hat approximates z either way.
+                # Take the LOWEST-t samples in the batch and weight by alpha_bar, rather than hard
+                # -masking on t. A hard mask at 0.35 is exactly complementary to `--pair_t_min`
+                # (pair steps sample t >= 0.35 by construction), so it silently never fired on pair
+                # steps -- 80% of training, and the ones that do the actual task. Weighting keeps
+                # #60's protection (a wildly wrong x0_hat contributes ~nothing, since alpha_bar is
+                # small exactly where 1/sqrt(alpha_bar) blows the error up) without the blind spot.
+                order = torch.argsort(t)[:args.surf_bs]
+                sel = order[t[order].float() / args.timesteps <= args.surf_t_max]
+                if sel.numel():
+                    asel = a[sel]
+                    x0 = (zt[sel] - (1 - asel).sqrt() * pred[sel]) / asel.sqrt()
+                    pts = torch.rand(sel.numel(), args.surf_points, 3, device=dev) * 2 - 1
+                    with torch.no_grad():
+                        tgt = codec.query(z[sel] * ds.sd + ds.mu, pts)
+                    got = codec.query(x0 * ds.sd + ds.mu, pts)
+                    w_t = asel.reshape(sel.numel(), *([1] * (got.dim() - 1)))
+                    surf = (w_t * (got - tgt) ** 2).mean()
+                    loss = loss + args.surf_weight * surf
+                    surf_val = float(surf.detach())
+            surf_hist.append(surf_val)
+
             opt.zero_grad(); loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
             opt.step()
@@ -172,7 +234,10 @@ def main() -> None:
 
             if step % args.log_every == 0:
                 w = np.mean(hist[-args.log_every:])
-                print(f"  step {step:6d}/{args.steps}  loss {w:.4f}  "
+                sfx = ""
+                if codec is not None:
+                    sfx = f"  surf {np.mean(surf_hist[-args.log_every:]):.4f}"
+                print(f"  step {step:6d}/{args.steps}  loss {w:.4f}{sfx}  "
                       f"{(time.time()-t0)/step:.2f}s/step", flush=True)
             if step % args.save_every == 0 or step == args.steps:
                 torch.save({"model": net.state_dict(), "step": step, "args": vars(args),

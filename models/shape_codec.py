@@ -147,9 +147,29 @@ class DoraCodec(ShapeCodec):
 
     name = "dora"
 
-    def __init__(self, model, n_coarse: int = 8192, n_sharp: int = 8192, seed: int = 0):
+    def __init__(self, model, n_coarse: int = 8192, n_sharp: int = 8192, seed: int = 0,
+                 differentiable: bool = False):
+        """`differentiable=True` lets gradients flow back through `query` to the latent.
+
+        Off by default, because every existing caller (eval, precompute, the probes) wants the
+        no-grad path and would otherwise silently build a graph over a 191.6M-parameter decoder. The
+        one caller that wants it is the decoded-surface loss (#76/#80): a latent-space objective was
+        measured there as unable to rank its own candidates (Spearman +0.12 pooled), and a surface
+        term is the only signal that reaches the decode.
+
+        ⚠️ This does **not** unfreeze the decoder -- it only stops suppressing the graph. Freezing is
+        the caller's job via `freeze()`; Dora ships `requires_grad=True` on all of its parameters, and
+        leaving them so costs +16% memory and +19% time for gradients nobody reads.
+        """
         self.model, self.n_coarse, self.n_sharp = model, n_coarse, n_sharp
         self.rng = np.random.default_rng(seed)
+        self.differentiable = differentiable
+
+    def freeze(self) -> "DoraCodec":
+        """Set `requires_grad=False` on every decoder parameter. Returns self, so it chains."""
+        for p in self.model.parameters():
+            p.requires_grad_(False)
+        return self
 
     def encode(self, building: Building) -> torch.Tensor:
         from scene.surface_sampling import sample_streams
@@ -163,8 +183,12 @@ class DoraCodec(ShapeCodec):
         return kl
 
     def query(self, latent: torch.Tensor, points: torch.Tensor) -> torch.Tensor:
+        import contextlib
         dev = next(self.model.parameters()).device
-        with torch.no_grad():
+        ctx = contextlib.nullcontext() if self.differentiable else torch.no_grad()
+        with ctx:
             lat = self.model.decode(latent)
             out = self.model.query(points.to(dev).float(), lat).float()
-        return -out.view(1, -1)          # positive-inside -> our negative-inside convention
+        # positive-inside -> our negative-inside convention. Keep the batch dim: collapsing to
+        # (1, -1) silently merges samples when B > 1, which the surface loss relies on not happening.
+        return -out.reshape(latent.shape[0], -1)
