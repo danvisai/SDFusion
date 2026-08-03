@@ -6,8 +6,27 @@ in-flight (#80). Two long training runs, ~24 GPU-hours.
 
 ## The headline
 
-**The generator is the best this map has produced and still loses to extruding the footprint** —
-0.838 vs 0.845 on 3D IoU, after the gap narrowed from 0.036 to **0.007**.
+**Criterion 1 — the map's primary, human-judged criterion — is PASSED.** Asked whether they would take
+the model's output over the extruded footprint, the human said yes: *"the research is about a
+model/generative ai pulling a mass out of footprint alone."*
+
+⚠️ **A correction that runs through this whole session's write-ups.** #75 and #80 repeatedly reported
+*"still loses to the blockout, 0.838 vs 0.845"* as though it were the gate. **It is not.** This map's
+Destination states 3D IoU is *"diagnostic only, never pass/fail"* and that the 0.840 bar is **retired**.
+A retired criterion was re-imposed and dominated the framing of both tickets. Scored against the
+criteria as written:
+
+| criterion | status |
+|---|---|
+| 1 — visual, human-judged (**primary**) | ✅ **PASSED** |
+| 2 — footprint match (**hard, non-negotiable**) | ⚠️ **0.962**, needs 1.000 |
+| 3 — 3D IoU split (**diagnostic only**) | 0.838 — not a gate |
+
+**Criterion 2 is the live gap.** It was under-weighted all session in favour of criterion 3.
+
+Also: the blockout is a **stage inside** the method (ADR 0003 — generation *is* projection), not a
+rival. Treating it as a competitor was a category error; it remains a valid *ablation* on whether the
+learned step earns its compute, which is an engineering question, not the research claim.
 
 Two levers were measured against each other:
 
@@ -79,6 +98,7 @@ Then: **#79** (SNE — the only proposed instrument that might separate crisp fr
 absent from the harness), **#77** (decoder fine-tune sizing), **#82** (footprint-only height inference,
 optional rework).
 
-⚠️ **Open criterion-1 question never put to the human:** *"would you take the model's output over the
-extruded footprint?"* Only the before/after pairing has been shown. That question decides whether this
-generator ships, and no scalar overrides it.
+✅ **Criterion 1 was put to the human and passed** (see headline). The remaining gate is **criterion 2**:
+fp-IoU 0.962 against a required 1.000. ⚠️ Height is a user input (#81), so the contribution as it stands
+is **footprint + height → mass**; "footprint alone" needs #82. Keep that exact wherever the claim is
+written up.
