@@ -34,7 +34,7 @@ cand, lat_of = pick_ids(__import__('pathlib').Path(LATENTS),
 ids = cand[:a.n]
 cosr = {s: [] for s in a.strengths}
 cosn = {s: [] for s in a.strengths}
-proj = {s: {"fp": [], "iou": [], "miss": [], "extra": []} for s in a.proj}
+proj = {s: {"fp": [], "iou": [], "miss": [], "extra": [], "vs_in": []} for s in a.proj}
 bo_arm = {"fp": [], "iou": [], "miss": [], "extra": []}
 
 with h5py.File(LATENTS, "r") as lf, h5py.File(H5, "r") as gt:
@@ -72,6 +72,12 @@ with h5py.File(LATENTS, "r") as lf, h5py.File(H5, "r") as gt:
             occ = fld <= 0; v = volume_split(occ, gocc)
             proj[s]["fp"].append(fp_iou(occ, fp)); proj[s]["iou"].append(v["vol_iou"])
             proj[s]["miss"].append(v["missing"]); proj[s]["extra"].append(v["extra"])
+            # How much did the model actually CHANGE its input? A projection that returns the
+            # blockout untouched inherits the blockout's score without earning it, and at low
+            # strength that is exactly what happens -- a previous eval reported such a pass-through
+            # as a generator achievement. ~1.0 here means no-op; the quality number is then the
+            # blockout's, not the model's.
+            proj[s]["vs_in"].append(volume_split(occ, bocc)["vol_iou"])
 
 m = lambda x: float(np.median(x)) if x else float('nan')
 print(f"\n--- in-distribution latent recovery (n={len(ids)}) ---")
@@ -80,9 +86,13 @@ for s in a.strengths:
     r = m(cosr[s])
     print(f"{s:>9.2f} {m(cosn[s]):>12.4f} {r:>15.4f}   {'PASS' if r >= 0.999 else 'below'}")
 print(f"\n--- projection from the blockout (n={len(bo_arm['fp'])}) ---")
-print(f"{'arm':>16} {'fp-IoU':>8} {'missing':>9} {'extra':>8} {'3D IoU':>8}")
+print(f"{'arm':>16} {'fp-IoU':>8} {'missing':>9} {'extra':>8} {'3D IoU':>8} {'vs input':>9}")
 print(f"{'blockout (in)':>16} {m(bo_arm['fp']):>8.3f} {m(bo_arm['miss']):>9.3f} "
-      f"{m(bo_arm['extra']):>8.3f} {m(bo_arm['iou']):>8.3f}")
+      f"{m(bo_arm['extra']):>8.3f} {m(bo_arm['iou']):>8.3f} {1.0:>9.3f}")
 for s in a.proj:
+    v = m(proj[s]['vs_in'])
+    flag = "  <- NO-OP, score is the blockout's" if v >= 0.95 else ""
     print(f"{'projected s='+str(s):>16} {m(proj[s]['fp']):>8.3f} {m(proj[s]['miss']):>9.3f} "
-          f"{m(proj[s]['extra']):>8.3f} {m(proj[s]['iou']):>8.3f}")
+          f"{m(proj[s]['extra']):>8.3f} {m(proj[s]['iou']):>8.3f} {v:>9.3f}{flag}")
+print("\n'vs input' = overlap with the blockout it started from. ~1.0 means the model returned its "
+      "input\nessentially untouched, so the quality column is the blockout's score, not an achievement.")
