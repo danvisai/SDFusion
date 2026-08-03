@@ -171,8 +171,11 @@ def main() -> None:
         from models.shape_codec import DoraCodec
         from scripts.foundations.dora_roundtrip_probe import load_dora
         codec = DoraCodec(load_dora(dev), differentiable=True).freeze()
+        # `surf_t_center` is in this line because it is the variable the #80 band-fix run turns on,
+        # and a config knob that decides an experiment should not be invisible in its own log.
         print(f"[surf] decoded-surface loss ON  w={args.surf_weight}  "
-              f"{args.surf_points} pts x {args.surf_bs} sample(s)  t<={args.surf_t_max}", flush=True)
+              f"{args.surf_points} pts x {args.surf_bs} sample(s)  "
+              f"t centred {args.surf_t_center} (max {args.surf_t_max})", flush=True)
 
     step = 0
     if args.resume:
