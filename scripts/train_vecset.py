@@ -117,6 +117,13 @@ def main() -> None:
     ap.add_argument("--surf_bs", type=int, default=1,
                     help="how many batch elements get the surface term. This is the real cost knob: "
                          "one element at 8192 points adds ~67%% to a 305ms step.")
+    ap.add_argument("--surf_t_center", type=float, default=0.55,
+                    help="put the surface term where INFERENCE runs. Samples nearest this fraction "
+                         "of the schedule get the term; 0.0 reproduces the original "
+                         "lowest-t selection. ⚠️ That original choice was a measured mistake: it fed "
+                         "the term only near-clean latents, where the model has nothing to change, "
+                         "so it learned to reproduce its input instead of carving it (#80 run, "
+                         "vs-input 0.993). Default matches the s~0.5-0.6 projection band.")
     ap.add_argument("--surf_t_max", type=float, default=0.85,
                     help="hard ceiling: samples above this fraction of the schedule are skipped "
                          "entirely. The main protection is not this cutoff but the alpha_bar "
@@ -229,14 +236,22 @@ def main() -> None:
             if codec is not None:
                 # x0_hat is the same target in both regimes: for pair steps `noise` was redefined so
                 # that zt = sqrt(a)*z + sqrt(1-a)*noise, hence x0_hat approximates z either way.
-                # Take the LOWEST-t samples in the batch and weight by alpha_bar, rather than hard
-                # -masking on t. A hard mask at 0.35 is exactly complementary to `--pair_t_min`
-                # (pair steps sample t >= 0.35 by construction), so it silently never fired on pair
-                # steps -- 80% of training, and the ones that do the actual task. Weighting keeps
-                # #60's protection (a wildly wrong x0_hat contributes ~nothing, since alpha_bar is
-                # small exactly where 1/sqrt(alpha_bar) blows the error up) without the blind spot.
-                order = torch.argsort(t)[:args.surf_bs]
-                sel = order[t[order].float() / args.timesteps <= args.surf_t_max]
+                # Select the samples nearest `surf_t_center` on the schedule, and weight by
+                # alpha_bar.
+                #
+                # ⚠️ Selecting the LOWEST-t samples (the first version) was a design error, and the
+                # #80 run measured its consequence: the term only ever saw near-clean latents, where
+                # the model already has almost nothing to change, so it learned "reproduce the input"
+                # rather than "carve it" (vs-input rose to 0.993). The edits that matter happen where
+                # inference runs, s ~ 0.5-0.6, so that is where the supervision has to sit.
+                #
+                # This does not give up #60's protection. At t/T ~ 0.55 the cosine schedule puts
+                # alpha_bar ~ 0.42, so the 1/sqrt(alpha_bar) amplification of eps-error is ~1.55 --
+                # mild. The blow-up #60 measured is at t -> T, where alpha_bar -> 0, and both the
+                # alpha_bar weighting and `surf_t_max` still exclude that.
+                frac = t.float() / args.timesteps
+                order = torch.argsort((frac - args.surf_t_center).abs())[:args.surf_bs]
+                sel = order[frac[order] <= args.surf_t_max]
                 if sel.numel():
                     asel = a[sel]
                     x0 = (zt[sel] - (1 - asel).sqrt() * pred[sel]) / asel.sqrt()
