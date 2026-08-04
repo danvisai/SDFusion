@@ -1,0 +1,61 @@
+{
+  "n": 2500,
+  "k": 5,
+  "composition": {
+    "mid-rise flat-roof": 0.327,
+    "mid-rise pitched complex-plan": 0.275,
+    "low flat-roof large-plan": 0.2,
+    "mid-rise pitched large-plan": 0.12,
+    "mid-rise pitched elongated": 0.078
+  },
+  "feature_means_per_cluster": {
+    "mid-rise flat-roof": {
+      "height_m": 15.88,
+      "elongation": 1.49,
+      "fill_ratio": 0.54,
+      "roof_pitch": 0.15,
+      "mass_top_heavy": 0.46,
+      "footprint_area": 0.25
+    },
+    "mid-rise pitched complex-plan": {
+      "height_m": 14.9,
+      "elongation": 1.55,
+      "fill_ratio": 0.44,
+      "roof_pitch": 0.55,
+      "mass_top_heavy": 0.4,
+      "footprint_area": 0.22
+    },
+    "low flat-roof large-plan": {
+      "height_m": 9.68,
+      "elongation": 1.22,
+      "fill_ratio": 0.61,
+      "roof_pitch": 0.08,
+      "mass_top_heavy": 0.48,
+      "footprint_area": 0.44
+    },
+    "mid-rise pitched large-plan": {
+      "height_m": 16.32,
+      "elongation": 1.31,
+      "fill_ratio": 0.62,
+      "roof_pitch": 0.63,
+      "mass_top_heavy": 0.38,
+      "footprint_area": 0.37
+    },
+    "mid-rise pitched elongated": {
+      "height_m": 15.72,
+      "elongation": 3.07,
+      "fill_ratio": 0.75,
+      "roof_pitch": 0.46,
+      "mass_top_heavy": 0.41,
+      "footprint_area": 0.21
+    }
+  },
+  "feats": [
+    "height_m",
+    "elongation",
+    "fill_ratio",
+    "roof_pitch",
+    "mass_top_heavy",
+    "footprint_area"
+  ]
+}

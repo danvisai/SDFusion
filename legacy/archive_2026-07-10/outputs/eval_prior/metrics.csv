@@ -1,0 +1,7 @@
+utc,label,ckpt,iou_s03,iou_s05,iou_s07,fp_iou_s05,roughness_s05,style_divergence
+20260610T045153Z,hybrid20k,/tmp/hybrid_ckpts/stage3a_steps-latest.pth,0.9618,0.9097,0.835,0.9486,0.0085,0.0008
+20260610T080438Z,repa5k_noAG,logs_building/2026-06-10T01-30-35-stage3a-hybrid-clean-repa/ckpt/stage3a_steps-5000.pth,0.957,0.8786,0.7423,0.8903,0.0183,0.0001
+20260610T080704Z,hybrid5k_noAG,/tmp/hybrid_ckpts/stage3a_steps-5000.pth,0.9587,0.8781,0.7414,0.8961,0.01704,0.0001
+20260610T140423Z,repa20k,logs_building/2026-06-10T01-30-35-stage3a-hybrid-clean-repa/ckpt/stage3a_steps-latest.pth,0.961,0.9119,0.8228,0.9392,0.00981,0.001
+20260610T204702Z,adaln5k_noAG,/tmp/adaln_ckpts/stage3a_steps-5000.pth,0.9584,0.885,0.747,0.8964,0.01642,0.0001
+20260610T205024Z,adaln10k_noAG,/tmp/adaln_ckpts/stage3a_steps-10000.pth,0.9581,0.887,0.7442,0.898,0.01565,0.0001

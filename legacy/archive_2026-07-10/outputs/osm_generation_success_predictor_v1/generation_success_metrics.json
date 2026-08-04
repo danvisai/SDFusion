@@ -1,0 +1,71 @@
+{
+  "records": "outputs/osm_generation_dataset_corpus_v2/campus_lafayette_v2_records.jsonl",
+  "record_count": 44,
+  "train_records": 27,
+  "val_records": 17,
+  "pass_count": 37,
+  "fail_count": 7,
+  "bad_candidates": [
+    "RESIDENTIALhouse_mesh7024"
+  ],
+  "failed_candidate_counts": {
+    "RESIDENTIALhouse_mesh7024": 4,
+    "RESIDENTIALhouse_mesh8294": 1,
+    "RESIDENTIALhouse_mesh9657": 1,
+    "RESIDENTIALhouse_mesh0166": 1
+  },
+  "train_average_precision": 0.9999999999999999,
+  "val_average_precision": 0.9958333333333333,
+  "train_roc_auc": 1.0,
+  "val_roc_auc": 0.9666666666666667,
+  "train_accuracy_at_0_5": 1.0,
+  "val_accuracy_at_0_5": 0.9411764705882353,
+  "counterfactual": {
+    "records": 44,
+    "changed_choice_count": 12,
+    "bad_selected_count": 4,
+    "bad_quality_choice_count": 0
+  },
+  "top_feature_importance": [
+    [
+      "bbox_depth_m",
+      0.13026546982783999
+    ],
+    [
+      "height_to_bbox_max",
+      0.117566939190941
+    ],
+    [
+      "candidate_aspect",
+      0.08752851952517904
+    ],
+    [
+      "target_height_ratio",
+      0.08064405011120003
+    ],
+    [
+      "candidate_height_ratio",
+      0.07482898139666104
+    ],
+    [
+      "height_to_sqrt_area",
+      0.060332411074913855
+    ],
+    [
+      "retrieval_score",
+      0.05673029169899149
+    ],
+    [
+      "compactness",
+      0.04832299203937191
+    ],
+    [
+      "log_area_m2",
+      0.04703956115464828
+    ],
+    [
+      "candidate_rank",
+      0.042441359878609565
+    ]
+  ]
+}

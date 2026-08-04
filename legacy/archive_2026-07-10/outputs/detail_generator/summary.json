@@ -1,0 +1,42 @@
+{
+  "modern": {
+    "win_w": 1.575268335044384,
+    "cornice": 0.2990758410990238,
+    "within_style_std_mean": 0.18798022458356056
+  },
+  "colonial": {
+    "win_w": 1.00507778352499,
+    "cornice": 0.44923190645873545,
+    "within_style_std_mean": 0.18083919373513432
+  },
+  "victorian": {
+    "win_w": 0.9245339022874832,
+    "cornice": 0.6895099906921387,
+    "within_style_std_mean": 0.1835957304998959
+  },
+  "industrial": {
+    "win_w": 2.0672093477249147,
+    "cornice": 0.18947712065279482,
+    "within_style_std_mean": 0.17746409556070997
+  },
+  "craftsman": {
+    "win_w": 1.1323311874866484,
+    "cornice": 0.5540098322927952,
+    "within_style_std_mean": 0.17997381235128254
+  },
+  "mediterranean": {
+    "win_w": 0.996021123468876,
+    "cornice": 0.3848181326687336,
+    "within_style_std_mean": 0.18868413140791682
+  },
+  "contemporary": {
+    "win_w": 1.9516003010272982,
+    "cornice": 0.2394851700365543,
+    "within_style_std_mean": 0.18444667644841942
+  },
+  "public_civic": {
+    "win_w": 1.2366055253744124,
+    "cornice": 0.6521172479242087,
+    "within_style_std_mean": 0.18311908758193884
+  }
+}

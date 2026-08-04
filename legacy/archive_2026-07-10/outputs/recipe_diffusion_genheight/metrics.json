@@ -1,0 +1,7 @@
+{
+  "n": 32,
+  "footprint_iou": 0.5943212870352449,
+  "gen_3d_diversity": 0.04912814347661647,
+  "baseline_3d_diversity": 0.008,
+  "mean_slenderness_std": 0.07853625097777694
+}

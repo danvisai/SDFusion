@@ -1,0 +1,86 @@
+[
+  {
+    "kind": "box",
+    "center": [
+      4,
+      16.0,
+      4
+    ],
+    "size": [
+      2.5,
+      3.5,
+      2.5
+    ],
+    "mode": "add",
+    "smooth": 0.6,
+    "rot_y": 0.0,
+    "round_r": 0.0
+  },
+  {
+    "kind": "gable",
+    "center": [
+      0,
+      0,
+      0
+    ],
+    "size": [
+      16,
+      20,
+      13.0,
+      4.0
+    ],
+    "mode": "add",
+    "smooth": 0.8,
+    "rot_y": 0.0,
+    "round_r": 0.0
+  },
+  {
+    "kind": "box",
+    "center": [
+      0,
+      2.0,
+      -10
+    ],
+    "size": [
+      2.0,
+      2.5,
+      2.0
+    ],
+    "mode": "subtract",
+    "smooth": 0.4,
+    "rot_y": 0.0,
+    "round_r": 0.0
+  },
+  {
+    "kind": "cylinder",
+    "center": [
+      -5,
+      15.0,
+      -5
+    ],
+    "size": [
+      0.8,
+      4.0
+    ],
+    "mode": "add",
+    "smooth": 0.0,
+    "rot_y": 0.0,
+    "round_r": 0.0
+  },
+  {
+    "kind": "cylinder",
+    "center": [
+      -8,
+      6.5,
+      10
+    ],
+    "size": [
+      2.0,
+      17.0
+    ],
+    "mode": "add",
+    "smooth": 0.0,
+    "rot_y": 0.0,
+    "round_r": 0.0
+  }
+]

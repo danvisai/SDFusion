@@ -1,0 +1,23 @@
+{
+  "corpus_name": "campus_lafayette_v2",
+  "dataset_version": "osm_generation_scaffold_v1",
+  "count": 44,
+  "positive_count": 37,
+  "negative_count": 7,
+  "classes": {
+    "RESIDENTIALhouse": 41,
+    "COMMERCIALoffice_building": 2,
+    "PUBLICschool_building": 1
+  },
+  "splits": {
+    "smoke12": 12,
+    "north8": 8,
+    "east6": 6,
+    "west6": 6,
+    "south6": 6,
+    "northeast6": 6
+  },
+  "jsonl": "outputs/osm_generation_dataset_corpus_v2/campus_lafayette_v2_records.jsonl",
+  "csv": "outputs/osm_generation_dataset_corpus_v2/campus_lafayette_v2_index.csv",
+  "masks_npz": "outputs/osm_generation_dataset_corpus_v2/campus_lafayette_v2_footprint_masks.npz"
+}
