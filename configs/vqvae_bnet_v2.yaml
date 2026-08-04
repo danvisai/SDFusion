@@ -1,0 +1,29 @@
+# VQVAE v2 for BuildingNet — quality rebuild for Stage 3a's latent space.
+# Compared to configs/vqvae_bnet.yaml (v1):
+#   - ch: 64 -> 96            (modest width bump)
+#   - num_res_blocks: 1 -> 2  (config comment already flagged this as tested-better)
+#   - attn_resolutions: [] -> [16]  (one self-attn at bottleneck for global structure)
+# The trunc_thres bump (0.2 -> 0.3), surface-band + footprint-BCE auxiliary
+# losses, AdamW + cosine schedule, batch=12, and Y-rot/XZ-flip augmentation are
+# all controlled via CLI flags (--trunc_thres, --use_aux_losses, --use_adamw_cosine,
+# --augment) so the existing v1 config path stays usable without edits.
+
+model:
+  params:
+    embed_dim: 3
+    n_embed: 8192
+    ddconfig:
+      double_z: False
+      z_channels: 3
+      resolution: 64
+      in_channels: 1
+      out_ch: 1
+      ch: 96
+      ch_mult: [1, 2, 4]
+      num_res_blocks: 2
+      attn_resolutions: [16]
+      dropout: 0.0
+
+lossconfig:
+  params:
+    codebook_weight: 1.0

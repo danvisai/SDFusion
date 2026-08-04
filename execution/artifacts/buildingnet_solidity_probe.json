@@ -1,0 +1,660 @@
+{
+  "summary": {
+    "n": 80,
+    "raw_occ_median": 0.005626678466796875,
+    "raw_occ_p10": 0.0010082244873046875,
+    "raw_occ_p90": 0.025511550903320322,
+    "frac_below_0p5pct_raw": 0.475,
+    "fillholes_occ_median": 0.005626678466796875,
+    "fillholes_gain_median": 0.0,
+    "colfill_occ_median": 0.04885292053222656,
+    "colfill_occ_p10": 0.01898040771484375,
+    "colfill_gain_x_median": 11.172549139726602,
+    "frac_colfill_above_5pct": 0.5,
+    "frac_colfill_below_0p5pct": 0.0125,
+    "boundary_frac_median": 0.8304535004626583
+  },
+  "per_building": [
+    {
+      "bid": "RESIDENTIALhouse_mesh6122",
+      "raw": 0.0140380859375,
+      "fillholes": 0.014041900634765625,
+      "colfill": 0.1060333251953125,
+      "boundary_frac": 0.7141304347826087,
+      "n_vox": 3680
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9343",
+      "raw": 0.0013275146484375,
+      "fillholes": 0.0013275146484375,
+      "colfill": 0.0319366455078125,
+      "boundary_frac": 1.0,
+      "n_vox": 348
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0476",
+      "raw": 0.004802703857421875,
+      "fillholes": 0.004802703857421875,
+      "colfill": 0.06146240234375,
+      "boundary_frac": 0.9928514694201748,
+      "n_vox": 1259
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9145",
+      "raw": 0.00255584716796875,
+      "fillholes": 0.00255584716796875,
+      "colfill": 0.03244781494140625,
+      "boundary_frac": 1.0,
+      "n_vox": 670
+    },
+    {
+      "bid": "RESIDENTIALoffice_building_mesh3179",
+      "raw": 0.00109100341796875,
+      "fillholes": 0.00109100341796875,
+      "colfill": 0.021526336669921875,
+      "boundary_frac": 1.0,
+      "n_vox": 286
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh7146",
+      "raw": 0.008182525634765625,
+      "fillholes": 0.008182525634765625,
+      "colfill": 0.11286544799804688,
+      "boundary_frac": 0.9752913752913753,
+      "n_vox": 2145
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0452",
+      "raw": 0.005558013916015625,
+      "fillholes": 0.005558013916015625,
+      "colfill": 0.06651687622070312,
+      "boundary_frac": 0.6835964310226493,
+      "n_vox": 1457
+    },
+    {
+      "bid": "PUBLICcity_hall_mesh0451",
+      "raw": 0.02460479736328125,
+      "fillholes": 0.02460479736328125,
+      "colfill": 0.11092758178710938,
+      "boundary_frac": 0.3705426356589147,
+      "n_vox": 6450
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh4160",
+      "raw": 0.008197784423828125,
+      "fillholes": 0.008197784423828125,
+      "colfill": 0.06636428833007812,
+      "boundary_frac": 0.5737552349930201,
+      "n_vox": 2149
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6668",
+      "raw": 0.005199432373046875,
+      "fillholes": 0.005199432373046875,
+      "colfill": 0.034824371337890625,
+      "boundary_frac": 0.5355832721936904,
+      "n_vox": 1363
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3058",
+      "raw": 0.0002593994140625,
+      "fillholes": 0.0002593994140625,
+      "colfill": 0.00847625732421875,
+      "boundary_frac": 1.0,
+      "n_vox": 68
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh1461",
+      "raw": 0.00074005126953125,
+      "fillholes": 0.00074005126953125,
+      "colfill": 0.008274078369140625,
+      "boundary_frac": 1.0,
+      "n_vox": 194
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh1068",
+      "raw": 0.039920806884765625,
+      "fillholes": 0.039920806884765625,
+      "colfill": 0.10736083984375,
+      "boundary_frac": 0.3000477783086479,
+      "n_vox": 10465
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9582",
+      "raw": 0.057025909423828125,
+      "fillholes": 0.057025909423828125,
+      "colfill": 0.1655120849609375,
+      "boundary_frac": 0.2754699310990702,
+      "n_vox": 14949
+    },
+    {
+      "bid": "RESIDENTIALoffice_building_mesh2695",
+      "raw": 0.01114654541015625,
+      "fillholes": 0.01114654541015625,
+      "colfill": 0.101043701171875,
+      "boundary_frac": 0.6820670773442847,
+      "n_vox": 2922
+    },
+    {
+      "bid": "COMMERCIALoffice_building_mesh3311",
+      "raw": 0.000644683837890625,
+      "fillholes": 0.000644683837890625,
+      "colfill": 0.009891510009765625,
+      "boundary_frac": 1.0,
+      "n_vox": 169
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh1927",
+      "raw": 0.001888275146484375,
+      "fillholes": 0.001888275146484375,
+      "colfill": 0.0394287109375,
+      "boundary_frac": 1.0,
+      "n_vox": 495
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0185",
+      "raw": 0.002017974853515625,
+      "fillholes": 0.002017974853515625,
+      "colfill": 0.03382110595703125,
+      "boundary_frac": 1.0,
+      "n_vox": 529
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh8886",
+      "raw": 0.00087738037109375,
+      "fillholes": 0.00087738037109375,
+      "colfill": 0.015636444091796875,
+      "boundary_frac": 1.0,
+      "n_vox": 230
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4033",
+      "raw": 0.021778106689453125,
+      "fillholes": 0.021778106689453125,
+      "colfill": 0.11345291137695312,
+      "boundary_frac": 0.4909791557190401,
+      "n_vox": 5709
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh0903",
+      "raw": 0.016262054443359375,
+      "fillholes": 0.016262054443359375,
+      "colfill": 0.13901901245117188,
+      "boundary_frac": 0.7330518414262257,
+      "n_vox": 4263
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9783",
+      "raw": 0.000469207763671875,
+      "fillholes": 0.000469207763671875,
+      "colfill": 0.008243560791015625,
+      "boundary_frac": 0.983739837398374,
+      "n_vox": 123
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh0203",
+      "raw": 0.003749847412109375,
+      "fillholes": 0.003749847412109375,
+      "colfill": 0.0444793701171875,
+      "boundary_frac": 0.8677517802644964,
+      "n_vox": 983
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3219",
+      "raw": 0.008571624755859375,
+      "fillholes": 0.008571624755859375,
+      "colfill": 0.06349945068359375,
+      "boundary_frac": 0.6194926568758344,
+      "n_vox": 2247
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh0112",
+      "raw": 0.007915496826171875,
+      "fillholes": 0.007915496826171875,
+      "colfill": 0.15340805053710938,
+      "boundary_frac": 0.8125301204819277,
+      "n_vox": 2075
+    },
+    {
+      "bid": "RELIGIOUScathedral_mesh0702",
+      "raw": 0.00978851318359375,
+      "fillholes": 0.00978851318359375,
+      "colfill": 0.09098052978515625,
+      "boundary_frac": 0.9664848012470771,
+      "n_vox": 2566
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh7943",
+      "raw": 0.01092529296875,
+      "fillholes": 0.01092529296875,
+      "colfill": 0.13895797729492188,
+      "boundary_frac": 0.7297486033519553,
+      "n_vox": 2864
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6614",
+      "raw": 0.00189971923828125,
+      "fillholes": 0.00189971923828125,
+      "colfill": 0.022487640380859375,
+      "boundary_frac": 1.0,
+      "n_vox": 498
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4728",
+      "raw": 0.001453399658203125,
+      "fillholes": 0.001453399658203125,
+      "colfill": 0.031024932861328125,
+      "boundary_frac": 1.0,
+      "n_vox": 381
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5414",
+      "raw": 0.015827178955078125,
+      "fillholes": 0.015827178955078125,
+      "colfill": 0.08104705810546875,
+      "boundary_frac": 0.43624969872258373,
+      "n_vox": 4149
+    },
+    {
+      "bid": "COMMERCIALcity_hall_mesh0258",
+      "raw": 0.00910186767578125,
+      "fillholes": 0.00910186767578125,
+      "colfill": 0.08898544311523438,
+      "boundary_frac": 0.6785414920368819,
+      "n_vox": 2386
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh5184",
+      "raw": 0.005695343017578125,
+      "fillholes": 0.005695343017578125,
+      "colfill": 0.08098602294921875,
+      "boundary_frac": 0.9236436704621568,
+      "n_vox": 1493
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh4268",
+      "raw": 0.025409698486328125,
+      "fillholes": 0.025409698486328125,
+      "colfill": 0.2693595886230469,
+      "boundary_frac": 0.6889355952559676,
+      "n_vox": 6661
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh4254",
+      "raw": 0.00016021728515625,
+      "fillholes": 0.00016021728515625,
+      "colfill": 0.004055023193359375,
+      "boundary_frac": 1.0,
+      "n_vox": 42
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2144",
+      "raw": 0.004611968994140625,
+      "fillholes": 0.004611968994140625,
+      "colfill": 0.08578872680664062,
+      "boundary_frac": 1.0,
+      "n_vox": 1209
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh3202",
+      "raw": 0.023773193359375,
+      "fillholes": 0.023773193359375,
+      "colfill": 0.09669113159179688,
+      "boundary_frac": 0.4441591784338896,
+      "n_vox": 6232
+    },
+    {
+      "bid": "RELIGIOUSpalace_mesh0337",
+      "raw": 0.02642822265625,
+      "fillholes": 0.02642822265625,
+      "colfill": 0.057331085205078125,
+      "boundary_frac": 0.34916281755196305,
+      "n_vox": 6928
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3689",
+      "raw": 0.00103759765625,
+      "fillholes": 0.00103759765625,
+      "colfill": 0.0224151611328125,
+      "boundary_frac": 1.0,
+      "n_vox": 272
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh4881",
+      "raw": 0.002197265625,
+      "fillholes": 0.002197265625,
+      "colfill": 0.041942596435546875,
+      "boundary_frac": 0.9444444444444444,
+      "n_vox": 576
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4225",
+      "raw": 0.001125335693359375,
+      "fillholes": 0.001125335693359375,
+      "colfill": 0.025909423828125,
+      "boundary_frac": 1.0,
+      "n_vox": 295
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0648",
+      "raw": 0.006317138671875,
+      "fillholes": 0.006317138671875,
+      "colfill": 0.061550140380859375,
+      "boundary_frac": 0.9667874396135265,
+      "n_vox": 1656
+    },
+    {
+      "bid": "PUBLICmuseum_mesh0050",
+      "raw": 0.001789093017578125,
+      "fillholes": 0.001789093017578125,
+      "colfill": 0.019626617431640625,
+      "boundary_frac": 0.906183368869936,
+      "n_vox": 469
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9979",
+      "raw": 0.030460357666015625,
+      "fillholes": 0.030460357666015625,
+      "colfill": 0.14940643310546875,
+      "boundary_frac": 0.33199749530369443,
+      "n_vox": 7985
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh0427",
+      "raw": 0.00424957275390625,
+      "fillholes": 0.00424957275390625,
+      "colfill": 0.01999664306640625,
+      "boundary_frac": 0.6956912028725314,
+      "n_vox": 1114
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh1261",
+      "raw": 0.003009796142578125,
+      "fillholes": 0.003009796142578125,
+      "colfill": 0.037494659423828125,
+      "boundary_frac": 0.9112801013941698,
+      "n_vox": 789
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh0180",
+      "raw": 0.001232147216796875,
+      "fillholes": 0.001232147216796875,
+      "colfill": 0.019351959228515625,
+      "boundary_frac": 0.9814241486068112,
+      "n_vox": 323
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh7286",
+      "raw": 0.00653839111328125,
+      "fillholes": 0.00653839111328125,
+      "colfill": 0.07333755493164062,
+      "boundary_frac": 0.67561260210035,
+      "n_vox": 1714
+    },
+    {
+      "bid": "COMMERCIALmuseum_mesh0079",
+      "raw": 0.010120391845703125,
+      "fillholes": 0.010120391845703125,
+      "colfill": 0.058834075927734375,
+      "boundary_frac": 0.43648699585375045,
+      "n_vox": 2653
+    },
+    {
+      "bid": "COMMERCIALhotel_building_mesh0295",
+      "raw": 0.0279083251953125,
+      "fillholes": 0.0279083251953125,
+      "colfill": 0.06438446044921875,
+      "boundary_frac": 0.3082285401858939,
+      "n_vox": 7316
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6948",
+      "raw": 0.0418701171875,
+      "fillholes": 0.0418701171875,
+      "colfill": 0.2633781433105469,
+      "boundary_frac": 0.606231778425656,
+      "n_vox": 10976
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh4964",
+      "raw": 0.013614654541015625,
+      "fillholes": 0.013614654541015625,
+      "colfill": 0.08967971801757812,
+      "boundary_frac": 0.46707761277668813,
+      "n_vox": 3569
+    },
+    {
+      "bid": "COMMERCIALhotel_building_mesh1211",
+      "raw": 0.038478851318359375,
+      "fillholes": 0.038478851318359375,
+      "colfill": 0.18135452270507812,
+      "boundary_frac": 0.34182611281847924,
+      "n_vox": 10087
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0498",
+      "raw": 0.00205230712890625,
+      "fillholes": 0.00205230712890625,
+      "colfill": 0.047489166259765625,
+      "boundary_frac": 1.0,
+      "n_vox": 538
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh1926",
+      "raw": 0.001163482666015625,
+      "fillholes": 0.001163482666015625,
+      "colfill": 0.01166534423828125,
+      "boundary_frac": 0.9606557377049181,
+      "n_vox": 305
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh1935",
+      "raw": 0.0159912109375,
+      "fillholes": 0.0159912109375,
+      "colfill": 0.0667724609375,
+      "boundary_frac": 0.42724236641221375,
+      "n_vox": 4192
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9483",
+      "raw": 0.002246856689453125,
+      "fillholes": 0.002246856689453125,
+      "colfill": 0.02508544921875,
+      "boundary_frac": 0.6859083191850595,
+      "n_vox": 589
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3484",
+      "raw": 0.01406097412109375,
+      "fillholes": 0.01406097412109375,
+      "colfill": 0.07384872436523438,
+      "boundary_frac": 0.4603906673901248,
+      "n_vox": 3686
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2383",
+      "raw": 0.002147674560546875,
+      "fillholes": 0.002147674560546875,
+      "colfill": 0.04062652587890625,
+      "boundary_frac": 1.0,
+      "n_vox": 563
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh2384",
+      "raw": 0.0375213623046875,
+      "fillholes": 0.0375213623046875,
+      "colfill": 0.12314224243164062,
+      "boundary_frac": 0.38481089873932495,
+      "n_vox": 9836
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2075",
+      "raw": 0.002292633056640625,
+      "fillholes": 0.002292633056640625,
+      "colfill": 0.054721832275390625,
+      "boundary_frac": 0.9966722129783694,
+      "n_vox": 601
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh8823",
+      "raw": 0.002796173095703125,
+      "fillholes": 0.002796173095703125,
+      "colfill": 0.022396087646484375,
+      "boundary_frac": 0.6111869031377899,
+      "n_vox": 733
+    },
+    {
+      "bid": "COMMERCIALcastle_mesh0904",
+      "raw": 0.00457763671875,
+      "fillholes": 0.00457763671875,
+      "colfill": 0.039539337158203125,
+      "boundary_frac": 0.9858333333333333,
+      "n_vox": 1200
+    },
+    {
+      "bid": "COMMERCIALoffice_building_mesh0246",
+      "raw": 0.021808624267578125,
+      "fillholes": 0.021808624267578125,
+      "colfill": 0.045970916748046875,
+      "boundary_frac": 0.4465628826307504,
+      "n_vox": 5717
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh0978",
+      "raw": 0.0086212158203125,
+      "fillholes": 0.0086212158203125,
+      "colfill": 0.0318450927734375,
+      "boundary_frac": 0.7592920353982301,
+      "n_vox": 2260
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0172",
+      "raw": 0.0043792724609375,
+      "fillholes": 0.0043792724609375,
+      "colfill": 0.095184326171875,
+      "boundary_frac": 1.0,
+      "n_vox": 1148
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh5772",
+      "raw": 0.00308990478515625,
+      "fillholes": 0.00308990478515625,
+      "colfill": 0.041072845458984375,
+      "boundary_frac": 0.9061728395061729,
+      "n_vox": 810
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh5318",
+      "raw": 0.006839752197265625,
+      "fillholes": 0.006839752197265625,
+      "colfill": 0.08411407470703125,
+      "boundary_frac": 0.9353039598438372,
+      "n_vox": 1793
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2200",
+      "raw": 0.001987457275390625,
+      "fillholes": 0.001987457275390625,
+      "colfill": 0.041072845458984375,
+      "boundary_frac": 1.0,
+      "n_vox": 521
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh4363",
+      "raw": 0.00963592529296875,
+      "fillholes": 0.00963592529296875,
+      "colfill": 0.14019012451171875,
+      "boundary_frac": 0.8483768804433888,
+      "n_vox": 2526
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4827",
+      "raw": 0.01287841796875,
+      "fillholes": 0.01287841796875,
+      "colfill": 0.11283493041992188,
+      "boundary_frac": 0.6282582938388626,
+      "n_vox": 3376
+    },
+    {
+      "bid": "COMMERCIALmuseum_mesh0112",
+      "raw": 0.000904083251953125,
+      "fillholes": 0.000904083251953125,
+      "colfill": 0.01495361328125,
+      "boundary_frac": 0.9957805907172996,
+      "n_vox": 237
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh2356",
+      "raw": 0.001140594482421875,
+      "fillholes": 0.001140594482421875,
+      "colfill": 0.022289276123046875,
+      "boundary_frac": 0.9966555183946488,
+      "n_vox": 299
+    },
+    {
+      "bid": "PUBLICmonastery_mesh0235",
+      "raw": 0.000949859619140625,
+      "fillholes": 0.000949859619140625,
+      "colfill": 0.023769378662109375,
+      "boundary_frac": 1.0,
+      "n_vox": 249
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh3055",
+      "raw": 0.00823974609375,
+      "fillholes": 0.00823974609375,
+      "colfill": 0.042606353759765625,
+      "boundary_frac": 0.4962962962962963,
+      "n_vox": 2160
+    },
+    {
+      "bid": "COMMERCIALhotel_building_mesh0162",
+      "raw": 0.00101470947265625,
+      "fillholes": 0.00101470947265625,
+      "colfill": 0.02655029296875,
+      "boundary_frac": 1.0,
+      "n_vox": 266
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh3523",
+      "raw": 0.004894256591796875,
+      "fillholes": 0.004894256591796875,
+      "colfill": 0.03702545166015625,
+      "boundary_frac": 0.5331254871395168,
+      "n_vox": 1283
+    },
+    {
+      "bid": "RELIGIOUStemple_mesh1032",
+      "raw": 0.011302947998046875,
+      "fillholes": 0.011302947998046875,
+      "colfill": 0.0439300537109375,
+      "boundary_frac": 0.41916976037799525,
+      "n_vox": 2963
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9659",
+      "raw": 0.007289886474609375,
+      "fillholes": 0.007289886474609375,
+      "colfill": 0.1239471435546875,
+      "boundary_frac": 0.7885923600209315,
+      "n_vox": 1911
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6091",
+      "raw": 0.00646209716796875,
+      "fillholes": 0.00646209716796875,
+      "colfill": 0.031330108642578125,
+      "boundary_frac": 0.4592680047225502,
+      "n_vox": 1694
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh3359",
+      "raw": 0.0057830810546875,
+      "fillholes": 0.0057830810546875,
+      "colfill": 0.0502166748046875,
+      "boundary_frac": 0.674802110817942,
+      "n_vox": 1516
+    }
+  ],
+  "note": "raw=trained-on today; colfill=ground-anchored footprint extrusion (solid massing)"
+}

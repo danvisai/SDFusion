@@ -1,0 +1,74 @@
+{
+  "ckpt": "logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth",
+  "n_pairs": 16,
+  "n_sdedit": 8,
+  "p_sdedit": 0.5,
+  "steps": 6,
+  "batch": 8,
+  "lr": 0.0002,
+  "base": 32,
+  "delta_scale": 0.25,
+  "sigma_lo": 0.1,
+  "sigma_hi": 0.2,
+  "sdedit_ddim_steps": 100,
+  "sdedit_strength_sweep": {
+    "0.15": 0.004932879703119397,
+    "0.25": 0.004968914785422385,
+    "0.35": 0.004702304664533585,
+    "0.45": 0.004792589519638568,
+    "0.55": 0.004445551021490246
+  },
+  "sdedit_strength_picked": 0.25,
+  "sdedit_strength_range": [
+    0.2,
+    0.3
+  ],
+  "seed": 0,
+  "calibration_sigma": {
+    "prior_roughness_mean": 0.005375486459039773,
+    "gt_roughness_mean": 0.004123722746347387,
+    "sigma_sweep_wavy_roughness": {
+      "0.05": 0.00484537177059489,
+      "0.1": 0.0058680059349474805,
+      "0.15": 0.007360075425822288,
+      "0.2": 0.00886807004765918,
+      "0.25": 0.010234161435316006,
+      "0.3": 0.011428470257669687
+    }
+  },
+  "train_loss_first": 0.010817465372383595,
+  "train_loss_last": 0.011359544315685829,
+  "n_val": 4,
+  "fp_iou_before_mean": 0.880630494954127,
+  "fp_iou_after_mean": 0.8812744063511672,
+  "fp_iou_before_per_sample": [
+    0.7794117647058824,
+    0.919971671388102,
+    0.9249739492879472,
+    0.8981645944345766
+  ],
+  "fp_iou_after_per_sample": [
+    0.780559646539028,
+    0.9198012775017743,
+    0.9249739492879472,
+    0.8997627520759194
+  ],
+  "roughness_before_mean": 0.006307560950517654,
+  "roughness_after_mean": 0.006355107529088855,
+  "roughness_before_per_sample": [
+    0.006838295143097639,
+    0.005834813695400953,
+    0.00568043626844883,
+    0.006876698695123196
+  ],
+  "roughness_after_per_sample": [
+    0.006868340075016022,
+    0.005875555332750082,
+    0.005706472788006067,
+    0.006970061920583248
+  ],
+  "gt_roughness_mean": 0.004123722746347387,
+  "montage": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/refiner_v3_smoke/before_after_montage.png",
+  "refiner_ckpt": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/refiner_v3_smoke/refiner_unet_v3_smoke.pth",
+  "wall_time_sec": 133.74278664588928
+}

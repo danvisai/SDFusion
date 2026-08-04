@@ -1,0 +1,40 @@
+# Stage 3b — SDF -> Gaussian voxel-slot lifter.
+#
+# Trains a feed-forward 3D UNet that takes (Frame-N SDF 64^3, footprint 64x64,
+# class+style+height conditioning) and predicts the same voxelized Gaussian
+# representation produced by scripts/voxelize_gsplats.py: a 32^3 grid where
+# each cell holds K=8 fixed slots of 14-dim Gaussian attributes plus a per-slot
+# occupancy probability.
+#
+# At inference, this is fed by Stage 3a's decoded SDF; the model produces a
+# GaussianSet that drops into scene/gsplat_placement.py:place_gsplat.
+
+stage3b:
+  num_classes: 53
+  num_styles_plus_unknown: 9
+  class_emb_dim: 32
+  style_emb_dim: 16
+  height_emb_dim: 32
+  fp_emb_dim: 256
+  fp_emb_ckpt: "Logs_GT/retrieval_footprint_full/ckpt_best.pth"
+  freeze_fp_encoder: True
+  ctx_dim: 256
+  base_channels: 32
+  k_slots: 8
+  grid_res: 32
+  fp3d_concat_scale: 0.5
+  occ_threshold: 0.5
+
+stage3b_loss:
+  means: 1.0
+  scales: 0.5
+  quats: 0.5
+  opac: 0.5
+  sh: 0.5
+  occ: 1.0
+
+# Stage 3b doesn't use a VQVAE; kept here so train.py's --vq_cfg pathway has
+# something to copy into the log dir.
+model:
+  params:
+    timesteps: 1     # unused; placeholder for trainer compatibility

@@ -144,27 +144,44 @@ Expect (from `execution/artifacts/massing_arms_eval_baseline.json`):
 `gt`, `blockout` and `codec_ceiling` are deterministic and should match. ⚠️ `deployed_map24` is a
 sampled arm and carries a measured noise floor (fp ±0.008, extra ±0.040, 3D IoU ±0.001).
 
-## 6. Model weights — not yet published
+## 6. Model weights — published
 
-⚠️ **The weights are not in this repo and not yet hosted anywhere.** They currently exist only on the
-cluster at `/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/logs_building/`. **Copy them before
-decommissioning that machine**, or the trained models are gone.
+✅ **The weights are hosted at <https://huggingface.co/danvisimhadri/SDFUSION>** (public), under
+`massing-vecset/`. This closed the risk this section used to record: they existed only on the cluster.
 
-Worth keeping (189 MB each once optimizer state is stripped; 566 MB with it):
+```bash
+hf download danvisimhadri/SDFUSION --include 'massing-vecset/*' --local-dir weights/
+cd weights/massing-vecset && sha256sum -c SHA256SUMS
+```
+
+**Start here — the current line of work**, all scored on the 48-id harness:
 
 | checkpoint | what it is |
 |---|---|
-| `vecset_v4_surf/vecset_denoiser.pth` | best model — surface-loss fine-tune |
-| `vecset_v3_pair_long/vecset_denoiser_step180000.pth` | 41-epoch control, the surface-loss starting point |
-| `vecset_v5_surfband/…` | the band-fix run (in flight at time of writing) |
-| `2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth` | deployed map-#24 baseline — **14.2 GB** |
+| `vecset_v5_surfband_step240000.pth` | **the band-fix model** — final, 29/48 solid |
+| `vecset_v5_surfband_step230000.pth` | best 3D IoU (0.825), post-recovery |
+| `vecset_v5_surfband_step220000.pth` | the collapse checkpoint, kept as evidence |
+| `vecset_v4_surf.pth` | surface-loss model, pre-band-fix |
+| `vecset_v3_pair_long_step180000.pth` | 41-epoch control, no surface loss |
 
-Recommended host is **Hugging Face** (free, unlimited for public model repos). ⚠️ If published publicly,
-the corpus derives from **3DBAG** (NL), **NRW open data** (DE) and **PLATEAU** (JP), all of which carry
-attribution terms — write a model card citing them.
+Nine more are published for provenance — the deployed stage3a baseline (7.2 GB), the early vecset runs,
+two VQVAEs and three monolith arms. ⚠️ `vecset_v1`/`v2` are **void, not weak**: they trained on
+transposed latents and learned a compensating axis swap.
 
-The remaining ~400 GB under `logs_building/` is intermediate snapshots of the superseded dense-grid
-architecture. **Delete rather than copy.**
+⚠️ **Optimizer state is stripped**, so the published checkpoints are inference/fine-tune ready but
+**not resume-ready**. To resume a run, use the originals under `logs_building/`.
+`scripts/foundations/stage_weights_for_transfer.py` regenerates the published set.
+
+⚠️ The corpus derives from **3DBAG** (NL), **NRW open data** (DE) and **PLATEAU** (JP), all carrying
+attribution terms. The model card cites all three; **any downstream use must honour them.**
+
+**What is still cluster-only.** ~700 GB across `logs_building/` and `legacy/` — intermediate step
+checkpoints and snapshots of the superseded dense-grid architecture, including six documented-negative
+runs (`x0sharp-*`, the smoke test, the xcultural fine-tunes). The findings are written up in `docs/`;
+the weights are not published and are **not worth copying**.
+
+⚠️ **No corpus data is published anywhere.** The 25 MB in §4a is in *this git repo* and nothing larger
+exists off-cluster — the 493 GB `data/` tree is regenerated, never transferred.
 
 ## 7. Where the work stands
 
