@@ -302,14 +302,34 @@ capacity/scale advantages CLAY and Hunyuan3D-2 report likely do not.
 
 ## Files
 
+**Start here — the current line of work.** These five are scored on the 48-id harness and are what
+every number above refers to.
+
 | file | size | what |
 |---|---|---|
-| `vecset_v5_surfband_step240000.pth` | 189 MB | **the band-fix model** — final, scored |
+| **`vecset_v5_surfband_step240000.pth`** | 189 MB | **the band-fix model** — final, scored (29/48 solid) |
 | `vecset_v5_surfband_step230000.pth` | 189 MB | best 3D IoU (0.825); post-recovery |
 | `vecset_v5_surfband_step220000.pth` | 189 MB | the collapse checkpoint — kept as evidence |
-| `vecset_v4_surf.pth` | 189 MB | surface-loss model, pre-band-fix |
+| `vecset_v4_surf.pth` | 189 MB | surface-loss model, pre-band-fix (+0.029 IoU) |
 | `vecset_v3_pair_long_step180000.pth` | 189 MB | 41-epoch control, no surface loss |
-| `stage3a_lod2_deployed.pth` | 7.2 GB | superseded ~947M dense-grid baseline — comparison only |
+
+**Historical — the latest checkpoint of every earlier run.** Included so no run is lost, *not*
+because each is good. None of these are recommended starting points.
+
+| file | size | what |
+|---|---|---|
+| `stage3a_lod2_deployed.pth` | 7.2 GB | superseded ~947M dense-grid baseline — comparison arm |
+| `vecset_v2_pair_step60000.pth` | 189 MB | ⚠️ pre-frame-fix — trained on **transposed** latents |
+| `vecset_v2_plain.pth` | 189 MB | ⚠️ pre-frame-fix — same defect |
+| `vecset_v1.pth` | 189 MB | first vecset run |
+| `vecset_pair_v1.pth` | 189 MB | first aligned-pair run |
+| `vqvae_release_res64.pth` | 101 MB | released 64³ VQVAE codec (dense-grid era) |
+| `vqvae_clean_ft.pth` | 101 MB | cleaned VQVAE fine-tune |
+| `monolith_v1/v2/v3.pth` | 47 MB ea | monolith arms from the composition thesis |
+
+⚠️ **The `v1`/`v2` vecset runs are void, not merely weak.** Their training cache had x and z
+transposed, so they learned a **compensating axis swap**. Results from them cannot be compared to
+anything after the frame fix. They are here for provenance only.
 
 Optimizer state is stripped (checkpoints are inference/fine-tune ready, **not** resume-ready).
 `latent_mu` / `latent_sd` are retained and **load-bearing** — the denoiser trains on globally

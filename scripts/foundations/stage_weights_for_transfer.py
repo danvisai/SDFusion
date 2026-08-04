@@ -21,20 +21,62 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 DEST = REPO / "transfer" / "weights"
 DROP = ("opt", "sched")
 
-KEEPERS = [
-    ("logs_building/vecset_v4_surf/vecset_denoiser.pth",
-     "vecset_v4_surf.pth", "best model -- surface-loss fine-tune (#80)"),
-    ("logs_building/vecset_v3_pair_long/vecset_denoiser_step180000.pth",
-     "vecset_v3_pair_long_step180000.pth", "41-epoch control, surface-loss starting point"),
-    ("logs_building/vecset_v5_surfband/vecset_denoiser_step220000.pth",
-     "vecset_v5_surfband_step220000.pth", "band fix -- scored, collapse checkpoint"),
-    ("logs_building/vecset_v5_surfband/vecset_denoiser_step230000.pth",
-     "vecset_v5_surfband_step230000.pth", "band fix -- scored"),
+# Tier A -- the current line of work. Scored on the 48-id harness, cited in the writeup.
+TIER_A = [
     ("logs_building/vecset_v5_surfband/vecset_denoiser_step240000.pth",
-     "vecset_v5_surfband_step240000.pth", "band fix -- scored"),
-    ("logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth",
-     "stage3a_lod2_deployed.pth", "deployed map-#24 baseline -- comparison arm only"),
+     "vecset_v5_surfband_step240000.pth", "band fix -- FINAL, scored (29/48 solid)"),
+    ("logs_building/vecset_v5_surfband/vecset_denoiser_step230000.pth",
+     "vecset_v5_surfband_step230000.pth", "band fix -- best 3D IoU 0.825, post-recovery"),
+    ("logs_building/vecset_v5_surfband/vecset_denoiser_step220000.pth",
+     "vecset_v5_surfband_step220000.pth", "band fix -- the collapse, kept as evidence"),
+    ("logs_building/vecset_v4_surf/vecset_denoiser.pth",
+     "vecset_v4_surf.pth", "surface-loss model, pre-band-fix (+0.029 IoU)"),
+    ("logs_building/vecset_v3_pair_long/vecset_denoiser_step180000.pth",
+     "vecset_v3_pair_long_step180000.pth", "41-epoch control, no surface loss"),
 ]
+
+# Tier B -- latest of every other run. Kept so no run is lost, not because each is good.
+TIER_B = [
+    ("logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth",
+     "stage3a_lod2_deployed.pth", "deployed map-#24 baseline -- comparison arm"),
+    ("logs_building/vecset_v2_pair/vecset_denoiser_step60000.pth",
+     "vecset_v2_pair_step60000.pth", "pre-frame-fix pair run (latents were transposed)"),
+    ("logs_building/vecset_v2_plain/vecset_denoiser.pth",
+     "vecset_v2_plain.pth", "pre-frame-fix plain run"),
+    ("logs_building/vecset_v1/vecset_denoiser.pth",
+     "vecset_v1.pth", "first vecset run"),
+    ("logs_building/vecset_pair_v1/vecset_denoiser.pth",
+     "vecset_pair_v1.pth", "first aligned-pair run"),
+    ("logs_building/vqvae_clean_ft/vqvae_clean.pth",
+     "vqvae_clean_ft.pth", "cleaned VQVAE fine-tune (dense-grid era)"),
+    ("logs_building/2025-05-19T19-58-28-vqvae-building-all-res64-LR1e-4-T0.2-release/ckpt/vqvae_steps-latest.pth",
+     "vqvae_release_res64.pth", "released 64^3 VQVAE codec"),
+    ("logs_building/monolith_v3/ckpt/monolith_steps-latest.pth",
+     "monolith_v3.pth", "monolith arm v3 (C2 thesis)"),
+    ("logs_building/monolith_v2/ckpt/monolith_steps-latest.pth",
+     "monolith_v2.pth", "monolith arm v2"),
+    ("logs_building/monolith_v1/ckpt/monolith_steps-latest.pth",
+     "monolith_v1.pth", "monolith arm v1"),
+]
+
+# Tier C -- documented NEGATIVE results and smoke tests. 14.2 GB each, ~67 GB total.
+# The finding is in docs/; the weights add little. Excluded by default; --include-negatives adds them.
+TIER_C = [
+    ("logs_building/x0sharp-w05-clip/ckpt/stage3a_steps-latest.pth",
+     "x0sharp_w05_clip.pth", "NEGATIVE #60: stable but roughness unchanged, footprint eroded"),
+    ("logs_building/x0sharp-gradtv-w1-pilot/ckpt/stage3a_steps-latest.pth",
+     "x0sharp_gradtv_w1.pth", "NEGATIVE #60: w=0.1 diverged into rubble"),
+    ("logs_building/2026-06-08T11-50-42-stage3a-hybrid-clean/ckpt/stage3a_steps-latest.pth",
+     "stage3a_hybrid_clean.pth", "superseded hybrid-clean architecture"),
+    ("logs_building/continue-stage3a-xcultural-warmstart-ft-final/ckpt/stage3a_steps-3000.pth",
+     "stage3a_xcultural_ft_final.pth", "cross-cultural warmstart fine-tune, final"),
+    ("logs_building/continue-stage3a-xcultural-warmstart-ft/ckpt/stage3a_steps-3000.pth",
+     "stage3a_xcultural_ft.pth", "cross-cultural warmstart fine-tune"),
+    ("logs_building/smoke-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth",
+     "smoke_lod2_fromscratch.pth", "SMOKE TEST -- superseded by the real run"),
+]
+
+KEEPERS = TIER_A + TIER_B
 
 
 def sha256(path, chunk=1 << 22):
@@ -46,10 +88,21 @@ def sha256(path, chunk=1 << 22):
 
 
 def main():
+    keepers = list(KEEPERS)
+    if "--include-negatives" in sys.argv:
+        keepers += TIER_C
+    if "--list" in sys.argv:
+        for rel, out_name, note in keepers:
+            src = REPO / rel
+            mark = "ok " if src.exists() else "MISSING"
+            size = src.stat().st_size / 1e9 if src.exists() else 0.0
+            print(f"{mark} {size:7.2f} GB  {out_name:34s} {note}")
+        return 0
+
     DEST.mkdir(parents=True, exist_ok=True)
     rows, total_in, total_out = [], 0, 0
 
-    for rel, out_name, note in KEEPERS:
+    for rel, out_name, note in keepers:
         src = REPO / rel
         if not src.exists():
             print(f"MISSING  {rel}", flush=True)
