@@ -1,0 +1,22 @@
+{
+  "RELIGIOUS": {
+    "dome": 0.38,
+    "tower": 0.78,
+    "steps": 0.03
+  },
+  "PUBLIC": {
+    "dome": 0.05,
+    "tower": 0.05,
+    "steps": 0.04
+  },
+  "COMMERCIAL": {
+    "dome": 0.0,
+    "tower": 0.03,
+    "steps": 0.02
+  },
+  "RESIDENTIAL": {
+    "dome": 0.0,
+    "tower": 0.0,
+    "steps": 0.22
+  }
+}

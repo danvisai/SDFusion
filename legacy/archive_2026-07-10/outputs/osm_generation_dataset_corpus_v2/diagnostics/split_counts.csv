@@ -1,0 +1,7 @@
+split,count,positive,negative
+smoke12,12,10,2
+north8,8,7,1
+east6,6,6,0
+west6,6,5,1
+south6,6,4,2
+northeast6,6,5,1

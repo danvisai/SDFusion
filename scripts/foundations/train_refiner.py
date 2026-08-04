@@ -43,7 +43,7 @@ from scripts.foundations.baseline_gate_eval import build_opt, fp_iou
 from scripts.foundations.refiner_prototype import (
     surface_roughness, calibrate_sigma, save_before_after_montage,
 )
-from models.networks.refine_unet import RefineUNet3D, surface_weighted_l1
+from models.networks.refine_unet import RefineUNet3D, surface_weighted_l1, sharpness_loss
 
 CKPT = "logs_building/2026-07-16-stage3a-lod2-fromscratch-region/ckpt/stage3a_steps-latest.pth"
 POOL_KEYS = ("sdf", "fp", "class_id", "style_id", "height", "region_id")
@@ -126,13 +126,17 @@ def train_refiner_mixed(model, pool: dict, targets: torch.Tensor, z0s: torch.Ten
                         wavy_sdedit: torch.Tensor, sdedit_idx: np.ndarray,
                         sigma_lo: float, sigma_hi: float, p_sdedit: float,
                         steps: int, batch: int, lr: float, base: int, delta_scale: float,
-                        device, ckpt_path=None, ckpt_every: int = 500, log_every: int = 100):
+                        device, ckpt_path=None, ckpt_every: int = 500, log_every: int = 100,
+                        loss_fn=None):
     """Mixed-corruption training loop (the ticket's "mix both corruption modes across training"):
     each step's batch is split between (a) precomputed SDEdit-corrupted inputs (real prior
     waviness, GT-aligned) and (b) on-the-fly sigma-latent-noise inputs with sigma resampled fresh
     per step in [sigma_lo, sigma_hi] (generalizes across waviness levels, same mechanism as the
     prototype's make_wavy). Same RefineUNet3D + surface_weighted_l1 as the prototype -- only the
     corruption source is new."""
+    # loss_fn(pred, tgt) -> (scalar_loss, components_dict_or_None). Default = the v1 surface L1.
+    if loss_fn is None:
+        loss_fn = lambda p, t: (surface_weighted_l1(p, t), None)
     refiner = RefineUNet3D(base=base, delta_scale=delta_scale).to(device)
     opt = torch.optim.Adam(refiner.parameters(), lr=lr)
     n_total = targets.shape[0]
@@ -162,13 +166,14 @@ def train_refiner_mixed(model, pool: dict, targets: torch.Tensor, z0s: torch.Ten
         inp = torch.cat(parts_in, 0)
         tgt = torch.cat(parts_tgt, 0)
         pred = refiner(inp)
-        loss = surface_weighted_l1(pred, tgt)
+        loss, comps = loss_fn(pred, tgt)
         opt.zero_grad(set_to_none=True)
         loss.backward()
         opt.step()
         losses.append(float(loss.detach()))
         if step % log_every == 0 or step == steps - 1:
-            print(f"  [train {step+1}/{steps}] loss={losses[-1]:.5f} "
+            extra = f" [{' '.join(f'{k}={v:.4f}' for k, v in comps.items())}]" if comps else ""
+            print(f"  [train {step+1}/{steps}] loss={losses[-1]:.5f}{extra} "
                   f"({time.time()-t0:.1f}s elapsed)", flush=True)
         if ckpt_path and (step + 1) % ckpt_every == 0:
             save_refiner_ckpt(refiner, ckpt_path, base, delta_scale, step + 1)
@@ -196,6 +201,11 @@ def main():
     ap.add_argument("--sdedit_batch", type=int, default=32, help="batch size for precomputing the SDEdit-corrupted pool")
     ap.add_argument("--base", type=int, default=32, help="RefineUNet3D base channel width")
     ap.add_argument("--delta_scale", type=float, default=0.25)
+    ap.add_argument("--loss", choices=["l1", "sharp"], default="l1",
+                    help="l1 = v1/v2 surface_weighted_l1; sharp = #54 eikonal+normal sharpness-aware loss")
+    ap.add_argument("--w_nrm", type=float, default=0.05, help="#54 surface-normal loss weight")
+    ap.add_argument("--w_eik", type=float, default=0.01, help="#54 eikonal (grad-magnitude) loss weight")
+    ap.add_argument("--band", type=float, default=0.1, help="near-surface band for the loss weights")
     ap.add_argument("--n_val", type=int, default=24, help="# real prior held-out samples for roughness/fp_iou/montage (>=20 per #46)")
     ap.add_argument("--n_montage", type=int, default=6)
     ap.add_argument("--ckpt_every", type=int, default=500)
@@ -260,13 +270,18 @@ def main():
                                     a.sdedit_ddim_steps, rng, batch_size=a.sdedit_batch)
 
     # 5) train, mixing SDEdit-precomputed + on-the-fly sigma-augmented corruption every step.
-    ckpt_path = out_dir / "refiner_unet_v1.pth"
+    ckpt_path = out_dir / f"refiner_unet_{out_dir.name.replace('refiner_', '')}.pth"
+    if a.loss == "sharp":
+        loss_fn = lambda p, t: sharpness_loss(p, t, band=a.band, w_nrm=a.w_nrm, w_eik=a.w_eik)
+    else:
+        loss_fn = lambda p, t: (surface_weighted_l1(p, t, band=a.band), None)
     print(f"[train] RefineUNet3D base={a.base} delta_scale={a.delta_scale} steps={a.steps} "
-          f"batch={a.batch} lr={a.lr} p_sdedit={a.p_sdedit} sigma=[{a.sigma_lo},{a.sigma_hi}]", flush=True)
+          f"batch={a.batch} lr={a.lr} p_sdedit={a.p_sdedit} sigma=[{a.sigma_lo},{a.sigma_hi}] "
+          f"loss={a.loss}" + (f" (w_nrm={a.w_nrm} w_eik={a.w_eik})" if a.loss == "sharp" else ""), flush=True)
     refiner, losses = train_refiner_mixed(
         model, pool, targets, z0s, wavy_sdedit, sdedit_idx,
         a.sigma_lo, a.sigma_hi, a.p_sdedit, a.steps, a.batch, a.lr, a.base, a.delta_scale,
-        device, ckpt_path=ckpt_path, ckpt_every=a.ckpt_every)
+        device, ckpt_path=ckpt_path, ckpt_every=a.ckpt_every, loss_fn=loss_fn)
     refiner.eval()
     print(f"[ckpt] saved {ckpt_path}", flush=True)
 
@@ -293,6 +308,13 @@ def main():
 
     montage_path = save_before_after_montage(rows[: a.n_montage], out_dir / "before_after_montage.png")
     print(f"[montage] saved {montage_path}", flush=True)
+
+    # save the held-out (wavy) before + GT SDFs so a shaded cross-refiner comparison (e.g. v1 vs #54
+    # v3) can be rendered cheaply -- just a refiner forward pass, no map-#24 reload.
+    np.savez_compressed(out_dir / "val_sdfs.npz",
+                        before=np.stack([r["before_sdf"] for r in rows[: a.n_montage]]),
+                        gt=np.stack([r["gt_sdf"] for r in rows[: a.n_montage]]))
+    print(f"[val_sdfs] saved {out_dir / 'val_sdfs.npz'}", flush=True)
 
     iou_before_list = [r["fp_iou_before"] for r in rows]
     iou_after_list = [r["fp_iou_after"] for r in rows]

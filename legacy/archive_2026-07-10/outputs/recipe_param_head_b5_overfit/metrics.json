@@ -1,0 +1,197 @@
+{
+  "n_real": 1556,
+  "n_real_train": 1556,
+  "real_repeat": 1,
+  "n_synth": 0,
+  "n_pool": 1556,
+  "n_val": 0,
+  "synthetic": null,
+  "history": [
+    {
+      "epoch": 1,
+      "train_norm_mse": 0.7744051218032837,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 200,
+      "train_norm_mse": 0.0017235841369256377,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 400,
+      "train_norm_mse": 0.0002366450207773596,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 600,
+      "train_norm_mse": 0.0007166360155679286,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 800,
+      "train_norm_mse": 0.0008132375660352409,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 1000,
+      "train_norm_mse": 0.00013863500498700887,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 1200,
+      "train_norm_mse": 0.0019215309293940663,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 1400,
+      "train_norm_mse": 8.434728079009801e-05,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 1600,
+      "train_norm_mse": 0.0007795376004651189,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 1800,
+      "train_norm_mse": 0.011872287839651108,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 2000,
+      "train_norm_mse": 0.04102494940161705,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 2200,
+      "train_norm_mse": 0.09553182870149612,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 2400,
+      "train_norm_mse": 0.0006565352086909115,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 2600,
+      "train_norm_mse": 0.00041350952233187854,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 2800,
+      "train_norm_mse": 0.0002508987090550363,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 3000,
+      "train_norm_mse": 0.0005138629931025207,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 3200,
+      "train_norm_mse": 0.003746241796761751,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 3400,
+      "train_norm_mse": 0.0013394603738561273,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 3600,
+      "train_norm_mse": 0.00014191977970767766,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 3800,
+      "train_norm_mse": 0.0029408608097583055,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 4000,
+      "train_norm_mse": 0.00032698301947675645,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 4200,
+      "train_norm_mse": 0.00020992098143324256,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 4400,
+      "train_norm_mse": 0.0004106501583009958,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 4600,
+      "train_norm_mse": 0.0008866845746524632,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 4800,
+      "train_norm_mse": 0.00010241219570161775,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 5000,
+      "train_norm_mse": 0.0010739584686234593,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 5200,
+      "train_norm_mse": 0.0003385137242730707,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 5400,
+      "train_norm_mse": 0.0015760990791022778,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 5600,
+      "train_norm_mse": 0.12598766386508942,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 5800,
+      "train_norm_mse": 0.0003384033916518092,
+      "val_norm_mse": NaN
+    },
+    {
+      "epoch": 6000,
+      "train_norm_mse": 0.0006656969781033695,
+      "val_norm_mse": NaN
+    }
+  ],
+  "raw_mse_train": {
+    "modern": {
+      "n": 1235,
+      "raw_mse": 0.00025530645507387817
+    },
+    "colonial": {
+      "n": 15,
+      "raw_mse": 0.006373101379722357
+    },
+    "victorian": {
+      "n": 99,
+      "raw_mse": 0.012492531910538673
+    },
+    "industrial": {
+      "n": 68,
+      "raw_mse": 3.050918530789204e-05
+    },
+    "craftsman": {
+      "n": 44,
+      "raw_mse": 0.00298936665058136
+    },
+    "contemporary": {
+      "n": 45,
+      "raw_mse": 0.002360772108659148
+    },
+    "public_civic": {
+      "n": 50,
+      "raw_mse": 0.00037676584906876087
+    }
+  },
+  "raw_mse_val": {}
+}

@@ -1,0 +1,130 @@
+{
+  "records": "outputs/osm_generation_dataset_corpus_v2/campus_lafayette_v2_records.jsonl",
+  "count": 44,
+  "positive_count": 37,
+  "negative_count": 7,
+  "positive_rate": 0.8409090909090909,
+  "classes": {
+    "RESIDENTIALhouse": 41,
+    "COMMERCIALoffice_building": 2,
+    "PUBLICschool_building": 1
+  },
+  "splits": {
+    "smoke12": 12,
+    "north8": 8,
+    "east6": 6,
+    "west6": 6,
+    "south6": 6,
+    "northeast6": 6
+  },
+  "quality_status": {
+    "pass": 37,
+    "fail": 7
+  },
+  "unique_selected_candidates": 22,
+  "most_reused_candidates": [
+    [
+      "RESIDENTIALhouse_mesh7919",
+      5
+    ],
+    [
+      "RESIDENTIALhouse_mesh9657",
+      5
+    ],
+    [
+      "RESIDENTIALhouse_mesh7024",
+      4
+    ],
+    [
+      "RESIDENTIALhouse_mesh4151",
+      3
+    ],
+    [
+      "RESIDENTIALhouse_mesh4858",
+      3
+    ],
+    [
+      "RESIDENTIALhouse_mesh4188",
+      2
+    ],
+    [
+      "RESIDENTIALhouse_mesh5957",
+      2
+    ],
+    [
+      "RESIDENTIALhouse_mesh8733",
+      2
+    ],
+    [
+      "RESIDENTIALhouse_mesh2592",
+      2
+    ],
+    [
+      "RESIDENTIALhouse_mesh5258",
+      2
+    ]
+  ],
+  "failed_candidates": [
+    [
+      "RESIDENTIALhouse_mesh7024",
+      4
+    ],
+    [
+      "RESIDENTIALhouse_mesh8294",
+      1
+    ],
+    [
+      "RESIDENTIALhouse_mesh9657",
+      1
+    ],
+    [
+      "RESIDENTIALhouse_mesh0166",
+      1
+    ]
+  ],
+  "failure_flags": {
+    "raw_flat": 4,
+    "raw_high_flatness": 4,
+    "placed_flat": 3
+  },
+  "area_m2": {
+    "min": 345.8729727922095,
+    "p25": 699.4916396729968,
+    "median": 1095.3287218546493,
+    "p75": 1709.1607927181522,
+    "max": 6773.366313732531,
+    "mean": 1443.4251559806517
+  },
+  "height_m": {
+    "min": 8.5,
+    "p25": 10.5,
+    "median": 14.0,
+    "p75": 17.5,
+    "max": 56.0,
+    "mean": 14.625
+  },
+  "bbox_aspect": {
+    "min": 1.024610201430607,
+    "p25": 1.3279678728428925,
+    "median": 1.5001407548137506,
+    "p75": 2.156628125486401,
+    "max": 3.4014856381431113,
+    "mean": 1.7595121233692685
+  },
+  "raw_faces": {
+    "min": 360424.0,
+    "p25": 724558.0,
+    "median": 864783.0,
+    "p75": 1003140.0,
+    "max": 1201592.0,
+    "mean": 825505.1363636364
+  },
+  "simplified_faces": {
+    "min": 50000.0,
+    "p25": 50000.0,
+    "median": 50000.0,
+    "p75": 50000.0,
+    "max": 50000.0,
+    "mean": 50000.0
+  }
+}

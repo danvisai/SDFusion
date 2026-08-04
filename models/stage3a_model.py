@@ -241,6 +241,10 @@ class Stage3aModel(BaseModel):
         self.sm_kind = str(getattr(opt, "smooth_kind", sm.get("kind", "grad_tv")))
         self.sm_sigma = float(getattr(opt, "smooth_sigma", sm.get("sigma", 0.05)))
         self.sm_every = int(getattr(opt, "smooth_every", sm.get("every_k_steps", 1)))
+        # Gradient-norm clip (gated; 0 = off, no change to existing runs). Stabilizes the
+        # smoothness fine-tune whose decoded-predicted-x0 regularizer can spike gradients at
+        # high timesteps (x0 ~ 1/sqrt(alpha_bar) amplifies eps error). Clips the OPTIMIZED params.
+        self.grad_clip = float(getattr(opt, "grad_clip", 0.0))
 
         # REPA (training-gaps step 4, arXiv 2410.06940) — GATED, training-only: align the
         # UNet middle_block features with DINOv2 features of depth renders of the clean SDF.
@@ -616,6 +620,9 @@ class Stage3aModel(BaseModel):
         self.forward()
         self.optimizer.zero_grad(set_to_none=True)
         self.backward()
+        if self.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(
+                [p for g in self.optimizer.param_groups for p in g["params"]], self.grad_clip)
         self.optimizer.step()
         self._step += 1
         if getattr(self, "use_ema", False):

@@ -35,6 +35,7 @@ def build_opt(args, ckpt_dir):
         # SDF-field smoothness regularizer (gated; default OFF preserves the from-scratch recipe)
         use_smooth=bool(args.use_smooth), smooth_weight=args.smooth_weight,
         smooth_kind=args.smooth_kind, smooth_sigma=args.smooth_sigma, smooth_every=args.smooth_every,
+        grad_clip=args.grad_clip,
         ddim_steps=50, debug="0", gpu_ids=[0] if args.device == "cuda" else [],
         ckpt_dir=str(ckpt_dir),
         lr=args.lr, warmup_steps=1000, cosine_total_steps=args.total_iters,
@@ -92,6 +93,8 @@ def main():
     ap.add_argument("--use_smooth", type=int, default=0, help="1 = SDF-field smoothness regularizer")
     ap.add_argument("--smooth_weight", type=float, default=0.05)
     ap.add_argument("--smooth_kind", default="grad_tv", choices=["grad_tv", "eikonal"])
+    ap.add_argument("--grad_clip", type=float, default=0.0,
+                    help="max grad-norm (0=off). Stabilizes the smoothness fine-tune; try ~1.0")
     ap.add_argument("--smooth_sigma", type=float, default=0.05)
     ap.add_argument("--smooth_every", type=int, default=1, help="apply the smoothness term every K steps")
     args = ap.parse_args()

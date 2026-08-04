@@ -1,0 +1,112 @@
+{
+ "rows_sampled": 600,
+ "real": {
+  "global_mean": -0.025074509903788567,
+  "global_std": 0.8390157222747803,
+  "per_channel_std": {
+   "min": 0.021776532754302025,
+   "p10": 0.06056094914674759,
+   "median": 0.7789573073387146,
+   "p90": 1.2036739587783813,
+   "max": 1.2907689809799194,
+   "max_over_min": 59.27339172363281
+  },
+  "per_channel_mean": {
+   "min": -0.34156274795532227,
+   "median": -0.010058332234621048,
+   "max": 0.6077448725700378,
+   "max_abs": 0.6077448725700378
+  },
+  "after_global_norm_channel_std": {
+   "min": 0.02595485746860504,
+   "median": 0.9284180402755737,
+   "max": 1.5384323596954346,
+   "frac_outside_0p5_to_2p0": 0.25
+  },
+  "excess_kurtosis": {
+   "min": -1.4024112224578857,
+   "median": 0.2508052587509155,
+   "max": 3.6005797386169434
+  },
+  "tail": {
+   "frac_abs_gt_3_global_sd": 0.005235544840494792,
+   "frac_abs_gt_5_global_sd": 1.7217000325520835e-05,
+   "max_abs_global_sd": 7.922140598297119
+  },
+  "shape_sampled": [
+   600,
+   2048,
+   64
+  ],
+  "_ch_sd_head": [
+   0.7407344579696655,
+   0.1388121098279953,
+   0.21410642564296722,
+   1.2379237413406372,
+   0.8752321600914001,
+   1.138854742050171,
+   1.2603353261947632,
+   1.221051573753357
+  ]
+ },
+ "blockout": {
+  "global_mean": 0.011389262974262238,
+  "global_std": 0.840467631816864,
+  "per_channel_std": {
+   "min": 0.02042509615421295,
+   "p10": 0.06303513050079346,
+   "median": 0.7655641436576843,
+   "p90": 1.2393889427185059,
+   "max": 1.527417778968811,
+   "max_over_min": 74.78142547607422
+  },
+  "per_channel_mean": {
+   "min": -0.27333635091781616,
+   "median": 0.004029271192848682,
+   "max": 0.35804039239883423,
+   "max_abs": 0.35804039239883423
+  },
+  "after_global_norm_channel_std": {
+   "min": 0.024302061647176743,
+   "median": 0.9108787775039673,
+   "max": 1.817342758178711,
+   "frac_outside_0p5_to_2p0": 0.265625
+  },
+  "excess_kurtosis": {
+   "min": -1.4267690181732178,
+   "median": -0.01863694190979004,
+   "max": 5.841925621032715
+  },
+  "tail": {
+   "frac_abs_gt_3_global_sd": 0.0039031473795572915,
+   "frac_abs_gt_5_global_sd": 1.983642578125e-06,
+   "max_abs_global_sd": 6.543583869934082
+  },
+  "shape_sampled": [
+   600,
+   2048,
+   64
+  ],
+  "_ch_sd_head": [
+   0.7908691763877869,
+   0.1476244181394577,
+   0.21831843256950378,
+   1.2073715925216675,
+   0.9046156406402588,
+   1.187470555305481,
+   1.312030553817749,
+   1.0853383541107178
+  ]
+ },
+ "blockout_under_real_stats": {
+  "mean": 0.0434601828455925,
+  "std": 1.001728892326355,
+  "comment": "training normalises the blockout with the REAL latents' mu/sd; ideal is mean 0 std 1"
+ },
+ "per_channel_std_correlation_real_vs_blockout": 0.964739595881643,
+ "fp16_roundtrip_real": {
+  "max_abs_err": 0.0,
+  "rel_err_vs_std": 0.0,
+  "note": "fp16 store is the only lossy step; normalise/denormalise are exact float32 inverses"
+ }
+}

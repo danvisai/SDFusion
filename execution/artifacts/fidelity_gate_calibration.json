@@ -1,0 +1,11 @@
+{
+  "n_real": 20,
+  "n_sample": 20,
+  "real_median": 0.9942623972892761,
+  "real_p10": 0.9896400153636933,
+  "real_p25": 0.9903318136930466,
+  "sample_median": 0.9937175214290619,
+  "sample_p90": 0.9962916910648346,
+  "recommend_floor_real_p10": 0.9896400153636933,
+  "separation_ok": false
+}

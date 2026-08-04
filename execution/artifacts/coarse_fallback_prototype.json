@@ -1,0 +1,631 @@
+{
+  "n": 60,
+  "n_collapsing": 29,
+  "collapsing": [
+    {
+      "bid": "PUBLICoffice_building_mesh3131",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.006831416377314815,
+      "solid_occ": 0.008774368851273149,
+      "hash": "b854cb3f"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5715",
+      "occ_old_coarse": 3.8429542824074075e-05,
+      "occ_new_coarse": 0.008168538411458334,
+      "solid_occ": 0.019135651765046297,
+      "hash": "0ce33079"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh1911",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0018943504050925927,
+      "solid_occ": 0.006349916811342593,
+      "hash": "39777ffd"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh1357",
+      "occ_old_coarse": 2.9387297453703702e-05,
+      "occ_new_coarse": 0.03056618019386574,
+      "solid_occ": 0.0693370677806713,
+      "hash": "fbb31d46"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh8738",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.003623679832175926,
+      "solid_occ": 0.01259471752025463,
+      "hash": "8b9a5cd4"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0769",
+      "occ_old_coarse": 9.607385706018519e-05,
+      "occ_new_coarse": 0.0008386682581018518,
+      "solid_occ": 0.006555627893518518,
+      "hash": "0dca7308"
+    },
+    {
+      "bid": "RESIDENTIALschool_building_mesh1193",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0,
+      "solid_occ": 0.002799705222800926,
+      "hash": "c81fcdc3"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3058",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0,
+      "solid_occ": 0.00044533058449074077,
+      "hash": "c81fcdc3"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4225",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0012919108072916667,
+      "solid_occ": 0.00700095847800926,
+      "hash": "6d094b62"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh3193",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.00010511610243055556,
+      "solid_occ": 0.0009256998697916666,
+      "hash": "38a0f230"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh2882",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.008448848017939815,
+      "solid_occ": 0.01612232349537037,
+      "hash": "36a8f535"
+    },
+    {
+      "bid": "COMMERCIALoffice_building_mesh0490",
+      "occ_old_coarse": 3.729926215277778e-05,
+      "occ_new_coarse": 0.0005289713541666666,
+      "solid_occ": 0.006405300564236111,
+      "hash": "2c96f261"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4195",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0012998227719907408,
+      "solid_occ": 0.004783347800925926,
+      "hash": "90c35ae0"
+    },
+    {
+      "bid": "RESIDENTIALpalace_mesh0820",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0014207628038194445,
+      "solid_occ": 0.007143373842592593,
+      "hash": "83a92035"
+    },
+    {
+      "bid": "RELIGIOUSmosque_mesh0143",
+      "occ_old_coarse": 7.120768229166667e-05,
+      "occ_new_coarse": 0.00013337311921296296,
+      "solid_occ": 0.002068413628472222,
+      "hash": "8b7261ab"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2144",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.01601946795428241,
+      "solid_occ": 0.029624656394675927,
+      "hash": "0453431a"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0172",
+      "occ_old_coarse": 6.781684027777777e-06,
+      "occ_new_coarse": 0.03493471498842592,
+      "solid_occ": 0.051367865668402776,
+      "hash": "9306a094"
+    },
+    {
+      "bid": "PUBLICmuseum_mesh0050",
+      "occ_old_coarse": 7.233796296296296e-05,
+      "occ_new_coarse": 0.00037299262152777775,
+      "solid_occ": 0.0057373046875,
+      "hash": "af690b19"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6803",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.00011189778645833333,
+      "solid_occ": 0.0020186812789351853,
+      "hash": "c5104049"
+    },
+    {
+      "bid": "COMMERCIALmuseum_mesh0112",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0007787633825231482,
+      "solid_occ": 0.009200484664351851,
+      "hash": "258b854d"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh0417",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0022899486400462963,
+      "solid_occ": 0.004720052083333333,
+      "hash": "adce3cfc"
+    },
+    {
+      "bid": "COMMERCIALhotel_building_mesh0162",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.002849437572337963,
+      "solid_occ": 0.017727322048611112,
+      "hash": "cf13010e"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5923",
+      "occ_old_coarse": 4.521122685185185e-06,
+      "occ_new_coarse": 0.002818919994212963,
+      "solid_occ": 0.012554027416087963,
+      "hash": "629394bd"
+    },
+    {
+      "bid": "RESIDENTIALoffice_building_mesh3179",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0001842357494212963,
+      "solid_occ": 0.003197564019097222,
+      "hash": "ddab2538"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5915",
+      "occ_old_coarse": 8.364076967592593e-05,
+      "occ_new_coarse": 0.0016468189380787037,
+      "solid_occ": 0.004418267144097222,
+      "hash": "1271adb3"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh2533",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0018627025462962963,
+      "solid_occ": 0.008516664858217593,
+      "hash": "fa671363"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2872",
+      "occ_old_coarse": 2.147533275462963e-05,
+      "occ_new_coarse": 0.0035502115885416665,
+      "solid_occ": 0.010988588686342593,
+      "hash": "2883daa3"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6120",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 2.5996455439814815e-05,
+      "solid_occ": 0.0006126121238425925,
+      "hash": "8f6ec66e"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0845",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.004150390625,
+      "solid_occ": 0.024741843894675927,
+      "hash": "3f2b5138"
+    }
+  ],
+  "all": [
+    {
+      "bid": "RESIDENTIALhouse_mesh4827",
+      "occ_old_coarse": 0.009993941695601851,
+      "occ_new_coarse": 0.00934742115162037,
+      "solid_occ": 0.01552440502025463,
+      "hash": "1d135a26"
+    },
+    {
+      "bid": "PUBLICoffice_building_mesh3131",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.006831416377314815,
+      "solid_occ": 0.008774368851273149,
+      "hash": "b854cb3f"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5715",
+      "occ_old_coarse": 3.8429542824074075e-05,
+      "occ_new_coarse": 0.008168538411458334,
+      "solid_occ": 0.019135651765046297,
+      "hash": "0ce33079"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh1911",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0018943504050925927,
+      "solid_occ": 0.006349916811342593,
+      "hash": "39777ffd"
+    },
+    {
+      "bid": "COMMERCIALoffice_building_mesh0246",
+      "occ_old_coarse": 0.016530354817708332,
+      "occ_new_coarse": 0.02354148582175926,
+      "solid_occ": 0.02897248444733796,
+      "hash": "d5af6972"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh7485",
+      "occ_old_coarse": 0.0840725368923611,
+      "occ_new_coarse": 0.09674298321759259,
+      "solid_occ": 0.10448992693865741,
+      "hash": "fd346dfc"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4870",
+      "occ_old_coarse": 0.01722999855324074,
+      "occ_new_coarse": 0.017659505208333332,
+      "solid_occ": 0.019983362268518517,
+      "hash": "28e676ab"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh1357",
+      "occ_old_coarse": 2.9387297453703702e-05,
+      "occ_new_coarse": 0.03056618019386574,
+      "solid_occ": 0.0693370677806713,
+      "hash": "fbb31d46"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh8738",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.003623679832175926,
+      "solid_occ": 0.01259471752025463,
+      "hash": "8b9a5cd4"
+    },
+    {
+      "bid": "COMMERCIALhotel_building_mesh1211",
+      "occ_old_coarse": 0.03468379267939815,
+      "occ_new_coarse": 0.03526927806712963,
+      "solid_occ": 0.037721987123842594,
+      "hash": "f604b371"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0769",
+      "occ_old_coarse": 9.607385706018519e-05,
+      "occ_new_coarse": 0.0008386682581018518,
+      "solid_occ": 0.006555627893518518,
+      "hash": "0dca7308"
+    },
+    {
+      "bid": "RESIDENTIALschool_building_mesh1193",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0,
+      "solid_occ": 0.002799705222800926,
+      "hash": "c81fcdc3"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh8221",
+      "occ_old_coarse": 0.02641578956886574,
+      "occ_new_coarse": 0.02858366789641204,
+      "solid_occ": 0.03568861219618055,
+      "hash": "15922468"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3058",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0,
+      "solid_occ": 0.00044533058449074077,
+      "hash": "c81fcdc3"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4225",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0012919108072916667,
+      "solid_occ": 0.00700095847800926,
+      "hash": "6d094b62"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh3193",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.00010511610243055556,
+      "solid_occ": 0.0009256998697916666,
+      "hash": "38a0f230"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh2882",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.008448848017939815,
+      "solid_occ": 0.01612232349537037,
+      "hash": "36a8f535"
+    },
+    {
+      "bid": "COMMERCIALoffice_building_mesh0490",
+      "occ_old_coarse": 3.729926215277778e-05,
+      "occ_new_coarse": 0.0005289713541666666,
+      "solid_occ": 0.006405300564236111,
+      "hash": "2c96f261"
+    },
+    {
+      "bid": "COMMERCIALcity_hall_mesh0258",
+      "occ_old_coarse": 0.004332365813078704,
+      "occ_new_coarse": 0.005113389756944444,
+      "solid_occ": 0.00806568287037037,
+      "hash": "2a8694cb"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9360",
+      "occ_old_coarse": 0.00995438187210648,
+      "occ_new_coarse": 0.012030707465277778,
+      "solid_occ": 0.02176129376446759,
+      "hash": "29007f75"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh7219",
+      "occ_old_coarse": 0.012266936125578705,
+      "occ_new_coarse": 0.013276276765046295,
+      "solid_occ": 0.01615623191550926,
+      "hash": "c03b1a87"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh0423",
+      "occ_old_coarse": 0.040167914496527776,
+      "occ_new_coarse": 0.04402104130497685,
+      "solid_occ": 0.05257839626736111,
+      "hash": "fd445060"
+    },
+    {
+      "bid": "COMMERCIALcastle_mesh0904",
+      "occ_old_coarse": 0.00020797164351851852,
+      "occ_new_coarse": 0.008651168258101851,
+      "solid_occ": 0.03189878110532408,
+      "hash": "b1f35d20"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4195",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0012998227719907408,
+      "solid_occ": 0.004783347800925926,
+      "hash": "90c35ae0"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5272",
+      "occ_old_coarse": 0.09900806568287036,
+      "occ_new_coarse": 0.11077202690972222,
+      "solid_occ": 0.11616346571180555,
+      "hash": "57e0c067"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5414",
+      "occ_old_coarse": 0.01358597366898148,
+      "occ_new_coarse": 0.014646176938657407,
+      "solid_occ": 0.016241002965856483,
+      "hash": "69138a69"
+    },
+    {
+      "bid": "COMMERCIALschool_building_mesh0043",
+      "occ_old_coarse": 0.06366418909143519,
+      "occ_new_coarse": 0.06445877640335648,
+      "solid_occ": 0.07962827329282407,
+      "hash": "d7ff2e50"
+    },
+    {
+      "bid": "RESIDENTIALpalace_mesh0820",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0014207628038194445,
+      "solid_occ": 0.007143373842592593,
+      "hash": "83a92035"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4092",
+      "occ_old_coarse": 0.005282931857638889,
+      "occ_new_coarse": 0.00596336082175926,
+      "solid_occ": 0.007350215205439815,
+      "hash": "ba95078e"
+    },
+    {
+      "bid": "RELIGIOUSmosque_mesh0143",
+      "occ_old_coarse": 7.120768229166667e-05,
+      "occ_new_coarse": 0.00013337311921296296,
+      "solid_occ": 0.002068413628472222,
+      "hash": "8b7261ab"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2144",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.01601946795428241,
+      "solid_occ": 0.029624656394675927,
+      "hash": "0453431a"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0172",
+      "occ_old_coarse": 6.781684027777777e-06,
+      "occ_new_coarse": 0.03493471498842592,
+      "solid_occ": 0.051367865668402776,
+      "hash": "9306a094"
+    },
+    {
+      "bid": "PUBLICmuseum_mesh0050",
+      "occ_old_coarse": 7.233796296296296e-05,
+      "occ_new_coarse": 0.00037299262152777775,
+      "solid_occ": 0.0057373046875,
+      "hash": "af690b19"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3228",
+      "occ_old_coarse": 0.04115012839988426,
+      "occ_new_coarse": 0.04302639431423611,
+      "solid_occ": 0.04796006944444445,
+      "hash": "7160606a"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6803",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.00011189778645833333,
+      "solid_occ": 0.0020186812789351853,
+      "hash": "c5104049"
+    },
+    {
+      "bid": "RESIDENTIALmuseum_mesh1033",
+      "occ_old_coarse": 0.026631673177083332,
+      "occ_new_coarse": 0.029249403211805556,
+      "solid_occ": 0.03227403428819445,
+      "hash": "b2df8f55"
+    },
+    {
+      "bid": "RESIDENTIALoffice_building_mesh0952",
+      "occ_old_coarse": 0.029831497757523147,
+      "occ_new_coarse": 0.03085101092303241,
+      "solid_occ": 0.032777009186921294,
+      "hash": "103406b6"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh7965",
+      "occ_old_coarse": 0.004241943359375,
+      "occ_new_coarse": 0.005462646484375,
+      "solid_occ": 0.009627730758101851,
+      "hash": "6a8c0198"
+    },
+    {
+      "bid": "COMMERCIALmuseum_mesh0112",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0007787633825231482,
+      "solid_occ": 0.009200484664351851,
+      "hash": "258b854d"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5948",
+      "occ_old_coarse": 0.007238317418981482,
+      "occ_new_coarse": 0.011641890914351851,
+      "solid_occ": 0.017934163411458332,
+      "hash": "90193e03"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh0417",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0022899486400462963,
+      "solid_occ": 0.004720052083333333,
+      "hash": "adce3cfc"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4188",
+      "occ_old_coarse": 0.022596571180555556,
+      "occ_new_coarse": 0.02526629412615741,
+      "solid_occ": 0.030678077980324073,
+      "hash": "3d3a7739"
+    },
+    {
+      "bid": "COMMERCIALhotel_building_mesh0162",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.002849437572337963,
+      "solid_occ": 0.017727322048611112,
+      "hash": "cf13010e"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh1379",
+      "occ_old_coarse": 0.00010059497974537037,
+      "occ_new_coarse": 0.0016536006221064814,
+      "solid_occ": 0.006337483723958333,
+      "hash": "8ff8fea1"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5923",
+      "occ_old_coarse": 4.521122685185185e-06,
+      "occ_new_coarse": 0.002818919994212963,
+      "solid_occ": 0.012554027416087963,
+      "hash": "629394bd"
+    },
+    {
+      "bid": "RESIDENTIALoffice_building_mesh3179",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0001842357494212963,
+      "solid_occ": 0.003197564019097222,
+      "hash": "ddab2538"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh5915",
+      "occ_old_coarse": 8.364076967592593e-05,
+      "occ_new_coarse": 0.0016468189380787037,
+      "solid_occ": 0.004418267144097222,
+      "hash": "1271adb3"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh2533",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.0018627025462962963,
+      "solid_occ": 0.008516664858217593,
+      "hash": "fa671363"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6775",
+      "occ_old_coarse": 0.009966814959490741,
+      "occ_new_coarse": 0.011170563874421295,
+      "solid_occ": 0.013324878833912037,
+      "hash": "bc5faffa"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh3714",
+      "occ_old_coarse": 0.052248354311342594,
+      "occ_new_coarse": 0.05704526548032408,
+      "solid_occ": 0.062140570746527776,
+      "hash": "75751663"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh4033",
+      "occ_old_coarse": 0.017614293981481483,
+      "occ_new_coarse": 0.022368254484953703,
+      "solid_occ": 0.02570710358796296,
+      "hash": "eb68acd0"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh0036",
+      "occ_old_coarse": 0.001620822482638889,
+      "occ_new_coarse": 0.013591625072337963,
+      "solid_occ": 0.026811387803819444,
+      "hash": "9a271392"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh2872",
+      "occ_old_coarse": 2.147533275462963e-05,
+      "occ_new_coarse": 0.0035502115885416665,
+      "solid_occ": 0.010988588686342593,
+      "hash": "2883daa3"
+    },
+    {
+      "bid": "RELIGIOUSchurch_mesh0606",
+      "occ_old_coarse": 0.022464328342013888,
+      "occ_new_coarse": 0.02262482819733796,
+      "solid_occ": 0.02722394024884259,
+      "hash": "d19b8ffd"
+    },
+    {
+      "bid": "COMMERCIALhotel_building_mesh0295",
+      "occ_old_coarse": 0.025039107711226853,
+      "occ_new_coarse": 0.026237205222800927,
+      "solid_occ": 0.030683729383680556,
+      "hash": "eb0aec29"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh6120",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 2.5996455439814815e-05,
+      "solid_occ": 0.0006126121238425925,
+      "hash": "8f6ec66e"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh5963",
+      "occ_old_coarse": 0.000579833984375,
+      "occ_new_coarse": 0.013730649594907407,
+      "solid_occ": 0.05696162471064815,
+      "hash": "611b9394"
+    },
+    {
+      "bid": "RESIDENTIALvilla_mesh4766",
+      "occ_old_coarse": 0.0032337330005787037,
+      "occ_new_coarse": 0.0037943522135416665,
+      "solid_occ": 0.007824933087384259,
+      "hash": "0c9952c4"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh0845",
+      "occ_old_coarse": 0.0,
+      "occ_new_coarse": 0.004150390625,
+      "solid_occ": 0.024741843894675927,
+      "hash": "3f2b5138"
+    },
+    {
+      "bid": "RESIDENTIALhouse_mesh9777",
+      "occ_old_coarse": 0.059685601128472224,
+      "occ_new_coarse": 0.06580607096354167,
+      "solid_occ": 0.06733760127314815,
+      "hash": "80029c46"
+    }
+  ]
+}

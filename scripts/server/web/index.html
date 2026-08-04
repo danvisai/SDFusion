@@ -33,7 +33,7 @@
 <body>
 <div id="panel">
   <h1>GenerativeTowns</h1>
-  <div class="sub">Footprints → 3D town. <b>Click a building</b> to select, then restyle / sculpt — the mesh adapts live.</div>
+  <div class="sub">Footprints → 3D town.</div>
 
   <h2>① Town from a footprint image</h2>
   <div class="card">
@@ -46,6 +46,10 @@
     <button id="genimg" disabled>Generate town from image</button>
   </div>
 
+  <!-- #49: "Single building" (②) and "Selected building" (③) culled for now — to be
+       re-implemented cleaner. Hidden; DOM kept so JS refs (cls/style/editor/eStyle/…) don't
+       null-error. Revert = remove this display:none wrapper and its close before ④. -->
+  <div style="display:none">
   <h2>② Single building</h2>
   <div class="card">
     <div class="row"><div><label>Class</label><select id="cls"><option>RESIDENTIAL</option><option>COMMERCIAL</option><option>PUBLIC</option><option>RELIGIOUS</option></select></div>
@@ -82,6 +86,7 @@
     <img id="eRefThumb" style="display:none;width:100%;margin-top:6px;border-radius:6px"/>
     <div id="eInfo"></div>
   </div>
+  </div><!-- /②③ culled -->
 
   <h2>④ Photoreal town</h2>
   <div class="card">
@@ -91,6 +96,9 @@
     look; the rest follow the prompt. ~30s.</div>
   </div>
 
+  <!-- #49: "Export to engine" culled from the supervisor demo (hidden; DOM kept so the
+       exGo/exUnits/exTex JS refs don't null-error). Revert = remove this display:none wrapper. -->
+  <div style="display:none">
   <h2>⑤ Export to engine</h2>
   <div class="card">
     <label>Units</label>
@@ -102,6 +110,7 @@
     Import, enable Nanite, light it. With <b>Bake textures</b> on, each building imports
     wearing its style image as a material (slower; capped at 12 buildings).</div>
   </div>
+  </div>
   <div id="info">loading engine…</div>
   <div id="trOverlay" style="display:none;position:fixed;inset:0;background:#000c;z-index:50;align-items:center;justify-content:center;flex-direction:column;gap:10px">
     <img id="trImg" style="max-width:84vmin;max-height:84vmin;border-radius:10px"/>
@@ -111,7 +120,7 @@
     </div>
   </div>
 </div>
-<div id="view"><div id="hint">click a building to select · drag to orbit · scroll to zoom</div></div>
+<div id="view"><div id="hint">drag to orbit · scroll to zoom</div></div>
 
 <script type="importmap">
 { "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" }}
