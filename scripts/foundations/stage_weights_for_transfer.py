@@ -76,6 +76,19 @@ TIER_C = [
      "smoke_lod2_fromscratch.pth", "SMOKE TEST -- superseded by the real run"),
 ]
 
+# Tier D -- the demo's snap prior. Exact files resolved from scripts/server/refine.py:457-471:
+# main is the -final run's latest, guide is an EARLIER checkpoint of the SAME finetune run used
+# for autoguidance. The commented-out hybrid-clean path is pre-2026-07-03 and is NOT needed.
+# Staged to demo-serving/ so the paths mirror what refine.py expects.
+TIER_D = [
+    ("logs_building/continue-stage3a-xcultural-warmstart-ft-final/ckpt/stage3a_steps-latest.pth",
+     "demo-serving/logs_building/continue-stage3a-xcultural-warmstart-ft-final/ckpt/stage3a_steps-latest.pth",
+     "snap prior MAIN (refine.py:469)"),
+    ("logs_building/continue-stage3a-xcultural-warmstart-ft/ckpt/stage3a_steps-1000.pth",
+     "demo-serving/logs_building/continue-stage3a-xcultural-warmstart-ft/ckpt/stage3a_steps-1000.pth",
+     "snap prior GUIDE for autoguidance (refine.py:471)"),
+]
+
 KEEPERS = TIER_A + TIER_B
 
 
@@ -91,6 +104,10 @@ def main():
     keepers = list(KEEPERS)
     if "--include-negatives" in sys.argv:
         keepers += TIER_C
+    if "--demo-only" in sys.argv:
+        keepers = list(TIER_D)
+    elif "--include-demo" in sys.argv:
+        keepers += TIER_D
     if "--list" in sys.argv:
         for rel, out_name, note in keepers:
             src = REPO / rel
@@ -108,6 +125,7 @@ def main():
             print(f"MISSING  {rel}", flush=True)
             continue
         dst = DEST / out_name
+        dst.parent.mkdir(parents=True, exist_ok=True)  # tier D mirrors refine.py's nested paths
         size_in = src.stat().st_size
 
         state = torch.load(src, map_location="cpu", weights_only=False)

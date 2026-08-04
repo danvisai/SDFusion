@@ -20,8 +20,8 @@ without destroying the rest of the building.
 
 | learned component | checkpoint | decides |
 |---|---|---|
-| recipe-parameter diffusion | `outputs/recipe_param_diffusion_b6` ⚠️ cluster-only | massing: proportions/roof/wings from footprint + class + style |
-| Stage 3a SDF diffusion (947M) + VQVAE | `logs_building/continue-stage3a-xcultural-warmstart-ft*/ckpt` ⚠️ cluster-only | "AI massing" from real NL/DE/JP buildings; the localized snap (`/snap_sdf`) |
+| recipe-parameter diffusion | `outputs/recipe_param_diffusion_b6` — HF `demo-serving/` | massing: proportions/roof/wings from footprint + class + style |
+| Stage 3a SDF diffusion (947M) + VQVAE | `logs_building/continue-stage3a-xcultural-warmstart-ft*/ckpt` — HF `demo-serving/` | "AI massing" from real NL/DE/JP buildings; the localized snap (`/snap_sdf`) |
 | **vecset massing diffusion (49M)** — the current research line | **published**, HF `massing-vecset/` | footprint + height → solid mass; see the [model card](https://huggingface.co/danvisimhadri/SDFUSION) |
 | PartLayoutPlannerV2 | `outputs/part_layout_planner_v2` | window/door/balcony layouts, ornament slots, Make-it-architecture typing |
 | CoherentPartRefiner | `outputs/part_set_refiner` | integrating a sculpted mass into the building's part set |
@@ -65,11 +65,18 @@ CUDA_VISIBLE_DEVICES=0 ./venv/bin/python -m uvicorn scripts.server.inference_ser
 port: training needs no pytorch3d, the ~40 `.cuda()` sites are fine under ROCm's HIP mapping, and
 pytorch3d is the one real blocker (build it CPU-only).
 
-⚠️ **The demo's serving weights are NOT published.** `outputs/recipe_param_diffusion_b6` (80 MB),
-`outputs/part_layout_planner_v2` (18 MB), `outputs/part_set_refiner`, `outputs/part_composer`, and the
-snap prior `logs_building/continue-stage3a-xcultural-warmstart-ft*` exist **only on the cluster**. The
-HF repo carries the massing research checkpoints, not the demo stack — so a fresh clone runs the
-server but fails on first request. Copy those paths before decommissioning the cluster.
+**Running the demo** needs its serving weights, published separately under `demo-serving/` — the
+recipe-param diffusion, layout planner, part refiners/composer, and the two snap-prior checkpoints.
+Paths mirror this repo, so it unpacks straight over a clone:
+
+```bash
+hf download danvisimhadri/SDFUSION --include 'demo-serving/*' --local-dir /tmp/demo
+cp -r /tmp/demo/demo-serving/* .
+./scripts/server/run_web_demo.sh 8099
+```
+
+⚠️ Published checkpoints have optimizer state stripped — inference-ready, **not** resume-ready. To
+resume training, use the originals under `logs_building/` on the cluster.
 
 Hardware: ~24 GB VRAM comfortable, ~10 GB disk for checkpoints, ~46 GB more for the HF model cache.
 

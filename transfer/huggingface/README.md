@@ -338,6 +338,37 @@ normalised latents and decodes to noise without them. Verify with `cd massing-ve
 ⚠️ **Keep global latent normalisation.** Per-channel normalisation was measured and is **harmful** —
 the 16 low-variance channels are collapsed dimensions the decoder ignores.
 
+## Also here: the demo serving stack (`demo-serving/`)
+
+Separate from the massing research above. The repo's FastAPI + three.js demo — town generation from a
+footprint image, SDF sculpting, texture bake — needs its own weights, which are published here so the
+demo actually runs from a clone.
+
+| path | size | what |
+|---|---|---|
+| `demo-serving/outputs/recipe_param_diffusion_b6/` | 80 MB | recipe-parameter diffusion — proportions/roof/wings. `recipe_inference.py:44` |
+| `demo-serving/outputs/recipe_param_diffusion_b6_ema/` | 2.9 MB | EMA variant |
+| `demo-serving/outputs/part_layout_planner_v2/` | 17 MB | window/door/balcony layouts |
+| `demo-serving/outputs/part_set_refiner/` | 53 MB | integrates a sculpted mass into the part set |
+| `demo-serving/outputs/part_composer/` | 1.3 MB | statistical facade detail |
+| `demo-serving/outputs/refiner_v1/` | 22 MB | surface refiner |
+| `demo-serving/logs_building/…-ft-final/ckpt/stage3a_steps-latest.pth` | 3.6 GB | **snap prior, main** (`refine.py:469`) |
+| `demo-serving/logs_building/…-ft/ckpt/stage3a_steps-1000.pth` | 3.6 GB | **snap prior, autoguidance guide** (`refine.py:471`) |
+
+Paths mirror the repo layout, so `demo-serving/` unpacks straight over a clone:
+
+```bash
+hf download danvisimhadri/SDFUSION --include 'demo-serving/*' --local-dir /tmp/demo
+cp -r /tmp/demo/demo-serving/* .          # into the repo root
+./scripts/server/run_web_demo.sh 8099
+```
+
+⚠️ The two snap-prior checkpoints are the **same finetune run** at different steps — the guide is
+deliberately the weaker, earlier checkpoint (autoguidance). Don't "upgrade" the guide to the latest;
+that defeats the mechanism. ⚠️ Optimizer state is stripped from both, so they are inference-only.
+⚠️ SDXL / ControlNet / Depth-Anything (~46 GB) are **not** here — they auto-download to the HF cache on
+the first texture or render call.
+
 ## Reproduction
 
 Code: <https://github.com/danvisai/SDFusion> (branch `massing-solid-gate-retrain`).
