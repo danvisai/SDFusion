@@ -2,7 +2,7 @@
   "n_pairs": 20,
   "seed": 0,
   "population_size": 277,
-  "render_style": "mesh",
+  "render_style": "normal",
   "consent_text": "This is a short visual comparison. You will see pairs of 3D building renders, side by side. For each pair, click the one that looks more like a real building. There are no right or wrong answers, no personal data is collected, and your choices are saved only as which SIDE (left/right) you picked per pair -- not who you are. You can stop at any time; partial responses are still useful. This is a research prototype, not a finished study -- your feedback on the format itself is as valuable as your picks.",
   "answer_key": [
     {
@@ -106,7 +106,7 @@
       "right": "decomposition"
     }
   ],
-  "out_dir": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/outputs/two_afc_study",
-  "git_rev": "03e86f2ffb6762c7036b86e05f1fd30771380553",
-  "dirty_digest": "a07dc6ff7e1a"
+  "out_dir": "outputs/two_afc_study_normal_compare",
+  "git_rev": "9305f33597cfe73de2044afd7f472e499a9a354c",
+  "dirty_digest": "07fee43d409b"
 }
