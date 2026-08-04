@@ -87,9 +87,36 @@ diagnosis rather than search.
   `--surf_t_center`.
 - `DoraCodec(differentiable=True).freeze()` — the gradient path, off by default.
 
+## The band fix (run after the above, `logs_building/vecset_v5_surfband`)
+
+Controlled: same checkpoint, same 60k steps, one variable — grading moved from t/T 0.40 to 0.55.
+Full write-up: `docs/wayfinding/vecset-convergence/band-fix-result.md`.
+
+🔑 **The result is bimodal and the median hides it.** On **29 of 48** buildings it does the job — `extra`
+**0.149** against the blockout's 0.183, a **19% surplus reduction**, at 3D IoU 0.833 vs 0.845. On the
+other **19** it produces hollow shells (IoU 0.353). Median `missing` 0.051, mean 0.244.
+
+**This is a reliability problem, not a capability one** — and no previous model produced a selective
+carve on any subset.
+
+⚠️ **Two more measurement lessons, both learned the hard way:**
+- **Medians lie on bimodal outcomes.** `eval_massing_arms.py` reports medians and should report a
+  **collapse rate** beside them. The bimodality was caught only because a render showed one building
+  solid and two hollow in the same checkpoint.
+- **The aggregate can be flat while geometry degrades.** 190k → 220k moved 3D IoU 0.195 → 0.200 —
+  marginally "better" — while a building went from a box to a shredded cage.
+
+⚠️ **Second near-miss on a transient.** At 220k the renders showed cages and a stop was recommended; the
+next checkpoint recovered to 0.825. **This model's training passes through deep multi-checkpoint failure
+phases and comes out of them.**
+
 ## Next
 
-**Rerun the surface loss with `--surf_t_center 0.55`.** The run that produced the +0.029 was supervising
+**Find what separates the 29 solid buildings from the 19 hollow ones.** If it correlates with footprint
+complexity, size, or source corpus, that is a targeted fix rather than a blind sweep — the first
+specific investigation this map has had. Secondary: lower `--surf_weight` at the same band.
+
+~~**Rerun the surface loss with `--surf_t_center 0.55`.**~~ *(done — see above)* The run that produced the +0.029 was supervising
 at **t/T 0.401** while inference runs at **0.5–0.6** — it taught the model to reproduce its input rather
 than carve it (`vs input` 0.993). Fixed in `8a3fca5`, untested. Same checkpoint, same length, one
 variable: a clean controlled comparison.
