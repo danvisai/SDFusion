@@ -134,6 +134,7 @@ def score_arm(field: np.ndarray, gt_occ: np.ndarray, fp: np.ndarray) -> dict:
     occ = np.asarray(field) <= 0
     row = dict(fp_iou=fp_iou(occ, fp))
     row.update(volume_split(occ, gt_occ))
+    row.update(footprint_split(occ, fp))   # criterion 2 (#85): fringe / spill / uncovered
     # guards only -- kept out of fp_iou/missing/extra and out of every ranking print
     row["guard_roughness"] = surface_roughness(
         torch.from_numpy(np.clip(np.asarray(field, np.float32), -TRUNC, TRUNC)))
@@ -188,6 +189,122 @@ def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device):
     tex = TexturesVertex(verts_features=torch.full_like(v, 0.72))
     img = renderer(Meshes(verts=v, faces=f, textures=tex))[0, ..., :3].clamp(0, 1).cpu().numpy()
     return Image.fromarray((img * 255).astype(np.uint8))
+
+
+S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~ 3 voxels @64^3. Fixed a priori.
+
+
+def footprint_split(arm_occ: np.ndarray, fp: np.ndarray, tol: int = S_STAR_VOXELS) -> dict:
+    """Criterion 2 as **fringe / spill / uncovered**, never as a lone fp-IoU (#85).
+
+    fp-IoU conflates two unlike things and their ratio swings from 21% to 100% building to building,
+    which is why the number disagreed with what a human sees in a render:
+
+    * **fringe**  -- disagreement within `tol` voxels of the footprint boundary. A half-voxel rounding
+      of the boundary at 64^3. Present even when the model is right, so it is **reported and ignored**,
+      the same ruling this harness already applies to ribbing (#71) and to SNE's contamination (#79).
+    * **spill**   -- built OUTSIDE the footprint, beyond the tolerance band. **Counts.**
+    * **uncovered** -- footprint left unfilled, beyond the band. **Counts.**
+
+    `tol` defaults to **s\\* = 3 voxels**, the project's detail scale (ADR 0004, 1.0 m @64^3). It is
+    fixed a priori and is the massing/detail line the thesis rests on -- not a tolerance fitted to make
+    a result pass. Criterion 2 is a massing claim, and detail is out of map #69's scope.
+
+    ⚠️ Measured on the full held-out set: **uncovered is essentially zero** (median 0.0000) and spill is
+    the entire failure. Criterion 2 and criterion 3 are therefore driven by the same defect -- the model
+    over-builds -- seen once in plan and once in volume. They stay separate numbers (spill can be zero
+    while `extra` is large, when the model builds too high but stays inside the footprint) but nobody
+    should count them as two independent faults.
+    """
+    from scipy import ndimage
+    ref = np.asarray(fp).astype(bool)
+    proj = np.asarray(arm_occ, bool).any(axis=1)          # vertical projection, footprint axis is H
+    area = int(ref.sum())
+    if area == 0:
+        return dict(fringe=0.0, spill=0.0, uncovered=0.0, fp_area=0)
+    band = (ndimage.binary_dilation(ref, iterations=tol)
+            & ~ndimage.binary_erosion(ref, iterations=tol)) if tol else np.zeros_like(ref)
+    dis = proj ^ ref
+    return dict(fringe=float((dis & band).sum() / area),
+                spill=float(((proj & ~ref) & ~band).sum() / area),
+                uncovered=float(((ref & ~proj) & ~band).sum() / area),
+                fp_area=area)
+
+
+def criterion2_report(scores: dict, arm_order, allowances=(0.0, 0.02, 0.03, 0.05, 0.10)) -> dict:
+    """Pass rates across allowances, with 95% intervals. **The allowance is deliberately not fixed.**
+
+    Criterion 2 is human-judged (#85), so this prints the curve and lets the human pick the point,
+    rather than baking one threshold into the harness. A rate needs n: at n=48 a rate carries about
+    +-11 points, at n=714 about +-3, which is why the interval is printed beside every figure.
+    """
+    out = {}
+    for arm in arm_order:
+        rows = [r for r in scores.get(arm, {}).values() if "spill" in r]
+        if not rows:
+            continue
+        sp = np.array([r["spill"] for r in rows])
+        un = np.array([r["uncovered"] for r in rows])
+        n = len(rows)
+        per = {}
+        for a in allowances:
+            p = float(((sp <= a) & (un <= a)).mean())
+            se = (p * (1 - p) / n) ** 0.5
+            # clamp: the normal approximation runs past 1.0 at high p and small n
+            per[f"{a:.2f}"] = dict(rate=p, lo=max(0.0, p - 1.96 * se),
+                                  hi=min(1.0, p + 1.96 * se), n=n)
+        out[arm] = dict(n=n, fringe_median=float(np.median([r["fringe"] for r in rows])),
+                        spill_median=float(np.median(sp)), spill_mean=float(sp.mean()),
+                        uncovered_median=float(np.median(un)), pass_rates=per)
+    return out
+
+
+def build_plan_view(scores: dict, fp_of: dict, fields: dict, arm_order, out: Path, n: int) -> Path:
+    """Criterion 2's instrument (#85): the footprint in PLAN, **worst first**.
+
+    The shaded 3/4 montage hides footprint error entirely -- every criterion-2 judgement made before
+    this existed was made without seeing the thing being judged. This looks straight down at the
+    vertical projection against the conditioning footprint.
+
+    ⚠️ **Worst first, not a sample.** A median-ish selection makes criterion 2 pass by construction:
+    at the median the footprint is essentially exact and ~76% of the error is forgiven fringe, while
+    the tail contains filled courtyards and masses built clear of the plan.
+    """
+    from PIL import Image, ImageDraw
+    from scipy import ndimage
+    arm = arm_order[-1]                                   # the candidate, not the controls
+    rows = [(b, r) for b, r in scores.get(arm, {}).items() if "spill" in r and b in fields]
+    if not rows:
+        return out
+    rows.sort(key=lambda kv: -kv[1]["spill"])
+    rows = rows[:n]
+
+    CELL, PAD, LBL, HDR = 200, 8, 34, 46
+    W = len(rows) * CELL + (len(rows) + 1) * PAD
+    canvas = Image.new("RGB", (W, HDR + CELL + LBL + PAD), "white")
+    d = ImageDraw.Draw(canvas)
+    d.text((PAD, 6), f"criterion 2 (#85) -- plan view, WORST FIRST, arm '{arm}', "
+                     f"tolerance s* = {S_STAR_VOXELS} voxels", fill="black")
+    d.text((PAD, 24), "grey = on the footprint | yellow = within s*, FORGIVEN | "
+                      "blue = SPILL (built outside) | red = UNCOVERED", fill=(150, 0, 0))
+    for k, (bid, r) in enumerate(rows):
+        ref = np.asarray(fp_of[bid]).astype(bool)
+        proj = (fields[bid][arm] <= 0).any(axis=1)
+        band = (ndimage.binary_dilation(ref, iterations=S_STAR_VOXELS)
+                & ~ndimage.binary_erosion(ref, iterations=S_STAR_VOXELS))
+        img = np.full(ref.shape + (3,), 255, np.uint8)
+        img[ref & proj] = (140, 153, 168)
+        img[(ref ^ proj) & band] = (242, 217, 140)
+        img[(proj & ~ref) & ~band] = (26, 115, 204)
+        img[(ref & ~proj) & ~band] = (217, 51, 46)
+        x = PAD + k * (CELL + PAD)
+        canvas.paste(Image.fromarray(img).resize((CELL, CELL), Image.NEAREST), (x, HDR))
+        d.text((x, HDR + CELL + 4), f"row {bid}", fill="black")
+        d.text((x, HDR + CELL + 17), f"spill {r['spill']*100:.1f}%  unc {r['uncovered']*100:.1f}%",
+               fill="black")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(out)
+    return out
 
 
 def sharp_normal_error(fields: dict, arm_order, device, views: int = 22, size: int = 256):
@@ -386,6 +503,8 @@ def main() -> None:
     ap.add_argument("--map24", default=str(MAP24), help="deployed dense-grid checkpoint; '' to skip")
     ap.add_argument("--ddim", type=int, default=100)
     ap.add_argument("--montage", type=int, default=8, help="buildings in the montage (0 disables)")
+    ap.add_argument("--plan", type=int, default=6,
+                    help="buildings in the criterion-2 plan view, worst first (#85); 0 disables")
     ap.add_argument("--sne", type=int, default=22,
                     help="views for Sharp Normal Error on the montage subset (#79); 0 disables")
     ap.add_argument("--size", type=int, default=300)
@@ -445,7 +564,9 @@ def main() -> None:
             gt_occ[bid] = gocc
             scores.setdefault("gt", {})[bid] = score_arm(g, gocc, fp_of[bid])
             scores.setdefault("blockout", {})[bid] = score_arm(bo, gocc, fp_of[bid])
-            if len(fields) < args.montage:
+            # keep fields for BOTH pictures: the plan view (#85) is a separate instrument
+            # from the montage, and tying retention to --montage silently rendered nothing.
+            if len(fields) < max(args.montage, args.plan):
                 fields[bid] = {"gt": g.copy(), "blockout": bo.copy()}
     print(f"[phase A] gt + blockout on n={len(ids)}  ({time.time()-t0:.0f}s)", flush=True)
     if len(ids) < args.n:
@@ -563,6 +684,34 @@ def main() -> None:
             print(f"  {arm:18s} surface_roughness {summary[arm]['guard_roughness']:.5f}   "
                   f"(field slope {summary[arm].get('guard_field_slope', float('nan')):.4f})")
 
+    # ---- criterion 2 (#85): the split, and the plan view the human actually judges on -------------
+    c2 = criterion2_report(scores, arm_order)
+    if c2:
+        print(f"\n-- CRITERION 2 (#85): footprint, split. Tolerance s* = {S_STAR_VOXELS} voxels "
+              f"(ADR 0004, 1.0 m) --")
+        print("   fringe is REPORTED AND IGNORED -- a 64^3 boundary rounding, present when the model")
+        print("   is right. spill and uncovered COUNT. Human-judged; the plan view is the instrument.")
+        print(f"{'arm':<16}{'fringe med':>12}{'spill med':>11}{'spill mean':>12}{'uncov med':>11}")
+        for arm in arm_order:
+            if arm in c2:
+                s = c2[arm]
+                print(f"{arm:<16}{s['fringe_median']:>12.4f}{s['spill_median']:>11.4f}"
+                      f"{s['spill_mean']:>12.4f}{s['uncovered_median']:>11.4f}")
+        tgt = arm_order[-1]
+        if tgt in c2:
+            print(f"\n   pass rate for '{tgt}' by allowance (⚠️ the allowance is NOT fixed -- "
+                  f"criterion 2 is human-judged):")
+            for a, v in c2[tgt]["pass_rates"].items():
+                print(f"     <= {float(a)*100:>4.0f}% :  {v['rate']*100:>5.1f}%   "
+                      f"[{v['lo']*100:>4.1f}%, {v['hi']*100:>4.1f}%]   n={v['n']}")
+
+    if args.plan and fields:
+        print(f"\nrendering criterion-2 plan view (worst first)...", flush=True)
+        print("plan: " + str(build_plan_view(scores, fp_of, fields, arm_order,
+                                             montage_path.with_name(
+                                                 montage_path.stem.replace("montage", "plan")
+                                                 + ".png"), args.plan)), flush=True)
+
     sne = {}
     if args.sne and fields:
         print(f"\ncomputing Sharp Normal Error ({len(fields)} buildings x {len(arm_order)} arms x "
@@ -592,6 +741,9 @@ def main() -> None:
                   ids_from=args.ids_from, montage=str(montage_path.relative_to(REPO))),
         ids=ids,
         summary=summary,
+        # criterion 2 (#85): reported as a split, never as a lone fp-IoU, and the allowance is
+        # deliberately left unfixed -- criterion 2 is human-judged, so the harness prints the curve.
+        criterion2=dict(s_star_voxels=S_STAR_VOXELS, by_arm=c2),
         # #79: reported, never ranked on. Computed on the montage subset, not all `ids` -- it needs
         # `views` rasterisations per arm per building. Cross-arm it carries a field-representation
         # offset (0.241 at byte-identical occupancy), so only large gaps are readable.

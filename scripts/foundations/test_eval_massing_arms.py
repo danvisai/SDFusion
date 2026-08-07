@@ -18,7 +18,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import (  # noqa: E402
-    blockout_sdf, pick_ids, summarise, volume_split,
+    blockout_sdf, footprint_split, pick_ids, summarise, volume_split,
 )
 
 
@@ -163,6 +163,55 @@ class TestIdSet(unittest.TestCase):
             prev.write_text(json.dumps({"ids": [7, 999]}))
             with self.assertRaises(SystemExit):
                 pick_ids(p, str(prev))
+
+
+class TestFootprintSplit(unittest.TestCase):
+    """#85. Criterion 2 is fringe / spill / uncovered, and fringe must never reach the verdict."""
+
+    @staticmethod
+    def _occ(mask):
+        """A 64^3 occupancy whose vertical projection is `mask`."""
+        o = np.zeros((mask.shape[0], 8, mask.shape[1]), bool)
+        o[:, 2:6, :] = mask[:, None, :]
+        return o
+
+    def test_exact_footprint_scores_zero_everywhere(self):
+        fp = np.zeros((32, 32), bool); fp[8:24, 8:24] = True
+        s = footprint_split(self._occ(fp), fp)
+        self.assertEqual((s["fringe"], s["spill"], s["uncovered"]), (0.0, 0.0, 0.0))
+
+    def test_a_one_voxel_boundary_error_is_FRINGE_not_spill(self):
+        """The whole point: a half-voxel rounding of the edge must not count against the model."""
+        from scipy import ndimage
+        fp = np.zeros((32, 32), bool); fp[8:24, 8:24] = True
+        grown = ndimage.binary_dilation(fp, iterations=1)
+        s = footprint_split(self._occ(grown), fp)
+        self.assertGreater(s["fringe"], 0.0)
+        self.assertEqual(s["spill"], 0.0, "a 1-voxel overshoot must be fringe, never spill")
+        self.assertEqual(s["uncovered"], 0.0)
+
+    def test_a_detached_mass_outside_the_footprint_is_SPILL(self):
+        fp = np.zeros((32, 32), bool); fp[8:16, 8:16] = True
+        built = fp.copy(); built[24:28, 24:28] = True          # clear of the footprint and its band
+        s = footprint_split(self._occ(built), fp)
+        self.assertGreater(s["spill"], 0.0)
+        self.assertEqual(s["uncovered"], 0.0)
+
+    def test_a_filled_courtyard_is_SPILL_and_an_unfilled_one_is_UNCOVERED(self):
+        """The failure mode only visible off the Dutch-only sample: a ring footprint filled solid."""
+        fp = np.zeros((40, 40), bool); fp[6:34, 6:34] = True; fp[16:24, 16:24] = False
+        solid = fp.copy(); solid[16:24, 16:24] = True          # courtyard filled in
+        self.assertGreater(footprint_split(self._occ(solid), fp)["spill"], 0.0)
+        eaten = np.zeros_like(fp); eaten[6:34, 6:20] = True     # half the ring not built
+        self.assertGreater(footprint_split(self._occ(eaten), fp)["uncovered"], 0.0)
+
+    def test_tolerance_zero_turns_every_fringe_pixel_into_spill(self):
+        from scipy import ndimage
+        fp = np.zeros((32, 32), bool); fp[8:24, 8:24] = True
+        grown = ndimage.binary_dilation(fp, iterations=1)
+        s = footprint_split(self._occ(grown), fp, tol=0)
+        self.assertEqual(s["fringe"], 0.0)
+        self.assertGreater(s["spill"], 0.0)
 
 
 class TestSharpNormalError(unittest.TestCase):
