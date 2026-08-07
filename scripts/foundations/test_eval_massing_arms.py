@@ -102,20 +102,51 @@ class TestSummarise(unittest.TestCase):
 class TestIdSet(unittest.TestCase):
     """A fixed id set is what makes two runs comparable; ids are global rows of real.h5."""
 
-    def _fake_cache(self, tmp, rows, held):
+    def _fake_cache(self, tmp, rows, held, region=None):
         import h5py
         p = Path(tmp) / "latents.h5"
         with h5py.File(p, "w") as f:
             f["row"] = np.asarray(rows, np.int32)
             f["held_out"] = np.asarray(held, np.uint8)
+            if region is not None:
+                f["region"] = np.asarray(region, np.int32)
         return p
 
-    def test_default_ids_are_the_held_out_rows_ascending(self):
+    def test_ids_without_a_region_column_are_the_held_out_rows_ascending(self):
+        """Caches written before the region column still load -- they just cannot be stratified."""
         with tempfile.TemporaryDirectory() as tmp:
             p = self._fake_cache(tmp, [7, 3, 9, 1], [1, 1, 0, 1])
             ids, lat_of = pick_ids(p, None)
             self.assertEqual(ids, [1, 3, 7])            # deterministic, and independent of cache order
             self.assertEqual(lat_of[7], 0)              # row -> its index in the cache, not its rank
+
+    def test_every_prefix_of_the_id_set_is_region_balanced(self):
+        """The #71 defect this guards: ascending row order tracks SOURCE CORPUS.
+
+        `sorted(lat_of)` made the first 48 ids **100% BAG_real (Dutch)** -- zero German, zero
+        Japanese -- while the held-out set is ~34/33/32. Every n=48 figure on map #69 was therefore
+        single-region, which void-ed the map's "gap to the blockout closes to 0.007" (really 0.071)
+        and #80's 11.9% surplus reduction. Interleaving is what makes `--n 48` a sample rather than
+        one country, so it is pinned here rather than left to a comment.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            # rows are BLOCKED by region, exactly as the real cache is
+            rows = list(range(30))
+            region = [0] * 10 + [1] * 10 + [2] * 10
+            p = self._fake_cache(tmp, rows, [1] * 30, region)
+            ids, _ = pick_ids(p, None)
+            self.assertEqual(len(ids), 30)
+            self.assertEqual(sorted(ids), rows)                    # nothing dropped or duplicated
+            of = {r: g for r, g in zip(rows, region)}
+            for n in (3, 6, 12, 24):
+                seen = [of[i] for i in ids[:n]]
+                self.assertEqual({seen.count(g) for g in (0, 1, 2)}, {n // 3},
+                                 f"prefix of {n} is not region-balanced: {seen}")
+
+    def test_id_order_is_deterministic_across_calls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._fake_cache(tmp, list(range(12)), [1] * 12, [0, 1, 2] * 4)
+            self.assertEqual(pick_ids(p, None)[0], pick_ids(p, None)[0])
 
     def test_ids_from_replays_a_previous_run_exactly(self):
         with tempfile.TemporaryDirectory() as tmp:

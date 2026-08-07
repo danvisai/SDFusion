@@ -46,6 +46,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from itertools import zip_longest
 from pathlib import Path
 
 import numpy as np
@@ -343,6 +344,8 @@ def pick_ids(latents: Path, ids_from):
     with h5py.File(latents, "r") as f:
         held = np.nonzero(f["held_out"][:] == 1)[0]
         rows = f["row"][:][held]
+        # Caches written before the region column existed still load; they just cannot be stratified.
+        region = f["region"][:][held] if "region" in f else None
     lat_of = {int(r): int(h) for r, h in zip(rows, held)}
     if ids_from:
         ids = [int(i) for i in json.loads(Path(ids_from).read_text())["ids"]]
@@ -350,7 +353,25 @@ def pick_ids(latents: Path, ids_from):
         if absent:
             raise SystemExit(f"[ids] {len(absent)} pinned ids are absent from {latents}: {absent[:5]}")
         return ids, lat_of
-    return [int(r) for r in sorted(lat_of)], lat_of
+
+    # ⚠️ Round-robin the regions. Ascending row order tracks SOURCE CORPUS, so the plain
+    # `sorted(lat_of)` this used to return made the first 48 ids **100% BAG_real (Dutch)** -- zero
+    # German, zero Japanese -- while the held-out set is 34.7/32.9/32.4. That is not a small sample of
+    # the held-out set, it is a different population: region is the strongest variable here (mean
+    # height 11.97/5.90/7.47 m, blockout `extra` median 0.223/0.162/0.000). It void-ed this map's
+    # "gap to the blockout closes to 0.007" (really 0.071) and #80's 11.9% surplus reduction, and hid
+    # that region predicts #84's collapse (solid rate 38.7/57.4/77.9%). Interleaving keeps any prefix
+    # of the list region-balanced, so `--n 48` is now a sample rather than one country.
+    if region is None:
+        return [int(r) for r in sorted(lat_of)], lat_of
+    region_of = {int(r): int(g) for r, g in zip(rows, region)}
+    by_region: dict = {}
+    for r in sorted(lat_of):
+        by_region.setdefault(region_of[r], []).append(r)
+    out = []
+    for tup in zip_longest(*(by_region[k] for k in sorted(by_region))):
+        out += [i for i in tup if i is not None]
+    return out, lat_of
 
 
 def main() -> None:
