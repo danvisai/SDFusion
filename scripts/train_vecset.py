@@ -67,6 +67,28 @@ class LatentSet(torch.utils.data.Dataset):
             self.h, self.r = self.h[keep], self.r[keep]
             self.zb = bz[[idx[int(rows[i])] for i in keep]]
             print(f"[pairs] {len(keep)} aligned blockout/real pairs")
+        # Footprint solidity = mask area / convex-hull area. Precomputed ONCE here, not in the
+        # training loop: a ConvexHull per batch element per step would dominate a 305 ms denoiser
+        # step. 1.0 = convex, lower = re-entrant (courtyards, L-plans, terraced party walls).
+        self.solidity = np.ones(len(self.z), np.float32)
+        try:
+            from scipy.spatial import ConvexHull
+            for i in range(len(self.z)):
+                ys, xs = np.nonzero(self.fp[i] > 0)
+                if len(xs) < 3:
+                    continue
+                try:
+                    hull = ConvexHull(np.c_[xs, ys].astype(float)).volume   # 2-D: .volume is area
+                except Exception:
+                    continue                                                # degenerate/collinear
+                if hull > 0:
+                    self.solidity[i] = float((self.fp[i] > 0).sum() / hull)
+            self.solidity = np.clip(self.solidity, 0.0, 1.0)
+            print(f"[solidity] median {np.median(self.solidity):.3f}  "
+                  f"min {self.solidity.min():.3f}  <0.9: {(self.solidity < 0.9).mean()*100:.1f}%")
+        except ImportError:
+            print("[solidity] scipy unavailable -- solidity fixed at 1.0")
+
         # normalise the latent to unit scale so the noise schedule is well-posed
         self.mu = float(self.z.astype(np.float32).mean())
         self.sd = float(self.z.astype(np.float32).std()) or 1.0
@@ -80,7 +102,8 @@ class LatentSet(torch.utils.data.Dataset):
         return (torch.from_numpy(z), torch.from_numpy(zb),
                 torch.from_numpy(self.fp[i].astype(np.float32))[None],
                 torch.tensor(self.h[i], dtype=torch.float32),
-                torch.tensor(int(self.r[i]), dtype=torch.long))
+                torch.tensor(int(self.r[i]), dtype=torch.long),
+                torch.tensor(float(self.solidity[i]), dtype=torch.float32))
 
 
 def main() -> None:
@@ -110,6 +133,13 @@ def main() -> None:
                          "never loaded. The latent eps-loss alone was measured (#76) as unable to "
                          "rank its own candidates -- Spearman +0.12 pooled across error families, "
                          "i.e. mildly WRONG-signed -- so nothing in it reaches the decoded surface.")
+    ap.add_argument("--surf_weight_by_solidity", action="store_true",
+                    help="scale the decoded-surface term PER SAMPLE by footprint solidity instead of "
+                         "applying --surf_weight flat (#84). Lower solidity (re-entrant footprints) "
+                         "gets less surface pressure, because those are the buildings the band-fix "
+                         "checkpoint hollows. ⚠️ On the full held-out set solidity is the WEAKER "
+                         "predictor of the collapse -- region is ~3.6x stronger in a logistic fit -- "
+                         "so this is testing the secondary variable.")
     ap.add_argument("--surf_points", type=int, default=8192,
                     help="query points per selected sample. Cheap: cost is dominated by `decode`, "
                          "not by point count (#76 measured 1k -> 32k as only 0.172s -> 0.313s), so "
@@ -175,7 +205,9 @@ def main() -> None:
         # and a config knob that decides an experiment should not be invisible in its own log.
         print(f"[surf] decoded-surface loss ON  w={args.surf_weight}  "
               f"{args.surf_points} pts x {args.surf_bs} sample(s)  "
-              f"t centred {args.surf_t_center} (max {args.surf_t_max})", flush=True)
+              f"t centred {args.surf_t_center} (max {args.surf_t_max})"
+              + ("  [PER-SAMPLE weighted by footprint solidity]"
+                 if args.surf_weight_by_solidity else ""), flush=True)
 
     step = 0
     if args.resume:
@@ -195,11 +227,11 @@ def main() -> None:
 
     t0, hist, surf_hist, step0 = time.time(), [], [], step
     while step < args.steps:
-        for z, zb, fp, h, r in dl:
+        for z, zb, fp, h, r, sol in dl:
             if step >= args.steps:
                 break
             z, zb = z.to(dev), zb.to(dev)
-            fp, h, r = fp.to(dev), h.to(dev), r.to(dev)
+            fp, h, r, sol = fp.to(dev), h.to(dev), r.to(dev), sol.to(dev)
             use_pair = ds.zb is not None and np.random.rand() < args.pair_frac
             lo = int(args.pair_t_min * args.timesteps) if use_pair else 0
             t = torch.randint(lo, args.timesteps, (z.shape[0],), device=dev)
@@ -263,9 +295,20 @@ def main() -> None:
                         tgt = codec.query(z[sel] * ds.sd + ds.mu, pts)
                     got = codec.query(x0 * ds.sd + ds.mu, pts)
                     w_t = asel.reshape(sel.numel(), *([1] * (got.dim() - 1)))
-                    surf = (w_t * (got - tgt) ** 2).mean()
+                    # Keep the per-sample dimension alive through the reduction. Reducing straight to
+                    # a scalar (`.mean()`) would make a per-building weight impossible -- it could only
+                    # scale the batch mean, which is not what #84 asks for.
+                    per = (w_t * (got - tgt) ** 2).flatten(1).mean(1)        # (n_sel,)
+                    surf_unweighted = per.mean()
+                    if args.surf_weight_by_solidity:
+                        surf = (per * sol[sel]).mean()
+                    else:
+                        surf = surf_unweighted
                     loss = loss + args.surf_weight * surf
-                    surf_val = float(surf.detach())
+                    # ⚠️ Log the UNWEIGHTED magnitude, so `surf` stays comparable to runs without the
+                    # flag. Logging the weighted value would make a run look better purely by
+                    # down-weighting its hard cases.
+                    surf_val = float(surf_unweighted.detach())
             surf_hist.append(surf_val)
 
             opt.zero_grad(); loss.backward()
