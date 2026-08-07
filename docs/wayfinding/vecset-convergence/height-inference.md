@@ -80,6 +80,33 @@ The distribution is what actually changed:
 Per-building: mean **−0.074** 3D IoU, median −0.066, worst **−0.297**, and **69% of buildings are
 hurt**.
 
+### ⚠️ Correction, from rendering it (2026-08-07)
+
+![height inference](height-inference-montage.png)
+
+The tables above framed the failure as **under-building**. The render shows it is **two-sided**, and
+the worst case by IoU is an **over-build**: row 210's true span is 24 voxels, the predictor says 37, and
+it renders visibly *taller* than GT with `extra` **0.824** against the specified arm's 0.183. Row 1213
+is the opposite — true 60, predicted 37, `missing` 0.365, visibly shorter.
+
+Measured symmetrically on the same 48:
+
+| | rate |
+|---|---|
+| span over-predicted (> +2 voxels) | **18.8%** |
+| span under-predicted (< −2 voxels) | **41.7%** |
+| within ±2 voxels | 39.6% |
+| **over-build** (`extra` worse than specified) | **25.0%** |
+| **under-build** (`missing` > 10%) | **37.5%** |
+
+Span error ranges **−23 to +13 voxels**.
+
+🔑 **And the `extra` hazard is worse than first written — I quoted a median while warning about
+medians.** `extra` **median** goes 0.183 → 0.167 (looks better); `extra` **mean** goes 0.219 → **0.238**
+(is worse), with the max rising 1.666 → 1.711. 41.7% of buildings improve on `extra` and 25.0% get
+worse. So the decisive column does not merely improve for the wrong reason — **its median and its mean
+disagree in sign**, which is the same bimodality trap this map has now hit three times.
+
 ## 4. Recommendation
 
 **Do not adopt footprint-only as the default task.** The ticket itself framed this as *"rework, not a
