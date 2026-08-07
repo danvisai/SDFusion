@@ -134,5 +134,46 @@ class TestIdSet(unittest.TestCase):
                 pick_ids(p, str(prev))
 
 
+class TestSharpNormalError(unittest.TestCase):
+    """#79. What must hold for SNE to be worth reporting at all.
+
+    The map has been burned three times by a scalar that ranks a melted blob ABOVE a crisp one (#36,
+    #63, `deployed-vs-dora`). SNE earns its place only by getting that order right, so the ordering is
+    pinned here rather than left to a one-off probe. Rasterisation is real but tiny -- few views, small
+    images -- so this stays seconds on CPU.
+    """
+
+    @staticmethod
+    def _sdf_box(res=48, half=0.42, jitter=0.0, seed=0):
+        ax = np.linspace(-1.0, 1.0, res)
+        g = np.stack(np.meshgrid(ax, ax, ax, indexing="ij"), -1)
+        d = np.abs(g) - half
+        f = (np.linalg.norm(np.maximum(d, 0), axis=-1) + np.minimum(d.max(-1), 0)).astype(np.float32)
+        if jitter:
+            rng = np.random.default_rng(seed)
+            # low-frequency wobble == the melt failure mode: the surface moves, edges stop being edges
+            n = rng.normal(0, 1, (6, 6, 6))
+            from scipy.ndimage import zoom
+            f = f + jitter * zoom(n, res / 6, order=3)[:res, :res, :res].astype(np.float32)
+        return f
+
+    def test_identical_geometry_scores_zero_and_melt_scores_worse(self):
+        import torch
+        from scripts.foundations.eval_massing_arms import sharp_normal_error
+
+        gt = self._sdf_box()
+        fields = {0: {"gt": gt, "same": gt.copy(), "melted": self._sdf_box(jitter=0.05)}}
+        out = sharp_normal_error(fields, ["gt", "same", "melted"], torch.device("cpu"),
+                                 views=4, size=96)
+
+        # a metric that does not return 0 for the identical mesh is measuring something else
+        self.assertAlmostEqual(out["gt"], 0.0, places=6)
+        self.assertAlmostEqual(out["same"], 0.0, places=6)
+        # and the ordering the whole ticket turns on
+        self.assertGreater(out["melted"], out["same"],
+                           "SNE must rank a melted surface WORSE than an identical one -- this is "
+                           "exactly what surface_roughness gets backwards")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

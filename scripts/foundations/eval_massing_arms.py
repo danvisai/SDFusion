@@ -189,6 +189,89 @@ def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device):
     return Image.fromarray((img * 255).astype(np.uint8))
 
 
+def sharp_normal_error(fields: dict, arm_order, device, views: int = 22, size: int = 256):
+    """Dora's SNE, validated for this repo in #79. Lower is better. Returns {arm: mean SNE}.
+
+    Normal maps from `views` directions -> Canny on the **GT** map to find salient regions -> dilate ->
+    mean squared normal difference **inside those regions only**.
+
+    🔑 **This is the first scalar in this project that ranks crisp above melted.** #36
+    (`separation_ok: False`), #63 ("blind to this artifact class") and `deployed-vs-dora` all failed;
+    `surface_roughness` ranks a melted blob ABOVE a crisp ribbed box. Measured in #79 on n=8:
+    codec_ceiling (crisp) **0.084** vs deployed_map24 (melted) **0.636**, separated on 8/8 buildings
+    with no overlap (crisp max 0.111 < melted min 0.517).
+
+    Why masking rescues it: the ribs live on flat FACES, and the salient mask is a thin EDGE outline
+    (~6% of pixels), so face ribbing barely enters the average. Whole-surface roughness drowns in it.
+
+    ⚠️ **Still contaminated across arms, so it is reported, never ranked on.** On a row whose blockout
+    occupancy is BYTE-IDENTICAL to GT, SNE is 0.241, not 0 (#79's C2) -- a faceted signed EDT also
+    perturbs the edges the mask covers. The offset is not a constant that can be subtracted: the
+    codec's own ribbing contaminates far less (0.084) than the EDT's. Safe within one arm across runs;
+    across arms read it only for gaps far larger than that offset, as the crisp/melted 7.6x is.
+    """
+    import torch
+    from scipy.ndimage import binary_dilation
+    from skimage.feature import canny
+    from pytorch3d.renderer import (FoVOrthographicCameras, MeshRasterizer, RasterizationSettings,
+                                    look_at_view_transform)
+    from pytorch3d.structures import Meshes
+
+    ga = np.pi * (3.0 - np.sqrt(5.0))
+    dirs = []
+    for i in range(views):
+        z = 1.0 - (2.0 * i + 1.0) / views
+        r = np.sqrt(max(0.0, 1.0 - z * z))
+        dirs.append((float(np.degrees(np.arcsin(np.clip(z, -1, 1)))),
+                     float(np.degrees(np.arctan2(r * np.sin(ga * i), r * np.cos(ga * i))))))
+    rs = RasterizationSettings(image_size=size, blur_radius=0.0, faces_per_pixel=1, bin_size=0)
+
+    def maps(verts_w, faces):
+        v = torch.as_tensor(np.asarray(verts_w, np.float32), device=device)[None]
+        f = torch.as_tensor(np.asarray(faces, np.int64), device=device)[None]
+        mesh = Meshes(verts=v, faces=f)
+        fn = mesh.faces_normals_packed()
+        out, hits = [], []
+        for elev, azim in dirs:
+            r, t = look_at_view_transform(dist=CAM["dist"], elev=elev, azim=azim, at=((0, 0, 0),))
+            cams = FoVOrthographicCameras(device=device, R=r, T=t, scale_xyz=((CAM["scale"],) * 3,))
+            pix = MeshRasterizer(cameras=cams, raster_settings=rs)(mesh).pix_to_face[0, ..., 0]
+            hit = pix >= 0
+            nrm = torch.zeros((size, size, 3), device=device)
+            if hit.any():
+                nrm[hit] = torch.nn.functional.normalize(fn[pix[hit]] @ r[0].to(device), dim=-1)
+            out.append(nrm); hits.append(hit)
+        return torch.stack(out), torch.stack(hits)
+
+    acc = {a: [] for a in arm_order}
+    for bid, per_arm in fields.items():
+        gv, gf = mesh_sdf_surface(np.clip(per_arm["gt"], -TRUNC, TRUNC))
+        if gv is None:
+            continue
+        gn, gh = maps(verts_to_world(gv), gf)
+        m = []
+        for i in range(gn.shape[0]):
+            nm, hit = gn[i].cpu().numpy(), gh[i].cpu().numpy()
+            e = np.zeros(hit.shape, bool)
+            for c in range(3):
+                e |= canny(nm[..., c], sigma=2.0)
+            m.append(binary_dilation(e & hit, np.ones((3, 3), bool)))
+        mask = torch.as_tensor(np.stack(m), device=device)
+        if not mask.any():
+            continue
+        for arm in arm_order:
+            fld = per_arm.get(arm)
+            if fld is None:
+                continue
+            # the codec's TSDF is already truncated; clipping a metric SDF matches how it is meshed
+            v, f = mesh_sdf_surface(fld if arm == "codec_ceiling" else np.clip(fld, -TRUNC, TRUNC))
+            if v is None:
+                continue
+            an, _ = maps(verts_to_world(v), f)
+            acc[arm].append(float((((an - gn) ** 2).sum(-1))[mask].mean()))
+    return {a: (float(np.mean(v)) if v else float("nan")) for a, v in acc.items()}
+
+
 def build_montage(fields: dict, arm_order, scores: dict, summary: dict, out: Path, size: int) -> Path:
     """Criterion 1. Rows are buildings, columns are arms, every panel meshed at continuous SDF 0.0.
 
@@ -282,6 +365,8 @@ def main() -> None:
     ap.add_argument("--map24", default=str(MAP24), help="deployed dense-grid checkpoint; '' to skip")
     ap.add_argument("--ddim", type=int, default=100)
     ap.add_argument("--montage", type=int, default=8, help="buildings in the montage (0 disables)")
+    ap.add_argument("--sne", type=int, default=22,
+                    help="views for Sharp Normal Error on the montage subset (#79); 0 disables")
     ap.add_argument("--size", type=int, default=300)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tag", default="", help="suffix for the artifact and montage filenames")
@@ -457,6 +542,19 @@ def main() -> None:
             print(f"  {arm:18s} surface_roughness {summary[arm]['guard_roughness']:.5f}   "
                   f"(field slope {summary[arm].get('guard_field_slope', float('nan')):.4f})")
 
+    sne = {}
+    if args.sne and fields:
+        print(f"\ncomputing Sharp Normal Error ({len(fields)} buildings x {len(arm_order)} arms x "
+              f"{args.sne} views)...", flush=True)
+        sne = sharp_normal_error(fields, arm_order, dev, views=args.sne)
+        print("\n-- Sharp Normal Error (#79): the ONE scalar here that ranks crisp above melted --")
+        print("   Reported, never ranked on. ⚠️  Contaminated across arms: on a row whose blockout")
+        print("   occupancy is BYTE-IDENTICAL to GT it still reads 0.241, not 0 -- a faceted field")
+        print("   perturbs the edges the mask covers. Read only gaps far larger than that offset.")
+        for arm in arm_order:
+            if arm in sne and not np.isnan(sne[arm]):
+                print(f"  {arm:18s} sharp_normal_error {sne[arm]:.4f}")
+
     if args.montage and fields:
         print(f"\nrendering montage ({len(fields)} buildings x {len(arm_order)} arms)...", flush=True)
         print("montage: "
@@ -473,6 +571,14 @@ def main() -> None:
                   ids_from=args.ids_from, montage=str(montage_path.relative_to(REPO))),
         ids=ids,
         summary=summary,
+        # #79: reported, never ranked on. Computed on the montage subset, not all `ids` -- it needs
+        # `views` rasterisations per arm per building. Cross-arm it carries a field-representation
+        # offset (0.241 at byte-identical occupancy), so only large gaps are readable.
+        sharp_normal_error=dict(
+            values=sne, views=args.sne, n_buildings=len(fields),
+            note="the one scalar in this project that ranks crisp above melted (#79: crisp 0.084 vs "
+                 "melted 0.636, separated 8/8). surface_roughness ranks the same pair backwards. "
+                 "Contaminated by field representation -- safe within one arm across runs."),
         # What a difference has to clear to be a difference. `gt`/`blockout`/`codec_ceiling` are
         # deterministic and reproduce bit-exactly; the sampled arms do not, so their medians carry
         # this much run-to-run slop at n=48 even fully seeded. Measured by running the harness twice.
