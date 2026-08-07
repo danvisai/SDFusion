@@ -18,7 +18,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import (  # noqa: E402
-    blockout_sdf, footprint_split, pick_ids, summarise, volume_split,
+    C2_ALLOWANCE, S_STAR_VOXELS, blockout_sdf, footprint_split, pick_ids, summarise,
+    volume_split,
 )
 
 
@@ -212,6 +213,25 @@ class TestFootprintSplit(unittest.TestCase):
         s = footprint_split(self._occ(grown), fp, tol=0)
         self.assertEqual(s["fringe"], 0.0)
         self.assertGreater(s["spill"], 0.0)
+
+
+class TestCriterion2Constants(unittest.TestCase):
+    """The gate is a decision, not a tuning knob. Pin it so it cannot drift silently."""
+
+    def test_tolerance_is_the_project_detail_scale(self):
+        """s* is ADR 0004's massing/detail line (1.0 m ~ 3 voxels @64^3), fixed BEFORE any result.
+
+        If this ever changes to make a number pass, that is a moving goalpost, which #85 was opened
+        to prevent. Changing it means changing ADR 0004 and re-stating criterion 2 deliberately.
+        """
+        self.assertEqual(S_STAR_VOXELS, 3)
+
+    def test_allowance_is_the_value_the_human_chose(self):
+        """5%, chosen 2026-08-07 against the FULL held-out set (76.5% [73.4, 79.6] at n=714).
+
+        10% was measured (92.3%) and rejected as a visible fault rather than an approximation.
+        """
+        self.assertEqual(C2_ALLOWANCE, 0.05)
 
 
 class TestSharpNormalError(unittest.TestCase):

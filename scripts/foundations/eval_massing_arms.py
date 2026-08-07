@@ -193,6 +193,15 @@ def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device):
 
 S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~ 3 voxels @64^3. Fixed a priori.
 
+# Criterion 2's allowance, chosen by the human on 2026-08-07 against the FULL held-out set (n=714),
+# where it reads 76.5% [73.4, 79.6]. Two parts, and only one of them was a choice:
+#   * the TOLERANCE (s*) is not a choice -- it is ADR 0004's massing/detail line, fixed in advance.
+#   * the ALLOWANCE is a choice, and it is recorded here so it cannot drift silently.
+# 10% was measured (92.3%) and rejected: a 10% plan-area error is a visible fault, not an
+# approximation. The strict figures stay on the record beside it -- 0% allowance is 23.8%.
+# ⚠️ Never re-quote this against a rate measured at n=48: that sample was 100% Dutch (see pick_ids).
+C2_ALLOWANCE = 0.05
+
 
 def footprint_split(arm_occ: np.ndarray, fp: np.ndarray, tol: int = S_STAR_VOXELS) -> dict:
     """Criterion 2 as **fringe / spill / uncovered**, never as a lone fp-IoU (#85).
@@ -699,11 +708,17 @@ def main() -> None:
                       f"{s['spill_mean']:>12.4f}{s['uncovered_median']:>11.4f}")
         tgt = arm_order[-1]
         if tgt in c2:
-            print(f"\n   pass rate for '{tgt}' by allowance (⚠️ the allowance is NOT fixed -- "
-                  f"criterion 2 is human-judged):")
+            print(f"\n   pass rate for '{tgt}' by allowance "
+                  f"(gate = spill and uncovered both <= {C2_ALLOWANCE*100:.0f}%):")
             for a, v in c2[tgt]["pass_rates"].items():
+                mark = "  <- GATE" if abs(float(a) - C2_ALLOWANCE) < 1e-9 else ""
                 print(f"     <= {float(a)*100:>4.0f}% :  {v['rate']*100:>5.1f}%   "
-                      f"[{v['lo']*100:>4.1f}%, {v['hi']*100:>4.1f}%]   n={v['n']}")
+                      f"[{v['lo']*100:>4.1f}%, {v['hi']*100:>4.1f}%]   n={v['n']}{mark}")
+            g = c2[tgt]["pass_rates"][f"{C2_ALLOWANCE:.2f}"]
+            print(f"\n   ⚠️  CRITERION 2 IS HUMAN-JUDGED. This rate is reported, not a verdict --"
+                  f" the plan view is the instrument.")
+            print(f"   criterion 2 at the gate: {g['rate']*100:.1f}% of {g['n']} buildings"
+                  f"  [{g['lo']*100:.1f}%, {g['hi']*100:.1f}%]")
 
     if args.plan and fields:
         print(f"\nrendering criterion-2 plan view (worst first)...", flush=True)
@@ -743,7 +758,7 @@ def main() -> None:
         summary=summary,
         # criterion 2 (#85): reported as a split, never as a lone fp-IoU, and the allowance is
         # deliberately left unfixed -- criterion 2 is human-judged, so the harness prints the curve.
-        criterion2=dict(s_star_voxels=S_STAR_VOXELS, by_arm=c2),
+        criterion2=dict(s_star_voxels=S_STAR_VOXELS, allowance=C2_ALLOWANCE, by_arm=c2),
         # #79: reported, never ranked on. Computed on the montage subset, not all `ids` -- it needs
         # `views` rasterisations per arm per building. Cross-arm it carries a field-representation
         # offset (0.241 at byte-identical occupancy), so only large gaps are readable.
