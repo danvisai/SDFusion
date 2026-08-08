@@ -1,10 +1,9 @@
-"""#84: contract for `--surf_weight_by_solidity`. Synthetic, fast, no GPU.
+"""#84: contract for the per-sample surface weighting. Synthetic, fast, no GPU.
 
-Two things must hold, and both were checked by hand before this file existed:
-  1. With the flag OFF the loss is **bit-identical** to the old scalar reduction. The refactor keeps
-     the per-sample dimension alive, and that must not change any run that does not ask for it.
-  2. With the flag ON, a re-entrant (low-solidity) footprint exerts proportionally LESS pressure --
-     #84's "lower weight on low-solidity / high-complexity footprints".
+⚠️ These tests import `surface_term` from `scripts.train_vecset` and call **the production function**.
+The first version of this file re-implemented the reduction locally and asserted against the copy. It
+passed while the shipped code was an exact no-op at the flag values actually used, and the copy is why
+nobody noticed for two runs. A test that re-implements its subject tests nothing.
 """
 from __future__ import annotations
 
@@ -12,86 +11,88 @@ import unittest
 
 import torch
 
-
-def _reduce(got, tgt, w_t, sol=None, renorm=False):
-    """The reduction as `scripts/train_vecset.py` performs it."""
-    per = (w_t * (got - tgt) ** 2).flatten(1).mean(1)
-    if sol is None:
-        return per.mean(), per.mean()
-    w = sol / sol.mean().clamp_min(1e-8) if renorm else sol
-    return (per * w).mean(), per.mean()
+from scripts.train_vecset import surface_term
 
 
-class TestRegionRenormalisation(unittest.TestCase):
-    """#84: a per-region weight must REDISTRIBUTE surface pressure, not quietly reduce it.
-
-    The measured per-region solid rates are 0.387 / 0.574 / 0.779 -- mean 0.58. Applied raw, that flag
-    is also a 42% cut in --surf_weight, and any improvement could be attributed to either. The training
-    path renormalises to mean 1.0 for exactly this reason.
-    """
-
-    def test_renormalised_weights_preserve_total_pressure(self):
-        n, p = 6, 32
-        tgt, got = torch.zeros(n, p), torch.ones(n, p)
-        w_t = torch.ones(n).reshape(n, 1)
-        flat, _ = _reduce(got, tgt, w_t)
-        region = torch.tensor([0.387, 0.387, 0.574, 0.574, 0.779, 0.779])
-        raw, _ = _reduce(got, tgt, w_t, region, renorm=False)
-        renorm, _ = _reduce(got, tgt, w_t, region, renorm=True)
-        self.assertLess(float(raw), float(flat) * 0.7)       # raw is a large silent cut
-        self.assertAlmostEqual(float(renorm), float(flat), places=5)   # renormalised is not
-
-    def test_renormalised_weights_still_redistribute(self):
-        """Equal magnitude overall, but a low-weight region still absorbs less of any extra error."""
-        n, p = 4, 8
-        tgt = torch.zeros(n, p)
-        got = torch.ones(n, p)
-        w_t = torch.ones(n).reshape(n, 1)
-        region = torch.tensor([0.387, 0.387, 0.779, 0.779])
-        base, _ = _reduce(got, tgt, w_t, region, renorm=True)
-        lo = got.clone(); lo[0] *= 2.0        # extra error in the COLLAPSE-PRONE region
-        hi = got.clone(); hi[2] *= 2.0        # the same in the robust region
-        d_lo = _reduce(lo, tgt, w_t, region, renorm=True)[0] - base
-        d_hi = _reduce(hi, tgt, w_t, region, renorm=True)[0] - base
-        self.assertLess(float(d_lo), float(d_hi))
+def _mk(n, p=16, err=1.0):
+    """(got, tgt, w_t) with identical per-sample error, so only the weighting varies."""
+    return torch.full((n, p), err), torch.zeros(n, p), torch.ones(n).reshape(n, 1)
 
 
-class TestSolidityWeighting(unittest.TestCase):
-    def test_flag_off_is_identical_to_the_old_scalar_reduction(self):
+class TestSurfaceTermNoWeighting(unittest.TestCase):
+    def test_matches_the_plain_scalar_reduction(self):
         torch.manual_seed(0)
-        n, p = 4, 512
-        got, tgt = torch.randn(n, p), torch.randn(n, p)
-        w_t = torch.rand(n).reshape(n, 1)
-        old = (w_t * (got - tgt) ** 2).mean()          # the pre-#84 expression
-        new, _ = _reduce(got, tgt, w_t)
-        self.assertTrue(torch.allclose(old, new, atol=1e-7),
-                        "keeping the per-sample dim must not change a run without the flag")
+        got, tgt = torch.randn(4, 512), torch.randn(4, 512)
+        w_t = torch.rand(4).reshape(4, 1)
+        plain = (w_t * (got - tgt) ** 2).mean()               # the pre-#84 expression
+        weighted, logged = surface_term(got, tgt, w_t)
+        self.assertTrue(torch.allclose(plain, weighted, atol=1e-7))
+        self.assertTrue(torch.allclose(plain, logged, atol=1e-7))
 
-    def test_low_solidity_exerts_proportionally_less_pressure(self):
-        """Controlled: identical baseline error on every sample, only solidity differs."""
-        n, p = 4, 8
-        tgt = torch.zeros(n, p)
-        got = torch.ones(n, p)                          # equal error everywhere
-        w_t = torch.ones(n).reshape(n, 1)
-        sol = torch.tensor([1.0, 1.0, 0.5, 0.5])
-        base, _ = _reduce(got, tgt, w_t, sol)
-        lo = got.clone(); lo[2] *= 2.0                  # extra error on a LOW-solidity building
-        hi = got.clone(); hi[0] *= 2.0                  # the same on a HIGH-solidity one
-        d_lo = _reduce(lo, tgt, w_t, sol)[0] - base
-        d_hi = _reduce(hi, tgt, w_t, sol)[0] - base
-        self.assertAlmostEqual(float(d_lo / d_hi), 0.5, places=5)
-        self.assertLess(float(d_lo), float(d_hi), "a re-entrant footprint must exert LESS pressure")
 
-    def test_logged_magnitude_is_the_unweighted_one(self):
-        """`surf_hist` must stay comparable to runs without the flag.
+class TestSurfaceTermWeighting(unittest.TestCase):
+    """The properties #84 asked for, checked on the real function."""
 
-        Logging the weighted value would make a run look better purely by down-weighting its hard
-        cases -- exactly the kind of selection effect this map has already been bitten by three times.
+    def test_weighting_still_applies_at_surf_bs_1(self):
+        """🔑 The regression this file exists for.
+
+        `--surf_bs` defaults to 1, so exactly one sample carries the term. The original renormaliser
+        divided by the mean over that selection -- a 1-element mean -- making the weight identically
+        1.0 and the whole flag a no-op. Normalising by the CORPUS mean fixes it, and this is the test
+        that would have caught it.
         """
-        n, p = 3, 16
-        tgt, got = torch.zeros(n, p), torch.ones(n, p)
-        w_t = torch.ones(n).reshape(n, 1)
-        weighted, logged = _reduce(got, tgt, w_t, torch.tensor([0.2, 0.2, 0.2]))
+        got, tgt, w_t = _mk(1)
+        low, _ = surface_term(got, tgt, w_t, torch.tensor([0.4]), norm=0.8)
+        high, _ = surface_term(got, tgt, w_t, torch.tensor([1.2]), norm=0.8)
+        self.assertNotAlmostEqual(float(low), float(high),
+                                  msg="weighting must still act when only one sample is selected")
+        self.assertLess(float(low), float(high))
+
+    def test_a_below_average_weight_exerts_less_pressure(self):
+        """#84: 'lower weight on low-solidity / high-complexity footprints'."""
+        got, tgt, w_t = _mk(4)
+        w = torch.tensor([1.0, 1.0, 0.5, 0.5])
+        base, _ = surface_term(got, tgt, w_t, w, norm=0.75)
+        lo = got.clone(); lo[2] *= 2.0        # extra error on a LOW-weight sample
+        hi = got.clone(); hi[0] *= 2.0        # the same on a HIGH-weight one
+        d_lo = surface_term(lo, tgt, w_t, w, norm=0.75)[0] - base
+        d_hi = surface_term(hi, tgt, w_t, w, norm=0.75)[0] - base
+        self.assertLess(float(d_lo), float(d_hi))
+        self.assertAlmostEqual(float(d_lo / d_hi), 0.5, places=5)
+
+    def test_corpus_normalisation_preserves_total_pressure(self):
+        """Redistribute, do not reduce.
+
+        Raw per-region weights average 0.58. Applied unnormalised, the flag is also a 42% cut in
+        --surf_weight and a gain cannot be attributed to either. Normalising by the corpus mean keeps
+        the magnitude and changes only the distribution.
+        """
+        got, tgt, w_t = _mk(6)
+        w = torch.tensor([0.387, 0.387, 0.574, 0.574, 0.779, 0.779])
+        corpus_mean = float(w.mean())
+        flat, _ = surface_term(got, tgt, w_t)
+        raw, _ = surface_term(got, tgt, w_t, w, norm=None)
+        norm, _ = surface_term(got, tgt, w_t, w, norm=corpus_mean)
+        self.assertLess(float(raw), float(flat) * 0.7)          # unnormalised is a large silent cut
+        self.assertAlmostEqual(float(norm), float(flat), places=5)
+
+    def test_normalisation_does_not_depend_on_the_selected_window(self):
+        """⚠️ The other half of the original bug: the divisor was the mean over `sel`.
+
+        A window that happened to be all-low-weight got weight 1.0 across the board, so the same
+        building was penalised differently depending on who it was batched with. A corpus constant
+        cannot do that.
+        """
+        got, tgt, w_t = _mk(1)
+        a, _ = surface_term(got, tgt, w_t, torch.tensor([0.387]), norm=0.58)
+        got2, tgt2, w_t2 = _mk(3)
+        b, _ = surface_term(got2, tgt2, w_t2, torch.tensor([0.387, 0.387, 0.387]), norm=0.58)
+        self.assertAlmostEqual(float(a), float(b), places=6)
+
+    def test_logged_magnitude_is_always_the_unweighted_one(self):
+        """`surf_hist` must stay comparable to runs without the flag."""
+        got, tgt, w_t = _mk(3)
+        weighted, logged = surface_term(got, tgt, w_t, torch.full((3,), 0.2), norm=1.0)
         self.assertLess(float(weighted), float(logged))
         self.assertAlmostEqual(float(logged), 1.0, places=5)
 

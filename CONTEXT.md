@@ -108,6 +108,34 @@ How well generated *massing* matches the target — measured **paired** (Chamfer
 specific held-out real building), because massing is determined by footprint + height.
 _Avoid_: shape accuracy
 
+**Footprint fidelity — fringe / spill / uncovered**:
+The three-way split of footprint error, never reported as one number. Measured on the vertical
+projection of the generated massing against the conditioning footprint.
+**Fringe** is disagreement within *s\** of the footprint boundary — a discretisation effect of the
+64³ grid, present even when the model is right, so it is **reported and ignored**.
+**Spill** is massing built *outside* the footprint. **Uncovered** is footprint left unfilled. Both
+count. Splitting them exists because a single footprint-IoU conflates the harmless with the real:
+their ratio varies from 21% to 100% between buildings, so the aggregate disagrees with what a human
+sees in a plan view.
+_Avoid_: footprint-IoU as a lone number, footprint error (says which, not what kind)
+
+**Allowance**:
+The tolerated fraction of footprint area for *spill* and *uncovered* before a building fails
+footprint fidelity. A **decision**, not a measurement — distinct from *s\**, which is fixed a priori
+by ADR 0004. Recorded in one place in code so it cannot drift.
+_Avoid_: threshold, tolerance (tolerance is s\*, which is not negotiable)
+
+**Footprint solidity**:
+Footprint area divided by its convex-hull area. 1.0 is convex; lower means re-entrant — courtyards,
+L-plans, terraced party walls.
+_Avoid_: complexity, concavity (unquantified)
+
+**vs input**:
+Overlap of a projection with the **footprint envelope** it started from. 1.0 means the model returned
+its input unchanged. Since generation *is* projection (ADR 0003), a quality score without this is
+unattributable: a near-no-op inherits the envelope's perfect footprint and is scored for it.
+_Avoid_: no-op rate, self-similarity
+
 **Detail fidelity**:
 How well generated *detail* matches real — measured **distributionally** (never paired, because
 the constraint underdetermines detail). Primary metric: **rendered-facade FID** vs real facade

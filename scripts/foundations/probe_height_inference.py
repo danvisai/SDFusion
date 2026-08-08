@@ -21,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path("/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion")
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from scripts.foundations.eval_massing_arms import (_vertical_extent, blockout_sdf,  # noqa: E402
@@ -167,3 +167,51 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def fit_extent_predictor(latents: Path, h5: Path):
+    """Train the footprint -> (y0, span) predictor and return `bid -> (y0, y1)`, or None per building.
+
+    #82 requires that footprint-only be scored as its own task with **every arm re-scored**, not just
+    the blockout. Exposing the predictor here lets `eval_massing_arms.py --infer_height` do that
+    through the one harness, rather than a second script re-implementing phase A.
+
+    ⚠️ Trained on the NON-held-out rows only. Fitting on the held-out set would make the footprint-only
+    baseline look better than it is, which is the opposite of what #82 is for.
+    """
+    import h5py
+    from sklearn.ensemble import HistGradientBoostingRegressor
+
+    with h5py.File(latents, "r") as f:
+        held = f["held_out"][:] == 1
+        reg = f["region"][:].astype(int)
+        fps = f["footprint"][:]
+        rows = f["row"][:]
+
+    cache = Path(__file__).resolve().parents[2] / "outputs/height_inference_extents.npz"
+    if not cache.exists():
+        raise SystemExit(f"[height] {cache} missing -- run probe_height_inference.py first to build "
+                         f"the GT extents it trains against")
+    d = np.load(cache)
+    y0, y1, ok = d["y0"], d["y1"], d["ok"]
+    span = (y1 - y0 + 1).astype(float)
+    X = np.stack([feats(fp) for fp in fps])
+    Xf = np.c_[X, reg]
+    tr = ok & ~held
+    g_span = HistGradientBoostingRegressor(max_iter=400, learning_rate=0.06,
+                                           categorical_features=[X.shape[1]],
+                                           random_state=0).fit(Xf[tr], span[tr])
+    g_y0 = HistGradientBoostingRegressor(max_iter=200, learning_rate=0.06,
+                                         categorical_features=[X.shape[1]],
+                                         random_state=0).fit(Xf[tr], y0[tr].astype(float))
+    idx = {int(r): i for i, r in enumerate(rows)}
+
+    def predict(bid):
+        i = idx.get(int(bid))
+        if i is None or not ok[i]:
+            return None
+        p0 = max(0, min(63, int(round(float(g_y0.predict(Xf[i:i + 1])[0])))))
+        ps = int(round(float(g_span.predict(Xf[i:i + 1])[0])))
+        return p0, max(p0, min(63, p0 + ps - 1))
+
+    return predict

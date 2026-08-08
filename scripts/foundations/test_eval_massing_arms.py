@@ -19,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import (  # noqa: E402
     C2_ALLOWANCE, S_STAR_VOXELS, blockout_sdf, footprint_split, pick_ids, summarise,
-    volume_split,
+    volume_split, vs_input,
 )
 
 
@@ -213,6 +213,35 @@ class TestFootprintSplit(unittest.TestCase):
         s = footprint_split(self._occ(grown), fp, tol=0)
         self.assertEqual(s["fringe"], 0.0)
         self.assertGreater(s["spill"], 0.0)
+
+
+class TestVsInput(unittest.TestCase):
+    """#75's no-op detector, which the map requires beside every quality number.
+
+    A2's apparent quality came almost entirely from NOT ACTING: at 80k steps it scored 3D IoU 0.857
+    while being 99.9% its own input -- the blockout, returned. A score earned that way belongs to the
+    blockout, not the generator, so this must be impossible to omit.
+    """
+
+    def test_returning_the_input_scores_one(self):
+        b = _box((2, 2, 2), (10, 10, 10))
+        self.assertEqual(vs_input(b, b), 1.0)
+
+    def test_acting_scores_below_one(self):
+        b = _box((2, 2, 2), (10, 10, 10))
+        carved = b.copy(); carved[2:4] = False
+        self.assertLess(vs_input(carved, b), 1.0)
+
+    def test_a_small_edit_still_reads_as_nearly_a_no_op(self):
+        """The case that fooled this map: a 7% edit reads 0.93, not 0.5."""
+        b = _box((0, 0, 0), (16, 16, 16))          # 4096 voxels, the whole grid
+        edited = b.copy(); edited[:1] = False      # remove ~6% of it
+        self.assertGreater(vs_input(edited, b), 0.9)
+
+    def test_disjoint_output_scores_zero(self):
+        a = _box((0, 0, 0), (4, 4, 4))
+        b = _box((8, 8, 8), (12, 12, 12))
+        self.assertEqual(vs_input(a, b), 0.0)
 
 
 class TestCriterion2Constants(unittest.TestCase):

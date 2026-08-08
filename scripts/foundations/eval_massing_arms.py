@@ -150,6 +150,8 @@ def summarise(rows) -> dict:
     med = lambda k: float(np.median([r[k] for r in rows]))  # noqa: E731
     out = dict(n=len(rows), fp_iou=med("fp_iou"), missing=med("missing"), extra=med("extra"),
                vol_iou=med("vol_iou"), guard_roughness=med("guard_roughness"))
+    if "vs_input" in rows[0]:
+        out["vs_input"] = med("vs_input")
     if "guard_field_slope" in rows[0]:
         out["guard_field_slope"] = med("guard_field_slope")
     return out
@@ -201,6 +203,23 @@ S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~ 3 voxels @64^3.
 # approximation. The strict figures stay on the record beside it -- 0% allowance is 23.8%.
 # ⚠️ Never re-quote this against a rate measured at n=48: that sample was 100% Dutch (see pick_ids).
 C2_ALLOWANCE = 0.05
+
+
+def vs_input(arm_occ: np.ndarray, blockout_occ: np.ndarray) -> float:
+    """IoU of a projection with the **blockout it started from**. 1.0 means it did nothing.
+
+    🔑 The map requires this beside every quality number, and #75 is why. A2's apparent quality came
+    almost entirely from declining to act: at 80k steps s=0.45 scored 3D IoU 0.857 while being **99.9%
+    its own input** -- it had returned the blockout. The #75 headline checkpoint was 93% its input, and
+    its 7% edit *cost* 0.036 of IoU. A projection that is 0.99 vs-input has not been measured as a
+    generator at all, however good its score looks; the score belongs to the blockout.
+
+    Read it against the blockout's own row: an arm can only claim a net-positive edit if it both moves
+    (vs_input well below 1.0) and lands better than the arm it started from.
+    """
+    a, b = np.asarray(arm_occ, bool), np.asarray(blockout_occ, bool)
+    u = int((a | b).sum())
+    return float((a & b).sum() / u) if u else 0.0
 
 
 def footprint_split(arm_occ: np.ndarray, fp: np.ndarray, tol: int = S_STAR_VOXELS) -> dict:
@@ -262,13 +281,18 @@ def criterion2_report(scores: dict, arm_order, allowances=(0.0, 0.02, 0.03, 0.05
             # clamp: the normal approximation runs past 1.0 at high p and small n
             per[f"{a:.2f}"] = dict(rate=p, lo=max(0.0, p - 1.96 * se),
                                   hi=min(1.0, p + 1.96 * se), n=n)
+        # ⚠️ vs_input travels WITH the pass rate. Without it a near-no-op arm posts a passing spill
+        # number -- it inherits the footprint envelope's perfect footprint and is scored for it. The
+        # map requires this beside any quality number (#75), and a criterion-2 rate is one.
+        vi = [r["vs_input"] for r in rows if "vs_input" in r]
         out[arm] = dict(n=n, fringe_median=float(np.median([r["fringe"] for r in rows])),
                         spill_median=float(np.median(sp)), spill_mean=float(sp.mean()),
-                        uncovered_median=float(np.median(un)), pass_rates=per)
+                        uncovered_median=float(np.median(un)), pass_rates=per,
+                        vs_input_median=float(np.median(vi)) if vi else None)
     return out
 
 
-def build_plan_view(scores: dict, fp_of: dict, fields: dict, arm_order, out: Path, n: int) -> Path:
+def build_plan_view(scores: dict, fp_of: dict, proj_of: dict, arm_order, out: Path, n: int) -> Path:
     """Criterion 2's instrument (#85): the footprint in PLAN, **worst first**.
 
     The shaded 3/4 montage hides footprint error entirely -- every criterion-2 judgement made before
@@ -282,7 +306,11 @@ def build_plan_view(scores: dict, fp_of: dict, fields: dict, arm_order, out: Pat
     from PIL import Image, ImageDraw
     from scipy import ndimage
     arm = arm_order[-1]                                   # the candidate, not the controls
-    rows = [(b, r) for b, r in scores.get(arm, {}).items() if "spill" in r and b in fields]
+    # ⚠️ Ranked over EVERY scored building, not the montage subset. The first version filtered on
+    # `b in fields`, which holds only a <=8-id PREFIX -- so it sorted the worst 6 of an arbitrary 8
+    # and the tail this instrument exists to expose was structurally unreachable. A projection is
+    # 64x64 bits, so keeping one per building for the whole run costs ~3 MB.
+    rows = [(b, r) for b, r in scores.get(arm, {}).items() if "spill" in r and b in proj_of]
     if not rows:
         return out
     rows.sort(key=lambda kv: -kv[1]["spill"])
@@ -298,7 +326,7 @@ def build_plan_view(scores: dict, fp_of: dict, fields: dict, arm_order, out: Pat
                       "blue = SPILL (built outside) | red = UNCOVERED", fill=(150, 0, 0))
     for k, (bid, r) in enumerate(rows):
         ref = np.asarray(fp_of[bid]).astype(bool)
-        proj = (fields[bid][arm] <= 0).any(axis=1)
+        proj = np.unpackbits(proj_of[bid]).reshape(ref.shape).astype(bool)
         band = (ndimage.binary_dilation(ref, iterations=S_STAR_VOXELS)
                 & ~ndimage.binary_erosion(ref, iterations=S_STAR_VOXELS))
         img = np.full(ref.shape + (3,), 255, np.uint8)
@@ -512,6 +540,14 @@ def main() -> None:
     ap.add_argument("--map24", default=str(MAP24), help="deployed dense-grid checkpoint; '' to skip")
     ap.add_argument("--ddim", type=int, default=100)
     ap.add_argument("--montage", type=int, default=8, help="buildings in the montage (0 disables)")
+    ap.add_argument("--infer_height", action="store_true",
+                    help="#82: derive the blockout's vertical extent from the FOOTPRINT instead of "
+                         "from GT, so EVERY arm is scored on the footprint-only task. A2 projects "
+                         "FROM the blockout, so it inherits the weakened baseline -- which is the "
+                         "point: #82 requires every arm re-scored, not just the blockout. ⚠️ These "
+                         "numbers are a DIFFERENT TASK DEFINITION and must never be quoted against "
+                         "specified-height ones (measured cost: -0.142 mean 3D IoU, 82% of buildings "
+                         "hurt). The artifact records which task it measured.")
     ap.add_argument("--plan", type=int, default=6,
                     help="buildings in the criterion-2 plan view, worst first (#85); 0 disables")
     ap.add_argument("--sne", type=int, default=22,
@@ -553,7 +589,15 @@ def main() -> None:
     scores: dict = {}
     fields: dict = {}
     gt_occ: dict = {}
+    bo_occ: dict = {}
+    proj_of: dict = {}          # candidate-arm footprint projection, packed -- ~4 KB per building
     ids: list = []
+
+    predicted_extent = None
+    if args.infer_height:
+        from scripts.foundations.probe_height_inference import fit_extent_predictor
+        predicted_extent = fit_extent_predictor(Path(args.latents), H5)
+        print("[height] extent predicted from the footprint -- FOOTPRINT-ONLY task (#82)", flush=True)
 
     # ---- phase A: geometry-only arms (no model). Also fixes the final id set. ----------------------
     t0 = time.time()
@@ -566,11 +610,19 @@ def main() -> None:
             ext = _vertical_extent(gocc)
             if ext is None:
                 continue
-            bo = blockout_sdf(fp_of[bid], *ext)
+            if args.infer_height:
+                pe = predicted_extent(bid)
+                if pe is None:
+                    continue
+                bo = blockout_sdf(fp_of[bid], *pe)
+            else:
+                bo = blockout_sdf(fp_of[bid], *ext)
             if bo is None or mesh_sdf_surface(np.clip(bo, -TRUNC, TRUNC))[0] is None:
                 continue
             ids.append(bid)
             gt_occ[bid] = gocc
+            # packed: a bool 64^3 is 256 KB, so 714 of them is 183 MB for no reason
+            bo_occ[bid] = np.packbits(bo <= 0)
             scores.setdefault("gt", {})[bid] = score_arm(g, gocc, fp_of[bid])
             scores.setdefault("blockout", {})[bid] = score_arm(bo, gocc, fp_of[bid])
             # keep fields for BOTH pictures: the plan view (#85) is a separate instrument
@@ -628,7 +680,11 @@ def main() -> None:
                                           seed=args.seed * 1000003 + bid)
                     with torch.no_grad():
                         fld = codec.decode_grid(zp * a2["sd"] + a2["mu"], RES).cpu().numpy()[0, 0]
-                    scores.setdefault(f"a2_s{s}", {})[bid] = score_arm(fld, gt_occ[bid], fp)
+                    row = score_arm(fld, gt_occ[bid], fp)
+                    row["vs_input"] = vs_input(
+                        fld <= 0, np.unpackbits(bo_occ[bid]).reshape(RES, RES, RES).astype(bool))
+                    scores.setdefault(f"a2_s{s}", {})[bid] = row
+                    proj_of[bid] = np.packbits((fld <= 0).any(axis=1))
                     if bid in fields:
                         fields[bid][f"a2_s{s}"] = fld
             if (k + 1) % 10 == 0:
@@ -667,6 +723,7 @@ def main() -> None:
             with torch.no_grad():
                 fld = s3.inference(data, ddim_steps=opt.ddim_steps, uc_scale=1.0).cpu().numpy()[0, 0]
             scores.setdefault("deployed_map24", {})[bid] = score_arm(fld, gt_occ[bid], fp_of[bid])
+            proj_of.setdefault(bid, np.packbits((fld <= 0).any(axis=1)))
             if bid in fields:
                 fields[bid]["deployed_map24"] = fld
             if (k + 1) % 10 == 0:
@@ -679,12 +736,23 @@ def main() -> None:
     # ---- report ------------------------------------------------------------------------------------
     summary = {arm: summarise(scores.get(arm, {}).values()) for arm in arm_order}
     print(f"\n=== MASSING ARMS (n={len(ids)} fixed held-out ids) ===")
-    print(f"{'arm':18s} {'n':>4} {'fp-IoU':>8} {'missing':>9} {'extra':>8} {'3D IoU':>8}")
+    print(f"{'arm':18s} {'n':>4} {'fp-IoU':>8} {'missing':>9} {'extra':>8} {'3D IoU':>8} "
+          f"{'vs input':>9}")
     for arm in arm_order:
         s = summary[arm]
         if s:
+            vi = f"{s['vs_input']:>9.3f}" if "vs_input" in s else f"{'--':>9}"
             print(f"{arm:18s} {s['n']:>4} {s['fp_iou']:>8.3f} {s['missing']:>9.3f} "
-                  f"{s['extra']:>8.3f} {s['vol_iou']:>8.3f}")
+                  f"{s['extra']:>8.3f} {s['vol_iou']:>8.3f} {vi}")
+    # ⚠️ The no-op check the map requires beside every quality claim (#75).
+    bo_iou = summary.get("blockout", {}).get("vol_iou")
+    for arm in arm_order:
+        s = summary[arm]
+        if s and "vs_input" in s:
+            net = s["vol_iou"] - bo_iou if bo_iou is not None else float("nan")
+            verdict = ("NO-OP: it returned its input" if s["vs_input"] >= 0.99 else
+                       "net-positive edit" if net > 0 else "it acted, and the edit COST quality")
+            print(f"   {arm}: vs_input {s['vs_input']:.3f}, net vs blockout {net:+.3f}  -> {verdict}")
     print("\n-- non-ranking regression guard (anti-correlated with the goal; never an arbiter) --")
     print("   ⚠️  comparable for ONE arm ACROSS RUNS only, never between arms: roughness is a raw")
     print("   |Laplacian|, so it scales with each arm's field slope (a metric SDF here is 0.032).")
@@ -717,12 +785,19 @@ def main() -> None:
             g = c2[tgt]["pass_rates"][f"{C2_ALLOWANCE:.2f}"]
             print(f"\n   ⚠️  CRITERION 2 IS HUMAN-JUDGED. This rate is reported, not a verdict --"
                   f" the plan view is the instrument.")
+            vi = c2[tgt].get("vs_input_median")
+            vitxt = (f"   ⚠️  vs_input {vi:.3f}" +
+                     ("  -- A NO-OP INHERITS THE ENVELOPE'S PERFECT FOOTPRINT, so this rate is the "
+                      "envelope's, not the model's." if vi is not None and vi >= 0.99 else "")
+                     ) if vi is not None else ""
             print(f"   criterion 2 at the gate: {g['rate']*100:.1f}% of {g['n']} buildings"
                   f"  [{g['lo']*100:.1f}%, {g['hi']*100:.1f}%]")
+            if vitxt:
+                print(vitxt)
 
     if args.plan and fields:
         print(f"\nrendering criterion-2 plan view (worst first)...", flush=True)
-        print("plan: " + str(build_plan_view(scores, fp_of, fields, arm_order,
+        print("plan: " + str(build_plan_view(scores, fp_of, proj_of, arm_order,
                                              montage_path.with_name(
                                                  montage_path.stem.replace("montage", "plan")
                                                  + ".png"), args.plan)), flush=True)
@@ -755,6 +830,14 @@ def main() -> None:
                   ddim=args.ddim, steps=args.steps, guidance=args.guidance, seed=args.seed,
                   ids_from=args.ids_from, montage=str(montage_path.relative_to(REPO))),
         ids=ids,
+        # ⚠️ Which POPULATION these ids are. `sorted` (pre-4b77f8e) returned ascending held-out rows,
+        # and row order tracks source corpus, so its first N were one country -- every artifact
+        # written under it is a single-region sample and is NOT comparable to a stratified one.
+        # ⚠️ WHICH TASK. Footprint+height and footprint-only are different problems and their
+        # numbers are not comparable; #82 measured the gap at -0.142 mean 3D IoU.
+        task="footprint-only (inferred height)" if args.infer_height else "footprint + given height",
+        id_set=dict(version="region-stratified" if not args.ids_from else "replayed",
+                    source=args.ids_from or "pick_ids round-robin over region"),
         summary=summary,
         # criterion 2 (#85): reported as a split, never as a lone fp-IoU, and the allowance is
         # deliberately left unfixed -- criterion 2 is human-judged, so the harness prints the curve.
