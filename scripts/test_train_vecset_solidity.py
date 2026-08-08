@@ -13,10 +13,47 @@ import unittest
 import torch
 
 
-def _reduce(got, tgt, w_t, sol=None):
+def _reduce(got, tgt, w_t, sol=None, renorm=False):
     """The reduction as `scripts/train_vecset.py` performs it."""
     per = (w_t * (got - tgt) ** 2).flatten(1).mean(1)
-    return (per * sol).mean() if sol is not None else per.mean(), per.mean()
+    if sol is None:
+        return per.mean(), per.mean()
+    w = sol / sol.mean().clamp_min(1e-8) if renorm else sol
+    return (per * w).mean(), per.mean()
+
+
+class TestRegionRenormalisation(unittest.TestCase):
+    """#84: a per-region weight must REDISTRIBUTE surface pressure, not quietly reduce it.
+
+    The measured per-region solid rates are 0.387 / 0.574 / 0.779 -- mean 0.58. Applied raw, that flag
+    is also a 42% cut in --surf_weight, and any improvement could be attributed to either. The training
+    path renormalises to mean 1.0 for exactly this reason.
+    """
+
+    def test_renormalised_weights_preserve_total_pressure(self):
+        n, p = 6, 32
+        tgt, got = torch.zeros(n, p), torch.ones(n, p)
+        w_t = torch.ones(n).reshape(n, 1)
+        flat, _ = _reduce(got, tgt, w_t)
+        region = torch.tensor([0.387, 0.387, 0.574, 0.574, 0.779, 0.779])
+        raw, _ = _reduce(got, tgt, w_t, region, renorm=False)
+        renorm, _ = _reduce(got, tgt, w_t, region, renorm=True)
+        self.assertLess(float(raw), float(flat) * 0.7)       # raw is a large silent cut
+        self.assertAlmostEqual(float(renorm), float(flat), places=5)   # renormalised is not
+
+    def test_renormalised_weights_still_redistribute(self):
+        """Equal magnitude overall, but a low-weight region still absorbs less of any extra error."""
+        n, p = 4, 8
+        tgt = torch.zeros(n, p)
+        got = torch.ones(n, p)
+        w_t = torch.ones(n).reshape(n, 1)
+        region = torch.tensor([0.387, 0.387, 0.779, 0.779])
+        base, _ = _reduce(got, tgt, w_t, region, renorm=True)
+        lo = got.clone(); lo[0] *= 2.0        # extra error in the COLLAPSE-PRONE region
+        hi = got.clone(); hi[2] *= 2.0        # the same in the robust region
+        d_lo = _reduce(lo, tgt, w_t, region, renorm=True)[0] - base
+        d_hi = _reduce(hi, tgt, w_t, region, renorm=True)[0] - base
+        self.assertLess(float(d_lo), float(d_hi))
 
 
 class TestSolidityWeighting(unittest.TestCase):

@@ -140,6 +140,15 @@ def main() -> None:
                          "checkpoint hollows. ⚠️ On the full held-out set solidity is the WEAKER "
                          "predictor of the collapse -- region is ~3.6x stronger in a logistic fit -- "
                          "so this is testing the secondary variable.")
+    ap.add_argument("--surf_weight_by_region", default=None,
+                    help="comma-separated per-region weights for the decoded-surface term, e.g. "
+                         "'0.387,0.574,0.779' -- the measured SOLID RATE per region (BAG/NRW/PLATEAU) "
+                         "on the full 714 held-out set. Region predicts the band-fix collapse ~3.6x "
+                         "more strongly than solidity does, so this targets the stronger variable. "
+                         "⚠️ Weights are RENORMALISED to mean 1.0 over the batch's regions, so this "
+                         "REDISTRIBUTES surface pressure rather than reducing it -- otherwise the raw "
+                         "weights (mean 0.58) would silently also be a 42%% cut in --surf_weight, and "
+                         "any gain would be unattributable.")
     ap.add_argument("--surf_points", type=int, default=8192,
                     help="query points per selected sample. Cheap: cost is dominated by `decode`, "
                          "not by point count (#76 measured 1k -> 32k as only 0.172s -> 0.313s), so "
@@ -197,6 +206,15 @@ def main() -> None:
     # ~2 GB, and every run that does not use it should not pay for it. `differentiable=True` opens
     # the gradient path; `freeze()` is what keeps the decoder's own weights out of the optimiser.
     codec = None
+    region_w = None
+    if args.surf_weight_by_region:
+        region_w = torch.tensor([float(x) for x in args.surf_weight_by_region.split(",")],
+                                device=dev, dtype=torch.float32)
+        if args.surf_weight_by_solidity:
+            raise SystemExit("[surf] --surf_weight_by_region and --surf_weight_by_solidity are "
+                             "alternatives; running both makes the result unattributable")
+        print(f"[surf] per-REGION weights {region_w.tolist()} (renormalised to mean 1.0 per batch)",
+              flush=True)
     if args.surf_weight > 0:
         from models.shape_codec import DoraCodec
         from scripts.foundations.dora_roundtrip_probe import load_dora
@@ -207,7 +225,9 @@ def main() -> None:
               f"{args.surf_points} pts x {args.surf_bs} sample(s)  "
               f"t centred {args.surf_t_center} (max {args.surf_t_max})"
               + ("  [PER-SAMPLE weighted by footprint solidity]"
-                 if args.surf_weight_by_solidity else ""), flush=True)
+                 if args.surf_weight_by_solidity else
+                 "  [PER-SAMPLE weighted by REGION]" if args.surf_weight_by_region else ""),
+              flush=True)
 
     step = 0
     if args.resume:
@@ -300,8 +320,17 @@ def main() -> None:
                     # scale the batch mean, which is not what #84 asks for.
                     per = (w_t * (got - tgt) ** 2).flatten(1).mean(1)        # (n_sel,)
                     surf_unweighted = per.mean()
+                    wsel = None
                     if args.surf_weight_by_solidity:
-                        surf = (per * sol[sel]).mean()
+                        wsel = sol[sel]
+                    elif region_w is not None:
+                        wsel = region_w[r[sel]]
+                    if wsel is not None:
+                        # Renormalise to mean 1.0 so the flag redistributes pressure instead of
+                        # reducing it. Without this, a run with per-region weights averaging 0.58 is
+                        # also a 42% cut in --surf_weight, and a gain cannot be attributed to either.
+                        wsel = wsel / wsel.mean().clamp_min(1e-8)
+                        surf = (per * wsel).mean()
                     else:
                         surf = surf_unweighted
                     loss = loss + args.surf_weight * surf
