@@ -85,8 +85,9 @@ _Avoid_: static mesh, output mesh
 
 **Massing**:
 The generatable part of a building: low-spatial-frequency geometry *above* the detail scale s*
-— base mass, wings, overall roof form. Produced by recipe-param diffusion + Stage 3a. The claim:
-this is well-posed to generate from {footprint, class, height, style}.
+— base mass, wings, overall roof form. Produced by a diffusion-based massing generator conditioned
+on {footprint, class, height, style} — Stage 3a's dense-grid diffusion, or A2's vecset/Dora-latent
+diffusion (map #61); both realize the same C1 transform (ADR 0003), differing in representation.
 _Avoid_: base shape, blockout (blockout is the crude user primitive, not the generated mass)
 
 **Detail**:

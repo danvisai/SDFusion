@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GenerativeTowns — draw a town</title>
+<style>
+  :root { --bg:#0a0c10; --panel:#11141b; --card:#161a24; --field:#0d0f15; --ink:#e7ebf2; --mut:#8a94a6; --acc:#5b9dff; --line:#232838; --sel:#f0a526; --danger:#e88; }
+  * { box-sizing:border-box; }
+  body { margin:0; height:100vh; display:flex; font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); overflow:hidden; }
+  #panel { width:300px; flex:0 0 300px; padding:18px; background:var(--panel); overflow:auto; border-right:1px solid var(--line); }
+  h1 { font-size:17px; margin:0; }
+  .sub { color:var(--mut); font-size:12px; margin:4px 0 14px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin:18px 0 6px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  label { display:block; margin:10px 0 4px; color:var(--mut); font-size:12px; }
+  input[type=number], input[type=range] { width:100%; }
+  input[type=number] { background:var(--field); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:6px 8px; }
+  .val { color:var(--acc); float:right; font-variant-numeric:tabular-nums; }
+  button { width:100%; margin-top:10px; padding:10px; border:0; border-radius:8px; background:var(--acc); color:#06101f; font-weight:650; cursor:pointer; font-size:14px; }
+  button.sec { background:#232838; color:var(--ink); }
+  button.sm { margin-top:0; padding:7px; font-size:12px; }
+  button:disabled { opacity:.35; cursor:not-allowed; }
+  .row { display:flex; gap:8px; } .row>* { flex:1; margin-top:10px; }
+  .modes { display:flex; gap:6px; margin-bottom:14px; }
+  .modes button { margin-top:0; }
+  .modes button.active { background:var(--acc); color:#06101f; }
+  .modes button:not(.active) { background:#1a1f2b; color:var(--mut); }
+  #buildings { display:flex; flex-direction:column; gap:6px; margin-top:10px; max-height:220px; overflow:auto; }
+  .bldg { display:flex; align-items:center; gap:6px; background:var(--field); border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .bldg .name { flex:1; font-size:12px; color:var(--mut); }
+  .bldg input { width:60px; padding:4px 6px; font-size:12px; }
+  .bldg .del { width:auto; margin:0; padding:4px 8px; font-size:12px; background:#2a1418; color:var(--danger); flex:none; }
+  #info { margin-top:12px; color:var(--mut); font-size:12px; white-space:pre-line; }
+  #view { flex:1; position:relative; }
+  #hint { position:absolute; bottom:10px; left:12px; color:#aab4c4; font-size:11px; text-shadow:0 1px 2px #000a; pointer-events:none; }
+  .empty { color:var(--mut); font-size:12px; font-style:italic; padding:6px 0; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>GenerativeTowns</h1>
+  <div class="sub">Draw footprints → generate a town.</div>
+
+  <div class="modes">
+    <button id="modeDraw" class="active">✏️ Draw</button>
+    <button id="modeView">🔭 View</button>
+  </div>
+
+  <h2>Town</h2>
+  <div class="card">
+    <label>Default height <span class="val" id="dhv">12 m</span></label>
+    <input type="range" id="dh" min="3" max="60" value="12" step="1"/>
+
+    <div class="row">
+      <button class="sec sm" id="newB">+ New building</button>
+      <button class="sec sm" id="closeB" disabled>✓ Close shape</button>
+    </div>
+    <button class="sec sm" id="undoV" disabled>↩ Undo point</button>
+
+    <div id="buildings"><div class="empty">no footprints yet — click "+ New building" then click in the viewport</div></div>
+
+    <button id="genTown" disabled>Generate Town</button>
+    <button class="sec" id="clearTown">Clear town</button>
+  </div>
+
+  <div id="info">draw a footprint to begin</div>
+</div>
+<div id="view"><div id="hint">draw: click to place points, click near the first point (or ✓ Close shape) to finish a footprint</div></div>
+
+<script type="importmap">
+{ "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" }}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $=id=>document.getElementById(id);
+const view=$('view');
+
+// ---------- renderer / scene (dark, plain shaded massing — no textures) ----------
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(view.clientWidth,view.clientHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+view.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0a0c10);
+scene.fog=new THREE.Fog(0x0a0c10,300,1400);
+
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),new THREE.MeshStandardMaterial({color:0x11141b,roughness:1}));
+ground.rotation.x=-Math.PI/2; scene.add(ground);
+const grid=new THREE.GridHelper(2000,200,0x2a3244,0x1a2030); scene.add(grid);
+
+scene.add(new THREE.HemisphereLight(0xaebfe0,0x14161c,1.15));
+const sun=new THREE.DirectionalLight(0xffffff,1.5); sun.position.set(80,140,60); scene.add(sun);
+
+const buildingMat=new THREE.MeshStandardMaterial({color:0xcdd6e6,roughness:.85,metalness:0,flatShading:true,side:THREE.DoubleSide});
+const lineMat=new THREE.LineBasicMaterial({color:0x5b9dff});
+const vertexMat=new THREE.MeshBasicMaterial({color:0xf0a526});
+const vertexGeo=new THREE.SphereGeometry(1.6,12,10);
+
+const town=new THREE.Group(); scene.add(town);       // finished placeholder massing
+const draft=new THREE.Group(); scene.add(draft);     // in-progress polyline + handles
+const handles=new THREE.Group(); scene.add(handles); // draggable vertex handles for finished footprints
+
+// ---------- cameras: orthographic top-down for Draw, perspective orbit for View ----------
+const aspect=()=>view.clientWidth/view.clientHeight;
+const ORTHO_HALF=140;
+const drawCam=new THREE.OrthographicCamera(-ORTHO_HALF*aspect(),ORTHO_HALF*aspect(),ORTHO_HALF,-ORTHO_HALF,0.1,4000);
+drawCam.position.set(0,500,0); drawCam.up.set(0,0,-1); drawCam.lookAt(0,0,0);
+const viewCam=new THREE.PerspectiveCamera(45,aspect(),0.1,4000);
+viewCam.position.set(60,50,90);
+
+let mode='draw';
+let cam=drawCam;
+const orbit=new OrbitControls(viewCam,renderer.domElement);
+orbit.enableDamping=true; orbit.maxPolarAngle=Math.PI*0.495; orbit.enabled=false;
+
+addEventListener('resize',()=>{
+  const a=aspect();
+  drawCam.left=-ORTHO_HALF*a; drawCam.right=ORTHO_HALF*a; drawCam.top=ORTHO_HALF; drawCam.bottom=-ORTHO_HALF; drawCam.updateProjectionMatrix();
+  viewCam.aspect=a; viewCam.updateProjectionMatrix();
+  renderer.setSize(view.clientWidth,view.clientHeight);
+});
+(function loop(){ requestAnimationFrame(loop); if(mode==='view') orbit.update(); renderer.render(scene,cam); })();
+
+// ---------- ground raycasting (works for both cameras) ----------
+const raycaster=new THREE.Raycaster();
+const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function pointerToGround(clientX,clientY,camera){
+  const r=renderer.domElement.getBoundingClientRect();
+  const ndc=new THREE.Vector2(((clientX-r.left)/r.width)*2-1, -((clientY-r.top)/r.height)*2+1);
+  raycaster.setFromCamera(ndc,camera);
+  const pt=new THREE.Vector3();
+  raycaster.ray.intersectPlane(groundPlane,pt);
+  return pt;
+}
+
+// ---------- state ----------
+let footprints=[];     // {id, points:[{x,z}], heightOverride:number|null, group:THREE.Group|null}
+let nextId=1;
+let drawing=false;
+let activePoints=[];   // [{x,z}] for the footprint currently being placed
+const CLOSE_TOL=6;     // world units — click-near-first-point tolerance
+
+function setInfo(t){ $('info').textContent=t; }
+function defaultHeight(){ return +$('dh').value; }
+
+// ---------- drawing a new footprint ----------
+function redrawDraft(){
+  draft.clear();
+  if(activePoints.length){
+    const pts=activePoints.map(p=>new THREE.Vector3(p.x,0.4,p.z));
+    if(pts.length>1) draft.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),lineMat));
+    activePoints.forEach(p=>{ const s=new THREE.Mesh(vertexGeo,vertexMat); s.position.set(p.x,0.4,p.z); draft.add(s); });
+  }
+}
+
+function startNewBuilding(){
+  drawing=true; activePoints=[];
+  redrawDraft();
+  $('closeB').disabled=true; $('undoV').disabled=true;
+  setInfo('drawing a new footprint — click to place points');
+}
+$('newB').onclick=startNewBuilding;
+
+function undoPoint(){
+  if(!drawing||!activePoints.length) return;
+  activePoints.pop(); redrawDraft();
+  $('closeB').disabled=activePoints.length<3; $('undoV').disabled=!activePoints.length;
+}
+$('undoV').onclick=undoPoint;
+
+function closeShape(){
+  if(!drawing||activePoints.length<3) return;
+  footprints.push({id:nextId++, points:activePoints, heightOverride:null, group:null});
+  drawing=false; activePoints=[]; draft.clear();
+  $('closeB').disabled=true; $('undoV').disabled=true;
+  rebuildOutlinesAndHandles();
+  renderBuildingList();
+  $('genTown').disabled=false;
+  setInfo(`${footprints.length} footprint(s) — Generate Town when ready`);
+}
+$('closeB').onclick=closeShape;
+
+// ---------- permanent outlines + editable vertex handles for finished footprints ----------
+function rebuildOutlinesAndHandles(){
+  handles.clear();
+  footprints.forEach((fp,fi)=>{
+    const pts=fp.points.map(p=>new THREE.Vector3(p.x,0.4,p.z));
+    pts.push(pts[0]);
+    handles.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),lineMat));
+    fp.points.forEach((p,vi)=>{
+      const s=new THREE.Mesh(vertexGeo,vertexMat);
+      s.position.set(p.x,0.4,p.z);
+      s.userData={fi,vi};
+      handles.add(s);
+    });
+  });
+}
+
+// ---------- side panel list ----------
+function renderBuildingList(){
+  const el=$('buildings');
+  if(!footprints.length){ el.innerHTML='<div class="empty">no footprints yet — click "+ New building" then click in the viewport</div>'; return; }
+  el.innerHTML='';
+  footprints.forEach((fp,i)=>{
+    const row=document.createElement('div'); row.className='bldg';
+    const name=document.createElement('div'); name.className='name'; name.textContent=`Building ${i+1}`;
+    const h=document.createElement('input'); h.type='number'; h.min='1'; h.placeholder=`${defaultHeight()} m`;
+    h.value = fp.heightOverride ?? '';
+    h.oninput=()=>{ fp.heightOverride = h.value ? +h.value : null; markStale(fp); };
+    const del=document.createElement('button'); del.className='del'; del.textContent='✕';
+    del.onclick=()=>{ footprints=footprints.filter(f=>f!==fp); if(fp.group) town.remove(fp.group); rebuildOutlinesAndHandles(); renderBuildingList(); $('genTown').disabled=!footprints.length; };
+    row.append(name,h,del); el.appendChild(row);
+  });
+}
+$('dh').oninput=()=>{ $('dhv').textContent=$('dh').value+' m'; footprints.forEach(fp=>{ if(fp.heightOverride==null) markStale(fp); }); renderBuildingList(); };
+
+function markStale(fp){ if(fp.group){ town.remove(fp.group); fp.group=null; } }
+
+// ---------- placeholder massing: extrude the drawn polygon to its height ----------
+// This ticket does not wire in A2 — the extrusion stands in for the real generator so the
+// editor/viewport interaction can be judged before the model is in the loop (#99/#100).
+function buildPlaceholder(fp){
+  // Shape's local Y is negated Z: after rotateX(-90deg) below maps local (x,y,z)->(x,z,-y),
+  // this cancels back out to world (x, height, z) instead of a Z-mirrored building.
+  const shape=new THREE.Shape(fp.points.map(p=>new THREE.Vector2(p.x,-p.z)));
+  const height = fp.heightOverride ?? defaultHeight();
+  const geo=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,steps:1});
+  geo.rotateX(-Math.PI/2);
+  const mesh=new THREE.Mesh(geo,buildingMat);
+  mesh.castShadow=mesh.receiveShadow=true;
+  const g=new THREE.Group(); g.add(mesh);
+  return g;
+}
+
+function generateTown(){
+  if(!footprints.length) return;
+  footprints.forEach(fp=>{
+    if(fp.group) return; // unchanged since last generate
+    fp.group=buildPlaceholder(fp);
+    town.add(fp.group);
+  });
+  frameTown();
+  setMode('view');
+  setInfo(`town: ${footprints.length} building(s) · placeholder massing (A2 wiring is #99/#100)`);
+}
+$('genTown').onclick=generateTown;
+
+function clearTown(){
+  footprints.forEach(fp=>fp.group&&town.remove(fp.group));
+  footprints=[]; drawing=false; activePoints=[];
+  draft.clear(); handles.clear();
+  renderBuildingList();
+  $('genTown').disabled=true; $('closeB').disabled=true; $('undoV').disabled=true;
+  setInfo('draw a footprint to begin');
+}
+$('clearTown').onclick=clearTown;
+
+function frameTown(){
+  const box=new THREE.Box3().setFromObject(town);
+  if(box.isEmpty()) return;
+  const c=box.getCenter(new THREE.Vector3()), s=box.getSize(new THREE.Vector3());
+  const r=Math.max(s.x,s.z,s.y*1.4,20);
+  orbit.target.copy(c);
+  viewCam.position.set(c.x+r*1.05,c.y+r*0.85,c.z+r*1.25);
+}
+
+// ---------- Draw / View mode toggle ----------
+function setMode(m){
+  mode=m; cam = m==='draw' ? drawCam : viewCam; orbit.enabled = m==='view';
+  $('modeDraw').classList.toggle('active',m==='draw');
+  $('modeView').classList.toggle('active',m==='view');
+  $('hint').textContent = m==='draw'
+    ? 'draw: click to place points, click near the first point (or ✓ Close shape) to finish a footprint — drag a point to move it, drag empty ground to pan, scroll to zoom'
+    : 'drag to orbit · scroll to zoom';
+}
+$('modeDraw').onclick=()=>setMode('draw');
+$('modeView').onclick=()=>setMode('view');
+setMode('draw');
+
+// ---------- pointer interaction: place points, drag vertices, pan (draw mode only) ----------
+let draggingVertex=null, panning=false, panStart=null, panCamStart=null;
+
+function hitVertex(clientX,clientY){
+  const r=renderer.domElement.getBoundingClientRect();
+  const ndc=new THREE.Vector2(((clientX-r.left)/r.width)*2-1, -((clientY-r.top)/r.height)*2+1);
+  raycaster.setFromCamera(ndc,cam);
+  const hits=raycaster.intersectObjects(handles.children.filter(o=>o.isMesh));
+  return hits.length ? hits[0].object.userData : null;
+}
+
+renderer.domElement.addEventListener('pointerdown',ev=>{
+  if(mode!=='draw'||ev.button!==0) return;
+  const hv=hitVertex(ev.clientX,ev.clientY);
+  if(hv){ draggingVertex=hv; renderer.domElement.setPointerCapture(ev.pointerId); return; }
+  panning=false; panStart={x:ev.clientX,y:ev.clientY}; panCamStart=drawCam.position.clone();
+  renderer.domElement.setPointerCapture(ev.pointerId);
+});
+
+renderer.domElement.addEventListener('pointermove',ev=>{
+  if(mode!=='draw') return;
+  if(draggingVertex){
+    const p=pointerToGround(ev.clientX,ev.clientY,drawCam);
+    const fp=footprints[draggingVertex.fi];
+    fp.points[draggingVertex.vi]={x:p.x,z:p.z};
+    markStale(fp);
+    rebuildOutlinesAndHandles();
+    return;
+  }
+  if(panStart){
+    const dx=ev.clientX-panStart.x, dy=ev.clientY-panStart.y;
+    if(!panning && Math.hypot(dx,dy)>4) panning=true;
+    if(panning){
+      const worldPerPixel=(drawCam.right-drawCam.left)/renderer.domElement.clientWidth/drawCam.zoom;
+      drawCam.position.x = panCamStart.x - dx*worldPerPixel;
+      drawCam.position.z = panCamStart.z - dy*worldPerPixel;
+    }
+  }
+});
+
+addEventListener('pointerup',ev=>{
+  if(mode!=='draw') return;
+  if(draggingVertex){ draggingVertex=null; return; }
+  const wasPan=panning; panning=false; const start=panStart; panStart=null;
+  if(wasPan||!start) return;
+  const moved=Math.hypot(ev.clientX-start.x,ev.clientY-start.y);
+  if(moved>4) return; // was a pan, not a click
+  if(!drawing) return; // not currently placing a footprint
+  const p=pointerToGround(ev.clientX,ev.clientY,drawCam);
+  if(activePoints.length>=3){
+    const d=Math.hypot(p.x-activePoints[0].x,p.z-activePoints[0].z);
+    if(d<CLOSE_TOL){ closeShape(); return; }
+  }
+  activePoints.push({x:p.x,z:p.z});
+  redrawDraft();
+  $('closeB').disabled=activePoints.length<3; $('undoV').disabled=false;
+});
+
+renderer.domElement.addEventListener('wheel',ev=>{
+  if(mode!=='draw') return;
+  ev.preventDefault();
+  drawCam.zoom=THREE.MathUtils.clamp(drawCam.zoom*(ev.deltaY>0?0.9:1.1),0.25,8);
+  drawCam.updateProjectionMatrix();
+},{passive:false});
+</script>
+</body>
+</html>
