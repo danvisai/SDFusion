@@ -1,0 +1,727 @@
+{
+  "meta": {
+    "git_rev": "90a123c",
+    "created": "2026-08-13T01:12:32+00:00",
+    "n": 8,
+    "gt_h5": "data/real_massing_v1/real.h5",
+    "latents": "/home/dsimhadr/projects/SDFusion/data/real_massing_v1/vecset_latents.h5",
+    "map24": null,
+    "a2": "weights/massing-vecset/vecset_v4_surf.pth",
+    "strength": [
+      0.5
+    ],
+    "ddim": 100,
+    "steps": 20,
+    "guidance": 1.0,
+    "seed": 0,
+    "ids_from": null,
+    "montage": "outputs/massing_arms_eval/montage_current_model_check.png"
+  },
+  "ids": [
+    2,
+    11218,
+    24838,
+    210,
+    11232,
+    24977,
+    383,
+    11250
+  ],
+  "task": "footprint + given height",
+  "id_set": {
+    "version": "region-stratified",
+    "source": "pick_ids round-robin over region"
+  },
+  "summary": {
+    "gt": {
+      "n": 8,
+      "fp_iou": 1.0,
+      "missing": 0.0,
+      "extra": 0.0,
+      "vol_iou": 1.0,
+      "guard_roughness": 0.0035424804082140326,
+      "guard_field_slope": 1.0
+    },
+    "blockout": {
+      "n": 8,
+      "fp_iou": 1.0,
+      "missing": 0.0,
+      "extra": 0.10854178523694319,
+      "vol_iou": 0.9054404100312039,
+      "guard_roughness": 0.024585751816630363,
+      "guard_field_slope": 1.0
+    },
+    "codec_ceiling": {
+      "n": 8,
+      "fp_iou": 0.998024482780341,
+      "missing": 3.2069695572329106e-05,
+      "extra": 0.0008905859291296367,
+      "vol_iou": 0.9988918636362276,
+      "guard_roughness": 0.03819055296480656,
+      "guard_field_slope": 1.0
+    },
+    "a2_s0.5": {
+      "n": 8,
+      "fp_iou": 0.9741273624064387,
+      "missing": 0.004346249397777881,
+      "extra": 0.10930315102488448,
+      "vol_iou": 0.8629892106382899,
+      "guard_roughness": 0.048348888754844666,
+      "vs_input": 0.9889826926272635,
+      "guard_field_slope": 1.0
+    }
+  },
+  "criterion2": {
+    "s_star_voxels": 3,
+    "allowance": 0.05,
+    "by_arm": {
+      "gt": {
+        "n": 8,
+        "fringe_median": 0.0,
+        "spill_median": 0.0,
+        "spill_mean": 0.0,
+        "uncovered_median": 0.0,
+        "pass_rates": {
+          "0.00": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.02": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.03": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.05": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.10": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          }
+        },
+        "vs_input_median": null
+      },
+      "blockout": {
+        "n": 8,
+        "fringe_median": 0.0,
+        "spill_median": 0.0,
+        "spill_mean": 0.0,
+        "uncovered_median": 0.0,
+        "pass_rates": {
+          "0.00": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.02": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.03": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.05": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.10": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          }
+        },
+        "vs_input_median": null
+      },
+      "codec_ceiling": {
+        "n": 8,
+        "fringe_median": 0.0019798815276317137,
+        "spill_median": 0.0,
+        "spill_mean": 0.0,
+        "uncovered_median": 0.0,
+        "pass_rates": {
+          "0.00": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.02": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.03": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.05": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.10": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          }
+        },
+        "vs_input_median": null
+      },
+      "a2_s0.5": {
+        "n": 8,
+        "fringe_median": 0.02050592776399228,
+        "spill_median": 0.0,
+        "spill_mean": 0.0018839048496610664,
+        "uncovered_median": 0.0,
+        "pass_rates": {
+          "0.00": {
+            "rate": 0.625,
+            "lo": 0.28951993352808575,
+            "hi": 0.9604800664719142,
+            "n": 8
+          },
+          "0.02": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.03": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.05": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          },
+          "0.10": {
+            "rate": 1.0,
+            "lo": 1.0,
+            "hi": 1.0,
+            "n": 8
+          }
+        },
+        "vs_input_median": 0.9889826926272635
+      }
+    }
+  },
+  "sharp_normal_error": {
+    "values": {},
+    "views": 0,
+    "n_buildings": 8,
+    "note": "the one scalar in this project that ranks crisp above melted (#79: crisp 0.084 vs melted 0.636, separated 8/8). surface_roughness ranks the same pair backwards. Contaminated by field representation -- safe within one arm across runs."
+  },
+  "noise_floor": {
+    "deterministic_arms": [
+      "gt",
+      "blockout",
+      "codec_ceiling"
+    ],
+    "measured_on": "deployed_map24, 3 seeded runs at n=48",
+    "median_range": {
+      "fp_iou": 0.008,
+      "missing": 0.016,
+      "extra": 0.04,
+      "vol_iou": 0.001
+    },
+    "note": "`extra` is by far the loosest -- it is unbounded above and dominated by the over-fill, so a change in it under ~0.04 is noise even though vol_iou is stable to 0.001. Unseeded, vol_iou alone spread 0.027."
+  },
+  "per_building": {
+    "gt": {
+      "2": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 53352,
+        "gt_vox": 53352,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1404,
+        "guard_roughness": 0.003085467964410782,
+        "guard_field_slope": 1.0
+      },
+      "11218": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 24368,
+        "gt_vox": 24368,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1507,
+        "guard_roughness": 0.0037314551882445812,
+        "guard_field_slope": 1.0
+      },
+      "24838": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 83148,
+        "gt_vox": 83148,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1599,
+        "guard_roughness": 0.002765228971838951,
+        "guard_field_slope": 1.0
+      },
+      "210": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 19631,
+        "gt_vox": 19631,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 968,
+        "guard_roughness": 0.007293289992958307,
+        "guard_field_slope": 1.0
+      },
+      "11232": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 35639,
+        "gt_vox": 35639,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1612,
+        "guard_roughness": 0.003353505628183484,
+        "guard_field_slope": 1.0
+      },
+      "24977": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 111500,
+        "gt_vox": 111500,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 2230,
+        "guard_roughness": 0.002968598622828722,
+        "guard_field_slope": 1.0
+      },
+      "383": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 48655,
+        "gt_vox": 48655,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1532,
+        "guard_roughness": 0.0048345415852963924,
+        "guard_field_slope": 1.0
+      },
+      "11250": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 16022,
+        "gt_vox": 16022,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 278,
+        "guard_roughness": 0.004089408554136753,
+        "guard_field_slope": 1.0
+      }
+    },
+    "blockout": {
+      "2": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 53352,
+        "gt_vox": 53352,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1404,
+        "guard_roughness": 0.0273972749710083,
+        "guard_field_slope": 1.0
+      },
+      "11218": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.7349942691681245,
+        "missing": 0.0,
+        "extra": 0.3605548260013132,
+        "arm_vox": 33154,
+        "gt_vox": 24368,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1507,
+        "guard_roughness": 0.02315330132842064,
+        "guard_field_slope": 1.0
+      },
+      "24838": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 83148,
+        "gt_vox": 83148,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1599,
+        "guard_roughness": 0.019942373037338257,
+        "guard_field_slope": 1.0
+      },
+      "210": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.8449982782369146,
+        "missing": 0.0,
+        "extra": 0.183434364016097,
+        "arm_vox": 23232,
+        "gt_vox": 19631,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 968,
+        "guard_roughness": 0.02472662553191185,
+        "guard_field_slope": 1.0
+      },
+      "11232": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.8503292613094102,
+        "missing": 0.0,
+        "extra": 0.1760150397036954,
+        "arm_vox": 41912,
+        "gt_vox": 35639,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1612,
+        "guard_roughness": 0.028492167592048645,
+        "guard_field_slope": 1.0
+      },
+      "24977": {
+        "fp_iou": 1.0,
+        "vol_iou": 1.0,
+        "missing": 0.0,
+        "extra": 0.0,
+        "arm_vox": 111500,
+        "gt_vox": 111500,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 2230,
+        "guard_roughness": 0.020381318405270576,
+        "guard_field_slope": 1.0
+      },
+      "383": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.8357667995052906,
+        "missing": 0.0,
+        "extra": 0.19650601171513718,
+        "arm_vox": 58216,
+        "gt_vox": 48655,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1532,
+        "guard_roughness": 0.024444878101348877,
+        "guard_field_slope": 1.0
+      },
+      "11250": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.9605515587529976,
+        "missing": 0.0,
+        "extra": 0.041068530770190986,
+        "arm_vox": 16680,
+        "gt_vox": 16022,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 278,
+        "guard_roughness": 0.02627139538526535,
+        "guard_field_slope": 1.0
+      }
+    },
+    "codec_ceiling": {
+      "2": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.9974573736165121,
+        "missing": 0.0,
+        "extra": 0.002549107812265707,
+        "arm_vox": 53488,
+        "gt_vox": 53352,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1404,
+        "guard_roughness": 0.0493072047829628,
+        "guard_field_slope": 1.0
+      },
+      "11218": {
+        "fp_iou": 0.9973527465254798,
+        "vol_iou": 0.9984833579275291,
+        "missing": 0.00036933683519369665,
+        "extra": 0.001149047931713723,
+        "arm_vox": 24387,
+        "gt_vox": 24368,
+        "fringe": 0.0026542800265428003,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1507,
+        "guard_roughness": 0.027290556579828262,
+        "guard_field_slope": 1.0
+      },
+      "24838": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.9999639197575407,
+        "missing": 3.608024245922932e-05,
+        "extra": 0.0,
+        "arm_vox": 83145,
+        "gt_vox": 83148,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1599,
+        "guard_roughness": 0.05764660984277725,
+        "guard_field_slope": 1.0
+      },
+      "210": {
+        "fp_iou": 0.9948612538540597,
+        "vol_iou": 0.9987782529016493,
+        "missing": 0.0005603382405379247,
+        "extra": 0.0006622179206357292,
+        "arm_vox": 19633,
+        "gt_vox": 19631,
+        "fringe": 0.005165289256198347,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 968,
+        "guard_roughness": 0.029533132910728455,
+        "guard_field_slope": 1.0
+      },
+      "11232": {
+        "fp_iou": 1.0,
+        "vol_iou": 0.9991869234866964,
+        "missing": 2.8059148685428885e-05,
+        "extra": 0.0007856561631920088,
+        "arm_vox": 35666,
+        "gt_vox": 35639,
+        "fringe": 0.0,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1612,
+        "guard_roughness": 0.035473331809043884,
+        "guard_field_slope": 1.0
+      },
+      "24977": {
+        "fp_iou": 0.9946476360392507,
+        "vol_iou": 0.9990054743708058,
+        "missing": 0.0,
+        "extra": 0.0009955156950672646,
+        "arm_vox": 111611,
+        "gt_vox": 111500,
+        "fringe": 0.0053811659192825115,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 2230,
+        "guard_roughness": 0.05903687700629234,
+        "guard_field_slope": 1.0
+      },
+      "383": {
+        "fp_iou": 0.9986962190352021,
+        "vol_iou": 0.9981320688876573,
+        "missing": 0.0005960332956530675,
+        "extra": 0.0012742780803617305,
+        "arm_vox": 48688,
+        "gt_vox": 48655,
+        "fringe": 0.0013054830287206266,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1532,
+        "guard_roughness": 0.04090777412056923,
+        "guard_field_slope": 1.0
+      },
+      "11250": {
+        "fp_iou": 0.9928571428571429,
+        "vol_iou": 0.9995632915340944,
+        "missing": 0.0,
+        "extra": 0.0004368992635126701,
+        "arm_vox": 16029,
+        "gt_vox": 16022,
+        "fringe": 0.007194244604316547,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 278,
+        "guard_roughness": 0.026586418971419334,
+        "guard_field_slope": 1.0
+      }
+    },
+    "a2_s0.5": {
+      "2": {
+        "fp_iou": 0.9736477115117892,
+        "vol_iou": 0.9923972794186154,
+        "missing": 0.0017806267806267807,
+        "extra": 0.0058666966561703405,
+        "arm_vox": 53570,
+        "gt_vox": 53352,
+        "fringe": 0.014957264957264958,
+        "spill": 0.012108262108262107,
+        "uncovered": 0.0,
+        "fp_area": 1404,
+        "guard_roughness": 0.04445662721991539,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.9923972794186154
+      },
+      "11218": {
+        "fp_iou": 0.9960343688037012,
+        "vol_iou": 0.7342581423401688,
+        "missing": 0.0008207485226526593,
+        "extra": 0.360801050558109,
+        "arm_vox": 33140,
+        "gt_vox": 24368,
+        "fringe": 0.003981420039814201,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1507,
+        "guard_roughness": 0.02729625813663006,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.9990350692036305
+      },
+      "24838": {
+        "fp_iou": 0.9673321234119783,
+        "vol_iou": 0.9917753930263927,
+        "missing": 0.0007697118391302257,
+        "extra": 0.007516717179006109,
+        "arm_vox": 83709,
+        "gt_vox": 83148,
+        "fringe": 0.03377110694183865,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1599,
+        "guard_roughness": 0.05224115028977394,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.9917753930263927
+      },
+      "210": {
+        "fp_iou": 0.9453125,
+        "vol_iou": 0.7485933503836317,
+        "missing": 0.10539452906117874,
+        "extra": 0.1950486475472467,
+        "arm_vox": 21391,
+        "gt_vox": 19631,
+        "fringe": 0.05578512396694215,
+        "spill": 0.002066115702479339,
+        "uncovered": 0.0,
+        "fp_area": 968,
+        "guard_roughness": 0.0540853776037693,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.8961883312794798
+      },
+      "11232": {
+        "fp_iou": 0.9746070133010882,
+        "vol_iou": 0.8172626269835606,
+        "missing": 0.03611212435814697,
+        "extra": 0.1794101966946323,
+        "arm_vox": 40746,
+        "gt_vox": 35639,
+        "fringe": 0.026054590570719603,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1612,
+        "guard_roughness": 0.055485278367996216,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.9631863955918678
+      },
+      "24977": {
+        "fp_iou": 0.9603789836347976,
+        "vol_iou": 0.893396675421742,
+        "missing": 0.09091479820627803,
+        "extra": 0.017560538116591928,
+        "arm_vox": 103321,
+        "gt_vox": 111500,
+        "fringe": 0.04035874439461883,
+        "spill": 0.0008968609865470852,
+        "uncovered": 0.0,
+        "fp_area": 2230,
+        "guard_roughness": 0.12935005128383636,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.893396675421742
+      },
+      "383": {
+        "fp_iou": 0.9883870967741936,
+        "vol_iou": 0.8325817458548379,
+        "missing": 0.00201418148186209,
+        "extra": 0.19866406330284658,
+        "arm_vox": 58223,
+        "gt_vox": 48655,
+        "fringe": 0.01174934725848564,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 1532,
+        "guard_roughness": 0.04096164181828499,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.9960743305790791
+      },
+      "11250": {
+        "fp_iou": 0.9893238434163701,
+        "vol_iou": 0.9558558558558559,
+        "missing": 0.006678317313693671,
+        "extra": 0.039196105355136686,
+        "arm_vox": 16543,
+        "gt_vox": 16022,
+        "fringe": 0.01079136690647482,
+        "spill": 0.0,
+        "uncovered": 0.0,
+        "fp_area": 278,
+        "guard_roughness": 0.03158340975642204,
+        "guard_field_slope": 1.0,
+        "vs_input": 0.9861899922281342
+      }
+    }
+  }
+}

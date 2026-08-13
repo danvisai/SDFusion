@@ -97,6 +97,8 @@ def verify_frame(codec, L: np.ndarray, fps: np.ndarray, n: int = 16, tol: float 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="0 = whole corpus")
+    ap.add_argument("--start", type=int, default=0,
+                     help="row offset into the sorted id list, for chunked runs")
     ap.add_argument("--n_coarse", type=int, default=8192)
     ap.add_argument("--n_sharp", type=int, default=8192)
     ap.add_argument("--out", default=str(OUT))
@@ -115,6 +117,8 @@ def main() -> None:
 
     surf = load_surfaces()
     rows = sorted(surf)
+    if args.start:
+        rows = rows[args.start:]
     if args.limit:
         rows = rows[:args.limit]
     held = set(int(i) for i in test_indices(35776))
@@ -161,6 +165,12 @@ def main() -> None:
             if (n + 1) % 200 == 0:
                 el = time.time() - t0
                 print(f"  {n+1}/{len(rows)}  {el:.0f}s  eta {el/(n+1)*(len(rows)-n-1):.0f}s", flush=True)
+            if (n + 1) % 50 == 0 and torch.cuda.is_available():
+                # the blockout path's marching-cubes meshes vary far more in size than the tiny
+                # (median ~20-face) recovered corpus meshes, so the caching allocator's reserved
+                # pool keeps growing; on this unified-memory box that reserved-but-idle memory
+                # counts against system RAM, not a separate VRAM pool -- release it periodically
+                torch.cuda.empty_cache()
 
     if not lat:
         raise SystemExit("nothing encoded")

@@ -161,36 +161,55 @@ def summarise(rows) -> dict:
 # rendering -- shared world frame, one fixed camera
 # --------------------------------------------------------------------------------------------------
 
-def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device):
+def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device=None):
     """Shaded render of a mesh **already in the [-1,1] world frame**, with a fixed camera.
 
     Deliberately NOT `scripts/hunyuan_building_mesh_smoke.render_mesh_png`: that recentres and rescales
     every mesh onto its own bounding box, which is right for comparing two unrelated shapes but wrong
     here -- it would scale an eroded or collapsed arm back up to GT's apparent size and hide exactly
-    the failure criterion 3 exists to expose. Same lights and camera parameters, no normalisation.
-    """
-    import torch
-    from PIL import Image
-    from pytorch3d.renderer import (BlendParams, FoVOrthographicCameras, MeshRasterizer, MeshRenderer,
-                                    PointLights, RasterizationSettings, SoftPhongShader, TexturesVertex,
-                                    look_at_view_transform)
-    from pytorch3d.structures import Meshes
+    the failure criterion 3 exists to expose. Same camera parameters, no normalisation.
 
-    v = torch.as_tensor(np.asarray(verts_w, np.float32), device=device)[None]
-    f = torch.as_tensor(np.asarray(faces, np.int64), device=device)[None]
-    r, t = look_at_view_transform(dist=CAM["dist"], elev=CAM["elev"], azim=CAM["azim"], at=((0, 0, 0),))
-    cams = FoVOrthographicCameras(device=device, R=r, T=t, scale_xyz=((CAM["scale"],) * 3,))
-    lights = PointLights(device=device, location=((2.0, 2.0, 2.0),),
-                         ambient_color=((0.45, 0.45, 0.45),), diffuse_color=((0.55, 0.55, 0.55),),
-                         specular_color=((0.05, 0.05, 0.05),))
-    renderer = MeshRenderer(
-        rasterizer=MeshRasterizer(cameras=cams, raster_settings=RasterizationSettings(
-            image_size=size, blur_radius=0.0, faces_per_pixel=1, bin_size=0)),
-        shader=SoftPhongShader(device=device, cameras=cams, lights=lights,
-                               blend_params=BlendParams(background_color=(1.0, 1.0, 1.0))))
-    tex = TexturesVertex(verts_features=torch.full_like(v, 0.72))
-    img = renderer(Meshes(verts=v, faces=f, textures=tex))[0, ..., :3].clamp(0, 1).cpu().numpy()
-    return Image.fromarray((img * 255).astype(np.uint8))
+    Renders via pyrender's EGL/radeonsi path rather than pytorch3d: the installed pytorch3d build has
+    no compiled GPU kernels on this ROCm box (its `_C` extension is CPU-only), while EGL talks to the
+    AMD GPU directly through Mesa. `device` is accepted for call-site compatibility and unused.
+    """
+    import os
+    os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
+    import pyrender
+    import trimesh as tm3
+    from PIL import Image
+
+    mesh = tm3.Trimesh(vertices=np.asarray(verts_w, np.float64), faces=np.asarray(faces, np.int64),
+                        process=False)
+    material = pyrender.MetallicRoughnessMaterial(baseColorFactor=(0.72, 0.72, 0.72, 1.0),
+                                                   metallicFactor=0.0, roughnessFactor=0.8)
+    pymesh = pyrender.Mesh.from_trimesh(mesh, material=material, smooth=True)
+    scene = pyrender.Scene(bg_color=(1.0, 1.0, 1.0), ambient_light=(0.45, 0.45, 0.45))
+    scene.add(pymesh)
+
+    # same spherical camera as pytorch3d's look_at_view_transform(dist, elev, azim), up=(0,1,0)
+    elev, azim = np.radians(CAM["elev"]), np.radians(CAM["azim"])
+    eye = CAM["dist"] * np.array([np.cos(elev) * np.sin(azim), np.sin(elev), np.cos(elev) * np.cos(azim)])
+    forward = -eye / np.linalg.norm(eye)
+    right = np.cross(forward, (0.0, 1.0, 0.0))
+    right /= np.linalg.norm(right)
+    up = np.cross(right, forward)
+    pose = np.eye(4)
+    pose[:3, 0], pose[:3, 1], pose[:3, 2], pose[:3, 3] = right, up, -forward, eye
+
+    # pytorch3d's FoVOrthographicCameras scale_xyz maps camera-space [-1/scale, 1/scale] to NDC
+    # [-1, 1] with default min/max = -1/1; pyrender's xmag/ymag is that same half-extent directly.
+    mag = 1.0 / CAM["scale"]
+    cam = pyrender.OrthographicCamera(xmag=mag, ymag=mag, znear=0.05, zfar=10.0)
+    scene.add(cam, pose=pose)
+    scene.add(pyrender.PointLight(color=(1.0, 1.0, 1.0), intensity=6.0), pose=pose)
+
+    r = pyrender.OffscreenRenderer(size, size)
+    try:
+        img, _ = r.render(scene)
+    finally:
+        r.delete()
+    return Image.fromarray(img)
 
 
 S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~ 3 voxels @64^3. Fixed a priori.
@@ -471,7 +490,7 @@ def build_montage(fields: dict, arm_order, scores: dict, summary: dict, out: Pat
             if mv is None:
                 d.text((x0 + 3, y + 18), "(no zero crossing)", fill=(150, 60, 60))
                 continue
-            canvas.paste(render_world(verts_to_world(mv), mf, size, dev), (x0, y + LBL))
+            canvas.paste(render_world(verts_to_world(mv), mf, size), (x0, y + LBL))
             s = scores.get(arm, {}).get(bid)
             if s:
                 d.text((x0 + 3, y + 18),
@@ -546,7 +565,7 @@ def main() -> None:
                          "FROM the blockout, so it inherits the weakened baseline -- which is the "
                          "point: #82 requires every arm re-scored, not just the blockout. ⚠️ These "
                          "numbers are a DIFFERENT TASK DEFINITION and must never be quoted against "
-                         "specified-height ones (measured cost: -0.142 mean 3D IoU, 82% of buildings "
+                         "specified-height ones (measured cost: -0.142 mean 3D IoU, 82%% of buildings "
                          "hurt). The artifact records which task it measured.")
     ap.add_argument("--plan", type=int, default=6,
                     help="buildings in the criterion-2 plan view, worst first (#85); 0 disables")
