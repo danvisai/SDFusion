@@ -31,6 +31,10 @@ class ExtractReq(BaseModel):
     image_b64: str
     meters_across: float = 200.0
     invert: bool = False
+    simplify_px: float = 1.0   # corner-preserving simplification tolerance, in source pixels.
+                                # The town editor opts in (footprint_image defaults to the older
+                                # fixed-16-point resample for inference_service.py's sake); 1.0 is
+                                # the measured pick -- see extract_footprints' docstring.
 
 
 class ExtractResp(BaseModel):
@@ -43,7 +47,7 @@ def extract(req: ExtractReq):
         raw = base64.b64decode(req.image_b64.split(",")[-1])
     except Exception as e:
         raise HTTPException(400, f"bad image_b64: {e}")
-    polys_px, hw = extract_footprints(raw, invert=req.invert)
+    polys_px, hw = extract_footprints(raw, invert=req.invert, simplify_px=req.simplify_px)
     scaled = to_meters(polys_px, hw, req.meters_across)
     footprints = [(local_poly + centroid).tolist() for local_poly, centroid in scaled]
     return ExtractResp(footprints=footprints)
