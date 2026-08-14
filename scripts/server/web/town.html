@@ -377,9 +377,35 @@ function reportVsInput(){
          + 'the envelope as-is.');
 }
 
+// Is the generator actually there? Asked on load and again before every run, because the failure it
+// catches is otherwise indistinguishable from slow generation: the town endpoint's first record is
+// ~10s away even when all is well, so a client that just starts waiting looks identical whether the
+// service is thinking or absent. Costs one cheap round-trip to say so plainly instead.
+async function generatorReachable(){
+  try{
+    const r=await fetch(`${svc(GEN_PORT)}/health`,{signal:AbortSignal.timeout(5000)});
+    return r.ok ? await r.json() : null;
+  }catch(e){ return null; }
+}
+
+function reportGeneratorDown(){
+  setInfo(`no generator on port ${GEN_PORT} — footprints and editing still work, but Generate Town `
+    + `has nothing to call.\nStart it with:  ./venv/bin/uvicorn scripts.server.town_generate_service:app --port ${GEN_PORT}`
+    + `\n(over SSH, tunnel that port too, or pass ?gen=<local-port>)`);
+}
+
+generatorReachable().then(h=>{
+  if(!h) reportGeneratorDown();
+  else if(!h.ok) setInfo(`generator is up but still loading its models — give it a few seconds`);
+});
+
 async function generateTown(){
   const pending=footprints.filter(fp=>!fp.group);   // unchanged buildings keep the mesh they have
   if(!pending.length){ setInfo('every footprint is already generated — edit one, or draw more'); return; }
+
+  const health=await generatorReachable();
+  if(!health){ reportGeneratorDown(); return; }
+  if(!health.ok){ setInfo('generator is still loading its models — try again in a few seconds'); return; }
 
   genAbort=new AbortController();
   setGenerating(true);
@@ -389,13 +415,25 @@ async function generateTown(){
   // `kept` is what the viewport actually shows, which is not the same as what the server generated:
   // a footprint edited or deleted mid-run has its result thrown away (see the stream loop below).
   let doneCount=0, kept=0, failed=0, discarded=0, framed=false, secsEach=SECS_PER_BUILDING;
+  let lastRec=performance.now();
   const tick=()=>{
     $('progBar').style.width=`${100*doneCount/pending.length}%`;
-    const left=Math.max(0,(pending.length-doneCount)*secsEach);
+    // count down within the building currently being generated, not just between arrivals
+    const inFlight=(performance.now()-lastRec)/1000;
+    const left=Math.max(0,(pending.length-doneCount)*secsEach-inFlight);
     setInfo(`generating ${Math.min(doneCount+1,pending.length)}/${pending.length} building(s) — `
       + `about ${left<90?Math.ceil(left)+'s':Math.ceil(left/60)+' min'} left`
       + (failed?` · ${failed} failed`:''));
   };
+  // A live clock also doubles as a watchdog: if the service dies mid-stream the connection just
+  // goes quiet, which without this looks exactly like a slow building.
+  const ticker=setInterval(()=>{
+    const silent=(performance.now()-lastRec)/1000;
+    if(silent>Math.max(60,secsEach*4)){
+      setInfo(`nothing from the generator for ${Math.round(silent)}s — it may have stopped.\n`
+        + `Cancel, and check the service on port ${GEN_PORT}.`);
+    }else tick();
+  },1000);
   tick();
 
   // The revision each footprint had when we asked for it. Anything edited after this point gets a
@@ -423,6 +461,7 @@ async function generateTown(){
         const line=buf.slice(0,nl).trim(); buf=buf.slice(nl+1);
         if(!line) continue;
         const rec=JSON.parse(line);
+        lastRec=performance.now();          // the stream is alive; reset the watchdog
         if(rec.index!=null){
           const fp=pending[rec.index];
           // Two ways a result can arrive for a footprint that no longer wants it: the user deleted
@@ -457,9 +496,14 @@ async function generateTown(){
     if(e.name==='AbortError'){
       setInfo(`cancelled — kept the ${kept} building(s) already generated`);
     }else{
-      setInfo('generation error: '+e.message
-        + ` (is town_generate_service.py running + tunneled on port ${GEN_PORT}?)`);
+      // Reaching here after a successful preflight means the service went away mid-run, so name
+      // that rather than repeating "is it running?" at someone who just watched it answer.
+      setInfo(`generation stopped after ${kept} building(s): ${e.message}`
+        + `\nThe generator on port ${GEN_PORT} answered when this started, so it likely died or was `
+        + `restarted. The buildings already generated are kept.`);
     }
+  }finally{
+    clearInterval(ticker);
   }
   genAbort=null;
   setGenerating(false);
