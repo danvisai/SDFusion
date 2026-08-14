@@ -60,6 +60,141 @@ def _stratified_rows(surf: dict, rows: list, n: int) -> list:
     return sorted(out)
 
 
+class IncrementalCache:
+    """Append rows to the output file as they are encoded, so a crash costs minutes, not hours.
+
+    The corpus encode is ~15 h on this box. Buffering it all in memory and writing once at the end
+    means any failure at hour 14 -- OOM, a driver reset, a power cut -- loses the whole run, and the
+    `[skip]` path makes a partial in-memory result unrecoverable anyway. Datasets are created with an
+    unbounded first axis and extended every `flush_every` rows; `--resume` reads back the rows already
+    present and encodes only the remainder.
+
+    ⚠️ Resume is safe **only because encoding is per-row reproducible** (`encode_row` reseeds from the
+    corpus row), so a row encoded in the second half of a resumed run is bit-identical to the one the
+    uninterrupted run would have written. That property is #88's, and this depends on it.
+    """
+
+    SPECS = {
+        "latent": (np.float16, "lzf"),
+        "query_pos": (np.float16, "lzf"),
+        "footprint": (np.uint8, "lzf"),
+        "height_m": (np.float32, None),
+        "region": (np.int32, None),
+        "row": (np.int32, None),
+        "held_out": (np.uint8, None),
+    }
+    SCHEMA_VERSION = 1
+
+    def __init__(self, path: str, resume: bool, flush_every: int = 200):
+        import h5py
+
+        self.path, self.flush_every = path, flush_every
+        self.buf: dict = {k: [] for k in self.SPECS}
+        self.done: set = set()
+        self.closed = False
+        self.flush_failed = False
+        mode = "a" if (resume and Path(path).exists()) else "w"
+        self.f = h5py.File(path, mode)
+        if mode == "w":
+            # `committed_rows` is advanced only after every column has reached disk. On resume it is
+            # therefore the last known-good boundary even if the process died halfway through a
+            # multi-column append.
+            self.f.attrs["incremental_schema"] = self.SCHEMA_VERSION
+            self.f.attrs["committed_rows"] = 0
+            self.f.flush()
+        else:
+            schema = int(self.f.attrs.get("incremental_schema", 0))
+            if schema != self.SCHEMA_VERSION:
+                self.f.close()
+                raise SystemExit(
+                    f"[precompute] cannot resume {path}: it is not an incremental cache (schema "
+                    f"{schema}, need {self.SCHEMA_VERSION}). Choose a new --out; an old fixed-size "
+                    "cache cannot be safely extended."
+                )
+            committed = int(self.f.attrs.get("committed_rows", 0))
+            present = [k for k in self.SPECS if k in self.f]
+            if present and len(present) != len(self.SPECS):
+                # A first append may have died while creating the datasets. Discard it back to the
+                # committed boundary; missing columns will be recreated by the next flush.
+                if committed:
+                    self.f.close()
+                    raise SystemExit(
+                        f"[precompute] cannot resume {path}: only {len(present)}/{len(self.SPECS)} "
+                        f"columns exist below a non-zero committed boundary ({committed} rows)"
+                    )
+                for k in present:
+                    self.f[k].resize(committed, axis=0)
+            elif present:
+                for k in self.SPECS:
+                    actual = self.f[k].shape[0]
+                    if actual < committed:
+                        self.f.close()
+                        raise SystemExit(
+                            f"[precompute] cannot resume {path}: {k} has {actual} rows, "
+                            f"below the committed boundary {committed}"
+                        )
+                    self.f[k].resize(committed, axis=0)
+            self.f.flush()
+            if "row" in self.f:
+                self.done = {int(r) for r in self.f["row"]}
+            print(f"[precompute] resuming: {len(self.done)} rows already in {path}")
+
+    def add(self, **cols) -> None:
+        for k, v in cols.items():
+            self.buf[k].append(v)
+        if len(self.buf["row"]) >= self.flush_every:
+            self.flush()
+
+    def flush(self) -> None:
+        n = len(self.buf["row"])
+        if not n:
+            return
+        arrays = {k: np.asarray(self.buf[k], dt) for k, (dt, _) in self.SPECS.items()}
+        if any(len(arr) != n for arr in arrays.values()):
+            self.flush_failed = True
+            raise ValueError("every cache column must receive exactly one value per row")
+
+        committed = int(self.f.attrs["committed_rows"])
+        try:
+            for k, (_, comp) in self.SPECS.items():
+                arr = arrays[k]
+                if k not in self.f:
+                    self.f.create_dataset(k, data=arr, maxshape=(None,) + arr.shape[1:],
+                                          compression=comp, chunks=True)
+                else:
+                    d = self.f[k]
+                    d.resize(committed + n, axis=0)
+                    d[committed:] = arr
+            self.f.flush()
+            self.f.attrs.modify("committed_rows", committed + n)
+            self.f.flush()
+        except BaseException:
+            # Keep the on-disk boundary honest even when the process survives a failed flush. A later
+            # `--resume` can restart from `committed`; this process must not retry on uneven columns.
+            self.flush_failed = True
+            for k in self.SPECS:
+                if k in self.f:
+                    self.f[k].resize(committed, axis=0)
+            self.f.flush()
+            raise
+
+        self.done.update(int(r) for r in arrays["row"])
+        for values in self.buf.values():
+            values.clear()
+
+    def close(self, attrs: dict | None = None) -> None:
+        if self.closed:
+            return
+        try:
+            if not self.flush_failed:
+                self.flush()
+            for k, v in (attrs or {}).items():
+                self.f.attrs[k] = v
+        finally:
+            self.f.close()
+            self.closed = True
+
+
 def encode_row(codec, building: Building, row: int):
     """Encode one building reproducibly -> (latent, query positions).
 
@@ -71,6 +206,35 @@ def encode_row(codec, building: Building, row: int):
     """
     codec.reseed(row)
     return codec.encode_with_positions(building)
+
+
+def _building_for_row(source_h5, surf: dict, row: int, blockout: bool) -> tuple[Building, str]:
+    """Reconstruct the exact encoder input for one corpus row."""
+    v, fc, src = surf[row]
+    if blockout:
+        # The same extrusion the generator is handed at inference -- encoding it here is what
+        # removes the train/inference distribution gap the diagnostic identified.
+        from scripts.foundations.eval_massing_arms import blockout_sdf
+
+        g = np.asarray(source_h5["sdf"][row], np.float32)
+        ys = np.nonzero((g <= 0).any(axis=(0, 2)))[0]
+        if len(ys) == 0:
+            raise ValueError("empty source SDF")
+        bo = blockout_sdf(np.asarray(source_h5["footprint"][row], np.uint8),
+                          int(ys.min()), int(ys.max()))
+        if bo is None:
+            raise ValueError("empty blockout")
+        bv, bf = mesh_sdf_surface(np.clip(bo, -TRUNC, TRUNC))
+        if bv is None:
+            raise ValueError("blockout has no surface")
+        return Building(verts=verts_to_world(bv), faces=bf), src
+
+    # The corpus is in Frame-N; everything else in this pipeline -- the blockout above,
+    # `grid_points`, `decode_grid`, the eval harness -- speaks the ARRAY frame. Encoding the corpus
+    # verts raw put every real latent in a frame x<->z-transposed from its own aligned blockout, so
+    # pair training learned "blockout -> transposed building" (#70).
+    av, af = to_array_frame(v, fc)
+    return Building(verts=av, faces=af), src
 
 
 def _pos_dist(a: np.ndarray, b: np.ndarray) -> float:
@@ -327,6 +491,9 @@ def main() -> None:
                     help="samples for the write-time frame guard; 0 disables it (don't)")
     ap.add_argument("--verify_tol", type=float, default=0.85,
                     help="minimum fp-IoU of a decoded latent against its own footprint")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue an interrupted run: keep the rows already in --out and encode "
+                         "only the rest (safe because encoding is per-row reproducible, #88)")
     ap.add_argument("--stratify", type=int, default=0,
                     help="build a sample of N rows, round-robin over sources, instead of a prefix "
                          "(a prefix is one country -- see _stratified_rows)")
@@ -363,85 +530,82 @@ def main() -> None:
     held = set(int(i) for i in test_indices(35776))
     print(f"[precompute] {len(rows)} buildings -> {args.out}")
 
-    lat, fps, hts, regs, keep, split, qpos = [], [], [], [], [], [], []
-    src_id = {"bag3d": 0, "nrw": 1, "plateau": 2}
-    # Rows to re-encode for the position guard, chosen up front and spread across the corpus. Their
-    # Buildings are kept so the guard re-encodes the same input, not a re-derived one; a chosen row
-    # that ends up skipped simply verifies one fewer.
+    # Verification samples span the whole requested output, not just the tail encoded after a
+    # resume. Otherwise a crash before the original guard ran would leave the already-committed
+    # prefix permanently unchecked.
     step = max(1, len(rows) // max(1, args.verify_pos))
     vrows = set(rows[::step][:args.verify_pos]) if args.verify_pos > 0 else set()
+    cache = IncrementalCache(args.out, args.resume)
+    written_rows = set(cache.done)
+    if cache.done:
+        rows = [r for r in rows if r not in cache.done]
+        print(f"[precompute] {len(rows)} rows left to encode")
+    src_id = {"bag3d": 0, "nrw": 1, "plateau": 2}
     vblds: dict = {}
     t0 = time.time()
-    with h5py.File(H5, "r") as f:
-        for n, r in enumerate(rows):
-            v, fc, src = surf[r]
-            try:
-                if args.blockout:
-                    # the same extrusion the generator is handed at inference -- encoding it here is
-                    # what removes the train/inference distribution gap the diagnostic identified
-                    from scripts.foundations.eval_massing_arms import blockout_sdf
-                    g = np.asarray(f["sdf"][r], np.float32)
-                    ys = np.nonzero((g <= 0).any(axis=(0, 2)))[0]
-                    if len(ys) == 0:
-                        continue
-                    bo = blockout_sdf(np.asarray(f["footprint"][r], np.uint8),
-                                      int(ys.min()), int(ys.max()))
-                    if bo is None:
-                        continue
-                    bv, bf = mesh_sdf_surface(np.clip(bo, -TRUNC, TRUNC))
-                    if bv is None:
-                        continue
-                    bld = Building(verts=verts_to_world(bv), faces=bf)
+    attrs = {"codec": codec.name, "n_coarse": args.n_coarse, "n_sharp": args.n_sharp}
+    try:
+        with h5py.File(H5, "r") as f:
+            for n, r in enumerate(rows):
+                try:
+                    bld, src = _building_for_row(f, surf, r, args.blockout)
                     z, pos = encode_row(codec, bld, r)
-                else:
-                    # The corpus is in Frame-N; everything else in this pipeline -- the blockout above,
-                    # `grid_points`, `decode_grid`, the eval harness -- speaks the ARRAY frame. Encoding
-                    # the corpus verts raw put every real latent in a frame x<->z-transposed from its own
-                    # aligned blockout, so pair training learned "blockout -> transposed building" (#70).
-                    av, af = to_array_frame(v, fc)
-                    bld = Building(verts=av, faces=af)
-                    z, pos = encode_row(codec, bld, r)
-            except Exception as e:
-                print(f"  [skip] row {r}: {type(e).__name__}"); continue
-            lat.append(z[0].cpu().numpy().astype(np.float16))   # fp16: 2048x64 per building
-            # positions live in [-1,1], where fp16 resolves ~1e-3 -- 30x finer than the 2/63 voxel
-            # pitch, so the storage is exact enough to match on and halves 875 MB -> 437 MB
-            qpos.append(pos.astype(np.float16))
-            if r in vrows:
-                vblds[r] = bld
-            fps.append(np.asarray(f["footprint"][r], np.uint8))
-            hts.append(float(f["height_m"][r]))
-            regs.append(src_id[src])
-            keep.append(r)
-            split.append(1 if r in held else 0)                 # 1 = held out, never trained on
-            if (n + 1) % 200 == 0:
-                el = time.time() - t0
-                print(f"  {n+1}/{len(rows)}  {el:.0f}s  eta {el/(n+1)*(len(rows)-n-1):.0f}s", flush=True)
-            if (n + 1) % 50 == 0 and torch.cuda.is_available():
-                # the blockout path's marching-cubes meshes vary far more in size than the tiny
-                # (median ~20-face) recovered corpus meshes, so the caching allocator's reserved
-                # pool keeps growing; on this unified-memory box that reserved-but-idle memory
-                # counts against system RAM, not a separate VRAM pool -- release it periodically
-                torch.cuda.empty_cache()
+                except Exception as e:
+                    print(f"  [skip] row {r}: {type(e).__name__}"); continue
+                if r in vrows:
+                    vblds[r] = bld
+                cache.add(
+                    latent=z[0].cpu().numpy().astype(np.float16),  # fp16: 2048x64 per building
+                    # positions live in [-1,1], where fp16 resolves ~1e-3 -- 30x finer than the 2/63
+                    # voxel pitch, so the storage is exact enough to match on and halves 875 MB -> 437 MB
+                    query_pos=pos.astype(np.float16),
+                    footprint=np.asarray(f["footprint"][r], np.uint8),
+                    height_m=float(f["height_m"][r]),
+                    region=src_id[src],
+                    row=r,
+                    held_out=1 if r in held else 0,             # 1 = held out, never trained on
+                )
+                written_rows.add(r)
+                if (n + 1) % 200 == 0:
+                    el = time.time() - t0
+                    eta = el / (n + 1) * (len(rows) - n - 1)
+                    print(f"  {n+1}/{len(rows)}  {el:.0f}s  eta {eta:.0f}s", flush=True)
+                if (n + 1) % 50 == 0 and torch.cuda.is_available():
+                    # The blockout path's marching-cubes meshes vary far more in size than the tiny
+                    # (median ~20-face) recovered corpus meshes, so the caching allocator's reserved
+                    # pool keeps growing; on this unified-memory box that reserved-but-idle memory
+                    # counts against system RAM, not a separate VRAM pool -- release it periodically.
+                    torch.cuda.empty_cache()
 
-    if not lat:
-        raise SystemExit("nothing encoded")
-    L = np.stack(lat)
-    P = np.stack(qpos)
-    verify_frame(codec, L, np.stack(fps), n=args.verify, tol=args.verify_tol)
-    verify_positions(codec, vblds, keep, P)
-    with h5py.File(args.out, "w") as o:
-        o.create_dataset("latent", data=L, compression="lzf")
-        o.create_dataset("query_pos", data=P, compression="lzf")
-        o.create_dataset("footprint", data=np.stack(fps), compression="lzf")
-        o.create_dataset("height_m", data=np.asarray(hts, np.float32))
-        o.create_dataset("region", data=np.asarray(regs, np.int32))
-        o.create_dataset("row", data=np.asarray(keep, np.int32))
-        o.create_dataset("held_out", data=np.asarray(split, np.uint8))
-        o.attrs["codec"] = codec.name
-        o.attrs["n_coarse"], o.attrs["n_sharp"] = args.n_coarse, args.n_sharp
-    print(f"[precompute] {len(L)} latents {L.shape} ({L.nbytes/1e6:.0f} MB fp16), "
-          f"{int(np.sum(split))} held out -> {args.out}  ({time.time()-t0:.0f}s)")
+            # On a resumed run the verification rows may all be in the committed prefix. Rebuild
+            # only those few encoder inputs so the final position guard covers that prefix too.
+            for r in sorted(vrows - set(vblds)):
+                if r not in written_rows:
+                    continue
+                try:
+                    vblds[r], _ = _building_for_row(f, surf, r, args.blockout)
+                except Exception as e:
+                    print(f"  [verify_pos skip] row {r}: {type(e).__name__}")
+    finally:
+        # KeyboardInterrupt, a driver error, or another unexpected failure still leaves every
+        # successfully encoded row committed and the HDF5 handle closed for `--resume`.
+        cache.close(attrs)
+
+    # The guards read the finished file, so they check what a consumer will actually get -- including
+    # anything a resumed segment wrote. They are the last word: a cache that fails them is not sound
+    # merely because it is complete.
+    with h5py.File(args.out, "r") as o:
+        if "latent" not in o or not len(o["latent"]):
+            raise SystemExit("nothing encoded")
+        L = o["latent"]
+        rows_out = [int(r) for r in o["row"]]
+        held_n = int(np.sum(np.asarray(o["held_out"])))
+        verify_frame(codec, L, o["footprint"], n=args.verify, tol=args.verify_tol)
+        verify_positions(codec, vblds, rows_out, o["query_pos"])
+        latent_shape = L.shape
+        latent_mb = L.size * L.dtype.itemsize / 1e6
+    print(f"[precompute] {latent_shape[0]} latents {latent_shape} ({latent_mb:.0f} MB fp16), "
+          f"{held_n} held out -> {args.out}  ({time.time()-t0:.0f}s)")
 
 
 if __name__ == "__main__":
