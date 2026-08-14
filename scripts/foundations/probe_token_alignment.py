@@ -25,6 +25,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from models.token_alignment import METHODS, align, report  # noqa: E402
+from utils.numeric_guard import check_numpy  # noqa: E402
 
 OUT = REPO / "execution/artifacts/token_alignment_probe.json"
 
@@ -54,7 +55,7 @@ def _rows(real: str, blockout: str, n: int):
 
 
 def _pair(a, b, i: int, j: int):
-    """One building's (za, zb, pa, pb), read fresh and kept in a short-lived frame (see RECOVERY.md)."""
+    """One building's (za, zb, pa, pb), read fresh from disk."""
     return (np.array(a["latent"][i], np.float32), np.array(b["latent"][j], np.float32),
             np.array(a["query_pos"][i], np.float32), np.array(b["query_pos"][j], np.float32))
 
@@ -116,6 +117,7 @@ def sweep_k(real: str, blockout: str, n: int, ks) -> dict:
 
 
 def main() -> None:
+    check_numpy()
     ap = argparse.ArgumentParser()
     ap.add_argument("--real", required=True)
     ap.add_argument("--blockout", required=True)

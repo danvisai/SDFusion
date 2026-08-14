@@ -29,6 +29,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from models.token_alignment import align  # noqa: E402
+from utils.numeric_guard import check_numpy  # noqa: E402
 
 #: what the lost run measured on the full corpus, kept beside the new numbers
 PUBLISHED = {"unaligned_pct_random": 99.7, "aligned_pct_random": 13.7,
@@ -148,6 +149,7 @@ def verify(aligned: str, real: str, blockout: str, n: int = 0) -> dict:
 
 
 def main() -> None:
+    check_numpy()
     ap = argparse.ArgumentParser()
     ap.add_argument("--real", required=True)
     ap.add_argument("--blockout", required=True)

@@ -31,6 +31,8 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.numeric_guard import check_numpy  # noqa: E402
+
 EVAL = REPO / "scripts/foundations/eval_massing_arms.py"
 OUTDIR = REPO / "outputs/watch_checkpoints"
 
@@ -109,6 +111,7 @@ def sweep(logdir: Path, pattern: str, n: int, strength: float, montage: int, pyt
 
 
 def main() -> None:
+    check_numpy()
     ap = argparse.ArgumentParser()
     ap.add_argument("--logdir", required=True)
     ap.add_argument("--pattern", default="*.pth")

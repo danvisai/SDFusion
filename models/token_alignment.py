@@ -136,9 +136,11 @@ def _hungarian(pa: np.ndarray, pb: np.ndarray) -> np.ndarray:
 def report(za, zb, pa: np.ndarray, pb: np.ndarray, perm: np.ndarray) -> dict:
     """Score a permutation: token cosine, how many pairs are real, and how far apart the rest are.
 
-    ⚠️ Reductions run in **torch**. Numpy results are not reliable in this process on this box -- see
-    `docs/wayfinding/latent-token-order/RECOVERY.md` -- and this function's output is the number the
-    method choice is made on.
+    Reductions run in **torch**. That began as a workaround for wrong numpy results (numpy 2.2.6 on
+    Python 3.14, since fixed -- see `utils/numeric_guard.py`) and is kept because it is the
+    independent second implementation the guards compare against: this function's output is the
+    number the method choice is made on, so it is worth computing it somewhere other than the code
+    being checked.
     """
     import torch
 

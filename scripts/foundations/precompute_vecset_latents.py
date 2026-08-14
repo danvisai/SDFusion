@@ -32,6 +32,7 @@ from scripts.foundations.vecset_ceiling_probe import TRUNC, verts_to_world  # no
 from scripts.foundations.dora_roundtrip_probe import load_dora, H5       # noqa: E402
 from scripts.foundations.dora_frozen_gate import load_surfaces           # noqa: E402
 from scene.surface_sampling import to_array_frame                        # noqa: E402
+from utils.numeric_guard import check_numpy  # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import test_indices        # noqa: E402
 
 OUT = REPO / "data/real_massing_v1/vecset_latents.h5"
@@ -182,9 +183,9 @@ def _unit(x: np.ndarray) -> np.ndarray:
 def _unit_t(dset_row):
     """Read one cached row and row-normalise it **in torch**.
 
-    ⚠️ The equivalent numpy expression is not trustworthy in this process -- see `_nearest`. Torch
-    and numpy disagree here on identical inputs (0.6011 vs 0.0045 on row 9 of the smoke pair), and
-    torch is the one that matches both a standalone numpy run and #90's published 0.7079 bound.
+    In torch because the numpy form was where the numpy-2.2.6-on-3.14 defect showed itself (0.6011
+    vs 0.0045 on row 9 of the smoke pair). The defect is fixed; this stays as the second
+    implementation `_verify_agrees` checks against, which is worth more than saving one conversion.
     """
     import torch
 
@@ -194,19 +195,14 @@ def _unit_t(dset_row):
 def _nearest(pa: np.ndarray, pb: np.ndarray) -> np.ndarray:
     """For each row of `pa`, the index of the nearest row of `pb`.
 
-    ⚠️ **A KD-tree, not the obvious `cdist().argmin()`, and that is not a performance preference.**
-    The brute-force form materialises a (2048, 2048, 3) float32 temporary, and in that allocation
-    sequence a live numpy array **gets corrupted on this box**: `za`, freshly allocated and owning
-    its data, is byte-identical to a re-read of its own source immediately after assignment and
-    differs from it by ~0.6 four statements later, with nothing touching it. It is deterministic,
-    and it silently turned matched-token agreement from **0.6660 into 0.0057** -- a real result into
-    a null one. Any instrumentation that adds an allocation makes it vanish, so it never survives
-    contact with a debugger. See `docs/wayfinding/latent-token-order/RECOVERY.md`.
+    A KD-tree rather than the obvious `cdist().argmin()`: it avoids a (2048, 2048, 3) float32
+    temporary, and it is faster.
 
-    Three independent implementations (two numpy, one KD-tree + torch) agree on 0.6660; the brute
-    force path in this process does not. Treat this as an environment defect that is **not** confined
-    to this function: anything on this box that builds a big temporary next to data it still needs is
-    exposed, which is why `_verify_agrees` below re-checks a sample through a second code path.
+    🔑 **This function used to carry a long warning about numpy corrupting live arrays. The cause is
+    now known and fixed: numpy 2.2.6 on Python 3.14, a pair numpy never supported** (3.14 support
+    landed in numpy 2.3). It silently turned matched-token agreement of 0.6660 into 0.0057. See
+    `utils/numeric_guard.py`, which refuses to start a long run on such a pair, and
+    `docs/wayfinding/latent-token-order/RECOVERY.md` for how it was found.
     """
     from scipy.spatial import cKDTree
     return cKDTree(np.asarray(pb, np.float64)).query(np.asarray(pa, np.float64))[1]
@@ -319,6 +315,7 @@ def measure_from_cache(real: str, blockout: str, n: int = 64, seed: int = 0) -> 
 
 
 def main() -> None:
+    check_numpy()
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="0 = whole corpus")
     ap.add_argument("--start", type=int, default=0,
