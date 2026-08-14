@@ -1,8 +1,16 @@
 # Recovery status of this effort — 2026-08-14
 
 Map [#87](https://github.com/danvisai/SDFusion/issues/87) ran five tickets to completion on a
-machine this repository has never seen. **None of that work exists here or on origin.** This file
-is the inventory: what was recovered, what has to be rebuilt, and what it costs.
+**cloud A100 instance that was lost before any of its commits were pushed.** None of that work
+exists here or on origin. This file is the inventory: what was recovered, what has to be rebuilt,
+and what it costs.
+
+The loss itself is not news — it was found on **2026-08-12**, and #88/#89/#90/#91/#95 were each
+reopened the same day with the same note: *"the written analysis and decisions above are intact and
+should be treated as the spec; the implementation, and #91's rebuilt caches specifically, need to
+be redone from scratch."* That is why the map's Decisions-so-far reads as five closed tickets while
+the tracker shows five open ones. What this file adds is the part that was never done: pulling the
+surviving record **into the repository**, and inventorying what re-landing it actually costs.
 
 ## What was established
 
@@ -60,6 +68,61 @@ building, which is the mechanism behind the run-to-run spread recorded on
 Whoever re-lands #88's capture path should fix these first — they are a correctness bug here
 regardless of what #87 decides.
 
+## Re-landed so far
+
+**[#88] the query-position capture path — done**, and it reproduces the lost implementation's own
+numbers on this box:
+
+| check | this box | the lost run |
+|---|---|---|
+| `verify_positions`: stored vs re-encoded · shuffled · another building | **0.0002 · 1.2493 · 1.2697** | 0.0002 · 1.0584 · 1.1148 |
+| token cosine, as-encoded (#90's control) | **0.0357** | 0.0405 |
+| token cosine, nn-matched bound | **0.6660** | 0.7079 |
+| frame guard, fp-IoU median | 0.9975 | — |
+
+Code: `DoraCodec.encode_with_positions` (patches `fps` inside the encoder's module, since it holds a
+direct reference), `ShapeCodec.reseed`, `encode_row` (per-row seeding), `verify_positions` (re-encodes
+rather than decoding, because #89's permutation-invariance makes the decode-based check blind to
+exactly what #90/#91 consume), `--from_cache`, and the `sample_uniform` rng fix with the CPU tests
+that bug never had. Positions are stored fp16 beside the latents. 18/18 sampler tests green.
+
+🔑 **The premise doc's metric is recovered too.** `docs/research/latent-token-order.md` is gone, and
+its figures (elementwise 1.093 · matched 0.037 · random 1.089) read as unreproducible on the latent
+scale — a *latent* distance of 0.037 would mean the blockout token equals the real token, which #90
+disproved. They were **query-position distances**: this box gives **1.0929 · 0.0383 · 1.0991**, the
+same measurement to four figures. The premise stands, and its numbers are quotable again.
+
+## ⚠️ Blocker found while doing it: numpy results are not trustworthy in-process on this box
+
+Re-landing #88 surfaced a defect that is **not** confined to this effort and that gates the Tier 3
+rebuild below.
+
+In `measure_from_cache`, a freshly allocated, owning numpy array (`za`) is **byte-identical** to a
+re-read of its own source immediately after assignment and **differs from it by ~0.6 four statements
+later**, with no code touching it. The effect is deterministic across runs, and it silently turned
+matched-token agreement from **0.6660 into 0.0057** — a real result into a null one, in the direction
+that would have made this map look dead.
+
+What is established:
+
+- Three independent implementations (two numpy, one KD-tree + torch) agree on **0.6660**; the
+  in-function numpy path returns 0.0057 every time.
+- It survives swapping brute-force `cdist().argmin()` for a KD-tree, forcing copies with
+  `np.array`, and shrinking every temporary — so it is not simply one oversized allocation.
+- **Torch is correct where numpy is not**, on identical inputs in the same process.
+- Any instrumentation that adds an allocation makes it vanish, which is why it never survives
+  contact with a debugger and why no standalone repro was extracted.
+
+Mitigation in place: the measurement runs in torch, array lifetimes are confined to one small frame,
+and `_verify_agrees` re-reads from disk and **aborts rather than reporting** if two paths disagree.
+An earlier version of that guard shared the caller's arrays, agreed with the corruption, and reported
+`0.0045 vs -0.0047` as consensus — a check that reuses the suspect object is not a check.
+
+⚠️ **Consequences to weigh before spending 11-15 h on a rebuild:** every cache on this disk was
+written by numpy-heavy code on this box, the eval harness is numpy-heavy, and this corruption is
+silent and direction-agnostic. It is worth deciding whether this box is fit for the rebuild at all
+before paying for one.
+
 ## Tier 3 — needs the other machine, or recompute
 
 | missing | size | rebuild cost (as measured on **that** box, an A100) |
@@ -70,8 +133,12 @@ regardless of what #87 decides.
 | fp16 query positions | 437 MB | folded into the encode |
 | | **~29 GB** | **11.3 h total** |
 
-This box is an AMD Radeon 8060S iGPU, not an A100, so 11.3 h is a floor, not an estimate. Copying
-the files off the original machine beats recomputing them if it is reachable at all.
+This box is an AMD Radeon 8060S iGPU, not an A100. Measured here on the re-landed path: **12
+buildings in 18 s** for the real surfaces and 19 s for the blockout, i.e. ~1.5 s/building against the
+A100's ~0.2 s — so the real cache alone extrapolates to **~15 h**, not 2.04 h, and the full rebuild
+to well over a day. The machine that made these caches is gone, so recompute is the only route, but
+it is a day of compute on a box whose numpy results currently need a second implementation to be
+believed.
 
 **#92 cannot start without these** — its whole design is that the two arms are the same numbers in
 a different order, out of one encode pass. Rebuilding only one arm reintroduces the confound the
@@ -79,10 +146,14 @@ map was chartered to remove.
 
 ## Recommended order
 
-1. Push `massing-solid-gate-retrain` (6 local commits ahead of origin) so this box stops being a
-   single point of failure the same way the other one was.
-2. Decide Tier 3: recover the 29 GB from the original machine, or budget the rebuild here.
-3. Re-land Tier 2 with the two RNG fixes, checked against the acceptance column above.
-4. Then #92.
+1. ~~Push the branch~~ — done; origin now has everything this box holds.
+2. ~~Re-land #88~~ — done, verified against the lost run's own numbers.
+3. **Settle the numpy corruption before buying a day of compute.** A rebuild is only worth starting
+   on hardware whose arithmetic can be trusted unattended; today it cannot be, and the failure is
+   silent. Cheapest discriminator: run the same smoke build and `--from_cache` on any other machine
+   and see whether the numpy path still disagrees with torch.
+4. Then the rest of Tier 2 (`models/token_alignment.py`, the two probes, `watch_checkpoints.py`),
+   each checkable against its acceptance figure.
+5. Then the Tier 3 rebuild, and only then #92.
 
-Steps 1 and 3 do not depend on step 2 and can proceed regardless.
+Step 4 does not depend on step 3 and can proceed in parallel.

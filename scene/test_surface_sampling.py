@@ -154,5 +154,42 @@ class TestDegenerateInput(unittest.TestCase):
         self.assertTrue(np.isfinite(c).all() and np.isfinite(s).all())
 
 
+class TestUniformStreamHonoursItsRng(unittest.TestCase):
+    """The coverage the #88 bug did not have: `rng` was accepted and ignored for a year.
+
+    The consequence was not a flaky test, it was a corpus -- the coarse stream is the bulk of what the
+    encoder reads, so every latent cached before the fix is a function of numpy's *global* state at
+    write time and cannot be reproduced from its own row.
+    """
+
+    def test_same_seed_gives_the_same_points(self):
+        a = sample_uniform(_box(), 256, np.random.default_rng(0))
+        b = sample_uniform(_box(), 256, np.random.default_rng(0))
+        np.testing.assert_allclose(a, b)
+
+    def test_different_seeds_give_different_points(self):
+        a = sample_uniform(_box(), 256, np.random.default_rng(0))
+        b = sample_uniform(_box(), 256, np.random.default_rng(1))
+        self.assertFalse(np.allclose(a, b), "the rng is being ignored again")
+
+    def test_a_shared_generator_advances_between_calls(self):
+        r = np.random.default_rng(0)
+        self.assertFalse(np.allclose(sample_uniform(_box(), 256, r), sample_uniform(_box(), 256, r)))
+
+    def test_global_numpy_state_cannot_perturb_the_draw(self):
+        np.random.seed(1234)
+        a = sample_uniform(_box(), 256, np.random.default_rng(0))
+        np.random.seed(4321)
+        _ = np.random.random(97)
+        b = sample_uniform(_box(), 256, np.random.default_rng(0))
+        np.testing.assert_allclose(a, b)
+
+    def test_streams_are_reproducible_end_to_end(self):
+        c1, s1 = sample_streams(_box(), 128, 64, np.random.default_rng(7))
+        c2, s2 = sample_streams(_box(), 128, 64, np.random.default_rng(7))
+        np.testing.assert_allclose(c1, c2)
+        np.testing.assert_allclose(s1, s2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

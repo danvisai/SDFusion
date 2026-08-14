@@ -27,6 +27,7 @@ same object: a dense-grid codec reads the field, a vecset codec reads points on 
 from __future__ import annotations
 
 import abc
+import contextlib
 from dataclasses import dataclass
 from typing import Optional
 
@@ -89,6 +90,17 @@ class ShapeCodec(abc.ABC):
     @abc.abstractmethod
     def query(self, latent: torch.Tensor, points: torch.Tensor) -> torch.Tensor:
         """(1, N, 3) points -> (1, N) signed distance, NEGATIVE INSIDE, Frame-N."""
+
+    def reseed(self, seed: int) -> "ShapeCodec":
+        """Reset the sampling stream to `seed`. Returns self, so it chains.
+
+        A codec that samples holds one generator for its whole life, so building `k`'s draw depends on
+        every building encoded before it -- which makes a cached latent unreproducible on its own and
+        desynchronises everything after a skipped row (#88). Reseeding per row costs nothing and makes
+        one building's encode a pure function of its own inputs.
+        """
+        self.rng = np.random.default_rng(seed)
+        return self
 
     def decode_grid(self, latent: torch.Tensor, res: int = 64) -> torch.Tensor:
         """-> (1, 1, res, res, res). Default implementation is `query` over the grid, so any codec
@@ -172,18 +184,66 @@ class DoraCodec(ShapeCodec):
         return self
 
     def encode(self, building: Building) -> torch.Tensor:
+        return self._encode(building, capture=False)[0]
+
+    def encode_with_positions(self, building: Building) -> tuple:
+        """-> (latent, positions (n_tokens, 3) float32): the query points the encoder throws away.
+
+        The encoder picks each token by farthest-point sampling over the surface draw and keeps only
+        the gathered features, discarding `idx` (`michelangelo_autoencoder.py:135`). Every alignment
+        method needs those points -- matching is a function of two position sets -- so they are
+        captured *during* the encode rather than reconstructed afterwards, which is not possible for
+        a cache written by a stateful sampler (#88).
+
+        Positions come back in the encoder's own concatenation order, coarse block then sharp block,
+        so `positions[i]` is the query point of `latent[0, i]`.
+        """
+        return self._encode(building, capture=True)
+
+    def _encode(self, building: Building, capture: bool) -> tuple:
         from scene.surface_sampling import sample_streams
         mesh = building.require_mesh()
         dev = next(self.model.parameters()).device
         coarse, sharp = sample_streams(mesh, self.n_coarse, self.n_sharp, self.rng)
-        with torch.no_grad():
+        ctx = self._record_query_positions() if capture else contextlib.nullcontext()
+        with torch.no_grad(), ctx as rec:
             _, kl, _ = self.model.encode(torch.from_numpy(coarse)[None].to(dev),
                                          torch.from_numpy(sharp)[None].to(dev),
                                          sample_posterior=False)
-        return kl
+        if not capture:
+            return kl, None
+        if len(rec) != 2:
+            raise RuntimeError(f"expected one FPS call per stream, saw {len(rec)} -- the encoder was "
+                               "built without use_downsample, or upstream changed")
+        pos = np.concatenate(rec, axis=0).astype(np.float32)
+        if pos.shape[0] != kl.shape[1]:
+            raise RuntimeError(f"captured {pos.shape[0]} positions for {kl.shape[1]} tokens")
+        return kl, pos
+
+    @staticmethod
+    @contextlib.contextmanager
+    def _record_query_positions():
+        """Yield a list that fills with the FPS-selected points, one entry per stream, in call order.
+
+        ⚠️ The patch target is the name **inside the encoder's module**, not `torch_cluster.fps`: that
+        module did `from torch_cluster import fps` at import, so it holds a direct reference and
+        patching the source module would be silently ignored.
+        """
+        import craftsman.models.autoencoders.michelangelo_autoencoder as enc
+        rec, orig = [], enc.fps
+
+        def spy(pos, batch, ratio, random_start=False):
+            idx = orig(pos, batch, ratio, random_start)
+            rec.append(pos[idx].detach().float().cpu().numpy())
+            return idx
+
+        enc.fps = spy
+        try:
+            yield rec
+        finally:
+            enc.fps = orig
 
     def query(self, latent: torch.Tensor, points: torch.Tensor) -> torch.Tensor:
-        import contextlib
         dev = next(self.model.parameters()).device
         ctx = contextlib.nullcontext() if self.differentiable else torch.no_grad()
         with ctx:
