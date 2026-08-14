@@ -60,7 +60,9 @@ def sculpt_page():
 @app.get("/town.html")
 def town_page():
     """Draw-a-town editor (map #97): footprint polygons -> A2-generated town. Standalone from
-    the index/sculpt demo; placeholder massing only until #99 wires in A2 generation."""
+    the index/sculpt demo, and served here only as a convenience -- the page calls
+    town_generate_service.py (and footprint_extract_service.py), not this service, and that one
+    serves the same page itself without booting this engine."""
     return FileResponse(WEB / "town.html", headers={"Cache-Control": "no-store"})
 
 

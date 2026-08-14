@@ -35,6 +35,14 @@
   #view { flex:1; position:relative; }
   #hint { position:absolute; bottom:10px; left:12px; color:#aab4c4; font-size:11px; text-shadow:0 1px 2px #000a; pointer-events:none; }
   .empty { color:var(--mut); font-size:12px; font-style:italic; padding:6px 0; }
+  #drop { border:2px dashed var(--line); border-radius:10px; padding:12px; text-align:center; color:var(--mut); cursor:pointer; background:var(--field); font-size:12px; }
+  #drop.hot { border-color:var(--acc); background:#0f1a2e; }
+  #imgPrev { width:100%; margin-top:8px; border-radius:6px; display:none; border:1px solid var(--line); }
+  #prog { display:none; margin-top:10px; height:6px; background:var(--field); border-radius:3px; overflow:hidden; border:1px solid var(--line); }
+  #progBar { height:100%; width:0%; background:var(--acc); transition:width .25s linear; }
+  .bldg .vsi { font-size:11px; font-variant-numeric:tabular-nums; color:var(--mut); flex:none; }
+  .bldg .vsi.moved { color:var(--acc); }
+  #vsNote { margin-top:10px; padding:8px 10px; background:var(--field); border:1px solid var(--line); border-radius:8px; font-size:11px; color:var(--mut); display:none; }
 </style>
 </head>
 <body>
@@ -45,6 +53,16 @@
   <div class="modes">
     <button id="modeDraw" class="active">✏️ Draw</button>
     <button id="modeView">🔭 View</button>
+  </div>
+
+  <h2>Import from image</h2>
+  <div class="card">
+    <div id="drop">Drop an OSM map / footprint image<br/><small>or click to choose</small><input type="file" id="imgFile" accept="image/*" style="display:none"/></div>
+    <img id="imgPrev"/>
+    <label>Image spans <span class="val" id="imgSpanV">200 m</span></label><input type="range" id="imgSpan" min="30" max="800" value="200" step="10"/>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="imgInvert" style="width:auto"/>Invert detection</label>
+    <div id="presets" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+    <button class="sec" id="importImg" disabled>Import footprints</button>
   </div>
 
   <h2>Town</h2>
@@ -61,9 +79,12 @@
     <div id="buildings"><div class="empty">no footprints yet — click "+ New building" then click in the viewport</div></div>
 
     <button id="genTown" disabled>Generate Town</button>
+    <div id="prog"><div id="progBar"></div></div>
+    <button class="sec" id="cancelGen" style="display:none">✕ Cancel</button>
     <button class="sec" id="clearTown">Clear town</button>
   </div>
 
+  <div id="vsNote"></div>
   <div id="info">draw a footprint to begin</div>
 </div>
 <div id="view"><div id="hint">draw: click to place points, click near the first point (or ✓ Close shape) to finish a footprint</div></div>
@@ -100,7 +121,7 @@ const lineMat=new THREE.LineBasicMaterial({color:0x5b9dff});
 const vertexMat=new THREE.MeshBasicMaterial({color:0xf0a526});
 const vertexGeo=new THREE.SphereGeometry(1.6,12,10);
 
-const town=new THREE.Group(); scene.add(town);       // finished placeholder massing
+const town=new THREE.Group(); scene.add(town);       // generated massing, one group per building
 const draft=new THREE.Group(); scene.add(draft);     // in-progress polyline + handles
 const handles=new THREE.Group(); scene.add(handles); // draggable vertex handles for finished footprints
 
@@ -211,49 +232,247 @@ function renderBuildingList(){
     const h=document.createElement('input'); h.type='number'; h.min='1'; h.placeholder=`${defaultHeight()} m`;
     h.value = fp.heightOverride ?? '';
     h.oninput=()=>{ fp.heightOverride = h.value ? +h.value : null; markStale(fp); };
+    const vsi=document.createElement('div'); vsi.className='vsi';
+    if(fp.genError){ vsi.textContent='✕'; vsi.title='generator refused this footprint: '+fp.genError; vsi.style.color='var(--danger)'; }
+    else if(fp.vsInput!=null){
+      vsi.textContent=fp.vsInput.toFixed(3);
+      vsi.title=`vs input ${fp.vsInput.toFixed(4)} — overlap with the footprint envelope A2 started from.`
+        + (fp.vsInput>=0.99 ? ' At this value A2 returned the envelope essentially unchanged.' : '');
+      vsi.classList.toggle('moved',fp.vsInput<0.99);
+    }
     const del=document.createElement('button'); del.className='del'; del.textContent='✕';
-    del.onclick=()=>{ footprints=footprints.filter(f=>f!==fp); if(fp.group) town.remove(fp.group); rebuildOutlinesAndHandles(); renderBuildingList(); $('genTown').disabled=!footprints.length; };
-    row.append(name,h,del); el.appendChild(row);
+    del.onclick=()=>{ footprints=footprints.filter(f=>f!==fp); if(fp.group) town.remove(fp.group); rebuildOutlinesAndHandles(); renderBuildingList(); reportVsInput(); $('genTown').disabled=!footprints.length; };
+    row.append(name,h,vsi,del); el.appendChild(row);
   });
 }
 $('dh').oninput=()=>{ $('dhv').textContent=$('dh').value+' m'; footprints.forEach(fp=>{ if(fp.heightOverride==null) markStale(fp); }); renderBuildingList(); };
 
-function markStale(fp){ if(fp.group){ town.remove(fp.group); fp.group=null; } }
+// An edited footprint's mesh no longer describes it — and neither does its vs_input, which scored
+// a generation that started from a blockout the user has since moved. Drop both together, and bump
+// `rev` so a generation already in flight for the OLD polygon can be recognised as stale when it
+// lands (see generateTown: the result arriving after an edit is the pre-edit building, not a newer one).
+function markStale(fp){
+  if(fp.group){ town.remove(fp.group); fp.group=null; }
+  fp.vsInput=null; fp.genError=null; fp.rev=(fp.rev||0)+1;
+  reportVsInput();
+}
 
-// ---------- placeholder massing: extrude the drawn polygon to its height ----------
-// This ticket does not wire in A2 — the extrusion stands in for the real generator so the
-// editor/viewport interaction can be judged before the model is in the loop (#99/#100).
-function buildPlaceholder(fp){
-  // Shape's local Y is negated Z: after rotateX(-90deg) below maps local (x,y,z)->(x,z,-y),
-  // this cancels back out to world (x, height, z) instead of a Z-mirrored building.
-  const shape=new THREE.Shape(fp.points.map(p=>new THREE.Vector2(p.x,-p.z)));
-  const height = fp.heightOverride ?? defaultHeight();
-  const geo=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,steps:1});
-  geo.rotateX(-Math.PI/2);
+// ---------- the two back-end services ----------
+// Deliberately two: footprint_extract_service.py is pure image processing (instant boot), while
+// town_generate_service.py loads A2 + the Dora codec. Splitting them keeps image import testable
+// without the model. Both ports are overridable from the URL (?extract=…&gen=…) because over an
+// SSH tunnel the local port often isn't the remote one.
+const q = new URLSearchParams(location.search);
+const EXTRACT_PORT = q.get('extract') || 8766;
+const GEN_PORT     = q.get('gen')     || 8767;
+const svc = port => `${location.protocol}//${location.hostname}:${port}`;
+// Measured on the AMD box (#99): ~9.8s/building, of which the Dora grid decode is ~6s and A2's
+// own 20 denoise steps ~3s. Only used to size the ETA before any building has come back; the
+// estimate switches to observed timings as soon as the first one does.
+const SECS_PER_BUILDING = 10;
+
+let imgData=null;
+// One path for "an image became the current import source", whichever way it arrived — file
+// picker, drag-drop, or a preset button.
+function useImage(blob,note){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    imgData=rd.result;
+    $('imgPrev').src=imgData; $('imgPrev').style.display='block';
+    $('importImg').disabled=false;
+    setInfo(note);
+  };
+  rd.readAsDataURL(blob);
+}
+const loadImg=f=>useImage(f,'image loaded — click Import footprints');
+$('imgFile').onchange=e=>{ if(e.target.files[0]) loadImg(e.target.files[0]); };
+const dropEl=$('drop');
+dropEl.onclick=()=>$('imgFile').click();
+dropEl.ondragover=e=>{ e.preventDefault(); dropEl.classList.add('hot'); };
+dropEl.ondragleave=()=>dropEl.classList.remove('hot');
+dropEl.ondrop=e=>{ e.preventDefault(); dropEl.classList.remove('hot'); if(e.dataTransfer.files[0]) loadImg(e.dataTransfer.files[0]); };
+$('imgSpan').oninput=()=>{ $('imgSpanV').textContent=$('imgSpan').value+' m'; };
+
+async function importFromImage(){
+  if(!imgData) return;
+  const bt=$('importImg'); bt.disabled=true; setInfo('detecting footprints…');
+  try{
+    const r=await fetch(`${svc(EXTRACT_PORT)}/extract_footprints`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image_b64:imgData, meters_across:+$('imgSpan').value, invert:$('imgInvert').checked})});
+    if(!r.ok) throw new Error((await r.text()).slice(0,200));
+    const {footprints:extracted}=await r.json();
+    extracted.forEach(poly=>{
+      footprints.push({id:nextId++, points:poly.map(([x,z])=>({x,z})), heightOverride:null, group:null});
+    });
+    rebuildOutlinesAndHandles();
+    renderBuildingList();
+    $('genTown').disabled=!footprints.length;
+    setInfo(`imported ${extracted.length} footprint(s) from image — edit vertices/heights, then Generate Town`);
+  }catch(e){
+    setInfo('import error: '+e.message+` (is footprint_extract_service.py running + tunneled on port ${EXTRACT_PORT}?)`);
+  }
+  bt.disabled=false;
+}
+$('importImg').onclick=importFromImage;
+
+// existing demo presets (web/samples/) — same images the old index.html offers, one click,
+// no local file needed (useful over an SSH tunnel without a second file to hand)
+fetch('/samples/samples.json').then(r=>r.json()).then(list=>{
+  list.forEach(s=>{
+    const b=document.createElement('button'); b.className='sec sm'; b.style='flex:0 0 auto'; b.textContent=s.label;
+    b.onclick=async()=>{
+      const blob=await(await fetch('/samples/'+s.file)).blob();
+      // the preset knows its own real-world scale, so set the span before handing the image over
+      $('imgSpan').value=Math.round(s.meters_across); $('imgSpanV').textContent=Math.round(s.meters_across)+' m';
+      useImage(blob,`${s.label} loaded — click Import footprints`);
+    };
+    $('presets').appendChild(b);
+  });
+}).catch(()=>{});
+
+// ---------- generation: A2 massing, streamed one building at a time ----------
+// The server returns world-metre vertices already positioned at the drawn footprint, so nothing
+// here re-places the mesh — a client-side transform would be a second frame convention to get
+// wrong, and this demo has already paid for one of those (#98's mirrored extrusion).
+function buildMesh(rec){
+  const geo=new THREE.BufferGeometry();
+  const v=new Float32Array(rec.vertices.length*3);
+  rec.vertices.forEach((p,i)=>{ v[i*3]=p[0]; v[i*3+1]=p[1]; v[i*3+2]=p[2]; });
+  const f=new Uint32Array(rec.faces.length*3);
+  rec.faces.forEach((t,i)=>{ f[i*3]=t[0]; f[i*3+1]=t[1]; f[i*3+2]=t[2]; });
+  geo.setAttribute('position',new THREE.BufferAttribute(v,3));
+  geo.setIndex(new THREE.BufferAttribute(f,1));
+  geo.computeVertexNormals();
   const mesh=new THREE.Mesh(geo,buildingMat);
   mesh.castShadow=mesh.receiveShadow=true;
   const g=new THREE.Group(); g.add(mesh);
   return g;
 }
 
-function generateTown(){
-  if(!footprints.length) return;
-  footprints.forEach(fp=>{
-    if(fp.group) return; // unchanged since last generate
-    fp.group=buildPlaceholder(fp);
-    town.add(fp.group);
-  });
-  frameTown();
-  setMode('view');
-  setInfo(`town: ${footprints.length} building(s) · placeholder massing (A2 wiring is #99/#100)`);
+let genAbort=null;
+function setGenerating(on){
+  $('genTown').disabled = on || !footprints.length;
+  $('cancelGen').style.display = on ? 'block' : 'none';
+  $('prog').style.display = on ? 'block' : 'none';
+  if(!on) $('progBar').style.width='0%';
+}
+
+// A2 is a *projection*: it starts from the deterministic footprint envelope (CONTEXT.md's term for
+// the extruded starting solid) and edits it. vs_input is that edit's size — 1.000 means the massing
+// on screen is the envelope, unchanged, and the
+// learned step contributed nothing. Map #97 requires this be shown rather than quietly absorbed,
+// so it goes both per-building in the list and as a plain-language summary.
+function reportVsInput(){
+  const scored=footprints.filter(fp=>fp.vsInput!=null);
+  const el=$('vsNote');
+  if(!scored.length){ el.style.display='none'; return; }
+  const mean=scored.reduce((a,fp)=>a+fp.vsInput,0)/scored.length;
+  const moved=scored.filter(fp=>fp.vsInput<0.99).length;
+  el.style.display='block';
+  el.innerHTML = `<b>vs&nbsp;input ${mean.toFixed(3)}</b> mean over ${scored.length} building(s) — `
+    + (moved===0
+       ? 'A2 returned the footprint envelope essentially unchanged. What you are looking at is the '
+         + 'deterministic massing, not a learned edit.'
+       : `${moved} of ${scored.length} were edited by more than 1% of their volume; the rest are `
+         + 'the envelope as-is.');
+}
+
+async function generateTown(){
+  const pending=footprints.filter(fp=>!fp.group);   // unchanged buildings keep the mesh they have
+  if(!pending.length){ setInfo('every footprint is already generated — edit one, or draw more'); return; }
+
+  genAbort=new AbortController();
+  setGenerating(true);
+  const t0=performance.now();
+  // Stay in Draw until there is something to look at: flipping to an empty orbit view for the
+  // first ~10s reads as a broken demo. The first finished building brings the camera over.
+  // `kept` is what the viewport actually shows, which is not the same as what the server generated:
+  // a footprint edited or deleted mid-run has its result thrown away (see the stream loop below).
+  let doneCount=0, kept=0, failed=0, discarded=0, framed=false, secsEach=SECS_PER_BUILDING;
+  const tick=()=>{
+    $('progBar').style.width=`${100*doneCount/pending.length}%`;
+    const left=Math.max(0,(pending.length-doneCount)*secsEach);
+    setInfo(`generating ${Math.min(doneCount+1,pending.length)}/${pending.length} building(s) — `
+      + `about ${left<90?Math.ceil(left)+'s':Math.ceil(left/60)+' min'} left`
+      + (failed?` · ${failed} failed`:''));
+  };
+  tick();
+
+  // The revision each footprint had when we asked for it. Anything edited after this point gets a
+  // different rev, and its in-flight result is discarded rather than shown.
+  const sentRev=pending.map(fp=>fp.rev||0);
+
+  try{
+    const r=await fetch(`${svc(GEN_PORT)}/generate_town`,{
+      method:'POST', headers:{'Content-Type':'application/json'}, signal:genAbort.signal,
+      body:JSON.stringify({
+        buildings:pending.map(fp=>({points:fp.points.map(p=>[p.x,p.z]), height:fp.heightOverride})),
+        default_height:defaultHeight(), seed:0})});
+    if(!r.ok) throw new Error((await r.text()).slice(0,200));
+
+    // NDJSON: each building appears as it finishes, so a 29-building town builds up in front of
+    // the user instead of hiding behind one five-minute request.
+    const reader=r.body.getReader(), dec=new TextDecoder();
+    let buf='';
+    for(;;){
+      const {value,done}=await reader.read();
+      if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      let nl;
+      while((nl=buf.indexOf('\n'))>=0){
+        const line=buf.slice(0,nl).trim(); buf=buf.slice(nl+1);
+        if(!line) continue;
+        const rec=JSON.parse(line);
+        if(rec.index!=null){
+          const fp=pending[rec.index];
+          // Two ways a result can arrive for a footprint that no longer wants it: the user deleted
+          // it, or edited it while it was generating. In both cases the record describes a polygon
+          // that is gone — showing it would put old massing (and an old vs_input, scored against a
+          // blockout that no longer exists) under a shape the user has since changed.
+          if(!footprints.includes(fp) || (fp.rev||0)!==sentRev[rec.index]){ discarded++; doneCount++; tick(); continue; }
+        }
+        if(rec.kind==='building'){
+          const fp=pending[rec.index];
+          fp.group=buildMesh(rec); fp.vsInput=rec.vs_input; fp.genError=null;
+          town.add(fp.group);
+          kept++; doneCount++;
+          secsEach=(secsEach*(doneCount-1)+rec.gen_seconds)/doneCount;   // trust measurement over the constant
+          if(!framed){ framed=true; frameTown(); setMode('view'); }
+          renderBuildingList(); reportVsInput(); tick();
+        }else if(rec.kind==='error'){
+          failed++; doneCount++;
+          console.warn('building',rec.index,'failed:',rec.detail);
+          pending[rec.index].genError=rec.detail;
+          renderBuildingList(); tick();
+        }else if(rec.kind==='done'){
+          frameTown();
+          const secs=(performance.now()-t0)/1000;
+          setInfo(`town: ${kept} building(s) generated in ${secs<90?secs.toFixed(0)+'s':(secs/60).toFixed(1)+' min'}`
+            + (rec.failed?` · ${rec.failed} footprint(s) the generator refused (see the list)`:'')
+            + (discarded?` · ${discarded} discarded (edited while generating — hit Generate Town again)`:''));
+        }
+      }
+    }
+  }catch(e){
+    if(e.name==='AbortError'){
+      setInfo(`cancelled — kept the ${kept} building(s) already generated`);
+    }else{
+      setInfo('generation error: '+e.message
+        + ` (is town_generate_service.py running + tunneled on port ${GEN_PORT}?)`);
+    }
+  }
+  genAbort=null;
+  setGenerating(false);
 }
 $('genTown').onclick=generateTown;
+$('cancelGen').onclick=()=>{ if(genAbort){ genAbort.abort(); setInfo('cancelling…'); } };
 
 function clearTown(){
+  if(genAbort) genAbort.abort();
   footprints.forEach(fp=>fp.group&&town.remove(fp.group));
   footprints=[]; drawing=false; activePoints=[];
   draft.clear(); handles.clear();
-  renderBuildingList();
+  renderBuildingList(); reportVsInput();
   $('genTown').disabled=true; $('closeB').disabled=true; $('undoV').disabled=true;
   setInfo('draw a footprint to begin');
 }
@@ -271,6 +490,9 @@ function frameTown(){
 // ---------- Draw / View mode toggle ----------
 function setMode(m){
   mode=m; cam = m==='draw' ? drawCam : viewCam; orbit.enabled = m==='view';
+  // The editing furniture is for the plan view only: left on, the vertex handles hover around
+  // every building's base in the 3D view and read as part of the massing.
+  handles.visible = draft.visible = (m==='draw');
   $('modeDraw').classList.toggle('active',m==='draw');
   $('modeView').classList.toggle('active',m==='view');
   $('hint').textContent = m==='draw'
