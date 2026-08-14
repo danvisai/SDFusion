@@ -1,0 +1,58 @@
+{
+  "real": "/tmp/claude-1002/-home-dsimhadr-projects-SDFusion/56f16c9b-f658-45b3-a401-cad560b131a7/scratchpad/probe_real.h5",
+  "blockout": "/tmp/claude-1002/-home-dsimhadr-projects-SDFusion/56f16c9b-f658-45b3-a401-cad560b131a7/scratchpad/probe_block.h5",
+  "n": 102,
+  "k": 256,
+  "region_mix": {
+    "0": 34,
+    "1": 34,
+    "2": 34
+  },
+  "methods": {
+    "as_encoded": {
+      "cosine": 0.050496903686400724,
+      "cosine_std": 0.02430236677330279,
+      "matched_frac": 0.0006654028799019608,
+      "dist_matched": 0.021850372336699928,
+      "dist_unmatched": 1.1864182247835047,
+      "seconds_per_building": 1.3666994431439567e-05,
+      "published": 0.0405
+    },
+    "morton": {
+      "cosine": 0.2097433277351015,
+      "cosine_std": 0.08525045962554194,
+      "matched_frac": 0.007635378370098039,
+      "dist_matched": 0.021954093328011886,
+      "dist_unmatched": 0.522203217534458,
+      "seconds_per_building": 0.00039220323749617034,
+      "published": 0.2112
+    },
+    "greedy": {
+      "cosine": 0.5553304234556123,
+      "cosine_std": 0.07986682958777702,
+      "matched_frac": 0.35317574295343135,
+      "dist_matched": 0.020146727068897557,
+      "dist_unmatched": 0.27532120881711736,
+      "seconds_per_building": 0.10470582223406025,
+      "published": 0.5387
+    },
+    "hungarian": {
+      "cosine": 0.47473504262812,
+      "cosine_std": 0.09756245655498938,
+      "matched_frac": 0.0540316712622549,
+      "dist_matched": 0.022321393238563164,
+      "dist_unmatched": 0.1616741242069824,
+      "seconds_per_building": 0.6193298311794505,
+      "published": 0.5106
+    },
+    "nn": {
+      "cosine": 0.6979966590217516,
+      "cosine_std": 0.07426593441637305,
+      "matched_frac": 0.5591442631740197,
+      "dist_matched": 0.021290150069284672,
+      "dist_unmatched": 0.05904348720522488,
+      "seconds_per_building": 0.0011565381405400294,
+      "published": 0.7079
+    }
+  }
+}

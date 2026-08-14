@@ -37,6 +37,28 @@ from scripts.foundations.vecset_ceiling_probe import test_indices        # noqa:
 OUT = REPO / "data/real_massing_v1/vecset_latents.h5"
 
 
+def _stratified_rows(surf: dict, rows: list, n: int) -> list:
+    """`n` rows, round-robin over the three source corpora.
+
+    ⚠️ **Ascending row order tracks the SOURCE CORPUS**, so a plain prefix is one country. That trap
+    voided three headline figures once (the pinned 48 were 100% Dutch) and #95 walked into it a second
+    time by re-deriving its own sample. A cache built for a probe therefore stratifies at build time,
+    so no downstream reader has to remember to.
+    """
+    by_src: dict = {}
+    for r in rows:
+        by_src.setdefault(surf[r][2], []).append(r)
+    order = sorted(by_src)
+    out: list = []
+    for k in range(max(len(v) for v in by_src.values())):
+        for s in order:
+            if k < len(by_src[s]) and len(out) < n:
+                out.append(by_src[s][k])
+        if len(out) >= n:
+            break
+    return sorted(out)
+
+
 def encode_row(codec, building: Building, row: int):
     """Encode one building reproducibly -> (latent, query positions).
 
@@ -308,6 +330,9 @@ def main() -> None:
                     help="samples for the write-time frame guard; 0 disables it (don't)")
     ap.add_argument("--verify_tol", type=float, default=0.85,
                     help="minimum fp-IoU of a decoded latent against its own footprint")
+    ap.add_argument("--stratify", type=int, default=0,
+                    help="build a sample of N rows, round-robin over sources, instead of a prefix "
+                         "(a prefix is one country -- see _stratified_rows)")
     ap.add_argument("--verify_pos", type=int, default=4,
                     help="rows to RE-ENCODE to prove the stored query positions are the encoder's own "
                          "(0 disables); a decode-based check cannot see a token permutation")
@@ -330,10 +355,14 @@ def main() -> None:
 
     surf = load_surfaces()
     rows = sorted(surf)
-    if args.start:
-        rows = rows[args.start:]
-    if args.limit:
-        rows = rows[:args.limit]
+    if args.stratify:
+        rows = _stratified_rows(surf, rows, args.stratify)
+        print(f"[precompute] stratified sample: {args.stratify} rows, round-robin over sources")
+    else:
+        if args.start:
+            rows = rows[args.start:]
+        if args.limit:
+            rows = rows[:args.limit]
     held = set(int(i) for i in test_indices(35776))
     print(f"[precompute] {len(rows)} buildings -> {args.out}")
 

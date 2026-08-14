@@ -40,7 +40,7 @@ number, table, correction and trap the effort produced.
 **What this is not:** the record, not the implementation. Reading it tells you greedy matching at
 k=256 scored 0.5387 and why Hungarian lost; it does not give you the matcher.
 
-## Tier 2 — reconstructible from the record (not yet done)
+## Tier 2 — reconstructible from the record (**done**; table kept as the acceptance record)
 
 Named in the resolution comments, missing here, re-implementable against the numbers the tickets
 pinned (each has a stated acceptance figure, so a reimplementation is *checkable*, not guesswork):
@@ -91,6 +91,70 @@ its figures (elementwise 1.093 · matched 0.037 · random 1.089) read as unrepro
 scale — a *latent* distance of 0.037 would mean the blockout token equals the real token, which #90
 disproved. They were **query-position distances**: this box gives **1.0929 · 0.0383 · 1.0991**, the
 same measurement to four figures. The premise stands, and its numbers are quotable again.
+
+**[#90] the alignment choice — re-landed and re-measured**, `models/token_alignment.py` +
+`scripts/foundations/probe_token_alignment.py`, on 102 buildings with a **34/34/34** region mix:
+
+| method | here | lost run | matched pairs | d(matched) | d(rest) | s/building |
+|---|---|---|---|---|---|---|
+| as encoded | 0.0505 | 0.0405 | 0.1% | 0.0219 | 1.1864 | 0.00 |
+| morton | 0.2097 | 0.2112 | 0.8% | 0.0220 | 0.5222 | 0.00 |
+| **greedy** | **0.5553** | 0.5387 | **35.3%** | 0.0201 | 0.2753 | 0.10 |
+| hungarian | 0.4747 | 0.5106 | 5.4% | 0.0223 | 0.1617 | 0.62 |
+| nn (bound) | 0.6980 | 0.7079 | 55.9% | 0.0213 | 0.0590 | 0.00 |
+
+🔑 **#90's central finding reproduces.** Hungarian wins the proxy and loses the objective: its
+unmatched pairs sit at 0.1617 against greedy's 0.2753 — a lower total distance — while its token
+agreement is 0.4747 against greedy's 0.5553, and it finds real correspondences for 5.4% of tokens
+against greedy's 35.3%. Optimising the sum spends good pairs to rescue hopeless ones. The k sweep
+puts the knee where the lost run did: 16 → 0.5116 · 64 → 0.5418 · **256 → 0.5553** · 2048 → 0.5590,
+so the last 8× of k buys 0.004. **Greedy at k=256 stands.**
+
+**[#91] the alignment pass — re-landed**, `scripts/foundations/align_cache.py`. On the same 102
+buildings, deriving the aligned cache by permutation with no second encode: query-position distance
+**1.1857 → 0.1874** against an nn floor of 0.0393, i.e. **12.9% of the way to a random pairing**
+(lost run: 13.7%). Guards: 102/102 rows are token-wise permutations of their source, 102/102 are
+actually reordered, and stored positions follow the applied permutation exactly (0.0000).
+`--verify_only` re-checks from disk in seconds.
+
+⚠️ **The guards were tested by making them fail**, because this ticket's first version of them
+proved nothing. A cache that is a copy is rejected with *"nothing was reordered"*; a cache whose
+latents were reordered but whose positions were not is rejected with *"stored positions do not match
+the applied permutation"*. The permutation check compares **token vectors**, not scalars — sorting
+131,072 scalars passes for any per-column shuffle, which is what review caught the first time.
+
+**[#95] inference token order — re-landed and re-measured**, `scripts/foundations/probe_token_order.py`
+on the shipped `v4_surf@240k` control, 8 buildings, 5 orderings each:
+
+- **The symmetry holds:** permuting tokens *and* noise moves the decoded field by **4.82e-04** (lost
+  run 7.36e-04); permuting tokens *alone* moves it by **2.02** (lost run 2.03), the full ±1 range.
+  Order at inference is a different *sample*, not a broken symmetry.
+- **Spread:** range median **0.0224** (lost run 0.0208), **6 of 8** buildings move < 0.05, **1 in 8**
+  moves > 0.20 — the same 12.5% as the lost run's 3 of 24.
+- 🔑 **The order-triggerable collapse reproduces.** Building 11232 scores 0.848 / **0.059** / 0.848 /
+  0.738 / 0.844 across five orderings of the same envelope — one ordering collapses it, exactly as
+  the lost run's row 23903 did (0.969/0.944/0.974/**0.436**/0.973).
+- ⚠️ **Morton at inference: +0.016 here, −0.0150 there.** The sign flips, which independently
+  confirms the lost run's own note that its Morton sign moved when the sampling was fixed. Both
+  magnitudes sit inside a per-building spread whose median is 0.022, so a canonical order at
+  inference remains a non-tie-breaker rather than a small win.
+- ⚠️ My SE estimate scaled to 714 is **0.00385** against the lost run's 0.00132. At n=8 with one
+  outlier this estimate is not well founded; the n=24 figure is the better one. Do not quote mine.
+
+**[#91] `watch_checkpoints.py` — re-landed**, driving `eval_massing_arms.py` so the id set, the
+per-building seeding and `vs_input` all come from the tested harness rather than a second copy of the
+generation path. Smoke-run over the three `vecset_v5_surfband` checkpoints, pinning the id set from
+the first:
+
+| step | fp-IoU | 3D IoU | `vs_input` |
+|---|---|---|---|
+| 220000 | 0.861 | **0.095** | 0.105 |
+| 230000 | 0.939 | **0.797** | 0.951 |
+| 240000 | 0.963 | 0.785 | 0.977 |
+
+🔑 That first-to-second jump — 3D IoU **0.095 → 0.797** between adjacent checkpoints — is this map's
+standing trap firing on live data: **never extrapolate this training curve.** A stop recommended at
+step 220000 would have been wrong. The tool demonstrates its own reason to exist.
 
 ## ⚠️ Blocker found while doing it: numpy results are not trustworthy in-process on this box
 
@@ -148,12 +212,23 @@ map was chartered to remove.
 
 1. ~~Push the branch~~ — done; origin now has everything this box holds.
 2. ~~Re-land #88~~ — done, verified against the lost run's own numbers.
-3. **Settle the numpy corruption before buying a day of compute.** A rebuild is only worth starting
+3. ~~Re-land #90, #91 and #95, and `watch_checkpoints.py`~~ — done, each re-measured against its
+   published figure. **Tier 2 is closed.** Every method decision the map made survives
+   re-measurement on this box; no conclusion changed.
+4. **Settle the numpy corruption before buying a day of compute.** A rebuild is only worth starting
    on hardware whose arithmetic can be trusted unattended; today it cannot be, and the failure is
    silent. Cheapest discriminator: run the same smoke build and `--from_cache` on any other machine
    and see whether the numpy path still disagrees with torch.
-4. Then the rest of Tier 2 (`models/token_alignment.py`, the two probes, `watch_checkpoints.py`),
-   each checkable against its acceptance figure.
-5. Then the Tier 3 rebuild, and only then #92.
+5. Then the Tier 3 rebuild at corpus scale, and only then #92.
 
-Step 4 does not depend on step 3 and can proceed in parallel.
+**Revised rebuild estimate**, now that both halves have been measured here rather than extrapolated:
+
+| pass | lost run (A100) | measured here | note |
+|---|---|---|---|
+| encode real | 2.04 h | **~15 h** | 12 buildings in 18 s; ~7× slower, GPU-bound |
+| encode envelope | 3.04 h | **~16 h** | 12 in 19 s, plus EDT and marching cubes |
+| alignment | 5.68 h | **~1.1 h** | 102 rows in 11 s; ~5× *faster*, CPU-bound KD-tree |
+| | **11.3 h** | **~32 h** | |
+
+The matching pass is no longer the expensive half — the two encodes are, and they are the part this
+box is worst at. Anything that avoids re-encoding is worth more here than it was there.

@@ -1,0 +1,38 @@
+[
+  {
+    "checkpoint": "vecset_v5_surfband_step220000.pth",
+    "step": 220000,
+    "n": 6,
+    "fp_iou": 0.8611055595833661,
+    "vol_iou": 0.09474054760326378,
+    "missing": 0.8904032919168933,
+    "extra": 0.08470530847636684,
+    "vs_input": 0.1051889464328496,
+    "artifact": "execution/artifacts/massing_arms_eval_watch_vecset_v5_surfband_step220000.json",
+    "montage": "outputs/massing_arms_eval/montage_watch_vecset_v5_surfband_step220000.png"
+  },
+  {
+    "checkpoint": "vecset_v5_surfband_step230000.pth",
+    "step": 230000,
+    "n": 6,
+    "fp_iou": 0.9394825716902032,
+    "vol_iou": 0.797342208961733,
+    "missing": 0.01250165749162681,
+    "extra": 0.13178994110107423,
+    "vs_input": 0.9511000114696768,
+    "artifact": "execution/artifacts/massing_arms_eval_watch_vecset_v5_surfband_step230000.json",
+    "montage": "outputs/massing_arms_eval/montage_watch_vecset_v5_surfband_step230000.png"
+  },
+  {
+    "checkpoint": "vecset_v5_surfband_step240000.pth",
+    "step": 240000,
+    "n": 6,
+    "fp_iou": 0.9625313534560122,
+    "vol_iou": 0.7853917709396375,
+    "missing": 0.011900701876737148,
+    "extra": 0.09237539268418195,
+    "vs_input": 0.9773138784762109,
+    "artifact": "execution/artifacts/massing_arms_eval_watch_vecset_v5_surfband_step240000.json",
+    "montage": "outputs/massing_arms_eval/montage_watch_vecset_v5_surfband_step240000.png"
+  }
+]
