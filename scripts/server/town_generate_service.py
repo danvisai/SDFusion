@@ -72,9 +72,17 @@ SPACING = 2.0 / (RES - 1)
 # A drifted copy would rescale every generated building by a few percent against the frame the model
 # was trained in, and would present as a model problem rather than as the transcription error it is.
 MARGIN = inspect.signature(building_to_sdf).parameters["margin"].default
-# Measured on the AMD box (#99): ~9.8s/building warm, of which the Dora grid decode is ~5.9s and A2's
-# own 20 denoise steps ~3.1s. Generation is per-building, so a town costs this times N.
-SECS_PER_BUILDING = 10
+# Measured on the AMD box (#99, re-measured after #101's decode-chunk change): ~7.0s/building warm,
+# of which the Dora grid decode is ~3.2s and A2's own 20 denoise steps ~3.1s. Generation is
+# per-building, so a town costs this times N.
+SECS_PER_BUILDING = 7
+# How many grid points to push through the frozen decoder at once. ShapeCodec's default of 32768
+# takes 5.84s for a 64^3 grid here; 131072 takes 3.24s for a **bit-identical** field (occupancy IoU
+# 1.000000 -- chunking only groups point queries that are independent of one another, so this buys
+# time and nothing else). 262144 measured no better, so this is the knee, not the maximum.
+# Set on the codec INSTANCE rather than the class: the eval harnesses share ShapeCodec and should
+# keep their own memory profile. Lower it if a smaller GPU runs out of memory. (#101)
+DECODE_CHUNK = 131072
 # A guard rail, not a capability claim: an accidental 500-footprint import would occupy the GPU for
 # over an hour with no way to call it back. The Munich Altstadt preset is 29.
 MAX_BUILDINGS = 120
@@ -90,6 +98,7 @@ def _load_models():
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     t0 = time.time()
     codec = DoraCodec(load_dora(dev))
+    codec.query_chunk = DECODE_CHUNK
     ck = torch.load(A2_CKPT, map_location="cpu", weights_only=False)
     ca = ck["args"]
     net = VecsetDenoiser(latent_channels=ck["latent_channels"], width=ca["width"],

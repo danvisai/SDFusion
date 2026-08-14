@@ -266,10 +266,11 @@ const q = new URLSearchParams(location.search);
 const EXTRACT_PORT = q.get('extract') || 8766;
 const GEN_PORT     = q.get('gen')     || 8767;
 const svc = port => `${location.protocol}//${location.hostname}:${port}`;
-// Measured on the AMD box (#99): ~9.8s/building, of which the Dora grid decode is ~6s and A2's
-// own 20 denoise steps ~3s. Only used to size the ETA before any building has come back; the
-// estimate switches to observed timings as soon as the first one does.
-const SECS_PER_BUILDING = 10;
+// Measured on the AMD box (#99, and again after #101 widened the decode chunk): ~7.0s/building,
+// now split about evenly between the Dora grid decode and A2's own 20 denoise steps. Only used to
+// size the ETA before any building has come back; the estimate switches to observed timings as
+// soon as the first one does.
+const SECS_PER_BUILDING = 7;
 
 let imgData=null;
 // One path for "an image became the current import source", whichever way it arrived — file
