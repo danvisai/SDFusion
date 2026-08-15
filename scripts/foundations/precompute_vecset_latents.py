@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import gc
 import sys
 import time
 from pathlib import Path
@@ -566,16 +567,21 @@ def main() -> None:
                     held_out=1 if r in held else 0,             # 1 = held out, never trained on
                 )
                 written_rows.add(r)
+                # Trimesh's face-adjacency/normal caches form cycles after `sample_streams` touches a
+                # marching-cubes mesh. Refcounting cannot release those cycles when `bld` goes out of
+                # scope; without cyclic GC the envelope pass retained ~8 MB/building and would exhaust
+                # this 64 GB box around row 7k. The real-surface path has tiny meshes and hid the leak.
+                del z, pos, bld
                 if (n + 1) % 200 == 0:
                     el = time.time() - t0
                     eta = el / (n + 1) * (len(rows) - n - 1)
                     print(f"  {n+1}/{len(rows)}  {el:.0f}s  eta {eta:.0f}s", flush=True)
-                if (n + 1) % 50 == 0 and torch.cuda.is_available():
-                    # The blockout path's marching-cubes meshes vary far more in size than the tiny
-                    # (median ~20-face) recovered corpus meshes, so the caching allocator's reserved
-                    # pool keeps growing; on this unified-memory box that reserved-but-idle memory
-                    # counts against system RAM, not a separate VRAM pool -- release it periodically.
-                    torch.cuda.empty_cache()
+                if (n + 1) % 50 == 0:
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        # On this unified-memory box, reserved-but-idle GPU memory also counts against
+                        # system RAM. Release both owners at the same bounded interval.
+                        torch.cuda.empty_cache()
 
             # On a resumed run the verification rows may all be in the committed prefix. Rebuild
             # only those few encoder inputs so the final position guard covers that prefix too.
