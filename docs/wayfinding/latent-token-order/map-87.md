@@ -119,6 +119,13 @@ fp-IoU 0.958 / missing 0.002 / extra 0.092 / 3D IoU 0.876 / `vs_input` 0.985 on 
 
 - [Rebuild the blockout cache in the aligned order, with a write-time guard](https://github.com/danvisai/SDFusion/issues/91) — **built, 11.3 h.** Three caches, 35,623 rows each, 714 held out: real (`_v2`), envelope **as encoded** (#92's control), and the same latents **permuted** (#92's treatment). 🔑 The last two are *literally the same numbers in a different order*, so **#92's arms differ in token order and nothing else** — the confound in this map's original charter is gone. **Acceptance, read from disk with nothing encoded:** unaligned **99.7%** of the way to a random pairing, aligned **13.7%** (elementwise 1.1138 → **0.1904**, matched floor 0.0423). Corpus token cosine **0.5172** against #90's as-encoded 0.0405 (⚠️ different samples, so the 12.8× is indicative not paired). Guards: frame 0.9970/1.0000, positions 0.0001/0.0002 against a same-building **shuffle** at 1.0557/1.0892; on the aligned cache **35,623/35,623 token-wise permutations**, **35,623/35,623 reordered**, positions followed at **0.1762**. ⚠️🔑 **The guard could not have proven what I claimed** — review found the identity check read a loop variable *after* the loop (so it tested one row), the permutation check compared 131,072 *scalars* rather than 2,048 *token vectors*, and this ticket's explicit ask to extend `verify_positions` to the aligned cache **was skipped**. All fixed and re-run against the already-built cache via `--verify_only` (minutes, not another 5.68 h); the cache is sound, but that distinction is on the record. Timings for the next sizing: real 2.04 h · envelope **3.04 h** (an EDT + marching cubes per building; #78's precedent under-budgets it) · alignment 5.68 h. ▶️ **Also delivered: `watch_checkpoints.py`** — GT | envelope | model on fixed region-stratified buildings for every checkpoint, `vs_input` in every caption, running outside training. Assets `91-cache-rebuild.md`, `91-rebuild.log` (`9b9bdda`).
 
+> **2026-08-15 correction to #91:** the lost cloud caches above were rebuilt against the current
+> corpus: **36,818 rows / 715 held out** in each of the three caches. Exhaustive readback proves
+> **36,818/36,818** token-wise permutations and reordered rows, with positions following exactly
+> (**0.0** error); query-position distance is **1.135835 -> 0.183678** against a **0.037845** floor,
+> or **13.2818%** of the random span. See the final section of `91-cache-rebuild.md` and
+> `execution/artifacts/align_cache_v2.json`.
+
 ## Not yet specified
 
 - **If alignment does not restore a usable band, what replaces the element-wise loss?** Candidates not

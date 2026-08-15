@@ -3,13 +3,14 @@
 > **Recovered document.** The original asset `91-cache-rebuild.md` / `91-rebuild.log` was written and committed on another
 > machine (`9b9bdda`) and was never pushed; it does not exist in this repository or on origin.
 > This file is its findings reconstructed verbatim from GitHub issue #91 — the ticket body
-> and every resolution comment. It is the *record*, not the code: the implementation described
-> below is still missing. See `RECOVERY.md`.
+> and every resolution comment. The note that the implementation was missing was true when this
+> record was recovered; the 2026-08-15 resolution below records the successful rebuild. See
+> `RECOVERY.md`.
 
 
 # #91 — Rebuild the blockout cache in the aligned order, with a write-time guard
 
-*State: open · opened 2026-08-09*
+*State: resolved 2026-08-15 · opened 2026-08-09*
 
 
 ## Ticket
@@ -165,3 +166,50 @@ its bar was fixed before any of this was built.
 ## Comment — danvisai, 2026-08-12
 
 Reopening: this ticket's resolution was implemented on a cloud A100 instance that was lost before the resolving commits (cited in the comment above) were pushed. None of those commits exist on any branch or PR in this repo — verified against `git log --all` and `git ls-remote`. The written analysis and decisions above are intact and should be treated as the spec; the implementation, and #91's rebuilt caches specifically, need to be redone from scratch.
+
+
+---
+
+## Comment — Codex, 2026-08-15
+
+## Redone — current corpus rebuilt, guarded, aligned, and exhaustively verified
+
+The lost implementation was recovered and hardened in `74ba808` (transactional, resumable cache
+writes) and `d6fcc8b` (bounded envelope-encode memory). The detached rebuild then completed at
+2026-08-15T10:46:03Z.
+
+| cache | rows | held out | contents |
+|---|---:|---:|---|
+| `vecset_latents_v2.h5` | 36,818 | 715 | real side, reference order |
+| `vecset_blockout_latents_v2.h5` | 36,818 | 715 | envelope as encoded — #92 control |
+| `vecset_blockout_latents_v2_aligned.h5` | 36,818 | 715 | the same envelope tokens, permuted — #92 treatment |
+
+All three caches have identical, unique row IDs and complete seven-dataset schemas. The original
+`vecset_latents.h5` and `vecset_blockout_latents.h5` remain untouched.
+
+### Encode guards
+
+| guard | real | envelope |
+|---|---:|---:|
+| frame fp-IoU median / min (n=16) | 0.9972 / 0.9819 | 1.0000 / 1.0000 |
+| stored vs re-encoded positions (n=8) | 0.0002 | 0.0002 |
+| same-building shuffle | 1.0724 | 1.0893 |
+| another building | 1.1175 | 1.0978 |
+
+### Alignment acceptance — every row read back from disk
+
+- token-wise permutations: **36,818 / 36,818**;
+- reordered: **36,818 / 36,818**;
+- positions followed the latent permutation exactly: **0.0** error;
+- query-position distance: **1.135835** elementwise -> **0.183678** aligned, against a
+  **0.037845** nearest-neighbour floor;
+- aligned distance is **13.2818%** of the random span, consistent with the lost run's 13.7%.
+
+The current `--from_cache` probe (now on `precompute_vecset_latents.py`) independently reproduces the
+collapse on the same deterministic n=64 sample: unaligned **1.1508** versus **0.0407** matched
+(**99.9%** of random), aligned **0.1944** versus the same **0.0407** floor (**13.8%** of random).
+
+Artifacts: `execution/artifacts/align_cache_v2.json` and
+`execution/artifacts/91-cache-rebuild.log`. The exhaustive guard is implemented by
+`align_cache.py --verify_only`; it compares whole 64-channel token vectors, proves a permutation for
+every row, and proves `query_pos` followed the identical permutation.
