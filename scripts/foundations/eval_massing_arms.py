@@ -143,18 +143,33 @@ def score_arm(field: np.ndarray, gt_occ: np.ndarray, fp: np.ndarray) -> dict:
 
 
 def summarise(rows) -> dict:
-    """Per-arm medians. `guard_roughness` keeps its prefix so it cannot pass for a criterion."""
+    """Per-arm medians plus #92's hollow-collapse rate.
+
+    `guard_roughness` keeps its prefix so it cannot pass for a criterion. Collapse is the boundary
+    established by #80's bimodal result: a massing with >=15% of GT volume missing is hollow.
+    """
     rows = list(rows)
     if not rows:
         return {}
     med = lambda k: float(np.median([r[k] for r in rows]))  # noqa: E731
     out = dict(n=len(rows), fp_iou=med("fp_iou"), missing=med("missing"), extra=med("extra"),
-               vol_iou=med("vol_iou"), guard_roughness=med("guard_roughness"))
+               vol_iou=med("vol_iou"),
+               collapse_rate=float(np.mean([r["missing"] >= COLLAPSE_MISSING for r in rows])),
+               guard_roughness=med("guard_roughness"))
     if "vs_input" in rows[0]:
         out["vs_input"] = med("vs_input")
     if "guard_field_slope" in rows[0]:
         out["guard_field_slope"] = med("guard_field_slope")
     return out
+
+
+def reference_win_rate(candidate: dict, reference: dict, metric: str = "vol_iou") -> float:
+    """Strict paired rate at which `candidate` beats the footprint envelope on `metric`."""
+    if set(candidate) != set(reference):
+        raise ValueError("candidate and reference must contain the same building ids")
+    if not candidate:
+        return 0.0
+    return float(np.mean([candidate[bid][metric] > reference[bid][metric] for bid in candidate]))
 
 
 # --------------------------------------------------------------------------------------------------
@@ -212,6 +227,7 @@ def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device=None)
     return Image.fromarray(img)
 
 
+COLLAPSE_MISSING = 0.15    # #80: solid iff missing < 15%; publish beside every #92 median.
 S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~ 3 voxels @64^3. Fixed a priori.
 
 # Criterion 2's allowance, chosen by the human on 2026-08-07 against the FULL held-out set (n=714),
@@ -754,15 +770,23 @@ def main() -> None:
 
     # ---- report ------------------------------------------------------------------------------------
     summary = {arm: summarise(scores.get(arm, {}).values()) for arm in arm_order}
+    for arm in arm_order:
+        if arm.startswith("a2_") and summary[arm]:
+            summary[arm]["beats_envelope_rate"] = reference_win_rate(
+                scores[arm], scores["blockout"]
+            )
     print(f"\n=== MASSING ARMS (n={len(ids)} fixed held-out ids) ===")
     print(f"{'arm':18s} {'n':>4} {'fp-IoU':>8} {'missing':>9} {'extra':>8} {'3D IoU':>8} "
-          f"{'vs input':>9}")
+          f"{'collapse':>9} {'beats env':>9} {'vs input':>9}")
     for arm in arm_order:
         s = summary[arm]
         if s:
             vi = f"{s['vs_input']:>9.3f}" if "vs_input" in s else f"{'--':>9}"
+            beats = (f"{s['beats_envelope_rate']:>9.3f}"
+                     if "beats_envelope_rate" in s else f"{'--':>9}")
             print(f"{arm:18s} {s['n']:>4} {s['fp_iou']:>8.3f} {s['missing']:>9.3f} "
-                  f"{s['extra']:>8.3f} {s['vol_iou']:>8.3f} {vi}")
+                  f"{s['extra']:>8.3f} {s['vol_iou']:>8.3f} {s['collapse_rate']:>9.3f} "
+                  f"{beats} {vi}")
     # ⚠️ The no-op check the map requires beside every quality claim (#75).
     bo_iou = summary.get("blockout", {}).get("vol_iou")
     for arm in arm_order:

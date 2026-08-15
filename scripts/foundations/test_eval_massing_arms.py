@@ -18,8 +18,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import (  # noqa: E402
-    C2_ALLOWANCE, S_STAR_VOXELS, blockout_sdf, footprint_split, pick_ids, summarise,
-    volume_split, vs_input,
+    C2_ALLOWANCE, COLLAPSE_MISSING, S_STAR_VOXELS, blockout_sdf, footprint_split, pick_ids,
+    reference_win_rate, summarise, volume_split, vs_input,
 )
 
 
@@ -89,6 +89,11 @@ class TestBlockout(unittest.TestCase):
 
 
 class TestSummarise(unittest.TestCase):
+    @staticmethod
+    def _row(missing, vol_iou=0.8):
+        return dict(fp_iou=0.9, missing=missing, extra=0.2, vol_iou=vol_iou,
+                    guard_roughness=0.005)
+
     def test_roughness_keeps_its_guard_prefix(self):
         """It must stay impossible to read the guard as one of the ranked criteria."""
         s = summarise([dict(fp_iou=0.9, missing=0.1, extra=0.2, vol_iou=0.8, guard_roughness=0.005)])
@@ -98,6 +103,21 @@ class TestSummarise(unittest.TestCase):
 
     def test_empty_arm_summarises_to_nothing(self):
         self.assertEqual(summarise([]), {})
+
+    def test_collapse_rate_uses_the_pre_registered_hollow_boundary(self):
+        s = summarise([self._row(COLLAPSE_MISSING - 0.001),
+                       self._row(COLLAPSE_MISSING),
+                       self._row(0.9)])
+        self.assertAlmostEqual(s["collapse_rate"], 2 / 3)
+
+    def test_beats_envelope_is_a_strict_paired_rate(self):
+        candidate = {1: self._row(0.0, 0.9), 2: self._row(0.0, 0.5), 3: self._row(0.0, 0.7)}
+        envelope = {1: self._row(0.0, 0.8), 2: self._row(0.0, 0.5), 3: self._row(0.0, 0.8)}
+        self.assertAlmostEqual(reference_win_rate(candidate, envelope), 1 / 3)
+
+    def test_beats_envelope_refuses_unpaired_rows(self):
+        with self.assertRaises(ValueError):
+            reference_win_rate({1: self._row(0.0)}, {2: self._row(0.0)})
 
 
 class TestIdSet(unittest.TestCase):

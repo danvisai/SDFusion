@@ -77,6 +77,8 @@ def row_from(art: Path, ckpt: Path, strength: float) -> dict:
         "vol_iou": s.get("vol_iou"),
         "missing": s.get("missing"),
         "extra": s.get("extra"),
+        "collapse_rate": s.get("collapse_rate"),
+        "beats_envelope_rate": s.get("beats_envelope_rate"),
         "vs_input": s.get("vs_input"),
         "artifact": str(art.relative_to(REPO)),
     }

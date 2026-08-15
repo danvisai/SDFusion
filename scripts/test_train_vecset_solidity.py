@@ -8,10 +8,14 @@ nobody noticed for two runs. A test that re-implements its subject tests nothing
 from __future__ import annotations
 
 import unittest
+import tempfile
+from pathlib import Path
 
+import h5py
+import numpy as np
 import torch
 
-from scripts.train_vecset import surface_term
+from scripts.train_vecset import ExperimentRng, LatentSet, build_arg_parser, latent_moments, surface_term
 
 
 def _mk(n, p=16, err=1.0):
@@ -95,6 +99,84 @@ class TestSurfaceTermWeighting(unittest.TestCase):
         weighted, logged = surface_term(got, tgt, w_t, torch.full((3,), 0.2), norm=1.0)
         self.assertLess(float(weighted), float(logged))
         self.assertAlmostEqual(float(logged), 1.0, places=5)
+
+
+class TestExperimentRandomness(unittest.TestCase):
+    """#92: the 2x2 must share stochastic training draws without changing inference semantics."""
+
+    def test_seed_is_a_public_training_cli_option(self):
+        args = build_arg_parser().parse_args(["--seed", "92"])
+        self.assertEqual(args.seed, 92)
+
+    def test_same_seed_replays_pair_batch_and_diffusion_draws(self):
+        a = ExperimentRng(92, "cpu")
+        b = ExperimentRng(92, "cpu")
+        self.assertEqual(a.pair_random(), b.pair_random())
+        torch.testing.assert_close(a.randn((2, 3)), b.randn((2, 3)), rtol=0, atol=0)
+        torch.testing.assert_close(a.rand((4,)), b.rand((4,)), rtol=0, atol=0)
+        torch.testing.assert_close(
+            torch.randperm(12, generator=a.loader),
+            torch.randperm(12, generator=b.loader),
+            rtol=0,
+            atol=0,
+        )
+
+    def test_surface_queries_do_not_advance_the_training_stream(self):
+        with_surface = ExperimentRng(92, "cpu")
+        without_surface = ExperimentRng(92, "cpu")
+        with_surface.surface_rand((8, 3))
+        with_surface.surface_rand((8, 3))
+        torch.testing.assert_close(
+            with_surface.randn((4, 5)), without_surface.randn((4, 5)), rtol=0, atol=0
+        )
+
+
+class TestLatentMoments(unittest.TestCase):
+    def test_matches_float32_moments_without_materialising_the_whole_cache(self):
+        source = torch.arange(5 * 3 * 2, dtype=torch.float16).numpy().reshape(5, 3, 2)
+
+        class ChunkOnly:
+            shape = source.shape
+
+            def __getitem__(self, item):
+                self_slice = item[0] if isinstance(item, tuple) else item
+                if not isinstance(self_slice, slice) or self_slice.stop - self_slice.start > 2:
+                    raise AssertionError("latent_moments must read bounded row chunks")
+                return source[item]
+
+        mean, std = latent_moments(ChunkOnly(), chunk_rows=2)
+        expected = source.astype("float32")
+        self.assertAlmostEqual(mean, float(expected.mean()), places=6)
+        self.assertAlmostEqual(std, float(expected.std()), places=6)
+
+
+class TestLatentSetStorage(unittest.TestCase):
+    @staticmethod
+    def _cache(path: Path, rows, values, held):
+        with h5py.File(path, "w") as cache:
+            cache["row"] = np.asarray(rows, np.int32)
+            cache["held_out"] = np.asarray(held, np.uint8)
+            cache["latent"] = np.asarray(values, np.float16).reshape(len(rows), 2, 1)
+            cache["footprint"] = np.ones((len(rows), 4, 4), np.uint8)
+            cache["height_m"] = np.arange(len(rows), dtype=np.float32)
+            cache["region"] = np.zeros(len(rows), np.int32)
+
+    def test_large_latents_stay_on_disk_and_blockouts_match_by_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            real, block = Path(tmp) / "real.h5", Path(tmp) / "block.h5"
+            self._cache(real, [10, 20, 30], [1, 1, 2, 2, 3, 3], [0, 1, 0])
+            self._cache(block, [30, 10, 20], [30, 30, 10, 10, 20, 20], [0, 0, 1])
+            dataset = LatentSet(real, blockout_path=block)
+
+            self.assertFalse(hasattr(dataset, "z"), "the multi-GB latent cache must remain lazy")
+            self.assertEqual(dataset.latent_shape, (2, 1))
+            self.assertEqual(len(dataset), 2)
+            first, first_block, *_ = dataset[0]
+            last, last_block, *_ = dataset[1]
+            torch.testing.assert_close(first, torch.full((2, 1), -1.0))
+            torch.testing.assert_close(last, torch.full((2, 1), 1.0))
+            torch.testing.assert_close(first_block, torch.full((2, 1), 8.0))
+            torch.testing.assert_close(last_block, torch.full((2, 1), 28.0))
 
 
 if __name__ == "__main__":

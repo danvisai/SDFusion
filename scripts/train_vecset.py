@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import secrets
 import sys
 import time
 from pathlib import Path
@@ -35,6 +36,33 @@ from models.networks.vecset_denoiser import VecsetDenoiser          # noqa: E402
 from models.networks.vecset_projection import cosine_alphas          # noqa: E402
 
 
+def latent_moments(latents, chunk_rows: int = 32,
+                   indices: np.ndarray | None = None) -> tuple[float, float]:
+    """Compute cache-wide float32 moments with bounded temporary memory.
+
+    A production cache is roughly 10 GB in fp16.  Calling ``latents.astype(float32)`` materialises
+    another ~20 GB array and can OOM before the first training step.  Parallel/Welford merging keeps
+    the temporary conversion to ``chunk_rows`` while retaining stable corpus-level moments.
+    """
+    count, mean, m2 = 0, 0.0, 0.0
+    rows = latents.shape[0] if indices is None else len(indices)
+    for start in range(0, rows, chunk_rows):
+        stop = min(start + chunk_rows, rows)
+        selection = slice(start, stop) if indices is None else indices[start:stop]
+        chunk = np.asarray(latents[selection], dtype=np.float32)
+        chunk_count = int(chunk.size)
+        chunk_mean = float(chunk.mean(dtype=np.float64))
+        chunk_m2 = float(np.square(chunk - chunk_mean, dtype=np.float64).sum(dtype=np.float64))
+        delta = chunk_mean - mean
+        total = count + chunk_count
+        mean += delta * chunk_count / total
+        m2 += chunk_m2 + delta * delta * count * chunk_count / total
+        count = total
+    if count == 0:
+        return 0.0, 1.0
+    return mean, (m2 / count) ** 0.5 or 1.0
+
+
 class LatentSet(torch.utils.data.Dataset):
     """Precomputed (latent, footprint, height, region), train split only.
 
@@ -48,32 +76,39 @@ class LatentSet(torch.utils.data.Dataset):
 
     def __init__(self, path, held_out=False, blockout_path=None):
         import h5py
+        self.real_path = str(path)
+        self.blockout_path = str(blockout_path) if blockout_path else None
+        self._real_h5 = None
+        self._blockout_h5 = None
         with h5py.File(path, "r") as f:
             m = (f["held_out"][:] == (1 if held_out else 0))
-            self.z = f["latent"][:][m]
-            self.fp = f["footprint"][:][m]
-            self.h = f["height_m"][:][m]
-            self.r = f["region"][:][m]
+            real_indices = np.flatnonzero(m)
+            self.latent_shape = tuple(f["latent"].shape[1:])
+            self.fp = f["footprint"][real_indices]
+            self.h = f["height_m"][real_indices]
+            self.r = f["region"][real_indices]
             rows = f["row"][:][m]
-        self.zb = None
+        self._real_indices = real_indices
+        self._blockout_indices = None
         if blockout_path:
             with h5py.File(blockout_path, "r") as g:
-                brow, bz = g["row"][:], g["latent"][:]
+                brow = g["row"][:]
             idx = {int(r): i for i, r in enumerate(brow)}
             keep = np.array([i for i, r in enumerate(rows) if int(r) in idx])
             if len(keep) == 0:
                 raise SystemExit("no rows shared between the latent and blockout caches")
-            self.z, self.fp = self.z[keep], self.fp[keep]
+            self._real_indices = self._real_indices[keep]
+            self.fp = self.fp[keep]
             self.h, self.r = self.h[keep], self.r[keep]
-            self.zb = bz[[idx[int(rows[i])] for i in keep]]
+            self._blockout_indices = np.asarray([idx[int(rows[i])] for i in keep], np.int64)
             print(f"[pairs] {len(keep)} aligned blockout/real pairs")
         # Footprint solidity = mask area / convex-hull area. Precomputed ONCE here, not in the
         # training loop: a ConvexHull per batch element per step would dominate a 305 ms denoiser
         # step. 1.0 = convex, lower = re-entrant (courtyards, L-plans, terraced party walls).
-        self.solidity = np.ones(len(self.z), np.float32)
+        self.solidity = np.ones(len(self._real_indices), np.float32)
         try:
             from scipy.spatial import ConvexHull
-            for i in range(len(self.z)):
+            for i in range(len(self._real_indices)):
                 ys, xs = np.nonzero(self.fp[i] > 0)
                 if len(xs) < 3:
                     continue
@@ -90,15 +125,49 @@ class LatentSet(torch.utils.data.Dataset):
             print("[solidity] scipy unavailable -- solidity fixed at 1.0")
 
         # normalise the latent to unit scale so the noise schedule is well-posed
-        self.mu = float(self.z.astype(np.float32).mean())
-        self.sd = float(self.z.astype(np.float32).std()) or 1.0
+        with h5py.File(path, "r") as f:
+            self.mu, self.sd = latent_moments(f["latent"], indices=self._real_indices)
 
     def __len__(self):
-        return len(self.z)
+        return len(self._real_indices)
+
+    @property
+    def has_blockouts(self) -> bool:
+        return self._blockout_indices is not None
+
+    @staticmethod
+    def _open(path: str):
+        import h5py
+        return h5py.File(path, "r")
+
+    def _real_latent(self, i: int) -> np.ndarray:
+        if self._real_h5 is None:
+            self._real_h5 = self._open(self.real_path)
+        return self._real_h5["latent"][int(self._real_indices[i])]
+
+    def _blockout_latent(self, i: int) -> np.ndarray:
+        if self._blockout_h5 is None:
+            assert self.blockout_path is not None and self._blockout_indices is not None
+            self._blockout_h5 = self._open(self.blockout_path)
+        return self._blockout_h5["latent"][int(self._blockout_indices[i])]
+
+    def __getstate__(self):
+        """Never pickle or inherit an open HDF5 handle into a DataLoader worker."""
+        state = self.__dict__.copy()
+        state["_real_h5"] = None
+        state["_blockout_h5"] = None
+        return state
+
+    def __del__(self):
+        for handle_name in ("_real_h5", "_blockout_h5"):
+            handle = getattr(self, handle_name, None)
+            if handle is not None:
+                handle.close()
 
     def __getitem__(self, i):
-        z = (self.z[i].astype(np.float32) - self.mu) / self.sd
-        zb = ((self.zb[i].astype(np.float32) - self.mu) / self.sd) if self.zb is not None else z
+        z = (self._real_latent(i).astype(np.float32) - self.mu) / self.sd
+        zb = ((self._blockout_latent(i).astype(np.float32) - self.mu) / self.sd
+              if self.has_blockouts else z)
         return (torch.from_numpy(z), torch.from_numpy(zb),
                 torch.from_numpy(self.fp[i].astype(np.float32))[None],
                 torch.tensor(self.h[i], dtype=torch.float32),
@@ -130,7 +199,51 @@ def surface_term(got, tgt, w_t, sample_w=None, norm=None):
     return (per * w).mean(), unweighted
 
 
-def main() -> None:
+class ExperimentRng:
+    """Independent stochastic streams for a controlled training run.
+
+    #92 compares token ordering and the decoded-surface term in a 2x2. Those interventions must not
+    also change batch order, pair/plain selection, timesteps, diffusion noise, or CFG dropout. Surface
+    queries use their own stream because only two arms draw them; sharing torch's global stream would
+    shift every later diffusion draw in those arms and quietly confound the factorial comparison.
+
+    This is training-only experiment control. It does not touch SetSDEdit's inference seed or the town
+    demo's per-building seed decorrelation.
+    """
+
+    _SEED_MODULUS = 2**63 - 1
+    _STREAM_STRIDE = 1_000_003
+
+    def __init__(self, seed: int | None, device: str):
+        self.seed = (int(seed) if seed is not None else secrets.randbelow(self._SEED_MODULUS))
+        self.seed %= self._SEED_MODULUS
+        self.device = device
+        self.model_seed = self._stream_seed(0)
+        self.pair = np.random.default_rng(self._stream_seed(1))
+        self.loader = torch.Generator(device="cpu").manual_seed(self._stream_seed(2))
+        self.training = torch.Generator(device=device).manual_seed(self._stream_seed(3))
+        self.surface = torch.Generator(device=device).manual_seed(self._stream_seed(4))
+
+    def _stream_seed(self, stream: int) -> int:
+        return (self.seed + stream * self._STREAM_STRIDE) % self._SEED_MODULUS
+
+    def pair_random(self) -> float:
+        return float(self.pair.random())
+
+    def randint(self, low: int, high: int, shape: tuple[int, ...]) -> torch.Tensor:
+        return torch.randint(low, high, shape, generator=self.training, device=self.device)
+
+    def randn(self, shape: tuple[int, ...], dtype=torch.float32) -> torch.Tensor:
+        return torch.randn(shape, generator=self.training, device=self.device, dtype=dtype)
+
+    def rand(self, shape: tuple[int, ...], dtype=torch.float32) -> torch.Tensor:
+        return torch.rand(shape, generator=self.training, device=self.device, dtype=dtype)
+
+    def surface_rand(self, shape: tuple[int, ...], dtype=torch.float32) -> torch.Tensor:
+        return torch.rand(shape, generator=self.surface, device=self.device, dtype=dtype)
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     ap.add_argument("--latents", default="data/real_massing_v1/vecset_latents.h5")
     ap.add_argument("--steps", type=int, default=20000)
@@ -198,19 +311,33 @@ def main() -> None:
                     help="also keep a step-tagged copy this often (0 = only the rolling file). #75 "
                          "found the quality curve is non-monotonic, so keeping the trajectory is "
                          "what separates a temporary dip from a real decline.")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="#92 experiment seed. Replays batch order, pair/plain selection, timesteps, "
+                         "noise and CFG dropout; surface queries use an isolated stream. If omitted, "
+                         "a random seed is chosen and recorded in the checkpoint.")
     ap.add_argument("--out", default="logs_building/vecset_v1")
     ap.add_argument("--log_every", type=int, default=100)
     ap.add_argument("--save_every", type=int, default=2000)
-    args = ap.parse_args()
+    return ap
+
+
+def main() -> None:
+    args = build_arg_parser().parse_args()
 
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
+    rng = ExperimentRng(args.seed, dev)
+    args.seed = rng.seed
+    torch.manual_seed(rng.model_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(rng.model_seed)
+    print(f"[rng] experiment seed {rng.seed}  independent train/surface streams", flush=True)
 
     ds = LatentSet(args.latents, blockout_path=args.blockouts)
     dl = torch.utils.data.DataLoader(ds, batch_size=args.batch, shuffle=True, drop_last=True,
-                                     num_workers=2, persistent_workers=True)
-    C, FPRES = ds.z.shape[-1], ds.fp.shape[-1]
-    print(f"[data] {len(ds)} train latents  tokens={ds.z.shape[1]} ch={C}  fp={FPRES}  "
+                                     num_workers=2, persistent_workers=True, generator=rng.loader)
+    C, FPRES = ds.latent_shape[-1], ds.fp.shape[-1]
+    print(f"[data] {len(ds)} train latents  tokens={ds.latent_shape[0]} ch={C}  fp={FPRES}  "
           f"mu={ds.mu:.3f} sd={ds.sd:.3f}", flush=True)
 
     net = VecsetDenoiser(latent_channels=C, width=args.width, depth=args.depth,
@@ -279,11 +406,11 @@ def main() -> None:
                 break
             z, zb = z.to(dev), zb.to(dev)
             fp, h, r, sol = fp.to(dev), h.to(dev), r.to(dev), sol.to(dev)
-            use_pair = ds.zb is not None and np.random.rand() < args.pair_frac
+            use_pair = ds.has_blockouts and rng.pair_random() < args.pair_frac
             lo = int(args.pair_t_min * args.timesteps) if use_pair else 0
-            t = torch.randint(lo, args.timesteps, (z.shape[0],), device=dev)
+            t = rng.randint(lo, args.timesteps, (z.shape[0],))
             a = ac[t].view(-1, 1, 1)
-            noise = torch.randn_like(z)
+            noise = rng.randn(tuple(z.shape), dtype=z.dtype)
 
             # ALIGNED PAIRS: corrupt FROM the blockout, keep the target as the REAL latent, so the
             # implied epsilon is whatever carries blockout -> real. That is exactly what inference
@@ -301,7 +428,7 @@ def main() -> None:
 
             # per-sample CFG dropout, honestly: split the batch rather than pretend the
             # per-batch flag is per-sample
-            drop = torch.rand(z.shape[0], device=dev) < args.cfg_drop
+            drop = rng.rand((z.shape[0],)) < args.cfg_drop
             pred = torch.empty_like(z)
             for mask, flag in ((~drop, False), (drop, True)):
                 if mask.any():
@@ -337,7 +464,7 @@ def main() -> None:
                 if sel.numel():
                     asel = a[sel]
                     x0 = (zt[sel] - (1 - asel).sqrt() * pred[sel]) / asel.sqrt()
-                    pts = torch.rand(sel.numel(), args.surf_points, 3, device=dev) * 2 - 1
+                    pts = rng.surface_rand((sel.numel(), args.surf_points, 3)) * 2 - 1
                     with torch.no_grad():
                         tgt = codec.query(z[sel] * ds.sd + ds.mu, pts)
                     got = codec.query(x0 * ds.sd + ds.mu, pts)
