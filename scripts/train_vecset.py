@@ -72,9 +72,25 @@ class LatentSet(torch.utils.data.Dataset):
     (cos 0.707 -> 0.935 at s=0.5) yet collapsed on blockouts. Pairs close that gap by construction.
 
     Rows are matched by corpus id, not by position, since the two passes can drop different buildings.
+
+    `regions` restricts training to a subset of source corpora (0=BAG/NL, 1=NRW/DE, 2=PLATEAU/JP).
+    It exists because PLATEAU was ingested at LoD1: those buildings are flat-top prisms, so the
+    footprint envelope already equals the real massing and every pair step drawn from region 2 has a
+    target of exactly zero. Measured over the WHOLE corpus, not a sample: 0 of 12,000 PLATEAU meshes
+    carry any pitched-roof area (max 0.0000, against 63.6% of NRW and 73.9% of BAG), and on the 714
+    held-out the region-2 envelope matches real at IoU 1.000000 for 210 of 210.
+
+    ⚠️ This is NOT "the model cannot tell the cases apart" -- `region` is conditioned (see
+    VecsetDenoiser.forward), so a model that used the label could keep these rows harmlessly. The
+    shipped checkpoint does not use it: median `vs_input` is 0.9882 / 0.9832 / 0.9813 for NL / DE / JP,
+    i.e. the same near-no-op everywhere, and it moves PLATEAU slightly MORE than the Dutch buildings.
+    That is evidence for #87 rather than against the label: with the pair target ~100% of the way to
+    random, nothing pushes the region embedding to differentiate. Excluding region 2 is therefore a
+    measurement -- does removing the rows that reward standing still make it carve? -- not a fix
+    asserted in advance.
     """
 
-    def __init__(self, path, held_out=False, blockout_path=None):
+    def __init__(self, path, held_out=False, blockout_path=None, regions=None):
         import h5py
         self.real_path = str(path)
         self.blockout_path = str(blockout_path) if blockout_path else None
@@ -82,6 +98,11 @@ class LatentSet(torch.utils.data.Dataset):
         self._blockout_h5 = None
         with h5py.File(path, "r") as f:
             m = (f["held_out"][:] == (1 if held_out else 0))
+            if regions is not None:
+                wanted = np.isin(f["region"][:], np.asarray(sorted(regions), np.int32))
+                dropped = int((m & ~wanted).sum())
+                m = m & wanted
+                print(f"[regions] training on {sorted(regions)}; dropped {dropped} rows")
             real_indices = np.flatnonzero(m)
             self.latent_shape = tuple(f["latent"].shape[1:])
             self.fp = f["footprint"][real_indices]
@@ -254,6 +275,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     ap.add_argument("--heads", type=int, default=8)
     ap.add_argument("--timesteps", type=int, default=1000)
     ap.add_argument("--cfg_drop", type=float, default=0.1)
+    ap.add_argument("--regions", default=None,
+                    help="comma-separated source regions to train on (0=BAG/NL, 1=NRW/DE, "
+                         "2=PLATEAU/JP). Default: all three. PLATEAU was ingested at LoD1, so its "
+                         "footprint envelope already equals the real massing and its pair steps have "
+                         "a zero target; '0,1' excludes it.")
     ap.add_argument("--blockouts", default=None,
                     help="aligned blockout latent cache; enables pair training")
     ap.add_argument("--pair_frac", type=float, default=0.8,
@@ -333,7 +359,8 @@ def main() -> None:
         torch.cuda.manual_seed_all(rng.model_seed)
     print(f"[rng] experiment seed {rng.seed}  independent train/surface streams", flush=True)
 
-    ds = LatentSet(args.latents, blockout_path=args.blockouts)
+    regions = [int(x) for x in str(args.regions).split(",")] if args.regions else None
+    ds = LatentSet(args.latents, blockout_path=args.blockouts, regions=regions)
     dl = torch.utils.data.DataLoader(ds, batch_size=args.batch, shuffle=True, drop_last=True,
                                      num_workers=2, persistent_workers=True, generator=rng.loader)
     C, FPRES = ds.latent_shape[-1], ds.fp.shape[-1]

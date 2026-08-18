@@ -152,14 +152,15 @@ class TestLatentMoments(unittest.TestCase):
 
 class TestLatentSetStorage(unittest.TestCase):
     @staticmethod
-    def _cache(path: Path, rows, values, held):
+    def _cache(path: Path, rows, values, held, regions=None):
         with h5py.File(path, "w") as cache:
             cache["row"] = np.asarray(rows, np.int32)
             cache["held_out"] = np.asarray(held, np.uint8)
             cache["latent"] = np.asarray(values, np.float16).reshape(len(rows), 2, 1)
             cache["footprint"] = np.ones((len(rows), 4, 4), np.uint8)
             cache["height_m"] = np.arange(len(rows), dtype=np.float32)
-            cache["region"] = np.zeros(len(rows), np.int32)
+            cache["region"] = (np.zeros(len(rows), np.int32) if regions is None
+                               else np.asarray(regions, np.int32))
 
     def test_large_latents_stay_on_disk_and_blockouts_match_by_row(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -177,6 +178,59 @@ class TestLatentSetStorage(unittest.TestCase):
             torch.testing.assert_close(last, torch.full((2, 1), 1.0))
             torch.testing.assert_close(first_block, torch.full((2, 1), 8.0))
             torch.testing.assert_close(last_block, torch.full((2, 1), 28.0))
+
+
+class TestRegionFilter(unittest.TestCase):
+    """#92 follow-up: PLATEAU (region 2) is LoD1, so its pair steps carry a zero target.
+
+    The filter must drop those rows BEFORE the latent moments are taken. If it ran afterwards the
+    normalisation would still carry the excluded corpus, and the noise schedule would be posed
+    against a distribution the model never sees.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        tmp = Path(self._tmp.name)
+        self.real, self.block = tmp / "real.h5", tmp / "block.h5"
+        # rows 10/20/30 in regions 0/1/2; blockouts stored in a different order on purpose
+        TestLatentSetStorage._cache(self.real, [10, 20, 30], [1, 1, 2, 2, 3, 3], [0, 0, 0],
+                                    regions=[0, 1, 2])
+        TestLatentSetStorage._cache(self.block, [30, 10, 20], [30, 30, 10, 10, 20, 20], [0, 0, 0],
+                                    regions=[2, 0, 1])
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_unfiltered_keeps_every_corpus(self):
+        dataset = LatentSet(self.real, blockout_path=self.block)
+        self.assertEqual(len(dataset), 3)
+        self.assertEqual(sorted(int(x) for x in dataset.r), [0, 1, 2])
+
+    def test_excluding_plateau_drops_only_region_two(self):
+        dataset = LatentSet(self.real, blockout_path=self.block, regions=(0, 1))
+        self.assertEqual(len(dataset), 2)
+        self.assertEqual(sorted(int(x) for x in dataset.r), [0, 1])
+
+    def test_moments_are_taken_after_the_filter(self):
+        dataset = LatentSet(self.real, blockout_path=self.block, regions=(0, 1))
+        # kept latents are 1,1,2,2 -> mean 1.5, sd 0.5. Region 2's value of 3 must not appear.
+        self.assertAlmostEqual(dataset.mu, 1.5, places=5)
+        self.assertAlmostEqual(dataset.sd, 0.5, places=5)
+
+    def test_blockout_partners_still_match_by_row_after_filtering(self):
+        dataset = LatentSet(self.real, blockout_path=self.block, regions=(0, 1))
+        first, first_block, *_ = dataset[0]
+        last, last_block, *_ = dataset[1]
+        torch.testing.assert_close(first, torch.full((2, 1), -1.0))
+        torch.testing.assert_close(last, torch.full((2, 1), 1.0))
+        # row 10 -> blockout 10 -> (10 - 1.5) / 0.5 ; row 20 -> blockout 20 -> (20 - 1.5) / 0.5
+        torch.testing.assert_close(first_block, torch.full((2, 1), 17.0))
+        torch.testing.assert_close(last_block, torch.full((2, 1), 37.0))
+
+    def test_flag_parses_a_comma_list(self):
+        args = build_arg_parser().parse_args(["--regions", "0,1"])
+        self.assertEqual([int(x) for x in args.regions.split(",")], [0, 1])
+        self.assertIsNone(build_arg_parser().parse_args([]).regions)
 
 
 if __name__ == "__main__":
