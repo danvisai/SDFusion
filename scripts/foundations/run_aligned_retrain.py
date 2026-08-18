@@ -37,6 +37,7 @@ class ArmSpec:
     label: str
     blockouts: Path
     surf_weight: float
+    regions: str | None = None
 
 
 ARM_SPECS = {
@@ -44,7 +45,18 @@ ARM_SPECS = {
     "B": ArmSpec("aligned_surf", ALIGNED, 1.0),
     "C": ArmSpec("encoded_no_surface", ENCODED, 0.0),
     "D": ArmSpec("aligned_no_surface", ALIGNED, 0.0),
+    # NOT part of the 2x2. A follow-up probe that holds arm A fixed and drops PLATEAU, which was
+    # ingested at LoD1: 0 of 12,000 of its meshes carry pitched-roof area, so its footprint envelope
+    # already equals the real massing and 26.1% of all training steps carry a zero target. Arm A
+    # measured on the same 12 buildings never carves (net-positive on 0 of 12 at every checkpoint),
+    # so this separates the two candidate causes: if NL+DE-only carves the data was binding, if it
+    # still does not then token order is, and arm B is what matters. Opt in with --arms N.
+    "N": ArmSpec("nl_de_only", ENCODED, 1.0, regions="0,1"),
 }
+
+#: The pre-registered experiment. `N` is deliberately excluded: it is a diagnostic, not an arm, and
+#: adding it to the 2x2 would change what the map is judged on.
+PREREGISTERED = ("A", "B", "C", "D")
 
 
 def output_for(arm: str) -> Path:
@@ -80,6 +92,8 @@ def command_for(arm: str) -> list[str]:
         ("--log_every", 500),
         ("--save_every", 5000),
     ]
+    if spec.regions is not None:
+        options.append(("--regions", spec.regions))
     return [str(PYTHON), str(TRAIN), *(str(x) for pair in options for x in pair)]
 
 
@@ -152,8 +166,10 @@ def run_arm(arm: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arms", nargs="+", choices=tuple(ARM_SPECS), default=list(ARM_SPECS),
-                        help="ordered subset to run (default: A B C D)")
+    parser.add_argument("--arms", nargs="+", choices=tuple(ARM_SPECS),
+                        default=list(PREREGISTERED),
+                        help="ordered subset to run (default: the pre-registered A B C D; "
+                             "N is the NL+DE-only probe and must be asked for explicitly)")
     parser.add_argument("--dry-run", action="store_true",
                         help="validate inputs and print commands without creating outputs")
     args = parser.parse_args()

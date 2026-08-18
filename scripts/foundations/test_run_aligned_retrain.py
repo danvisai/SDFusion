@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.foundations.run_aligned_retrain import ARM_SPECS, command_for
+from scripts.foundations.run_aligned_retrain import ARM_SPECS, PREREGISTERED, command_for
 
 
 def _options(command: list[str]) -> dict[str, str]:
@@ -14,11 +14,12 @@ def _options(command: list[str]) -> dict[str, str]:
 class TestArmCommands(unittest.TestCase):
     def setUp(self):
         self.commands = {arm: _options(command_for(arm)) for arm in ARM_SPECS}
+        self.preregistered = {a: self.commands[a] for a in PREREGISTERED}
 
     def test_all_arms_share_the_pre_registered_training_contract(self):
         ignored = {"--blockouts", "--surf_weight", "--out"}
         control = {k: v for k, v in self.commands["A"].items() if k not in ignored}
-        for arm, options in self.commands.items():
+        for arm, options in self.preregistered.items():
             self.assertEqual({k: v for k, v in options.items() if k not in ignored}, control, arm)
         self.assertEqual(control["--steps"], "240000")
         self.assertEqual(control["--archive_every"], "10000")
@@ -39,6 +40,20 @@ class TestArmCommands(unittest.TestCase):
             self.assertEqual(a.pop("--surf_weight"), "1.0")
             self.assertEqual(b.pop("--surf_weight"), "0.0")
             self.assertEqual(a, b)
+
+    def test_the_probe_is_not_one_of_the_pre_registered_arms(self):
+        """N must never join the 2x2 by accident -- it would change what the map is judged on."""
+        self.assertNotIn("N", PREREGISTERED)
+        self.assertEqual(set(PREREGISTERED), {"A", "B", "C", "D"})
+        for arm in PREREGISTERED:
+            self.assertNotIn("--regions", self.commands[arm], arm)
+
+    def test_the_probe_differs_from_arm_A_by_the_region_filter_alone(self):
+        """It is only a diagnostic if arm A is the sole thing it is compared against."""
+        probe, control = self.commands["N"].copy(), self.commands["A"].copy()
+        self.assertEqual(probe.pop("--regions"), "0,1")
+        self.assertNotEqual(probe.pop("--out"), control.pop("--out"))
+        self.assertEqual(probe, control)
 
     def test_shipped_surface_regime_is_explicit(self):
         for arm in ("A", "B"):
