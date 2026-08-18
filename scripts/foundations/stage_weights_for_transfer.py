@@ -89,6 +89,20 @@ TIER_D = [
      "snap prior GUIDE for autoguidance (refine.py:471)"),
 ]
 
+# Tier E -- issue #92 arm A, the control arm of the aligned-token 2x2. Published because the run is
+# the reference every later arm is judged against, and because 220k is a documented collapse worth
+# keeping as evidence (same reason v5_surfband_step220000 is published).
+TIER_E = [
+    (f"logs_building/issue92_aligned_retrain/A_encoded_surf/vecset_denoiser_step{step}.pth",
+     f"issue92_A_encoded_surf_step{step}.pth", note)
+    for step, note in (
+        (190000, "#92 arm A -- resume point; 3D IoU 0.906, collapse 0/12"),
+        (200000, "#92 arm A -- 3D IoU 0.746, collapse 5/12"),
+        (210000, "#92 arm A -- 3D IoU 0.794, collapse 3/12"),
+        (220000, "#92 arm A -- 3D IoU 0.520, collapse 8/12; vs_input 0.520, acts and destroys"),
+    )
+]
+
 KEEPERS = TIER_A + TIER_B
 
 
@@ -104,6 +118,10 @@ def main():
     keepers = list(KEEPERS)
     if "--include-negatives" in sys.argv:
         keepers += TIER_C
+    if "--issue92-only" in sys.argv:
+        keepers = list(TIER_E)
+    elif "--include-issue92" in sys.argv:
+        keepers += TIER_E
     if "--demo-only" in sys.argv:
         keepers = list(TIER_D)
     elif "--include-demo" in sys.argv:
