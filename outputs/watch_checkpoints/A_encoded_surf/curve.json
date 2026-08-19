@@ -68,5 +68,19 @@
     "vs_input": 0.9951389983927236,
     "artifact": "execution/artifacts/massing_arms_eval_watch_vecset_denoiser_step230000.json",
     "montage": "outputs/massing_arms_eval/montage_watch_vecset_denoiser_step230000.png"
+  },
+  {
+    "checkpoint": "vecset_denoiser_step240000.pth",
+    "step": 240000,
+    "n": 12,
+    "fp_iou": 0.9637887466058037,
+    "vol_iou": 0.9074496189913166,
+    "missing": 0.0017186974729362706,
+    "extra": 0.09763175255638208,
+    "collapse_rate": 0.0,
+    "beats_envelope_rate": 0.08333333333333333,
+    "vs_input": 0.9881574330066623,
+    "artifact": "execution/artifacts/massing_arms_eval_watch_vecset_denoiser_step240000.json",
+    "montage": "outputs/massing_arms_eval/montage_watch_vecset_denoiser_step240000.png"
   }
 ]
