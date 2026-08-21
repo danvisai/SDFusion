@@ -20,39 +20,63 @@ Learned models make the *decisions*; deterministic procedure + retrieval do the 
 features (weathering, ornaments, sketch-relief, recipe-closure round-trip) remain the **demo wrapper**:
 they make the artifact impressive but are not what the paper proves.
 
-## Project status (updated 2026-07-26)
+## Project status (updated 2026-08-21)
 
 The living status lives in the **wayfinding maps** under `docs/wayfinding/` (each mirrors a GitHub
-issue map and carries its own tables + montages); this section is the index into them. The current
-active thread is **massing-surface crispness** — a *massing-fidelity* (C1) sub-problem, distinct from
-the C2 detail-composition thesis above.
+issue map and carries its own tables + montages); this section is only the index into them. Massing
+fidelity (C1) has been the active problem since 2026-07. The C2 detail-composition thesis above is
+unchanged and is **not** currently being worked — its evidence-package effort (map #11) was closed
+stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proof/` and `tickets.md`.
 
-- **Solid massing — DONE & shipped.** `docs/wayfinding/solid-massing-generation/` (map #24): the
-  LoD2-only from-scratch retrain passes the #27 acceptance gate (footprint-IoU 0.43 → ~0.89, solid
-  footprint-matching blocks). This checkpoint is the accepted massing generator. "Breaking apart" was
-  a BuildingNet thin-shell artifact, not a model failure.
-- **Surface crispness, first pass — CLOSED negative.** `docs/wayfinding/massing-surface-fidelity/`
-  (map #34, closed 2026-07-23): the sampled massing is *solid but wavy*; the roughness is **prior-side**
-  (`35-roughness-diagnosis.md`), and the map's cheapest-first levers (sampling knobs, then a decoded-x0
-  smoothness fine-tune) all fell short (`phase1-result.md`, `phase2-result.md`). Originally deferred; the
-  crispness pursuit was then **reopened** by maps #52/#58 below.
+### Active
+
+- **Latent token order — IN PROGRESS.** `docs/wayfinding/latent-token-order/` (map #87). The pair
+  training target was corrupted by token ordering; #88–#91 captured the codec's query positions and
+  rebuilt the aligned cache. #92's arms train against `v4_surf@240k` as the control — arm A closed
+  at step 240000 (its best checkpoint and its first non-zero), arm N (NL/DE only, PLATEAU excluded
+  as LoD1) is still running. Checkpoints are scored continuously by
+  `scripts/foundations/watch_checkpoints.py` into `execution/artifacts/`.
+- **Whole-volume voxel transform — IN PROGRESS (planning + throwaway prototypes only).** Map #113.
+  Decides whether an A2-only whole-volume voxel correction can satisfy hard footprint/validity
+  invariants *and* preserve editability. #114–#116 are settled (dense absolute binary 64³ state;
+  authentic replay supervision; recipe posture deferred to an explicit gate); #117–#125 are open.
+  This is a **competing empirical route beside** solid-first semantic carving (#1), not a silent
+  replacement — the semantic architectural edit program remains authoritative, and this map may not
+  rewrite `CONTEXT.md` or an ADR without the explicit recipe-compatibility decision.
+- **Footprint-drawn town demo — IN PROGRESS.** `docs/wayfinding/footprint-town-demo/` (map #97).
+  The standalone town editor generating from A2, streamed into the viewport. #102/#104/#105 open.
+- **Bitmagic-inspired town experience — IN PROGRESS (Codex).** Map #106: a recipe-preserving town
+  interaction and presentation exploration. #107–#112 open.
+
+### Settled
+
+- **Solid massing — DONE & shipped.** `docs/wayfinding/solid-massing-generation/` (map #24):
+  footprint-IoU 0.43 → ~0.89. "Breaking apart" was a BuildingNet thin-shell artifact, not a model
+  failure. This checkpoint is the accepted dense-grid massing generator.
+- **Surface crispness, first pass — CLOSED NEGATIVE.** `docs/wayfinding/massing-surface-fidelity/`
+  (map #34): the roughness is prior-side, and the map's cheapest-first levers all fell short.
 - **Crisp clean massing — COMPLETE (locates the ceiling).** `docs/wayfinding/crisp-massing-model/`
-  (map #52, commit `c459564`). Key finding: **the VQVAE codec is NOT the crispness bottleneck** —
-  `decode(encode(GT))` ≈ **0.0044** roughness ≈ GT floor **0.0041**, so a crisp building *is*
-  representable at 64³; **the diffusion is what produces lumpy/wavy massing.** Two fixes ruled out
-  cheaply: composite-over-extrusion (#56 — SDF-combine on the 64³ grid corrupts crispness;
-  `residual-retrain-design.md` is therefore **superseded**) and a post-decode SDF refiner (#54 —
-  bounded residual + sharpness losses plateau at ~**0.0047**, cannot reach GT). The forward menu is
-  `representation-ceiling-menu.md`; comparison figures are `refiner-v3-vs-v1.png`, `gate56-*.png`,
-  `residual-decomp-*.png`.
-- **Diffusion latent accuracy — IN PROGRESS.** `docs/wayfinding/diffusion-latent-accuracy/`
-  (map #58). #59 (latent-space corrector, commit `40e9c55`) **CLOSED NEGATIVE**: correcting the
-  diffusion's *latent* also plateaus at the same ~0.0047 wall (`latent-corrector-result.md`, table +
-  `latent-corrector-montage.png`) — so **post-hoc correction is doubly ruled out** (SDF #54 *and*
-  latent #59). #60 (x0-sharp diffusion fine-tune — warm-start the map-#24 prior with the decoded-x0
-  smoothness regularizer already in `stage3a_model.forward()`) is **currently running**. If it
-  over-smooths or plateaus, the durable fix is a **query-based implicit / vecset decoder** (menu
-  option 2) — moving crispness off the dense-grid diffusion and into the decode.
+  (map #52): the VQVAE codec is **not** the crispness bottleneck — `decode(encode(GT))` ≈ 0.0044 vs
+  a GT floor of 0.0041 — **the diffusion is**. Composite-over-extrusion (#56) and a post-decode SDF
+  refiner (#54) were both ruled out cheaply.
+- **Diffusion latent accuracy — CLOSED.** `docs/wayfinding/diffusion-latent-accuracy/` (map #58):
+  #59 (latent-space corrector) and #60 (x0-sharp finetune) both hit the same ~0.0047 wall, so
+  post-hoc correction is ruled out in **both** the SDF and latent domains. The durable fix was to
+  move crispness into the decode — taken up by map #61.
+- **Crisp massing via a query-based decoder — model shipped, map still open.**
+  `docs/wayfinding/crisp-massing-vecset/` (map #61): the A2 vecset massing diffusion is trained,
+  published, and is the current research line (see README). #66/#67 remain open as specs, and the
+  map's own "not yet specified" fog — whether editing survives a token-set latent — is exactly what
+  map #87 is now burning off.
+- **Vecset convergence — COMPLETE.** `docs/wayfinding/vecset-convergence/` (#69–#85, all closed):
+  the evaluation harness, the decoded-surface loss, the height-input decision, and the band-fix
+  findings that map #87 inherited.
+
+### Known gaps in this record
+
+- Maps #106 and #113 have no `docs/wayfinding/` folder yet; #113 names
+  `docs/wayfinding/whole-volume-voxel-transform/` as its required home.
+- `effort:solid-first-carving` (#1–#10) is specified but unstarted; it is deliberately kept open.
 
 ## Language
 
