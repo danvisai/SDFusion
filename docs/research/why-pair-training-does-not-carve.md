@@ -59,9 +59,25 @@ the pair target is unrelated to carving -- real signal, but a modulation on a la
 > if NL+DE-only carves the data was binding, if it still does not then token order is,
 > and arm B is what matters.
 
-Arm N does not carve, at 190k, 200k, 210k and 220k. Per corpus at 220k, `beats_env` is 0.000 on
-all three; Japan returns 3D IoU 0.9915 against `vs_input` 0.9915 -- identical to four decimals,
-the score *is* the copy. **The rule has fired. Token order is binding.**
+Arm N ran the full 240000 steps and never carved: `beats_env` is 0.000 on every corpus at
+**all six** checkpoints (190k, 200k, 210k, 220k, 230k, 240k).
+
+Japan gives the copy away directly -- its 3D IoU and its `vs_input` are the *same number* at
+three checkpoints running (0.9915/0.9915, 0.9593/0.9593, 0.9875/0.9875). The score is the copy.
+
+Germany is the sharpest evidence, because the model moved there and it cost it:
+
+| [de] | 230000 | 240000 |
+|---|---|---|
+| `vs_input` (1.0 = did nothing) | 0.8373 | **0.9908** |
+| 3D IoU | 0.6595 | **0.8158** |
+
+At 230k it departed from its input and scored 0.66. At 240k it went back to handing the input
+back and scored 0.82. **Moving less scored better**, and the run's best checkpoint (`vs_input`
+0.9857 overall) is the one that does the least. That is the copy incentive measured directly,
+not inferred.
+
+**The rule has fired. Token order is binding.**
 
 Only arms A and N have ever been run. **Arm B has never been run.**
 
