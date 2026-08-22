@@ -1,5 +1,12 @@
 {
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(hf *)",
+      "Bash(venv/bin/hf *)",
+      "Bash(./venv/bin/hf *)"
+    ]
   }
 }
