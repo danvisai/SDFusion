@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.foundations.run_aligned_retrain import ARM_SPECS, PREREGISTERED, command_for
+from scripts.foundations.run_aligned_retrain import (
+    ALIGNMENT_STAMPS, ARM_SPECS, PREREGISTERED, _alignment_stamp, command_for,
+)
 
 
 def _options(command: list[str]) -> dict[str, str]:
@@ -60,6 +62,29 @@ class TestArmCommands(unittest.TestCase):
             self.assertEqual(self.commands[arm]["--surf_t_center"], "0.0")
             self.assertEqual(self.commands[arm]["--surf_points"], "8192")
             self.assertEqual(self.commands[arm]["--surf_bs"], "1")
+
+
+class TestAlignmentStamp(unittest.TestCase):
+    """#90's greedy@k=256 has been stamped by two builders under two attribute names.
+
+    Both must pass preflight -- rejecting the older spelling stranded the only complete corpus on
+    the cluster -- and nothing else may, least of all the methods #90 measured and rejected.
+    """
+
+    def test_both_builders_spellings_are_accepted(self):
+        self.assertIn(_alignment_stamp({"alignment": "greedy@k=256"}), ALIGNMENT_STAMPS)
+        self.assertIn(_alignment_stamp({"method": "greedy_match(candidates=256)"}), ALIGNMENT_STAMPS)
+
+    def test_bytes_attributes_decode(self):
+        self.assertEqual(_alignment_stamp({"alignment": b"greedy@k=256"}), "greedy@k=256")
+
+    def test_a_rejected_method_does_not_pass(self):
+        for rejected in ("morton@k=256", "hungarian@k=256", "as_encoded", "greedy@k=16"):
+            self.assertNotIn(_alignment_stamp({"alignment": rejected}), ALIGNMENT_STAMPS, rejected)
+
+    def test_an_unstamped_cache_does_not_pass(self):
+        self.assertIsNone(_alignment_stamp({}))
+        self.assertNotIn(_alignment_stamp({}), ALIGNMENT_STAMPS)
 
 
 if __name__ == "__main__":

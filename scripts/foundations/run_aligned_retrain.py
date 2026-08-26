@@ -59,6 +59,24 @@ ARM_SPECS = {
 PREREGISTERED = ("A", "B", "C", "D")
 
 
+#: #90 registered greedy matching at k=256, and two builders have stamped that same choice under
+#: different attribute names -- the 2026-08-10 cache writes `method="greedy_match(candidates=256)"`,
+#: `align_cache.py` now writes `alignment="greedy@k=256"`. Both are accepted: this label is
+#: provenance, and the permutation itself is proven by `align_cache.py --verify_only`, not by a
+#: string. ⚠️ Do NOT rewrite an old cache's attribute to the new spelling -- that edits the record of
+#: which code built it.
+ALIGNMENT_STAMPS = ("greedy@k=256", "greedy_match(candidates=256)")
+
+
+def _alignment_stamp(attrs) -> str | None:
+    """The aligned cache's self-declared method, under either builder's attribute name."""
+    for key in ("alignment", "method"):
+        value = attrs.get(key)
+        if value is not None:
+            return value.decode() if isinstance(value, bytes) else str(value)
+    return None
+
+
 def output_for(arm: str) -> Path:
     return OUTPUT_ROOT / f"{arm}_{ARM_SPECS[arm].label}"
 
@@ -126,8 +144,10 @@ def preflight(arms: list[str]) -> None:
                 not np.array_equal(a, b) for a, b in zip(candidate[:3], identity[:3])):
             raise SystemExit(f"[preflight] cache population/order differs: {path}")
     with h5py.File(ALIGNED, "r") as cache:
-        if cache.attrs.get("alignment") != "greedy@k=256":
-            raise SystemExit("[preflight] aligned cache is not the registered greedy@k=256 cache")
+        stamp = _alignment_stamp(cache.attrs)
+        if stamp not in ALIGNMENT_STAMPS:
+            raise SystemExit("[preflight] aligned cache is not the registered greedy@k=256 cache: "
+                             f"{stamp!r}")
 
     for arm in arms:
         out = output_for(arm)
@@ -141,7 +161,7 @@ def preflight(arms: list[str]) -> None:
     opt_note = "restored" if "opt" in base else "ABSENT; all arms restart AdamW moments equally"
     print(f"[preflight] base step 180000; optimizer state {opt_note}")
     print(f"[preflight] caches share {identity[3][0]} rows and {held_out} held-out rows")
-    print("[preflight] aligned cache: greedy@k=256")
+    print(f"[preflight] aligned cache: {stamp}")
 
 
 def run_arm(arm: str) -> None:
