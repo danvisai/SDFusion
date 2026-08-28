@@ -83,18 +83,22 @@ def sdf_cone_y(angle_deg: float, height: float) -> SDF:
     return f
 
 
-def sdf_polygon_prism(polygon_xz: np.ndarray, height: float) -> SDF:
-    """Extrude a 2D polygon in XZ along +y from y=0 to y=height.
+def sdf_polygon_2d(polygon_xz: np.ndarray) -> SDF:
+    """Signed distance to a polygon in the XZ plane, ignoring y. Negative inside.
 
     polygon_xz : (P, 2) np.ndarray of polygon vertices, CCW for outward normal.
                  Works for convex AND concave polygons (IQ winding-based sdf).
+
+    Split out of `sdf_polygon_prism` because a roof needs the *distance to the walls* on its own:
+    the height a hip roof falls to is a function of how far a point is from the footprint boundary,
+    which is this field and cannot be written as a combination of half-spaces (an inward-facing
+    plane per wall is right until the footprint turns a reflex corner, where the nearest wall is a
+    vertex rather than an edge).
     """
     poly = torch.tensor(np.asarray(polygon_xz, dtype=np.float32))
     poly_next = torch.roll(poly, -1, dims=0)
     edges = poly_next - poly  # (P, 2)
     edge_lens2 = (edges * edges).sum(dim=-1).clamp_min(1e-12)  # (P,)
-    half_h = height / 2.0
-    y_offset = height / 2.0  # so the prism is y in [0, height]
 
     def f(p: torch.Tensor) -> torch.Tensor:
         device = p.device
@@ -124,9 +128,25 @@ def sdf_polygon_prism(polygon_xz: np.ndarray, height: float) -> SDF:
         cond3 = cross_z > 0
         all_t = cond1 & cond2 & cond3
         all_f = (~cond1) & (~cond2) & (~cond3)
-        flips = (all_t | all_f).to(p.dtype)  # (Q, P) — flip when crossing
+        flips = (all_t | all_f).to(p.dtype)  # (Q, P) -- flip when crossing
         signs = torch.where(flips.sum(dim=-1) % 2 < 0.5, torch.tensor(1.0, device=device), torch.tensor(-1.0, device=device))
-        d_xz = signs * torch.sqrt(d2_min + 1e-12)
+        return signs * torch.sqrt(d2_min + 1e-12)
+
+    return f
+
+
+def sdf_polygon_prism(polygon_xz: np.ndarray, height: float) -> SDF:
+    """Extrude a 2D polygon in XZ along +y from y=0 to y=height.
+
+    polygon_xz : (P, 2) np.ndarray of polygon vertices, CCW for outward normal.
+                 Works for convex AND concave polygons (IQ winding-based sdf).
+    """
+    outline = sdf_polygon_2d(polygon_xz)
+    half_h = height / 2.0
+    y_offset = height / 2.0  # so the prism is y in [0, height]
+
+    def f(p: torch.Tensor) -> torch.Tensor:
+        d_xz = outline(p)
 
         # Y direction.
         y_local = p[..., 1] - y_offset
@@ -137,6 +157,25 @@ def sdf_polygon_prism(polygon_xz: np.ndarray, height: float) -> SDF:
         inside = torch.maximum(d_xz, d_y).clamp_max(0.0)
         return torch.linalg.norm(outside, dim=-1) + inside
 
+    return f
+
+
+def sdf_plane_halfspace(normal: Sequence[float], offset: float) -> SDF:
+    """The solid half-space ``{p : dot(n, p) + offset <= 0}``.
+
+    `normal` is normalised here, so the result is an exact SDF (unit gradient) whatever scale the
+    caller's coefficients came in at. This is the missing half of a layer program: `Ramp` is a
+    plane cutting a polygonal region, and `CutRoof` is several of them (one per eave).
+    """
+    n = np.asarray(normal, dtype=np.float64).reshape(3)
+    norm = float(np.linalg.norm(n))
+    if norm < 1e-12:
+        raise ValueError("plane normal must be non-zero")
+    n32 = torch.tensor((n / norm).astype(np.float32))
+    d = float(offset) / norm
+
+    def f(p: torch.Tensor) -> torch.Tensor:
+        return (p * n32.to(p.device)).sum(dim=-1) + d
     return f
 
 

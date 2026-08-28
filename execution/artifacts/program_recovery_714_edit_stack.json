@@ -1,0 +1,540 @@
+{
+ "meta": {
+  "created": "2026-08-27T22:54:07",
+  "n": 40,
+  "res": 64,
+  "source": "execution/artifacts/program_recovery_714.json"
+ },
+ "per_building": [
+  {
+   "id": 2,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 10940,
+   "faces": 21876
+  },
+  {
+   "id": 11807,
+   "n_ops": 2,
+   "ops": [
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 12672,
+   "faces": 25340
+  },
+  {
+   "id": 23902,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 9902,
+   "faces": 19800
+  },
+  {
+   "id": 210,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Layer",
+    "Ramp",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 7426,
+   "faces": 14848
+  },
+  {
+   "id": 11815,
+   "n_ops": 2,
+   "ops": [
+    "Layer",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 8864,
+   "faces": 17724
+  },
+  {
+   "id": 23903,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 15582,
+   "faces": 31160
+  },
+  {
+   "id": 383,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "Layer",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 10068,
+   "faces": 20132
+  },
+  {
+   "id": 11874,
+   "n_ops": 2,
+   "ops": [
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 12304,
+   "faces": 24604
+  },
+  {
+   "id": 23931,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 14272,
+   "faces": 28540
+  },
+  {
+   "id": 389,
+   "n_ops": 2,
+   "ops": [
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 13106,
+   "faces": 26208
+  },
+  {
+   "id": 11912,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 9622,
+   "faces": 19240
+  },
+  {
+   "id": 23942,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 13862,
+   "faces": 27720
+  },
+  {
+   "id": 407,
+   "n_ops": 2,
+   "ops": [
+    "Layer",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 10952,
+   "faces": 21900
+  },
+  {
+   "id": 12150,
+   "n_ops": 2,
+   "ops": [
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 9098,
+   "faces": 18192
+  },
+  {
+   "id": 24021,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 13312,
+   "faces": 26620
+  },
+  {
+   "id": 418,
+   "n_ops": 2,
+   "ops": [
+    "Ramp",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 13744,
+   "faces": 27484
+  },
+  {
+   "id": 12173,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 12192,
+   "faces": 24380
+  },
+  {
+   "id": 24149,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 15892,
+   "faces": 31780
+  },
+  {
+   "id": 430,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Layer",
+    "CutRoof"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9997181709293314,
+   "undo_iou": 1.0,
+   "roof_kinds": [
+    "hip"
+   ],
+   "vertices": 8332,
+   "faces": 16660
+  },
+  {
+   "id": 12189,
+   "n_ops": 4,
+   "ops": [
+    "Ramp",
+    "Layer",
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 7422,
+   "faces": 14840
+  },
+  {
+   "id": 24162,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 5052,
+   "faces": 10100
+  },
+  {
+   "id": 443,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "Layer",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 11140,
+   "faces": 22276
+  },
+  {
+   "id": 12224,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 12862,
+   "faces": 25720
+  },
+  {
+   "id": 24179,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 15958,
+   "faces": 31912
+  },
+  {
+   "id": 607,
+   "n_ops": 1,
+   "ops": [
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 12064,
+   "faces": 24124
+  },
+  {
+   "id": 12282,
+   "n_ops": 1,
+   "ops": [
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 11344,
+   "faces": 22684
+  },
+  {
+   "id": 24238,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 11180,
+   "faces": 22356
+  },
+  {
+   "id": 619,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 18230,
+   "faces": 36456
+  },
+  {
+   "id": 12451,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 12140,
+   "faces": 24276
+  },
+  {
+   "id": 24312,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 17430,
+   "faces": 34856
+  },
+  {
+   "id": 695,
+   "n_ops": 1,
+   "ops": [
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 10110,
+   "faces": 20216
+  },
+  {
+   "id": 12551,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 4330,
+   "faces": 8656
+  },
+  {
+   "id": 24365,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 11510,
+   "faces": 23016
+  },
+  {
+   "id": 727,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 8294,
+   "faces": 16584
+  },
+  {
+   "id": 12622,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "CutRoof",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9993810349096311,
+   "undo_iou": 0.9993858248372436,
+   "roof_kinds": [
+    "hip"
+   ],
+   "vertices": 8382,
+   "faces": 16760
+  },
+  {
+   "id": 24369,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 12916,
+   "faces": 25828
+  },
+  {
+   "id": 760,
+   "n_ops": 1,
+   "ops": [
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 14646,
+   "faces": 29288
+  },
+  {
+   "id": 12644,
+   "n_ops": 2,
+   "ops": [
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 9140,
+   "faces": 18276
+  },
+  {
+   "id": 24457,
+   "n_ops": 0,
+   "ops": [],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": null,
+   "roof_kinds": [],
+   "vertices": 18048,
+   "faces": 36092
+  },
+  {
+   "id": 853,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 7034,
+   "faces": 14064
+  }
+ ]
+}

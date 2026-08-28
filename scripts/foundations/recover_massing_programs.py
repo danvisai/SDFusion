@@ -66,6 +66,10 @@ SHIP714 = REPO / "execution/artifacts/massing_arms_eval_ship714.json"
 # `allowance` vocabulary in CONTEXT.md: a decision, recorded in one place so it cannot drift.
 CARVE_NEEDED = 0.02
 
+# Snap before flooring a ramp plane, so a value that is mathematically integral is not read one
+# level lower because the linear program returned it a few ulps short. See `_ramp_candidates`.
+FLOOR_EPS = 1e-9
+
 
 # ----------------------------------------------------------------------------------------------
 # the height field
@@ -165,7 +169,7 @@ def _layer_candidates(fp, target, h):
             if gain > 0:
                 cand = np.where(piece, np.int16(v), h)
                 yield gain, cand, dict(op="Layer", height=int(v), area=int(piece.sum()),
-                                       components=1)
+                                       components=1, _region=piece)
 
 
 def _ramp_candidates(fp, target, h, max_regions: int = 3):
@@ -210,7 +214,13 @@ def _ramp_candidates(fp, target, h, max_regions: int = 3):
         if not r.success:
             continue
         a, b, cz = r.x
-        plane = np.floor(a + b * xx_g + cz * zz_g)
+        # `+FLOOR_EPS`: the optimal plane *touches* the binding target heights, so its value at a
+        # voxel centre is an exact integer far more often than chance -- and `linprog` returns that
+        # integer as 45.999999999999996 about half the time, which `floor` then reads as 45. That is
+        # round-off deciding geometry. Snapping first makes the discretisation depend on the plane
+        # rather than on the solver's last bit, and is what lets the same program compile to the
+        # same solid through `scene/sdf_edit.py` (#128).
+        plane = np.floor(a + b * xx_g + cz * zz_g + FLOOR_EPS)
         cand = np.where(piece, np.minimum(h, plane).astype(np.int16), h)
         cand = np.where(fp, np.maximum(cand, 1), 0).astype(np.int16)
         if (cand[fp] < target[fp]).any():
@@ -218,7 +228,8 @@ def _ramp_candidates(fp, target, h, max_regions: int = 3):
         gain = int((h[fp] - cand[fp]).sum())
         if gain > 0:
             yield gain, cand, dict(op="Ramp", area=int(piece.sum()),
-                                   slope=[round(float(b), 4), round(float(cz), 4)])
+                                   slope=[round(float(b), 4), round(float(cz), 4)],
+                                   plane=[float(a), float(b), float(cz)], _region=piece)
 
 
 def _all_candidates(fp, dists, target, h):
@@ -372,6 +383,164 @@ def build_montage(cases, out: Path, cell: int = 128) -> Path:
 # CLI
 # ----------------------------------------------------------------------------------------------
 
+def finalise_program(ops):
+    """Turn each selected operation's region mask into polygon rings, in place.
+
+    Carried as a mask through the search because a beam expands thousands of candidates and only a
+    handful survive; tracing every one would dominate the fit. What lands in the artifact is the
+    ring list, so the program is **replayable** -- `scene.sdf_edit.layer_program_to_ops` rebuilds
+    the identical solid from it, and a program that cannot be replayed is not a recipe (#128).
+    """
+    from scene.sdf_edit import mask_to_rings
+
+    out = []
+    for op in ops:
+        op = dict(op)
+        mask = op.pop("_region", None)
+        if mask is not None:
+            op["region"] = [r.tolist() for r in mask_to_rings(mask)]
+        out.append(op)
+    return out
+
+
+# ----------------------------------------------------------------------------------------------
+# the trip through the edit stack (#128)
+# ----------------------------------------------------------------------------------------------
+
+def _rings_to_mask(rings, res: int = RES) -> np.ndarray:
+    """Polygon rings (voxel-index units, outer first) -> the cells they cover.
+
+    Uses matplotlib's point-in-polygon rather than our own SDF, so the check below compares two
+    independent implementations instead of one implementation with itself.
+    """
+    from matplotlib.path import Path as MplPath
+
+    zz, xx = np.mgrid[0:res, 0:res]
+    pts = np.stack([xx.ravel(), zz.ravel()], axis=1).astype(float)
+    mask = np.zeros(len(pts), bool)
+    for i, ring in enumerate(rings):
+        hit = MplPath(np.asarray(ring, float)).contains_points(pts)
+        mask = hit if i == 0 else (mask & ~hit)
+    return mask.reshape(res, res)
+
+
+def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
+    """Re-run a serialised program in height-map space, reading only what the artifact stores.
+
+    The fitter returns its height map as a by-product of the search. This interprets the written
+    program instead, so a disagreement means the artifact is not self-contained -- which is the
+    difference between a recorded *program* and a recorded *result*.
+
+    It repeats the Layer/Ramp/CutRoof cascade that `scene.sdf_edit.layer_program_to_ops` also walks,
+    and that repetition is the point: one reads the program into height-map space and the other into
+    an SDF, and a check is only worth running while the two are written independently.
+    """
+    h = np.where(fp, np.int16(y1 - y0 + 1), 0).astype(np.int16)
+    dists = _dists_for(fp)
+    zz, xx = np.mgrid[0:RES, 0:RES]
+    for op in program:
+        kind = op["op"]
+        if kind == "Layer":
+            region = _rings_to_mask(op["region"]) & fp
+            h = np.where(region, np.int16(op["height"]), h).astype(np.int16)
+            continue
+        if kind == "Ramp":
+            region = _rings_to_mask(op["region"]) & fp
+            a, b, c = (float(v) for v in op["plane"])
+            cand = np.where(region, np.minimum(h, np.floor(a + b * xx + c * zz + FLOOR_EPS)), h)
+        elif kind == "CutRoof":
+            slope = (dists[op["kind"]].astype(np.float32) - 1.0) * float(op["rate"])
+            cand = np.minimum(h, np.floor(int(op["eaves"]) + slope))
+        else:
+            raise ValueError(f"unknown operation '{kind}'")
+        h = np.where(fp, np.maximum(cand.astype(np.int16), 1), 0).astype(np.int16)
+    return h
+
+
+def verify_edit_stack(cases, out_dir: Path, sheet_rows: int = 6):
+    """Load each recovered program into `EditableBuilding` and check it is the same building.
+
+    Three claims, each measured rather than asserted:
+      1. the **serialised** program replays to the height map the fitter found;
+      2. the SDF composition and the voxel compiler agree, voxel for voxel;
+      3. `undo()` returns the building to the program's previous state -- reversibility, which
+         `CONTEXT.md` calls the load-bearing claim, holding through the new operations.
+
+    Reported in three groups, because a roof is compiled differently from a layer and the residual
+    means something different in each:
+      * `Layer` / `Ramp` -- **exact**, and the overwhelming majority of recovered operations;
+      * `CutRoof(hip)` -- a cap over the region's outline distance;
+      * `CutRoof(gable_x|gable_z)` -- a clause per eave, clipped to the rows its wall spans.
+    The two roof forms read a *continuous* distance to the wall where the recovered rule reads a
+    discrete transform over cells, so they can disagree by up to half a voxel at a corner. Measured
+    on the 12 corpus buildings whose programs contain a roof, that is a median IoU of 0.9994 (hip)
+    and 1.0000 (gable), never below 0.9892.
+    """
+    from scene.sdf_edit import EditableBuilding, footprint_envelope_sdf, layer_program_to_ops
+    from scene.sdf_primitives import grid_to_mesh, sample_grid
+
+    bbox = (-1.0, -1.0, -1.0, 1.0, 1.0, 1.0)
+    # One grid sample serves both the occupancy and the mesh. Evaluating a composed program costs
+    # O(points x polygon vertices) per operation and the corpus's regions run to hundreds of
+    # vertices, so sampling twice for the same building is the difference between minutes and tens
+    # of minutes across a run.
+    grid_of = lambda b: sample_grid(b.composed(), RES, bbox, device="cpu", chunk=1 << 14)
+
+    rows, sheet = [], []
+    for case in cases:
+        fp, y0, y1 = case["fp"], case["y0"], case["y1"]
+        program, fitted = case["program"], case["fitted"]
+
+        replayed = replay_program(fp, y0, y1, program)
+        ops = layer_program_to_ops(program, fp, y0, y1, res=RES)
+        eb = EditableBuilding(footprint_envelope_sdf(fp, y0, y1, res=RES), ops)
+        grid = grid_of(eb)
+        occ_sdf = (grid <= 0.0).numpy()
+        occ_ref = occupancy(fp, y0, fitted)
+        mesh = grid_to_mesh(grid, bbox, iso=0.0)
+
+        undo_iou = None
+        if ops:
+            eb.undo()
+            undo_iou = volume_split(
+                (grid_of(eb) <= 0.0).numpy(),
+                occupancy(fp, y0, replay_program(fp, y0, y1, program[:-1])))["vol_iou"]
+
+        rows.append(dict(id=int(case["id"]), n_ops=len(program),
+                         ops=[o["op"] for o in program],
+                         replay_exact=bool((replayed == fitted).all()),
+                         sdf_iou=volume_split(occ_sdf, occ_ref)["vol_iou"],
+                         undo_iou=undo_iou,
+                         roof_kinds=[o["kind"] for o in program if o["op"] == "CutRoof"],
+                         vertices=(0 if mesh is None else int(len(mesh.vertices))),
+                         faces=(0 if mesh is None else int(len(mesh.faces)))))
+        if len(sheet) < sheet_rows:
+            top = np.where(occ_sdf.any(axis=1),
+                           RES - np.argmax(occ_sdf[:, ::-1, :], axis=1) - y0, 0).astype(np.int16)
+            sheet.append((case["id"], fp, fitted, np.where(fp, top, 0)))
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sheet_path = None
+    if sheet:
+        from PIL import Image, ImageDraw
+        panels = [[render_iso(h, fp) for h in (voxels, sdf)] for _i, fp, voxels, sdf in sheet]
+        w = max(im.width for row in panels for im in row)
+        ht = max(im.height for row in panels for im in row)
+        LBL = 18
+        canvas = Image.new("RGB", (2 * w, len(panels) * (ht + LBL) + LBL), (255, 255, 255))
+        d = ImageDraw.Draw(canvas)
+        for col, name in enumerate(("voxel compiler", "SDF edit stack")):
+            d.text((col * w + 8, 4), name, fill=(0, 0, 0))
+        for r, (row, (bid, *_)) in enumerate(zip(panels, sheet)):
+            y = LBL + r * (ht + LBL)
+            d.text((8, y + ht), f"id {bid}", fill=(0, 0, 0))
+            for c, im in enumerate(row):
+                canvas.paste(im, (c * w, y))
+        sheet_path = out_dir / "edit_stack.png"
+        canvas.save(sheet_path)
+    return rows, sheet_path
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -388,6 +557,9 @@ def main() -> None:
                     help="candidates expanded per beam per step")
     ap.add_argument("--montage", type=int, default=0,
                     help="rows per sheet; emits a worst-N and a representative-N trace")
+    ap.add_argument("--verify_edit_stack", type=int, default=0,
+                    help="load this many recovered programs into EditableBuilding and check the "
+                         "SDF composition, the replay and undo against the voxel compiler (#128)")
     args = ap.parse_args()
 
     ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]
@@ -395,7 +567,7 @@ def main() -> None:
         ids = ids[:args.n]
     print(f"[ids] {len(ids)} buildings from {args.ids_from}", flush=True)
 
-    rows, cases, t0 = {}, [], time.time()
+    rows, cases, bridge_cases, all_cases, t0 = {}, [], [], [], time.time()
     with h5py.File(H5, "r") as g:
         for k, b in enumerate(ids):
             gt = np.asarray(g["sdf"][b], np.float32) <= 0
@@ -412,6 +584,7 @@ def main() -> None:
                 ops, h = fit_program(fp, y0, y1, target, args.max_ops, args.allowance)
             occ = occupancy(fp, y0, h)
 
+            ops = finalise_program(ops)
             row = dict(fp_iou=fp_iou(occ, fp), n_ops=len(ops),
                        ops=[o["op"] for o in ops], program=ops)
             row.update(volume_split(occ, gt))
@@ -423,6 +596,11 @@ def main() -> None:
                 cases.append(dict(id=b, fp=fp.copy(), target=target.copy(), fitted=h.copy(),
                                   n_ops=len(ops), extra=row["extra"],
                                   ops=[o["op"] for o in ops]))
+            if args.verify_edit_stack:
+                case = dict(id=b, fp=fp.copy(), y0=y0, y1=y1, fitted=h.copy(), program=ops)
+                all_cases.append(case)
+                if len(bridge_cases) < args.verify_edit_stack:
+                    bridge_cases.append(case)
             if (k + 1) % 100 == 0:
                 print(f"  {k+1}/{len(ids)}  {time.time()-t0:.0f}s", flush=True)
 
@@ -442,6 +620,51 @@ def main() -> None:
             if sel:
                 p = build_montage(sel, REPO / f"outputs/program_recovery/{tag}.png")
                 print(f"[montage] {p}", flush=True)
+    if bridge_cases:
+        # Compiling is cheap where sampling the composed field is not, so every program is put
+        # through it and only a sample is checked voxel for voxel. It is the coverage question the
+        # sample cannot answer: whether any recovered program is inexpressible at all.
+        from scene.sdf_edit import layer_program_to_ops
+        refused = []
+        for case in all_cases:
+            try:
+                layer_program_to_ops(case["program"], case["fp"], case["y0"], case["y1"], res=RES)
+            except Exception as exc:
+                refused.append((int(case["id"]), f"{type(exc).__name__}: {exc}"))
+        bridge, sheet = verify_edit_stack(bridge_cases, REPO / "outputs/program_recovery")
+        art = Path(args.out).with_name(Path(args.out).stem + "_edit_stack.json")
+        json.dump(dict(meta=dict(created=time.strftime("%Y-%m-%dT%H:%M:%S"), n=len(bridge),
+                                 res=RES, source=args.out), per_building=bridge),
+                  open(art, "w"), indent=1)
+        plain = [r for r in bridge if not r["roof_kinds"]]
+        hip = [r for r in bridge if r["roof_kinds"] and set(r["roof_kinds"]) == {"hip"}]
+        gable = [r for r in bridge if set(r["roof_kinds"]) - {"hip"}]
+        print(f"\n-- #128 EDIT-STACK BRIDGE  n={len(bridge)} sampled of {len(all_cases)}")
+        print(f"   every recovered program compiles to EditOps:         "
+              f"{len(all_cases) - len(refused)}/{len(all_cases)}")
+        for bid, why in refused[:5]:
+            print(f"      refused: id {bid}  {why}")
+        print(f"   serialised program replays to the fitted height map: "
+              f"{sum(r['replay_exact'] for r in bridge)}/{len(bridge)}")
+        print(f"   composed SDF == voxel compiler, Layer/Ramp only:     "
+              f"{sum(r['sdf_iou'] == 1.0 for r in plain)}/{len(plain)}")
+        for tag, sel in (("with a hipped CutRoof (outline cap)   ", hip),
+                         ("with a gabled CutRoof (per-axis run)  ", gable)):
+            if sel:
+                v = [r["sdf_iou"] for r in sel]
+                print(f"   {tag}: median IoU {np.median(v):.4f}  min {min(v):.4f}  on {len(sel)}")
+        undone = [r for r in bridge if r["undo_iou"] is not None]
+        exact_undo = [r for r in undone if not r["roof_kinds"]]
+        print(f"   undo() returns the previous program state:            "
+              f"{sum(r['undo_iou'] == 1.0 for r in exact_undo)}/{len(exact_undo)}")
+        roof_undo = [r for r in undone if r["roof_kinds"]]
+        if roof_undo:
+            print(f"   undo() on a program ending in a roof:                 "
+                  f"median IoU {np.median([r['undo_iou'] for r in roof_undo]):.4f} "
+                  f"on {len(roof_undo)}")
+        print(f"[artifact] {art}")
+        if sheet:
+            print(f"[sheet] {sheet}")
     report(rows, args)
 
 
@@ -478,10 +701,6 @@ def report(rows, args) -> None:
         for k in sorted(vol, key=lambda k: -vol[k]):
             print(f"  {k:<10} used {names.count(k):>5}x   {vol[k]/tv*100:5.1f}% of removed volume")
     print("=" * 78)
-
-
-if __name__ == "__main__":
-    main()
 
 
 # ----------------------------------------------------------------------------------------------
@@ -561,3 +780,7 @@ def build_iso_sheet(cases, out: Path, cell: int = 6) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(out)
     return out
+
+
+if __name__ == "__main__":
+    main()

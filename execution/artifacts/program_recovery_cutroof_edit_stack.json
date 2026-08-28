@@ -1,0 +1,219 @@
+{
+ "meta": {
+  "created": "2026-08-27T23:35:30",
+  "n": 12,
+  "res": 64,
+  "source": "/tmp/claude-964049/-scratch-gilbreth-dsimhadr-GenerativeTowns-SDFusion/60d5d039-1c47-477e-9af3-4d16febfdffc/scratchpad/program_recovery_cutroof.json"
+ },
+ "per_building": [
+  {
+   "id": 430,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Layer",
+    "CutRoof"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9997181709293314,
+   "undo_iou": 1.0,
+   "roof_kinds": [
+    "hip"
+   ],
+   "vertices": 8332,
+   "faces": 16660
+  },
+  {
+   "id": 12622,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "CutRoof",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9993810349096311,
+   "undo_iou": 0.9993858248372436,
+   "roof_kinds": [
+    "hip"
+   ],
+   "vertices": 8382,
+   "faces": 16760
+  },
+  {
+   "id": 12900,
+   "n_ops": 4,
+   "ops": [
+    "CutRoof",
+    "Layer",
+    "Layer",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9999520636594602,
+   "undo_iou": 0.9999525819147422,
+   "roof_kinds": [
+    "hip"
+   ],
+   "vertices": 6622,
+   "faces": 13240
+  },
+  {
+   "id": 13620,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "CutRoof",
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [
+    "gable_x"
+   ],
+   "vertices": 7962,
+   "faces": 15920
+  },
+  {
+   "id": 2483,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "CutRoof",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [
+    "gable_x"
+   ],
+   "vertices": 8444,
+   "faces": 16884
+  },
+  {
+   "id": 15467,
+   "n_ops": 2,
+   "ops": [
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 13702,
+   "faces": 27400
+  },
+  {
+   "id": 15592,
+   "n_ops": 3,
+   "ops": [
+    "Layer",
+    "Ramp",
+    "Ramp"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [],
+   "vertices": 4446,
+   "faces": 8888
+  },
+  {
+   "id": 4769,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "CutRoof",
+    "Layer",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9986745576721534,
+   "undo_iou": 0.9965057275682903,
+   "roof_kinds": [
+    "hip"
+   ],
+   "vertices": 9308,
+   "faces": 18612
+  },
+  {
+   "id": 17565,
+   "n_ops": 4,
+   "ops": [
+    "CutRoof",
+    "Layer",
+    "Layer",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9947542960506481,
+   "undo_iou": 0.9930161762072465,
+   "roof_kinds": [
+    "hip"
+   ],
+   "vertices": 6398,
+   "faces": 12792
+  },
+  {
+   "id": 7819,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Layer",
+    "CutRoof",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [
+    "gable_x"
+   ],
+   "vertices": 4858,
+   "faces": 9712
+  },
+  {
+   "id": 20636,
+   "n_ops": 4,
+   "ops": [
+    "CutRoof",
+    "Layer",
+    "CutRoof",
+    "CutRoof"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 0.9892301252045516,
+   "undo_iou": 0.9853197124479758,
+   "roof_kinds": [
+    "hip",
+    "gable_x",
+    "gable_x"
+   ],
+   "vertices": 9268,
+   "faces": 18532
+  },
+  {
+   "id": 11306,
+   "n_ops": 4,
+   "ops": [
+    "Layer",
+    "Layer",
+    "CutRoof",
+    "Layer"
+   ],
+   "replay_exact": true,
+   "sdf_iou": 1.0,
+   "undo_iou": 1.0,
+   "roof_kinds": [
+    "gable_z"
+   ],
+   "vertices": 10502,
+   "faces": 21000
+  }
+ ]
+}
