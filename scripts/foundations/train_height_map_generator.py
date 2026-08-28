@@ -146,6 +146,50 @@ def height_split(pred: np.ndarray, target: np.ndarray) -> dict:
                 extra=float((av - inter) / gv) if gv else 0.0)
 
 
+def roof_shape_stats(h: np.ndarray, fp: np.ndarray) -> dict:
+    """Three attempts at a scalar for "does this roof look like a building", and all three fail.
+
+    ⚠️ Recorded as a **negative result**, not as a scorecard column that works. The montages show a
+    clear difference -- real roofs and the retrieved ones are flat planes meeting at ridges, while
+    every trained arm returns a rounded mound with concentric contours -- and none of these
+    statistics separates them. Measured on the carve-needing 411:
+
+        arm            relief  curvature  speckle      the eye says
+        gt               0.46      0.634    0.000      planes and ridges
+        nn_retrieval     0.32      0.454    0.000      planes and ridges (it copies one)
+        heightmap_ce     0.47      0.778    0.000      a mound, plus visible speckle
+        ..._ce_median    0.40      0.509    0.000      a mound
+        heightmap_mse    0.28      0.492    0.000      a mound
+
+    `relief` ranks the worst-looking arm closest to GT and `curvature` ranks two of the mounds
+    *smoother* than a real building, so both order the arms nearly opposite to the eye. The cause is
+    that **GT is itself terraced at 64^3**: a pitched roof discretises to a staircase, so an
+    amplitude statistic cannot tell a discretised plane from a mound. What differs is the
+    *organisation* of the steps -- parallel runs against closed contours -- which is a directional
+    property none of these three measures.
+
+    This is the same wall map #34 hit ("roughness is prior-side; 2 scalar metrics failed") and #71
+    ("ribbing is not melt"). They are kept, computed and published so the attempt is on the record
+    and re-checkable, and the visual criterion stays the one that decides.
+
+        relief     mean |height step| between adjacent footprint columns
+        curvature  mean |second difference| along each axis; 0 on any plane at any slope
+        speckle    fraction of interior columns that are a strict local extremum over 4 neighbours
+    """
+    a, m = np.asarray(h, np.int32), np.asarray(fp, bool)
+    step = np.concatenate([np.abs(a[:, :-1] - a[:, 1:])[m[:, :-1] & m[:, 1:]],
+                           np.abs(a[:-1, :] - a[1:, :])[m[:-1, :] & m[1:, :]]])
+    curv = np.concatenate([
+        np.abs(a[:, :-2] - 2 * a[:, 1:-1] + a[:, 2:])[m[:, :-2] & m[:, 1:-1] & m[:, 2:]],
+        np.abs(a[:-2, :] - 2 * a[1:-1, :] + a[2:, :])[m[:-2, :] & m[1:-1, :] & m[2:, :]]])
+    core = m[1:-1, 1:-1] & m[:-2, 1:-1] & m[2:, 1:-1] & m[1:-1, :-2] & m[1:-1, 2:]
+    nb = np.stack([a[:-2, 1:-1], a[2:, 1:-1], a[1:-1, :-2], a[1:-1, 2:]])
+    ext = ((a[1:-1, 1:-1] > nb).all(0) | (a[1:-1, 1:-1] < nb).all(0)) & core
+    return dict(relief=float(step.mean()) if len(step) else 0.0,
+                curvature=float(curv.mean()) if len(curv) else 0.0,
+                speckle=float(ext.sum() / core.sum()) if core.any() else 0.0)
+
+
 def envelope_depth(fp: np.ndarray) -> np.ndarray:
     """The do-nothing prediction: carve nothing, which `apply_depth` renders as the blockout."""
     return np.zeros(np.shape(fp), np.int16)
@@ -548,8 +592,9 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     # twice recommended stopping at a dip that recovered (#80), and a curve nobody can re-read is
     # how that happens a third time.
     curve = ckpt.with_name(ckpt.stem + "_curve.json")
-    return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"], decode=
-                     "argmax" if quantile is None else f"posterior q={quantile}",
+    return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"],
+                     decode=("regression" if d["objective"] != "ce" else
+                             "argmax" if quantile is None else f"posterior q={quantile}"),
                      epoch=d.get("epoch"), val_loss=d.get("val"), val_extra=d.get("val_extra"),
                      val_missing=d.get("val_missing"), val_symmetric=d.get("val_symmetric"),
                      params=d.get("params"), selected_on="validation missing+extra",
@@ -573,7 +618,10 @@ def score_arm(heights: np.ndarray, held: dict) -> list:
                  # the arm cut at all, against the fraction GT cuts? `extra` says how much surplus
                  # is left; this says whether the arm ACTED, and on how much of the building.
                  carved_cols=float((heights[i][fp] < extent).mean()),
-                 gt_carved_cols=float((held["target"][i][fp] < extent).mean()))
+                 gt_carved_cols=float((held["target"][i][fp] < extent).mean()),
+                 **{f"roof_{k}": v for k, v in roof_shape_stats(heights[i], fp).items()},
+                 **{f"gt_roof_{k}": v for k, v in
+                    roof_shape_stats(held["target"][i], fp).items()})
         r.update(volume_split(occ, gt))
         r.update(footprint_split(occ, fp))
         r["fp_iou"] = fp_iou(occ, fp)
@@ -588,6 +636,8 @@ def summarise(rows: list) -> dict:
     return dict(n=len(rows), missing=med("missing"), extra=med("extra"),
                 vs_input=med("vs_input"), carved_cols=med("carved_cols"),
                 gt_carved_cols=med("gt_carved_cols"),
+                **{k: med(k) for k in ("roof_relief", "roof_curvature", "roof_speckle",
+                                       "gt_roof_relief", "gt_roof_curvature", "gt_roof_speckle")},
                 collapse_rate=float(np.mean([r["missing"] >= COLLAPSE_MISSING for r in rows]))
                 if rows else float("nan"),
                 fp_iou=med("fp_iou"), spill=med("spill"), vol_iou=med("vol_iou"))
@@ -692,20 +742,21 @@ def report(res: dict) -> None:
                        ("all", "all pinned buildings")):
         print(f"\n== {label} (n={res['arms']['blockout'][pop]['n']}) ==")
         print(f"{'arm':22s} {'miss':>7} {'extra':>7} {'vs_inp':>7} {'collapse':>9} "
-              f"{'>env:xtr':>9} {'carved':>7} | {'(3D IoU)':>9}   "
-              f"(GT carves {res['arms']['blockout'][pop]['gt_carved_cols']:.3f} of columns)")
+              f"{'>env:xtr':>9} {'carved':>7} {'relief':>7} | {'(3D IoU)':>9}   "
+              f"(GT: carves {res['arms']['blockout'][pop]['gt_carved_cols']:.3f} of columns, "
+              f"relief {res['arms']['blockout'][pop]['gt_roof_relief']:.2f})")
         for name, a in res["arms"].items():
             s = a[pop]
             w = a["beats_envelope_extra"][pop]["rate_ex_ties"]
             print(f"{name:22s} {s['missing']:>7.4f} {s['extra']:>7.4f} {s['vs_input']:>7.4f} "
-                  f"{s['collapse_rate']:>9.4f} {w:>9.3f} {s['carved_cols']:>7.3f} | "
-                  f"{s['vol_iou']:>9.4f}")
+                  f"{s['collapse_rate']:>9.4f} {w:>9.3f} {s['carved_cols']:>7.3f} "
+                  f"{s['roof_relief']:>7.2f} | {s['vol_iou']:>9.4f}")
     if res.get("reference"):
         print("\n== this project's arms of record, re-summarised on the SAME carve-needing rows ==")
         for name, a in res["reference"].items():
             vi = "     -" if a["vs_input"] is None else f"{a['vs_input']:>7.4f}"
             print(f"{name:22s} {a['missing']:>7.4f} {a['extra']:>7.4f} {vi} "
-                  f"{a['collapse_rate']:>9.4f} {'':>9} {'':>7} | {a['vol_iou']:>9.4f}")
+                  f"{a['collapse_rate']:>9.4f} {'':>9} {'':>7} {'':>7} | {a['vol_iou']:>9.4f}")
 
     print("\n== the pre-registered bar, on the carve-needing subset ==")
     for name, v in res["verdict"].items():

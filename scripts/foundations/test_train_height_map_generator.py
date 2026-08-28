@@ -29,7 +29,7 @@ from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E40
 from scripts.foundations.recover_massing_programs import occupancy  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     COND_CHANNELS, DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
-    height_split, mean_relative_depth, mean_roof_height, retrieve_nn,
+    height_split, mean_relative_depth, mean_roof_height, retrieve_nn, roof_shape_stats,
 )
 
 
@@ -127,6 +127,40 @@ class TestHeightSplit(unittest.TestCase):
         t = apply_depth(fp, 12, np.full(fp.shape, 3, np.int16))
         s = height_split(t, t)
         self.assertEqual((s["missing"], s["extra"], s["vol_iou"]), (0.0, 0.0, 1.0))
+
+
+class TestRoofShapeStats(unittest.TestCase):
+    """The three roof-shape statistics. ⚠️ All three were measured NOT to separate the arms (see
+    `roof_shape_stats`); what is pinned here is only that each computes what it claims to, so the
+    negative result is a fact about the roofs and not about a broken implementation."""
+
+    def test_a_flat_roof_is_zero_on_all_three(self):
+        fp = _rect(16, 2, 12, 2, 12)
+        s = roof_shape_stats(apply_depth(fp, 9, np.zeros(fp.shape, np.int16)), fp)
+        self.assertEqual((s["relief"], s["curvature"], s["speckle"]), (0.0, 0.0, 0.0))
+
+    def test_a_constant_slope_has_relief_but_no_curvature(self):
+        """A shed roof rising one voxel per column: relief 0.5 over both axes, curvature 0 -- which
+        is the property that made curvature look like the right discriminator before it was run."""
+        fp = _rect(16, 0, 16, 0, 16)
+        h = (np.arange(16)[None, :] + 1).astype(np.int16) * np.ones((16, 1), np.int16)
+        s = roof_shape_stats(h, fp)
+        self.assertAlmostEqual(s["relief"], 0.5, places=6)
+        self.assertAlmostEqual(s["curvature"], 0.0, places=6)
+
+    def test_a_single_spike_is_speckle(self):
+        fp = _rect(16, 2, 12, 2, 12)
+        h = apply_depth(fp, 20, np.zeros(fp.shape, np.int16))
+        h[7, 7] = 3
+        self.assertGreater(roof_shape_stats(h, fp)["speckle"], 0.0)
+
+    def test_noise_under_the_envelope_costs_shape_but_no_extra(self):
+        """🔑 The blind spot these were reaching for: rubble that stays below GT is free on `extra`."""
+        fp = _rect(16, 2, 12, 2, 12)
+        gt = apply_depth(fp, 20, np.zeros(fp.shape, np.int16))
+        noisy = apply_depth(fp, 20, np.indices(fp.shape)[0] % 5)
+        self.assertEqual(height_split(noisy, gt)["extra"], 0.0)
+        self.assertGreater(roof_shape_stats(noisy, fp)["relief"], roof_shape_stats(gt, fp)["relief"])
 
 
 class TestConditioningCarriesNoAnswer(unittest.TestCase):

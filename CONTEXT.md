@@ -77,9 +77,14 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
 - Maps #106 and #113 have no `docs/wayfinding/` folder yet; #113 names
   `docs/wayfinding/whole-volume-voxel-transform/` as its required home.
 - `effort:solid-first-carving` (#1–#9) is specified but unstarted; it is deliberately kept open.
-  #10 and #128 are done — see `docs/wayfinding/solid-first-subtractive-modeling/`, which also
-  holds #126's scoring decision. #127 (a footprint-conditioned height-map generator) is
-  unblocked by it and not yet started.
+  #10, #126, #127 and #128 are done — see `docs/wayfinding/solid-first-subtractive-modeling/`.
+- 🔑 **#127 broke the no-op.** A 3.4M-parameter footprint→height-map generator carves: `extra`
+  0.2308 → **0.0603** with `vs_input` 0.8432, against the shipped 49M model's 0.2357 at 0.9852
+  vs-input. The pattern that closed #69–#92 was a property of the output space, not of the task.
+  ⚠️ Its **pre-registered arm missed the 1-NN bar** (0.1178 against 0.1031); the arms that clear it
+  were run after seeing that. ⚠️ **The montage disagrees with the scorecard** — every trained arm
+  returns a rounded mound where the real roof is planes meeting at a ridge, and three amplitude
+  statistics failed to separate them. The open problem has moved from *amount* to *form*.
 
 ## Language
 
@@ -152,6 +157,12 @@ here: #92 is judged on the gates it pre-registered. See
 `docs/wayfinding/solid-first-subtractive-modeling/126-massing-scoring.md`.
 Scored on the **carve-needing subset** wherever a generator's carving is the question: 303 of the
 714 held-out buildings need no carve, and that no-op majority flatters every aggregate.
+⚠️ **The split is blind to roof form.** #127 measured an arm scoring `extra` 0.000 on a building
+while looking worse than the blockout it started from — `extra` charges only volume *above* GT, so
+a rough or wrongly-shaped surface underneath it is free. Three amplitude statistics (mean height
+step, second difference, local extrema) were tried and **none separates a mound from a roof**,
+because GT is itself terraced at 64³. Until one exists, the **montage decides form** and the split
+decides surplus. See `docs/wayfinding/solid-first-subtractive-modeling/127-height-map-generator.md`.
 _Avoid_: shape accuracy, 3D IoU as a lone number, "determined by footprint + height"
 
 **Footprint fidelity — fringe / spill / uncovered**:
