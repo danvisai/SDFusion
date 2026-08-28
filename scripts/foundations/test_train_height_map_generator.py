@@ -30,6 +30,7 @@ from scripts.foundations.recover_massing_programs import occupancy  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     COND_CHANNELS, DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
     height_split, mean_relative_depth, mean_roof_height, retrieve_nn, roof_shape_stats,
+    summarise, verdict,
 )
 
 
@@ -276,6 +277,86 @@ class TestRetrievalBaseline(unittest.TestCase):
         q = _rect(16, 2, 10, 2, 10)
         bank = np.stack([_rect(16, 0, 3, 0, 3), _rect(16, 12, 16, 12, 16)])
         self.assertIn(int(retrieve_nn(q[None], bank)[0]), (0, 1))
+
+
+class TestVerdict(unittest.TestCase):
+    """The pre-registered bar itself, evaluated mechanically so a write-up cannot soften it.
+
+    This is the most consequential pure function in the module -- it is what turns the medians into
+    PASS / NOT MET -- so each clause is pinned separately rather than through one happy path.
+    """
+
+    def _arms(self, **arm_extra):
+        """A scorecard shaped like the real one: the envelope, the 1-NN bar, then the candidates."""
+        def block(extra, collapse, vs_input):
+            return {"carve": dict(extra=extra, collapse_rate=collapse, vs_input=vs_input)}
+        arms = {"blockout": block(0.2308, 0.0000, 1.0000),
+                "nn_retrieval": block(0.1031, 0.1582, 0.8743)}
+        arms.update({k: block(*v) for k, v in arm_extra.items()})
+        return arms
+
+    def test_beating_the_1nn_bar_within_the_guards_passes(self):
+        v = verdict(self._arms(cand=(0.0603, 0.0268, 0.8432)), "carve")["cand"]
+        self.assertEqual((v["beats_1nn_extra"], v["collapse_no_worse_than_1nn"], v["moved"]),
+                         (True, True, True))
+        self.assertTrue(v["pass"])
+        self.assertFalse(v["killed_identity"])
+
+    def test_missing_the_1nn_bar_is_not_met_even_though_it_beats_the_envelope(self):
+        """The arm this project would previously have called a win: far better than the blockout,
+        short of retrieval. #127 fixed the bar at 1-NN precisely so this reads as NOT MET."""
+        v = verdict(self._arms(cand=(0.1178, 0.0316, 0.9304)), "carve")["cand"]
+        self.assertFalse(v["beats_1nn_extra"])
+        self.assertFalse(v["pass"])
+        self.assertFalse(v["killed_identity"])
+
+    def test_a_tie_with_the_bar_is_not_a_pass(self):
+        v = verdict(self._arms(cand=(0.1031, 0.0000, 0.5)), "carve")["cand"]
+        self.assertFalse(v["beats_1nn_extra"])
+
+    def test_collapsing_worse_than_1nn_fails_however_low_the_surplus(self):
+        v = verdict(self._arms(cand=(0.0100, 0.4000, 0.5000)), "carve")["cand"]
+        self.assertTrue(v["beats_1nn_extra"])
+        self.assertFalse(v["collapse_no_worse_than_1nn"])
+        self.assertFalse(v["pass"])
+
+    def test_an_arm_that_did_not_move_fails_however_good_it_looks(self):
+        """#75: a projection at 0.99 vs-input has not been measured as a generator at all."""
+        v = verdict(self._arms(cand=(0.0100, 0.0000, 0.9900)), "carve")["cand"]
+        self.assertFalse(v["moved"])
+        self.assertFalse(v["pass"])
+
+    def test_identity_is_flagged_as_the_kill(self):
+        v = verdict(self._arms(cand=(0.2357, 0.1241, 0.9852)), "carve")["cand"]
+        self.assertTrue(v["killed_identity"])
+        self.assertFalse(v["pass"])
+
+    def test_the_baselines_are_never_judged_against_themselves(self):
+        self.assertEqual(set(verdict(self._arms(cand=(0.05, 0.0, 0.8)), "carve")), {"cand"})
+
+
+class TestSummarise(unittest.TestCase):
+    """Medians, not means: #80's bimodal result is why, and an empty population must not raise."""
+
+    def _row(self, **kw):
+        r = dict(missing=0.0, extra=0.0, vs_input=1.0, carved_cols=0.0, gt_carved_cols=0.0,
+                 roof_relief=0.0, roof_curvature=0.0, roof_speckle=0.0, gt_roof_relief=0.0,
+                 gt_roof_curvature=0.0, gt_roof_speckle=0.0, spill=0.0, fp_iou=1.0, vol_iou=1.0)
+        r.update(kw)
+        return r
+
+    def test_it_takes_the_median_not_the_mean(self):
+        rows = [self._row(extra=e) for e in (0.0, 0.0, 0.9)]
+        self.assertEqual(summarise(rows)["extra"], 0.0)
+
+    def test_collapse_rate_is_the_rate_of_buildings_over_the_threshold(self):
+        rows = [self._row(missing=m) for m in (0.0, 0.0, 0.20, 0.99)]
+        self.assertAlmostEqual(summarise(rows)["collapse_rate"], 0.5)
+
+    def test_an_empty_population_is_nan_and_does_not_raise(self):
+        s = summarise([])
+        self.assertEqual(s["n"], 0)
+        self.assertTrue(np.isnan(s["extra"]))
 
 
 if __name__ == "__main__":

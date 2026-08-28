@@ -91,8 +91,9 @@ LATENTS = REPO / "data/real_massing_v1/vecset_latents.h5"
 WORK = REPO / "outputs/height_map_generator"
 CACHE = WORK / "height_fields.npz"
 
-# One class per voxel of carve depth. The corpus's deepest carve is 53 voxels of a 60-voxel extent,
-# so 64 covers the label range exactly and nothing is clipped away at training time.
+# One class per voxel of carve depth. Measured over all 35,623 corpus rows: the deepest carve is
+# 59 voxels of a 60-voxel extent, and no column is ever cut below 1, so depth lies in [0, 63] and 64
+# covers the label range exactly with nothing clipped away at training time.
 DEPTH_CLASSES = RES
 
 # Buildings held back from training to select the checkpoint. Drawn from the TRAINING rows -- the
@@ -489,8 +490,9 @@ def train(cache: dict, args) -> Path:
     curve, best, best_path = [], (float("inf"), float("inf")), WORK / f"{args.tag}.pt"
     best_path.parent.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(args.seed + 1)
-    val_carve = np.array([height_split(np.where(va.fp[i], va.extent[i], 0), va.target[i])["extra"]
-                          >= CARVE_NEEDED for i in range(len(va))])
+    val_carve = np.array([
+        height_split(apply_depth(va.fp[i], int(va.extent[i]), envelope_depth(va.fp[i])),
+                     va.target[i])["extra"] >= CARVE_NEEDED for i in range(len(va))])
     print(f"[train] selecting on validation missing+extra over "
           f"{int(val_carve.sum())}/{len(va)} carve-needing validation buildings", flush=True)
     t0 = time.time()
@@ -889,6 +891,8 @@ def main() -> None:
     print(f"\n[artifact] {out}")
 
     if args.montage:
+        # ranked by the FIRST trained arm, which is the pre-registered one -- so "worst" means
+        # worst for the arm the bar was written for, not for whichever arm scores best
         model_names = [n for n in heights if n in ckpts]
         key = model_names[0] if model_names else "nn_retrieval"
         by = sorted(pops["carve"].tolist(), key=lambda i: rows[key][i]["extra"])
