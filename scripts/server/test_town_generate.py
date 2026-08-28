@@ -195,6 +195,60 @@ def check_orientation(client, poly_list, height, label):
     return body
 
 
+def check_arms(client):
+    """#127's arms, put through exactly the same frame checks A2 already passes.
+
+    The new arms build their occupancy in the corpus grid and then reuse `_to_world_mesh`, so they
+    inherit the whole [z, y, x] convention this file exists to guard -- and a height map is the
+    representation most likely to hide a transposed plan, because a mound looks plausible from any
+    angle. Every arm is therefore held to the drawn polygon, its mirrors and the ground plane, not
+    just A2.
+
+    ⚠️ It deliberately does NOT assert that any arm carves. `vs_input` is reported and left to the
+    reader: a hand-drawn footprint has no ground truth, and #127's finding is that an arm which
+    returns its input is a legitimate answer for a building that needs no carve.
+    """
+    poly = np.asarray(LSHAPE, dtype=np.float64)
+    r = client.post("/compare_arms", json={"points": LSHAPE, "height": 24.0, "region": 0})
+    assert r.status_code == 200, f"compare_arms: {r.status_code} {r.text[:300]}"
+    body = r.json()
+    assert body["arms"], f"compare_arms returned no arms (notes={body['notes']})"
+    assert not body["notes"], f"compare_arms reported failures: {body['notes']}"
+
+    c = poly.mean(axis=0)
+    mirror_z = poly.copy(); mirror_z[:, 1] = 2 * c[1] - mirror_z[:, 1]
+    mirror_x = poly.copy(); mirror_x[:, 0] = 2 * c[0] - mirror_x[:, 0]
+    for rec in body["arms"]:
+        arm = rec["arm"]
+        v = np.asarray(rec["vertices"], dtype=np.float64)
+        iou = _placement_overlap(rec["vertices"], poly)
+        parts = []
+        for name, other_poly in (("z-mirror", mirror_z), ("x-mirror", mirror_x)):
+            if _poly_poly_iou(poly, other_poly) > 0.98:
+                continue
+            other = _placement_overlap(rec["vertices"], other_poly)
+            parts.append(f"{name}={other:.3f}")
+            assert iou > other, (f"{arm}: matches its {name} ({other:.3f}) at least as well as "
+                                 f"the drawing ({iou:.3f})")
+        assert iou >= MIN_PLACEMENT_OVERLAP, (f"{arm}: placement overlap {iou:.3f} < "
+                                              f"{MIN_PLACEMENT_OVERLAP}")
+        y0, y1 = v[:, 1].min(), v[:, 1].max()
+        tol = 0.06 * 24.0 + 0.5
+        assert abs(y0) < tol, f"{arm}: base at y={y0:.2f}, expected ~0"
+        # ⚠️ Only the envelope reaches the conditioned height. A carve REMOVES from the top, so an
+        # arm that worked is SHORTER than its input -- asserting `y1 ~= height` for every arm would
+        # be asserting that no arm ever carves.
+        assert y1 <= 24.0 + tol, f"{arm}: top at y={y1:.2f}, above the conditioned height"
+        if arm == "envelope":
+            assert abs(y1 - 24.0) < tol, f"envelope: top at y={y1:.2f}, expected ~24"
+        print(f"[arm] {arm:18s} IoU drawn={iou:.3f}  " + "  ".join(parts)
+              + f"  vs_input={rec['vs_input']:.4f}  top={y1:.1f}m  {rec['gen_seconds']:.2f}s")
+
+    served = {rec["arm"] for rec in body["arms"]}
+    assert "envelope" in served, "the envelope arm must always be available -- it needs no model"
+    print(f"[arm] available={body['available']}  offered={sorted(served)}")
+
+
 def check_single(client):
     check_orientation(client, RECT, 15.0, "rect")
     check_orientation(client, LSHAPE, 24.0, "L-shape")
@@ -280,6 +334,7 @@ def main():
     with TestClient(app) as client:
         print(f"[boot] models loaded in {time.time()-t0:.1f}s  health={client.get('/health').json()}")
         check_single(client)
+        check_arms(client)
         check_town(client)
     print("\nALL CHECKS PASSED")
 

@@ -27,10 +27,23 @@ Two endpoints, because a town is not one building N times:
                       loop, and is only an endpoint (rather than N client calls) so the contract
                       says so, and so the town's total cost is measured in one place.
 
+Since #127 it also serves a third endpoint and a second page:
+
+  /compare_arms       one footprint carved by EVERY arm -- the footprint envelope, #127's height-map
+                      generator read two ways, the zero-training retrieval baseline, and A2 -- in one
+                      response, for a side-by-side visual judgement. ⚠️ A hand-drawn footprint has no
+                      ground truth, so `missing`/`extra` cannot be computed there and are not
+                      reported; the endpoint returns `vs_input` and the geometry.
+  /arms               the page that drives it.
+The height-map arms need no codec (a height map compiles straight to voxels), run in ~0.08s against
+A2's ~1.1s, and are simply absent from `available` if their checkpoint or the corpus cache is not on
+this box.
+
 Run (dev):
   ./venv/bin/uvicorn scripts.server.town_generate_service:app --port 8767
-Then open http://localhost:8767/ -- this service also serves the editor page itself, so the demo
-does not need inference_service.py (whose startup loads the whole legacy engine, ~8 min) at all.
+Then open http://localhost:8767/ for the town editor, or http://localhost:8767/arms for #127's
+comparison. This service also serves the editor pages itself, so the demo does not need
+inference_service.py (whose startup loads the whole legacy engine, ~8 min) at all.
 Image import is a third service (footprint_extract_service.py, port 8766), still separate.
 """
 
@@ -64,8 +77,18 @@ from models.networks.vecset_denoiser import VecsetDenoiser                      
 from models.networks.vecset_projection import SetSDEdit                                # noqa: E402
 from scripts.ingest_3dbag import building_to_sdf                                       # noqa: E402
 from scripts.foundations.ingest_citygml_lod2 import SOURCE_ID                          # noqa: E402
+from scripts.foundations.recover_massing_programs import occ_to_field, occupancy       # noqa: E402
+from scripts.foundations.measure_scoring_optimum import transplant_height              # noqa: E402
+from scripts.foundations.train_height_map_generator import (                           # noqa: E402
+    CACHE, DEPTH_CLASSES, apply_depth, build_model, condition_channels, decode_logits,
+    envelope_depth, retrieve_nn,
+)
 
 A2_CKPT = REPO / "weights/massing-vecset/vecset_v4_surf.pth"
+# #127's height-map generator. Trained by scripts/foundations/train_height_map_generator.py; the
+# checkpoint is not in the repo (it is 13 MB of weights and *.pth is gitignored), so the arm is
+# offered only when the file is present and the page says so when it is not.
+HEIGHTMAP_CKPT = REPO / "outputs/height_map_generator/heightmap_ce.pt"
 WEB = Path(__file__).resolve().parent / "web"
 SPACING = 2.0 / (RES - 1)
 # Read the corpus margin FROM the function that built the corpus rather than restating 1.05 here.
@@ -111,6 +134,40 @@ def _load_models():
                   step=int(ck["step"]))
     print(f"[town_generate] A2 step {_state['step']} + DoraCodec loaded on {dev} "
           f"({time.time()-t0:.0f}s)", flush=True)
+    _load_heightmap_arms(dev)
+
+
+def _load_heightmap_arms(dev) -> None:
+    """#127's height-map generator and its retrieval baseline, loaded beside A2.
+
+    Both are optional and neither touches the codec: a height map compiles straight to voxels, so
+    this path works whether or not Dora is present. If the checkpoint or the corpus cache is
+    missing the service still starts and simply offers fewer arms -- the demo is a comparison, and
+    a comparison that refuses to start because one arm is unavailable is worse than a short one.
+    """
+    t0 = time.time()
+    if HEIGHTMAP_CKPT.exists():
+        ck = torch.load(HEIGHTMAP_CKPT, map_location="cpu", weights_only=False)
+        net = build_model(DEPTH_CLASSES if ck["objective"] == "ce" else 1, ck["width"]).to(dev)
+        net.load_state_dict(ck["state"])
+        net.eval()
+        _state["hm"] = net
+        _state["hm_meta"] = dict(epoch=ck.get("epoch"), objective=ck["objective"],
+                                 params=ck.get("params"))
+        print(f"[town_generate] #127 height map ({ck['objective']}, epoch {ck.get('epoch')}, "
+              f"{ck.get('params', 0)/1e6:.2f}M) loaded ({time.time()-t0:.0f}s)", flush=True)
+    else:
+        print(f"[town_generate] no height-map checkpoint at {HEIGHTMAP_CKPT} -- arm unavailable",
+              flush=True)
+    if CACHE.exists():
+        d = np.load(CACHE)
+        keep = (d["ok"] > 0) & (d["held"] == 0)          # TRAINING rows only, never the pinned 714
+        _state["bank"] = dict(fp=d["fp"][keep] > 0, target=d["target"][keep].astype(np.int16),
+                              extent=d["extent"][keep].astype(np.int32))
+        print(f"[town_generate] retrieval bank: {int(keep.sum())} training buildings "
+              f"({time.time()-t0:.0f}s)", flush=True)
+    else:
+        print(f"[town_generate] no corpus cache at {CACHE} -- retrieval arm unavailable", flush=True)
 
 
 class ProjectionKnobs(BaseModel):
@@ -243,19 +300,135 @@ def _generate_one(points: Sequence[Sequence[float]], height: float, knobs: Proje
     out_occ = fld <= 0
     vsi = _vs_input(out_occ, bo_occ)
 
+    return dict(
+        **_to_world_mesh(verts, faces, s, cx, cz, height),
+        vs_input=vsi,
+        gen_seconds=time.time() - t0,
+    )
+
+
+def _to_world_mesh(verts, faces, s: float, cx: float, cz: float, height: float) -> dict:
+    """Frame-N surface -> world-meter mesh. One copy, shared by every arm.
+
+    Split out when #127's arms were added rather than duplicated into them: this repo has a
+    documented history (issue #70) of a frame convention drifting between two copies and silently
+    corrupting a whole training run, and two spellings of this transform is exactly how that starts.
+    """
     world = verts_to_world(verts)                       # (N,3) columns = [D,H,W] = [z,y,x], Frame-N
     out_verts = np.stack([
         world[:, 2] * s + cx,           # W(x) -> real world x
         world[:, 1] * s + height / 2,   # H(up) -> real world y (ground at 0)
         world[:, 0] * s + cz,           # D(z) -> real world z
     ], axis=1)
+    return dict(vertices=out_verts.tolist(), faces=np.asarray(faces, dtype=int).tolist())
 
-    return dict(
-        vertices=out_verts.tolist(),
-        faces=np.asarray(faces, dtype=int).tolist(),
-        vs_input=vsi,
-        gen_seconds=time.time() - t0,
-    )
+
+# ==================================================================================================
+# #127's arms -- the same footprint carved four ways, for a side-by-side visual judgement
+# ==================================================================================================
+
+class CompareReq(BaseModel):
+    """One footprint, every arm. `region` and `height` are the same conditioning A2 gets."""
+
+    points: List[List[float]]
+    height: float
+    region: int = SOURCE_ID["nl"]
+    arms: Optional[List[str]] = None     # None -> every arm this service can currently offer
+
+
+# The order is the reading order on the page: what you start from, then what each arm does to it.
+# `a2` is last because it is the incumbent being compared against, not the subject.
+ARM_ORDER = ("envelope", "heightmap_mode", "heightmap_median", "retrieval", "a2")
+
+
+def _heightmap_field(fp: np.ndarray, y0: int, y1: int, height: float, region: int,
+                     quantile: Optional[float]) -> np.ndarray:
+    """#127's generator on a hand-drawn footprint. Conditioning only -- no ground truth exists here."""
+    extent = int(y1 - y0 + 1)
+    mask = fp.astype(bool)
+    x = condition_channels(mask, extent, float(height), int(region))
+    with torch.no_grad():
+        logits = _state["hm"](torch.from_numpy(x)[None].to(_state["dev"])).cpu().numpy()[0]
+    return occ_to_field(occupancy(mask, y0, decode_logits(logits, mask, extent, quantile)))
+
+
+def _retrieval_field(fp: np.ndarray, y0: int, y1: int) -> np.ndarray:
+    """The zero-training baseline: the nearest training footprint's roof, rendered on this one."""
+    bank, mask, extent = _state["bank"], fp.astype(bool), int(y1 - y0 + 1)
+    j = int(retrieve_nn(mask[None], bank["fp"])[0])
+    h = transplant_height(bank["target"][j], bank["fp"][j], int(bank["extent"][j]), mask, extent)
+    return occ_to_field(occupancy(mask, y0, h))
+
+
+def _available_arms() -> List[str]:
+    have = {"envelope"}
+    if "hm" in _state:
+        have |= {"heightmap_mode", "heightmap_median"}
+    if "bank" in _state:
+        have.add("retrieval")
+    if "codec" in _state:
+        have.add("a2")
+    return [a for a in ARM_ORDER if a in have]
+
+
+@app.post("/compare_arms")
+def compare_arms(req: CompareReq):
+    """Carve one footprint with every arm and return them together, for a visual judgement.
+
+    ⚠️ There is **no ground truth for a footprint you drew**, so `missing` / `extra` -- the numbers
+    #126 made the headline and #127 is judged on -- cannot be computed here and are not reported.
+    What this endpoint gives is `vs_input` (did the arm act on the footprint envelope at all) and
+    the geometry. The judgement it supports is the visual one, which is this project's stated first
+    criterion and the one #127's scorecard was measured to be blind to.
+    """
+    pts = np.asarray(req.points, dtype=np.float64)
+    if pts.ndim != 2 or pts.shape[1] != 2 or len(pts) < 3:
+        raise HTTPException(400, "need at least 3 footprint points as [[x, z], ...]")
+    if req.height <= 0:
+        raise HTTPException(400, "height must be positive")
+
+    s, cx, cz = _footprint_normalization(pts, req.height)
+    fp = _rasterize_footprint(pts, s, cx, cz)
+    y0, y1 = _height_voxel_range(req.height, s)
+    envelope = blockout_sdf(fp, y0, y1)
+    if envelope is None:
+        raise HTTPException(400, "footprint rasterized to nothing (too small / too thin)")
+    env_occ = envelope <= 0
+
+    wanted = [a for a in (req.arms or _available_arms()) if a in _available_arms()]
+    out, notes = [], []
+    for arm in wanted:
+        t0 = time.time()
+        try:
+            if arm == "envelope":
+                field = envelope
+            elif arm == "heightmap_mode":
+                field = _heightmap_field(fp, y0, y1, req.height, req.region, None)
+            elif arm == "heightmap_median":
+                field = _heightmap_field(fp, y0, y1, req.height, req.region, 0.5)
+            elif arm == "retrieval":
+                field = _retrieval_field(fp, y0, y1)
+            else:
+                out.append(dict(arm=arm, **_generate_one(req.points, req.height,
+                                                         ProjectionKnobs(region=req.region), None)))
+                continue
+            verts, faces = mesh_sdf_surface(np.clip(field, -TRUNC, TRUNC))
+            if verts is None:
+                notes.append(f"{arm}: produced no surface")
+                continue
+            out.append(dict(arm=arm, **_to_world_mesh(verts, faces, s, cx, cz, req.height),
+                            vs_input=_vs_input(field <= 0, env_occ),
+                            gen_seconds=time.time() - t0))
+        except HTTPException as exc:
+            notes.append(f"{arm}: {exc.detail}")
+    return dict(arms=out, notes=notes, available=_available_arms(),
+                footprint_voxels=int(fp.sum()), extent_voxels=int(y1 - y0 + 1),
+                heightmap=_state.get("hm_meta"))
+
+
+@app.get("/arms")
+def arms_page():
+    return FileResponse(WEB / "arms.html")
 
 
 @app.post("/generate_building", response_model=GenerateResp)
@@ -310,7 +483,7 @@ def generate_town(req: TownReq):
 
 @app.get("/health")
 def health():
-    return {"ok": "codec" in _state, "step": _state.get("step")}
+    return {"ok": "codec" in _state, "step": _state.get("step"), "arms": _available_arms()}
 
 
 # ---- the editor page itself, so the demo is one service and not the legacy engine's 8-min boot ----
@@ -318,6 +491,8 @@ def health():
 # cost the demo its preset buttons, not refuse to start the generator.
 if (WEB / "samples").exists():
     app.mount("/samples", StaticFiles(directory=str(WEB / "samples")), name="samples")
+if (WEB / "vendor").exists():
+    app.mount("/vendor", StaticFiles(directory=str(WEB / "vendor")), name="vendor")
 
 
 @app.get("/")
