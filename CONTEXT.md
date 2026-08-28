@@ -76,7 +76,10 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
 
 - Maps #106 and #113 have no `docs/wayfinding/` folder yet; #113 names
   `docs/wayfinding/whole-volume-voxel-transform/` as its required home.
-- `effort:solid-first-carving` (#1–#10) is specified but unstarted; it is deliberately kept open.
+- `effort:solid-first-carving` (#1–#9) is specified but unstarted; it is deliberately kept open.
+  #10 and #128 are done — see `docs/wayfinding/solid-first-subtractive-modeling/`, which also
+  holds #126's scoring decision. #127 (a footprint-conditioned height-map generator) is
+  unblocked by it and not yet started.
 
 ## Language
 
@@ -129,9 +132,27 @@ never a line drawn to fit the result.
 _Avoid_: cutoff, threshold (name it s* everywhere)
 
 **Massing fidelity**:
-How well generated *massing* matches the target — measured **paired** (Chamfer / IoU to the
-specific held-out real building), because massing is determined by footprint + height.
-_Avoid_: shape accuracy
+How well generated *massing* matches the target — measured **paired** (Chamfer / IoU to the specific
+held-out real building).
+⚠️ **Massing is NOT determined by footprint + height.** That was this entry's stated justification
+until #126 measured it: two real held-out buildings whose footprints agree to IoU ≥ 0.90 and whose
+heights agree within 5% still differ by a median 3D IoU of **0.886** over all matched pairs (0.829
+on the carve-needing subset), one re-rendered on the other's exact footprint at its exact height.
+The conditioning leaves real architectural freedom and the held-out row is one valid answer among
+several.
+Paired scoring **survives on the C1 transform reading instead** — "was *this* blockout or sculpt
+projected correctly" is well-posed however many valid buildings share the footprint.
+🔑 #126 further decided that for **new** massing work the `missing`/`extra` split leads the
+scorecard and the aggregate 3D IoU is a diagnostic, because on the **median** a real building and
+the envelope are indistinguishable (0.8295 both) while the split separates them unanimously
+(`extra` 0.097 against 0.206, winning every decided offer).
+⚠️ This is in **tension with map #87's pre-registered gate 4** ("3D IoU split into missing vs extra
+— diagnostic only, never pass/fail"), which was fixed before #92's run and is **not** overridden
+here: #92 is judged on the gates it pre-registered. See
+`docs/wayfinding/solid-first-subtractive-modeling/126-massing-scoring.md`.
+Scored on the **carve-needing subset** wherever a generator's carving is the question: 303 of the
+714 held-out buildings need no carve, and that no-op majority flatters every aggregate.
+_Avoid_: shape accuracy, 3D IoU as a lone number, "determined by footprint + height"
 
 **Footprint fidelity — fringe / spill / uncovered**:
 The three-way split of footprint error, never reported as one number. Measured on the vertical
