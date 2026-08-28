@@ -349,6 +349,57 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
 # the model
 # ==================================================================================================
 
+OBJECTIVES = ("ce", "mse", "quantile")
+
+
+def head_channels(objective: str) -> int:
+    """`ce` predicts a distribution over depths; the two regressions predict one number."""
+    return DEPTH_CLASSES if objective == "ce" else 1
+
+
+def per_column_loss(out, y, ext, objective: str, quantile: float):
+    """The training loss for one objective, per footprint column, in **voxel units**.
+
+    All three live here rather than as an if/else at each call site, because they are read against
+    each other: this ticket's result is that the three differ in *which statistic of the posterior*
+    they target, and that is only legible with them side by side.
+
+        ce        cross-entropy over 64 depth classes. Bayes act: the **mode**.
+        mse       squared error on relative depth, rescaled to voxels. Bayes act: the **mean**.
+        quantile  the pinball loss at `quantile`. Bayes act: that **quantile** -- at q=0.5, the
+                  **median**, which is what #127 found the CE arm had to be decoded at anyway.
+
+    🔑 At q=0.5 the pinball loss is L1 up to a factor of 2, so this arm is median regression and
+    nothing more exotic. The point is not the loss's novelty, it is that the objective and the
+    decode finally name the same statistic: the CE arm was trained for its mode and read at its
+    median, and that mismatch is worth `extra` 0.1178 against 0.0603.
+    """
+    import torch
+    import torch.nn.functional as F
+
+    if objective == "ce":
+        return F.cross_entropy(out, y.clamp(0, DEPTH_CLASSES - 1), reduction="none")
+    err = (out[:, 0] - y.float() / ext[:, None, None]) * ext[:, None, None]   # voxels, signed
+    if objective == "mse":
+        return err ** 2
+    return torch.maximum(quantile * -err, (quantile - 1.0) * -err)
+
+
+def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective: str,
+                      quantile: float | None) -> np.ndarray:
+    """One network output -> one height map. The inverse of `per_column_loss`, kept beside it.
+
+    ⚠️ `quantile` means two different things by objective and that is deliberate: for `ce` it picks
+    which statistic to read OUT of a distribution the training never committed to, and for the
+    regressions the statistic was fixed at training time and the argument is ignored. Reading a
+    trained median at some other quantile is not possible, which is exactly the property that makes
+    the `quantile` arm honest and the CE arm's post-hoc median a decode ablation.
+    """
+    if objective == "ce":
+        return decode_logits(out_k, fp, extent, quantile)
+    return apply_depth(fp, extent, np.rint(out_k[0] * extent))
+
+
 def build_model(out_channels: int, width: int = 64):
     """A small U-Net over the 64x64 plan. ~4M parameters against A2's 49M and map-24's 947M.
 
@@ -465,7 +516,7 @@ def train(cache: dict, args) -> Path:
     print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}, "
           f"device={dev}", flush=True)
 
-    model = build_model(DEPTH_CLASSES if args.objective == "ce" else 1, args.width).to(dev)
+    model = build_model(head_channels(args.objective), args.width).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
@@ -473,13 +524,8 @@ def train(cache: dict, args) -> Path:
     print(f"[train] {n_par/1e6:.2f}M parameters, {steps} steps", flush=True)
 
     def loss_of(x, y, ext):
-        out = model(x)
         m = x[:, 0] > 0                                   # footprint columns only
-        if args.objective == "ce":
-            per = F.cross_entropy(out, y.clamp(0, DEPTH_CLASSES - 1), reduction="none")
-        else:
-            rel = y.float() / ext[:, None, None]
-            per = (out[:, 0] - rel) ** 2 * (ext[:, None, None] ** 2)
+        per = per_column_loss(model(x), y, ext, args.objective, args.quantile)
         return (per * m).sum() / m.sum().clamp(min=1)
 
     def to_dev(b):
@@ -511,14 +557,15 @@ def train(cache: dict, args) -> Path:
             run += float(loss.detach())
         run /= max(len(order) // args.batch, 1)
         model.eval()
-        vl, ve, vm = _validate(model, va, val_carve, args.objective, dev)
+        vl, ve, vm = _validate(model, va, val_carve, args.objective, args.quantile, dev)
         curve.append(dict(epoch=ep + 1, train=run, val=vl, val_extra=ve, val_missing=vm,
                           val_symmetric=ve + vm))
         mark = ""
         if (ve + vm, vl) < best:
             best, mark = (ve + vm, vl), "  <- best"
             torch.save(dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                            epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
+                            quantile=args.quantile, epoch=ep + 1, val=vl, val_extra=ve,
+                            val_missing=vm,
                             val_symmetric=ve + vm, params=n_par), best_path)
         print(f"  epoch {ep+1:>3}/{args.epochs}  train {run:.4f}  val {vl:.4f}  "
               f"val extra {ve:.4f}  val miss {vm:.4f}  sym {ve+vm:.4f}  "
@@ -529,32 +576,30 @@ def train(cache: dict, args) -> Path:
     return best_path
 
 
-def _validate(model, va, carve_mask, objective: str, dev) -> tuple:
+def _validate(model, va, carve_mask, objective: str, quantile: float, dev) -> tuple:
     """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings."""
     import torch
-    import torch.nn.functional as F
 
+    # ⚠️ The CE arm is validated at its ARGMAX, which is what it is trained for. Validating it at
+    # the median would select a checkpoint for a decode the training never committed to, and the
+    # post-hoc median has to stay an ablation of a finished model rather than a training signal.
+    decode_q = None if objective == "ce" else quantile
     losses, splits = [], []
     with torch.no_grad():
         for s in range(0, len(va), 128):
             sel = np.arange(s, min(s + 128, len(va)))
             x, y, e = va.batch(sel)
-            xt = torch.from_numpy(x).to(dev)
+            xt, yt = torch.from_numpy(x).to(dev), torch.from_numpy(y).to(dev)
+            et = torch.from_numpy(e).to(dev)
             out = model(xt)
             m = xt[:, 0] > 0
-            yt = torch.from_numpy(y).to(dev)
-            if objective == "ce":
-                per = F.cross_entropy(out, yt.clamp(0, DEPTH_CLASSES - 1), reduction="none")
-            else:
-                et = torch.from_numpy(e).to(dev)
-                per = (out[:, 0] - yt.float() / et[:, None, None]) ** 2 * (et[:, None, None] ** 2)
+            per = per_column_loss(out, yt, et, objective, quantile)
             losses.append(float(((per * m).sum() / m.sum().clamp(min=1)).detach()))
             o = out.cpu().numpy()
             for k, i in enumerate(sel):
                 ext, fp = int(va.extent[i]), va.fp[i]
-                pred = (decode_logits(o[k], fp, ext) if objective == "ce"
-                        else apply_depth(fp, ext, np.rint(o[k, 0] * ext)))
-                splits.append(height_split(pred, va.target[i]))
+                splits.append(height_split(
+                    decode_prediction(o[k], fp, ext, objective, decode_q), va.target[i]))
     carve = [d for d, m in zip(splits, carve_mask) if m]
     return (float(np.mean(losses)),
             float(np.median([d["extra"] for d in carve])) if carve else float("nan"),
@@ -573,7 +618,7 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
 
     d = torch.load(ckpt, map_location="cpu", weights_only=False)
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
-    model = build_model(DEPTH_CLASSES if d["objective"] == "ce" else 1, d["width"]).to(dev)
+    model = build_model(head_channels(d["objective"]), d["width"]).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     out = np.zeros((len(held["fp"]), RES, RES), np.int16)
@@ -585,18 +630,18 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
                           for i in sel])
             y = model(torch.from_numpy(x).to(dev)).cpu().numpy()
             for k, i in enumerate(sel):
-                if d["objective"] == "ce":
-                    out[i] = decode_logits(y[k], held["fp"][i], int(held["extent"][i]), quantile)
-                else:
-                    out[i] = apply_depth(held["fp"][i], int(held["extent"][i]),
-                                         np.rint(y[k, 0] * float(held["extent"][i])))
+                out[i] = decode_prediction(y[k], held["fp"][i], int(held["extent"][i]),
+                                           d["objective"], quantile)
     # the whole training curve travels into the artifact, not a summary of it: this project has
     # twice recommended stopping at a dip that recovered (#80), and a curve nobody can re-read is
     # how that happens a third time.
     curve = ckpt.with_name(ckpt.stem + "_curve.json")
     return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"],
-                     decode=("regression" if d["objective"] != "ce" else
-                             "argmax" if quantile is None else f"posterior q={quantile}"),
+                     decode=("argmax" if d["objective"] == "ce" and quantile is None else
+                             f"posterior q={quantile}" if d["objective"] == "ce" else
+                             f"regression (trained at q={d.get('quantile')})"
+                             if d["objective"] == "quantile" else "regression"),
+                     trained_quantile=d.get("quantile"),
                      epoch=d.get("epoch"), val_loss=d.get("val"), val_extra=d.get("val_extra"),
                      val_missing=d.get("val_missing"), val_symmetric=d.get("val_symmetric"),
                      params=d.get("params"), selected_on="validation missing+extra",
@@ -775,7 +820,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ids_from", default=str(SHIP714))
-    ap.add_argument("--objective", default="ce", choices=("ce", "mse"))
+    ap.add_argument("--objective", default="ce", choices=OBJECTIVES,
+                    help="which statistic of the per-column posterior to target: ce -> the mode, "
+                         "mse -> the mean, quantile -> --quantile (0.5 = the median)")
+    ap.add_argument("--quantile", type=float, default=0.5,
+                    help="the pinball loss's quantile; only used by --objective quantile. 0.5 is "
+                         "the median and is the value #127 pre-committed to -- sweeping it trades "
+                         "`missing` against `extra` directly and would be selecting on the answer")
     ap.add_argument("--tag", default=None, help="run name; defaults to the objective")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=64)

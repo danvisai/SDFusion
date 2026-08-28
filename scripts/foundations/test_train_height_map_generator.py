@@ -29,8 +29,8 @@ from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E40
 from scripts.foundations.recover_massing_programs import occupancy  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     COND_CHANNELS, DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
-    height_split, mean_relative_depth, mean_roof_height, retrieve_nn, roof_shape_stats,
-    summarise, verdict,
+    head_channels, height_split, mean_relative_depth, mean_roof_height,
+    per_column_loss, decode_prediction, retrieve_nn, roof_shape_stats, summarise, verdict,
 )
 
 
@@ -277,6 +277,83 @@ class TestRetrievalBaseline(unittest.TestCase):
         q = _rect(16, 2, 10, 2, 10)
         bank = np.stack([_rect(16, 0, 3, 0, 3), _rect(16, 12, 16, 12, 16)])
         self.assertIn(int(retrieve_nn(q[None], bank)[0]), (0, 1))
+
+
+class TestObjectives(unittest.TestCase):
+    """The three losses, pinned by the statistic each one's minimiser actually is.
+
+    #127's whole result is that the objective and the decode were naming different statistics, so
+    what is tested here is not the algebra but the CLAIM: minimising each loss over a fixed sample
+    lands on the mean, the median, or the mode of that sample.
+    """
+
+    def _fit_constant(self, sample, objective, quantile=0.5, extent=64):
+        """Minimise the loss of ONE constant prediction against a sample of depths, by search.
+
+        A direct numerical check of "what is this loss's Bayes act", using the production function
+        rather than a re-derivation of it -- `test_train_vecset_solidity.py`'s docstring records
+        what a test that re-implements its subject is worth.
+        """
+        import torch
+        y = torch.tensor(sample, dtype=torch.long).reshape(1, 1, -1)
+        ext = torch.tensor([float(extent)])
+        best, arg = None, None
+        for cand in np.arange(0, extent, 0.25):
+            out = torch.full((1, 1, 1, y.shape[-1]), float(cand) / extent)
+            loss = float(per_column_loss(out, y, ext, objective, quantile).mean())
+            if best is None or loss < best:
+                best, arg = loss, float(cand)
+        return arg
+
+    # ⚠️ An ODD sample, and deliberately so. The first version used 8 depths, where every value in
+    # [0, 12] minimises the pinball loss equally -- the median of an even sample is an interval, not
+    # a point -- so the search returned the interval's left end and the test failed on a correct
+    # loss. mode 0, median 12, mean 16.89: three statistics far enough apart to tell apart.
+    SAMPLE = [0, 0, 0, 0, 12, 12, 20, 48, 60]
+
+    def test_mse_lands_on_the_mean(self):
+        """The bland roof #127's design note warns about -- correctly attributed to MSE."""
+        self.assertAlmostEqual(self._fit_constant(self.SAMPLE, "mse"), 16.89, delta=0.3)
+
+    def test_the_pinball_loss_at_half_lands_on_the_median(self):
+        """🔑 The whole point of the retrain: this objective's minimiser IS what #127 decodes at."""
+        self.assertAlmostEqual(self._fit_constant(self.SAMPLE, "quantile", 0.5), 12.0, delta=0.3)
+
+    def test_a_higher_quantile_carves_deeper(self):
+        """q trades `missing` against `extra` directly, which is why 0.5 is pre-committed."""
+        mid = self._fit_constant(self.SAMPLE, "quantile", 0.5)
+        self.assertLess(self._fit_constant(self.SAMPLE, "quantile", 0.25), mid)
+        self.assertGreater(self._fit_constant(self.SAMPLE, "quantile", 0.75), mid)
+
+    def test_cross_entropy_lands_on_the_mode(self):
+        """🔑 The defect: on a sample whose mode is 0 and whose median is 12, CE targets 0."""
+        import torch
+        sample = torch.tensor(self.SAMPLE).reshape(1, 1, -1)
+        ext = torch.tensor([64.0])
+        losses = []
+        for cand in (0, 12, 17, 20):
+            out = torch.full((1, DEPTH_CLASSES, 1, sample.shape[-1]), -20.0)
+            out[:, cand] = 20.0                                     # a posterior peaked at `cand`
+            losses.append(float(per_column_loss(out, sample, ext, "ce", 0.5).mean()))
+        self.assertEqual(int(np.argmin(losses)), 0, "CE must prefer the modal depth")
+
+    def test_the_heads_differ_and_the_decodes_match_them(self):
+        self.assertEqual(head_channels("ce"), DEPTH_CLASSES)
+        self.assertEqual(head_channels("mse"), 1)
+        self.assertEqual(head_channels("quantile"), 1)
+        fp = _rect(8, 1, 7, 1, 7)
+        reg = np.full((1, 8, 8), 4.0 / 20.0, np.float32)            # relative depth 0.2 of 20
+        for objective in ("mse", "quantile"):
+            np.testing.assert_array_equal(
+                decode_prediction(reg, fp, 20, objective, 0.5),
+                apply_depth(fp, 20, np.full((8, 8), 4, np.int16)))
+
+    def test_a_trained_regression_ignores_the_decode_quantile(self):
+        """⚠️ Its statistic was fixed at training time; only `ce` can be re-read at another one."""
+        fp = _rect(8, 1, 7, 1, 7)
+        reg = np.full((1, 8, 8), 0.25, np.float32)
+        np.testing.assert_array_equal(decode_prediction(reg, fp, 20, "quantile", 0.5),
+                                      decode_prediction(reg, fp, 20, "quantile", 0.9))
 
 
 class TestVerdict(unittest.TestCase):
