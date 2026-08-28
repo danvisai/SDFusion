@@ -47,6 +47,7 @@ columns the arm cut at all; GT cuts **0.967** of them.
 | heightmap CE + argmax *(pre-registered)* | 0.0090 | 0.1178 | 0.9304 | 0.0316 | 100% | **0.565** | *0.8682* |
 | heightmap CE + median *(decode ablation)* | 0.0385 | **0.0603** | 0.8432 | **0.0268** | 100% | 1.000 | *0.8948* |
 | heightmap MSE | 0.0482 | 0.0638 | 0.8173 | 0.0511 | 100% | 1.000 | *0.8869* |
+| heightmap quantile q=0.5 *(the retrain)* | 0.0371 | 0.0685 | 0.8436 | 0.0219 | 100% | 1.000 | *0.8918* |
 
 This project's arms of record, re-summarised on **the same 411 rows** rather than quoted from their
 own populations (#126's like-for-like rule, and map #87's 11.8% correction is why):
@@ -340,12 +341,40 @@ had converged — the training loss is flat from about epoch 10 of 40, and the s
 epochs is larger than the gap between the last twenty. More epochs buy nothing, and this project has
 twice been wrong reading that curve.
 
-**One retrain is principled, and it is small.** The decode and the objective currently disagree: the
-model is trained with cross-entropy, whose Bayes act is the *mode*, and then read at the *median*
-because the mode under-carves. Training a **quantile (pinball) loss at q=0.5** would make the thing
-optimised and the thing decoded the same quantity. Expected to be worth something because the
-post-hoc median already bought `extra` 0.1178 → 0.0603 without any retraining; expected to be
-modest because it removes a mismatch rather than adding capacity. One run, ~16 minutes.
+**The one retrain that looked principled was run, and it did not work.** ⚠️ Recorded because the
+prediction was mine and it was wrong.
+
+The reasoning was that the decode and the objective disagree: the model is trained with
+cross-entropy, whose Bayes act is the *mode*, and then read at the *median* because the mode
+under-carves. A **pinball loss at q=0.5** makes the optimised quantity and the decoded quantity the
+same. I predicted a modest gain. Measured on the same 411 buildings:
+
+| arm | `missing` | **`extra`** | `vs_input` | collapse | *(3D IoU)* |
+|---|---|---|---|---|---|
+| CE + post-hoc median | 0.0385 | **0.0603** | 0.8432 | 0.0268 | *0.8948* |
+| **quantile q=0.5, trained directly** | 0.0371 | **0.0685** | 0.8436 | **0.0219** | *0.8918* |
+
+**It is worse, and the difference is real, not noise.** Paired on the same buildings, the retrained
+arm beats the post-hoc one on only **166 of 411** (Wilcoxon p=0.0044 on `extra`, p=0.027 on 3D IoU).
+`missing` is not separable (p=0.21). Its one advantage — a collapse rate of 2.19% against 2.68% — is
+**9 buildings against 11**, which is not a difference worth claiming.
+
+🔑 **Hypothesis for why, offered as a mechanism and not as a finding.** Cross-entropy learns the
+*whole* 64-class posterior, so its median is computed from the distribution's actual shape. The
+pinball head learns **one scalar per column** and discards the distribution. CE-plus-post-hoc-median
+therefore has strictly more information than direct median regression, and "make the objective match
+the decode" traded that information away to remove a mismatch that was not costing anything. Untested;
+a check would be whether a CE model's median beats a pinball model's *at every quantile*, not just at
+0.5.
+
+⚠️ **The form is unchanged.** The retrained arm sits in the same mound family as the other two
+regressions on the montages. Making the loss name the right statistic was never going to fix a
+shape problem caused by per-column independence, and it did not.
+
+**What this leaves.** The served arm does not change: CE with a post-hoc median decode remains the
+best measured, and it is already what the demo serves. The `--objective quantile` path stays in the
+code because the arm is on the record and the loss is now pinned by tests, not because anything
+should be run on it.
 
 **The form gap will not be closed by retraining this model at all.** A mound is what per-column
 independence produces. That needs a different output space — a program — not a better fit of this

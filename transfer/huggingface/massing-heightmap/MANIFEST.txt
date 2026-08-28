@@ -12,6 +12,12 @@ heightmap_ce.pt    3.37M params, cross-entropy over 64 carve-depth classes, epoc
                      posterior median extra 0.0603   vs_input 0.8432   collapse 0.027
 heightmap_mse.pt   3.36M params, regression on relative carve depth, epoch 33 of 40.
                    extra 0.0638   vs_input 0.8173   collapse 0.051
+heightmap_q50.pt   3.36M params, pinball loss at q=0.5 (median regression), epoch 26 of 40.
+                   extra 0.0685   vs_input 0.8436   collapse 0.022
+                   ⚠️ NEGATIVE RESULT, kept for the record. It was trained to make the objective and
+                   the decode name the same statistic, and it is WORSE than reading the CE model's
+                   posterior at its median (0.0685 vs 0.0603, winning on 166/411, p=0.0044). Do not
+                   serve it.
 
 Medians over the 411 carve-needing held-out buildings. The footprint envelope scores extra 0.2308,
 and the shipped 49M vecset model scores 0.2357 at vs_input 0.9852 -- worse than its own input.

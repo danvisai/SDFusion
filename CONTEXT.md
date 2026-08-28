@@ -92,6 +92,10 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
   with a `/arms` comparison page — ~0.1 s/building against A2's ~7 s, because a height map needs no
   codec. ⚠️ It is **deterministic**: identical footprints give identical buildings, so a town needs
   the `roof_variation` knob (default 0 = the arm that was scored). Weights: `weights/massing-heightmap/`.
+  ⚠️ **The "make the objective match the decode" retrain was run and is NEGATIVE**: a pinball loss at
+  q=0.5 scores `extra` 0.0685 against the post-hoc median's 0.0603, winning on only 166/411
+  (p=0.0044). Cross-entropy learns the whole posterior; a quantile head learns one scalar and throws
+  it away. CE + post-hoc median stands as the best arm.
 
 ## Language
 
