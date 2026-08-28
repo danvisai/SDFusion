@@ -25,11 +25,11 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from scripts.foundations.eval_massing_arms import volume_split  # noqa: E402
+from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E402
 from scripts.foundations.recover_massing_programs import occupancy  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
-    DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
-    mean_relative_depth, mean_roof_height, retrieve_nn,
+    COND_CHANNELS, DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
+    height_split, mean_relative_depth, mean_roof_height, retrieve_nn,
 )
 
 
@@ -105,6 +105,30 @@ class TestApplyDepthInvariants(unittest.TestCase):
         self.assertGreater(volume_split(over, gt)["missing"], 0.15)
 
 
+class TestHeightSplit(unittest.TestCase):
+    """The per-epoch validation metric. It only earns its 200x saving if it is the same number."""
+
+    def test_height_split_agrees_with_volume_split(self):
+        """Pinned against the voxel path every scored arm actually goes through."""
+        rng = np.random.default_rng(3)
+        fp = _rect(RES, 8, 40, 11, 52)
+        fp[20:28, 30:44] = False                                  # a concave plan, not a rectangle
+        for _ in range(6):
+            extent = int(rng.integers(6, 60))
+            target = apply_depth(fp, extent, rng.integers(0, extent, fp.shape).astype(np.int16))
+            pred = apply_depth(fp, extent, rng.integers(-4, extent + 4, fp.shape).astype(np.int16))
+            got = height_split(pred, target)
+            want = volume_split(occupancy(fp, 2, pred), occupancy(fp, 2, target))
+            for k in ("vol_iou", "missing", "extra"):
+                self.assertAlmostEqual(got[k], want[k], places=12, msg=k)
+
+    def test_an_exact_prediction_scores_zero_on_both_halves(self):
+        fp = _rect(RES, 4, 20, 4, 20)
+        t = apply_depth(fp, 12, np.full(fp.shape, 3, np.int16))
+        s = height_split(t, t)
+        self.assertEqual((s["missing"], s["extra"], s["vol_iou"]), (0.0, 0.0, 1.0))
+
+
 class TestConditioningCarriesNoAnswer(unittest.TestCase):
     """The leakage guard. The input is the conditioning #127 names -- footprint, height, region."""
 
@@ -126,6 +150,11 @@ class TestConditioningCarriesNoAnswer(unittest.TestCase):
         self.assertFalse(np.array_equal(condition_channels(fp, 9, 12.0, 0),
                                         condition_channels(fp, 9, 12.0, 2)))
 
+    def test_the_channel_count_matches_the_model_input(self):
+        """A channel added here and not there is a silent shape error at the first batch."""
+        fp = _rect(16, 2, 10, 3, 11)
+        self.assertEqual(condition_channels(fp, 9, 12.0, 1).shape[0], COND_CHANNELS)
+
     def test_channels_are_finite_and_bounded(self):
         fp = _rect(16, 0, 16, 0, 16)
         c = condition_channels(fp, 64, 300.0, 2)
@@ -142,6 +171,30 @@ class TestDecode(unittest.TestCase):
         logits[3] = 1.0
         np.testing.assert_array_equal(decode_logits(logits, fp, extent=9),
                                       apply_depth(fp, 9, np.full((8, 8), 3, np.int16)))
+
+    def _flat_posterior(self, p, shape=(8, 8)):
+        z = np.log(np.maximum(np.asarray(p, np.float64), 1e-12))
+        return (z[:, None, None] * np.ones((1,) + shape)).astype(np.float32)
+
+    def test_the_median_decode_is_the_ordinal_posterior_quantile(self):
+        """cdf = .40, .52, ... so the mode is class 0 and the median is class 1."""
+        fp = _rect(8, 1, 7, 1, 7)
+        p = np.zeros(DEPTH_CLASSES, np.float64)
+        p[0], p[1:6] = 0.40, 0.12
+        logits = self._flat_posterior(p)
+        self.assertEqual(int(carve_depth(decode_logits(logits, fp, 20), fp, 20)[fp].max()), 0)
+        self.assertEqual(int(carve_depth(decode_logits(logits, fp, 20, quantile=0.5), fp, 20)
+                             [fp].max()), 1)
+
+    def test_the_mode_can_carve_nothing_where_the_median_carves(self):
+        """🔑 The mode-shrinkage this ablation exists to isolate: a column whose posterior puts 45%
+        on "do not carve" and 55% spread over depths 6..15 has its mode at 0 and its median at 6."""
+        fp = _rect(8, 1, 7, 1, 7)
+        p = np.zeros(DEPTH_CLASSES, np.float64)
+        p[0], p[6:16] = 0.45, 0.055
+        logits = self._flat_posterior(p)
+        self.assertEqual(int(decode_logits(logits, fp, 20)[fp].max()), 20)          # carves nothing
+        self.assertEqual(int(decode_logits(logits, fp, 20, quantile=0.5)[fp].max()), 20 - 6)
 
     def test_decode_never_leaves_the_footprint(self):
         fp = _rect(8, 1, 7, 1, 7)

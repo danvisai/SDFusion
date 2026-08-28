@@ -50,8 +50,17 @@ a dip and being wrong twice). Scored on the **411 carve-needing** buildings of t
 The aggregate 3D IoU is reported to the right of the bar and is a diagnostic, never a gate: #126
 demoted it because its median cannot rank a real building above the envelope.
 
-Run (train + score every arm + montage):
-    env -u LD_PRELOAD ./sdfusion/bin/python scripts/foundations/train_height_map_generator.py
+Run -- one arm at a time, then score them together against the baselines:
+
+    P="env -u LD_PRELOAD ./sdfusion/bin/python scripts/foundations/train_height_map_generator.py"
+    $P --objective ce  --tag heightmap_ce  --epochs 40 --montage 0   # ~16 min on one A100
+    $P --objective mse --tag heightmap_mse --epochs 40 --montage 0
+    $P --ckpt heightmap_ce=outputs/height_map_generator/heightmap_ce.pt \
+              heightmap_mse=outputs/height_map_generator/heightmap_mse.pt \
+              --median_decode --montage 6
+
+The first invocation builds `outputs/height_map_generator/height_fields.npz` from the corpus, which
+takes ~12 minutes and is then reused by everything else.
 """
 
 from __future__ import annotations
@@ -91,7 +100,9 @@ DEPTH_CLASSES = RES
 VAL_BUILDINGS = 1000
 
 N_REGIONS = 3          # source corpora: 0 NL / 1 DE / 2 JP, the `region` column of the latent cache
-COND_CHANNELS = 3 + N_REGIONS
+# footprint mask, conditioned extent, log height in metres, distance-to-edge, region one-hot.
+# Pinned by `test_the_channel_count_matches_the_model_input` so the two cannot drift apart.
+COND_CHANNELS = 4 + N_REGIONS
 
 
 # ==================================================================================================
@@ -116,6 +127,23 @@ def apply_depth(fp: np.ndarray, extent: int, depth: np.ndarray) -> np.ndarray:
     e = int(extent)
     h = np.clip(e - np.asarray(depth, np.int32), 1, max(e, 1))
     return np.where(m, h, 0).astype(np.int16)
+
+
+def height_split(pred: np.ndarray, target: np.ndarray) -> dict:
+    """`volume_split` computed in column space, for two height maps sharing a base level.
+
+    Exactly equal to voxelising both and calling `volume_split` -- a column is a solid run from the
+    same `y0` in both, so the intersection is `min` per column -- and about 200x cheaper, which is
+    what makes it affordable once per epoch on the validation split. `test_height_split_agrees_with_
+    volume_split` is the pin; the scored arms still go through `volume_split` on real occupancy so
+    the reported numbers stay on the same path as every other arm on this project's record.
+    """
+    p, t = np.asarray(pred, np.int64), np.asarray(target, np.int64)
+    inter, av, gv = int(np.minimum(p, t).sum()), int(p.sum()), int(t.sum())
+    union = av + gv - inter
+    return dict(vol_iou=float(inter / union) if union else 0.0,
+                missing=float((gv - inter) / gv) if gv else 0.0,
+                extra=float((av - inter) / gv) if gv else 0.0)
 
 
 def envelope_depth(fp: np.ndarray) -> np.ndarray:
@@ -152,14 +180,29 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
     return np.stack(ch).astype(np.float32)
 
 
-def decode_logits(logits: np.ndarray, fp: np.ndarray, extent: int) -> np.ndarray:
-    """[K, Z, X] logits -> height map by **argmax**, never by expectation.
+def decode_logits(logits: np.ndarray, fp: np.ndarray, extent: int,
+                  quantile: float | None = None) -> np.ndarray:
+    """[K, Z, X] logits -> height map. **Argmax by default**, never by expectation.
 
     Taking the mean of the predicted distribution would reintroduce at decode time exactly the
     regression-to-the-mean the classification objective exists to avoid: a column whose posterior is
-    split between "flat at full height" and "cut to the eaves" has a mean at neither.
+    split between "flat at full height" and "cut to the eaves" has a mean at neither. Argmax is what
+    the pre-registered arm decodes with.
+
+    `quantile` decodes the ordinal posterior's q-quantile instead -- the smallest depth whose
+    cumulative probability reaches q. It exists because depth is **ordinal**, and the mode of an
+    ordinal posterior is a biased estimator of it when one class dominates: with 54% of columns
+    carrying depth 0, a column whose posterior is genuinely spread over 0..12 can have its mode at 0
+    while its median is at 6. The quantile is fixed a priori at 0.5 by decision theory (the Bayes
+    act under absolute error), NOT fitted -- and it is reported as a decode ablation beside the
+    pre-registered arm, never in place of it.
     """
-    return apply_depth(fp, extent, np.argmax(np.asarray(logits), axis=0).astype(np.int16))
+    z = np.asarray(logits, np.float64)
+    if quantile is None:
+        return apply_depth(fp, extent, np.argmax(z, axis=0).astype(np.int16))
+    p = np.exp(z - z.max(axis=0, keepdims=True))
+    cdf = np.cumsum(p / p.sum(axis=0, keepdims=True), axis=0)
+    return apply_depth(fp, extent, np.argmax(cdf >= quantile, axis=0).astype(np.int16))
 
 
 # ==================================================================================================
@@ -342,12 +385,27 @@ class HeightFieldSet:
 
 
 def train(cache: dict, args) -> Path:
-    """Train one arm and return the checkpoint chosen by validation loss.
+    """Train one arm and return its selected checkpoint.
 
     ⚠️ Selection is on a validation split drawn from the TRAINING rows. The pinned 714 are not read
     here at all. This project's record has two near-misses from reading a training curve as a trend
     (#80, twice), so the checkpoint is chosen by a held-in number and the whole curve is written to
     the artifact rather than summarised.
+
+    🔑 It is chosen on the **geometry**, not on the loss. #75/#76 measured that neither the training
+    loss nor latent distance tracked the goal on this project, and #76 found latent distance was
+    *wrong-signed* pooled across error families. A cross-entropy is a proxy; the height field it
+    decodes to is the thing, and it costs one argmax per validation building per epoch to measure
+    directly.
+
+    ⚠️ The criterion is `missing + extra` -- the symmetric difference, normalised by GT volume --
+    and NOT `extra` alone. Selecting on `extra` was tried first and is unsound in a way that only
+    showed up on the MSE arm: an arm that carves the building away scores `extra` 0, so the rule
+    picked that arm's **first epoch** (`extra` 0.039, `missing` 0.082) and would then have failed
+    the collapse guard for a reason belonging to the selection rule rather than to the objective.
+    The symmetric difference cannot be gamed from either end -- no-op and over-carve are both
+    penalised -- and it needs no threshold. Validation loss is recorded for the curve and breaks
+    ties.
     """
     import torch
     import torch.nn.functional as F
@@ -384,9 +442,13 @@ def train(cache: dict, args) -> Path:
         return (torch.from_numpy(x).to(dev), torch.from_numpy(y).to(dev),
                 torch.from_numpy(e).to(dev))
 
-    curve, best, best_path = [], float("inf"), WORK / f"{args.tag}.pt"
+    curve, best, best_path = [], (float("inf"), float("inf")), WORK / f"{args.tag}.pt"
     best_path.parent.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(args.seed + 1)
+    val_carve = np.array([height_split(np.where(va.fp[i], va.extent[i], 0), va.target[i])["extra"]
+                          >= CARVE_NEEDED for i in range(len(va))])
+    print(f"[train] selecting on validation missing+extra over "
+          f"{int(val_carve.sum())}/{len(va)} carve-needing validation buildings", flush=True)
     t0 = time.time()
     for ep in range(args.epochs):
         model.train()
@@ -400,27 +462,67 @@ def train(cache: dict, args) -> Path:
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
             sched.step()
-            run += float(loss)
+            run += float(loss.detach())
         run /= max(len(order) // args.batch, 1)
         model.eval()
-        with torch.no_grad():
-            vl = float(np.mean([float(loss_of(*to_dev(va.batch(np.arange(s, min(s + 128, len(va)))))))
-                                for s in range(0, len(va), 128)]))
-        curve.append(dict(epoch=ep + 1, train=run, val=vl))
+        vl, ve, vm = _validate(model, va, val_carve, args.objective, dev)
+        curve.append(dict(epoch=ep + 1, train=run, val=vl, val_extra=ve, val_missing=vm,
+                          val_symmetric=ve + vm))
         mark = ""
-        if vl < best:
-            best, mark = vl, "  <- best"
+        if (ve + vm, vl) < best:
+            best, mark = (ve + vm, vl), "  <- best"
             torch.save(dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                            epoch=ep + 1, val=vl, params=n_par), best_path)
+                            epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
+                            val_symmetric=ve + vm, params=n_par), best_path)
         print(f"  epoch {ep+1:>3}/{args.epochs}  train {run:.4f}  val {vl:.4f}  "
+              f"val extra {ve:.4f}  val miss {vm:.4f}  sym {ve+vm:.4f}  "
               f"{time.time()-t0:.0f}s{mark}", flush=True)
     json.dump(curve, open(WORK / f"{args.tag}_curve.json", "w"), indent=1)
-    print(f"[train] best val {best:.4f} -> {best_path}", flush=True)
+    print(f"[train] best validation missing+extra {best[0]:.4f} (loss {best[1]:.4f}) -> "
+          f"{best_path}", flush=True)
     return best_path
 
 
-def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False) -> np.ndarray:
-    """Height maps for the pinned buildings from a trained checkpoint."""
+def _validate(model, va, carve_mask, objective: str, dev) -> tuple:
+    """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings."""
+    import torch
+    import torch.nn.functional as F
+
+    losses, splits = [], []
+    with torch.no_grad():
+        for s in range(0, len(va), 128):
+            sel = np.arange(s, min(s + 128, len(va)))
+            x, y, e = va.batch(sel)
+            xt = torch.from_numpy(x).to(dev)
+            out = model(xt)
+            m = xt[:, 0] > 0
+            yt = torch.from_numpy(y).to(dev)
+            if objective == "ce":
+                per = F.cross_entropy(out, yt.clamp(0, DEPTH_CLASSES - 1), reduction="none")
+            else:
+                et = torch.from_numpy(e).to(dev)
+                per = (out[:, 0] - yt.float() / et[:, None, None]) ** 2 * (et[:, None, None] ** 2)
+            losses.append(float(((per * m).sum() / m.sum().clamp(min=1)).detach()))
+            o = out.cpu().numpy()
+            for k, i in enumerate(sel):
+                ext, fp = int(va.extent[i]), va.fp[i]
+                pred = (decode_logits(o[k], fp, ext) if objective == "ce"
+                        else apply_depth(fp, ext, np.rint(o[k, 0] * ext)))
+                splits.append(height_split(pred, va.target[i]))
+    carve = [d for d, m in zip(splits, carve_mask) if m]
+    return (float(np.mean(losses)),
+            float(np.median([d["extra"] for d in carve])) if carve else float("nan"),
+            float(np.median([d["missing"] for d in carve])) if carve else float("nan"))
+
+
+def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
+            quantile: float | None = None):
+    """Height maps for the pinned buildings from a trained checkpoint, and how it was selected.
+
+    The provenance travels with the prediction rather than with the command line: a `--ckpt` rerun
+    scores a file trained by some earlier invocation, and recording the flags of the *rerun* would
+    put a number in the artifact that did not produce the checkpoint beside it.
+    """
     import torch
 
     d = torch.load(ckpt, map_location="cpu", weights_only=False)
@@ -438,11 +540,20 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False) -> np.nd
             y = model(torch.from_numpy(x).to(dev)).cpu().numpy()
             for k, i in enumerate(sel):
                 if d["objective"] == "ce":
-                    out[i] = decode_logits(y[k], held["fp"][i], int(held["extent"][i]))
+                    out[i] = decode_logits(y[k], held["fp"][i], int(held["extent"][i]), quantile)
                 else:
                     out[i] = apply_depth(held["fp"][i], int(held["extent"][i]),
                                          np.rint(y[k, 0] * float(held["extent"][i])))
-    return out
+    # the whole training curve travels into the artifact, not a summary of it: this project has
+    # twice recommended stopping at a dip that recovered (#80), and a curve nobody can re-read is
+    # how that happens a third time.
+    curve = ckpt.with_name(ckpt.stem + "_curve.json")
+    return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"], decode=
+                     "argmax" if quantile is None else f"posterior q={quantile}",
+                     epoch=d.get("epoch"), val_loss=d.get("val"), val_extra=d.get("val_extra"),
+                     val_missing=d.get("val_missing"), val_symmetric=d.get("val_symmetric"),
+                     params=d.get("params"), selected_on="validation missing+extra",
+                     curve=json.load(open(curve)) if curve.exists() else None)
 
 
 # ==================================================================================================
@@ -457,7 +568,12 @@ def score_arm(heights: np.ndarray, held: dict) -> list:
         gt = occupancy(fp, y0, held["target"][i])
         bo = occupancy(fp, y0, apply_depth(fp, extent, envelope_depth(fp)))
         occ = occupancy(fp, y0, heights[i])
-        r = dict(id=int(held["row"][i]))
+        r = dict(id=int(held["row"][i]),
+                 # #127's actual question in plan view: of the footprint columns, what fraction did
+                 # the arm cut at all, against the fraction GT cuts? `extra` says how much surplus
+                 # is left; this says whether the arm ACTED, and on how much of the building.
+                 carved_cols=float((heights[i][fp] < extent).mean()),
+                 gt_carved_cols=float((held["target"][i][fp] < extent).mean()))
         r.update(volume_split(occ, gt))
         r.update(footprint_split(occ, fp))
         r["fp_iou"] = fp_iou(occ, fp)
@@ -470,7 +586,8 @@ def score_arm(heights: np.ndarray, held: dict) -> list:
 def summarise(rows: list) -> dict:
     med = lambda k: float(np.median([r[k] for r in rows])) if rows else float("nan")
     return dict(n=len(rows), missing=med("missing"), extra=med("extra"),
-                vs_input=med("vs_input"),
+                vs_input=med("vs_input"), carved_cols=med("carved_cols"),
+                gt_carved_cols=med("gt_carved_cols"),
                 collapse_rate=float(np.mean([r["missing"] >= COLLAPSE_MISSING for r in rows]))
                 if rows else float("nan"),
                 fp_iou=med("fp_iou"), spill=med("spill"), vol_iou=med("vol_iou"))
@@ -492,6 +609,45 @@ def verdict(arms: dict, pop: str) -> dict:
         )
         out[name]["pass"] = bool(out[name]["beats_1nn_extra"] and
                                  out[name]["collapse_no_worse_than_1nn"] and out[name]["moved"])
+    return out
+
+
+REFERENCE = {
+    # arm -> (committed artifact, key under `per_building`). Quoted, never recomputed: these are
+    # this project's record on the SAME pinned 714, and re-deriving them here would risk a second,
+    # silently different number for an arm that already has one.
+    "a2_s0.5 (shipped)": ("execution/artifacts/massing_arms_eval_ship714.json", "a2_s0.5"),
+    "deployed_map24": ("execution/artifacts/massing_arms_eval_ship714.json", "deployed_map24"),
+    "codec_ceiling": ("execution/artifacts/massing_arms_eval_ship714.json", "codec_ceiling"),
+    "program K=16 (sees GT)": ("execution/artifacts/program_recovery_714.json", None),
+}
+
+
+def reference_arms(carve_ids: set) -> dict:
+    """This project's arms of record, re-summarised on exactly the rows scored here.
+
+    #126's rule, applied to the write-up as well as to the run: an arm quoted from one population
+    beside an arm measured on another is how "19% surplus reduction" became 11.8% like-for-like on
+    map #87. The medians are recomputed from the committed per-building rows, so the population is
+    the same 411 buildings whatever those artifacts summarised themselves over.
+    """
+    out = {}
+    for name, (path, key) in REFERENCE.items():
+        f = REPO / path
+        if not f.exists():
+            continue
+        doc = json.load(open(f))
+        pb = doc["per_building"]
+        pb = pb[key] if key else pb
+        rows = [r for b, r in pb.items() if int(b) in carve_ids]
+        if not rows:
+            continue
+        med = lambda k: float(np.median([r[k] for r in rows if k in r]))
+        out[name] = dict(n=len(rows), missing=med("missing"), extra=med("extra"),
+                         vs_input=med("vs_input") if "vs_input" in rows[0] else None,
+                         collapse_rate=float(np.mean([r["missing"] >= COLLAPSE_MISSING
+                                                      for r in rows])),
+                         vol_iou=med("vol_iou"), source=path)
     return out
 
 
@@ -535,17 +691,25 @@ def report(res: dict) -> None:
                        ("flat", "ALREADY-FLAT buildings -- reported, never pooled"),
                        ("all", "all pinned buildings")):
         print(f"\n== {label} (n={res['arms']['blockout'][pop]['n']}) ==")
-        print(f"{'arm':16s} {'miss':>7} {'extra':>7} {'vs_inp':>7} {'collapse':>9} "
-              f"{'>env:xtr':>9} {'fp_iou':>7} | {'(3D IoU)':>9}")
+        print(f"{'arm':22s} {'miss':>7} {'extra':>7} {'vs_inp':>7} {'collapse':>9} "
+              f"{'>env:xtr':>9} {'carved':>7} | {'(3D IoU)':>9}   "
+              f"(GT carves {res['arms']['blockout'][pop]['gt_carved_cols']:.3f} of columns)")
         for name, a in res["arms"].items():
             s = a[pop]
             w = a["beats_envelope_extra"][pop]["rate_ex_ties"]
-            print(f"{name:16s} {s['missing']:>7.4f} {s['extra']:>7.4f} {s['vs_input']:>7.4f} "
-                  f"{s['collapse_rate']:>9.4f} {w:>9.3f} {s['fp_iou']:>7.4f} | "
+            print(f"{name:22s} {s['missing']:>7.4f} {s['extra']:>7.4f} {s['vs_input']:>7.4f} "
+                  f"{s['collapse_rate']:>9.4f} {w:>9.3f} {s['carved_cols']:>7.3f} | "
                   f"{s['vol_iou']:>9.4f}")
+    if res.get("reference"):
+        print("\n== this project's arms of record, re-summarised on the SAME carve-needing rows ==")
+        for name, a in res["reference"].items():
+            vi = "     -" if a["vs_input"] is None else f"{a['vs_input']:>7.4f}"
+            print(f"{name:22s} {a['missing']:>7.4f} {a['extra']:>7.4f} {vi} "
+                  f"{a['collapse_rate']:>9.4f} {'':>9} {'':>7} | {a['vol_iou']:>9.4f}")
+
     print("\n== the pre-registered bar, on the carve-needing subset ==")
     for name, v in res["verdict"].items():
-        print(f"  {name:16s} beats 1-NN `extra` {str(v['beats_1nn_extra']):>5}   "
+        print(f"  {name:22s} beats 1-NN `extra` {str(v['beats_1nn_extra']):>5}   "
               f"collapse ok {str(v['collapse_no_worse_than_1nn']):>5}   "
               f"moved {str(v['moved']):>5}   ->  {'PASS' if v['pass'] else 'NOT MET'}"
               + ("   [KILL: identity]" if v["killed_identity"] else ""))
@@ -560,7 +724,7 @@ def main() -> None:
     ap.add_argument("--ids_from", default=str(SHIP714))
     ap.add_argument("--objective", default="ce", choices=("ce", "mse"))
     ap.add_argument("--tag", default=None, help="run name; defaults to the objective")
-    ap.add_argument("--epochs", type=int, default=30)
+    ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--width", type=int, default=64)
@@ -570,6 +734,10 @@ def main() -> None:
     ap.add_argument("--rebuild_cache", action="store_true")
     ap.add_argument("--ckpt", nargs="*", default=None,
                     help="score these checkpoints instead of training (name=path or path)")
+    ap.add_argument("--median_decode", action="store_true",
+                    help="add a second arm per CE checkpoint decoding the posterior MEDIAN rather "
+                         "than the mode. A decode ablation reported beside the pre-registered arm, "
+                         "never in place of it")
     ap.add_argument("--montage", type=int, default=6, help="buildings per sheet; 0 disables")
     ap.add_argument("--out", default="execution/artifacts/height_map_generator_714.json")
     args = ap.parse_args()
@@ -622,24 +790,28 @@ def main() -> None:
     print(f"[1-NN] retrieved in {time.time()-t0:.0f}s  "
           f"(median footprint IoU to the retrieved row reported in the artifact)", flush=True)
 
+    ckpt_meta = {}
     for name, path in ckpts.items():
-        heights[name] = predict(path, held, cpu=args.cpu)
+        heights[name], ckpt_meta[name] = predict(path, held, cpu=args.cpu)
+        if args.median_decode and ckpt_meta[name]["objective"] == "ce":
+            alt = f"{name}_median"
+            heights[alt], ckpt_meta[alt] = predict(path, held, cpu=args.cpu, quantile=0.5)
 
     # ---- score, split by population, never pooled -----------------------------------------------
     rows = {name: score_arm(h, held) for name, h in heights.items()}
     carve_mask = np.array([r["blockout_extra"] >= CARVE_NEEDED for r in rows["blockout"]])
-    pops = dict(all=np.ones(len(carve_mask), bool), carve=carve_mask, flat=~carve_mask)
-    env = {p: [dict(blockout=dict(extra=r["extra"], vol_iou=r["vol_iou"]))
-               for r, m in zip(rows["blockout"], pops[p]) if m] for p in pops}
+    pops = {p: np.nonzero(m)[0] for p, m in
+            dict(all=np.ones(len(carve_mask), bool), carve=carve_mask, flat=~carve_mask).items()}
 
     arms = {}
     for name, rr in rows.items():
-        a = {p: summarise([r for r, m in zip(rr, pops[p]) if m]) for p in pops}
-        a["beats_envelope_extra"] = {}
-        a["beats_envelope_iou"] = {}
-        for p in pops:
-            paired = [dict(arm=dict(extra=r["extra"], vol_iou=r["vol_iou"]), **e)
-                      for r, m, e in zip(rr, pops[p], env[p]) if m]
+        a = {p: summarise([rr[i] for i in idx]) for p, idx in pops.items()}
+        a["beats_envelope_extra"], a["beats_envelope_iou"] = {}, {}
+        for p, idx in pops.items():
+            # paired against the SAME building's envelope, by index -- #126's like-for-like rule
+            paired = [dict(arm=dict(extra=rr[i]["extra"], vol_iou=rr[i]["vol_iou"]),
+                           blockout=dict(extra=rows["blockout"][i]["extra"],
+                                         vol_iou=rows["blockout"][i]["vol_iou"])) for i in idx]
             a["beats_envelope_extra"][p] = compare_to_envelope(paired, "arm", "extra", False)
             a["beats_envelope_iou"][p] = compare_to_envelope(paired, "arm", "vol_iou", True)
         arms[name] = a
@@ -649,10 +821,11 @@ def main() -> None:
                   ids_from=args.ids_from, gt_h5=str(H5.relative_to(REPO)),
                   n_pinned=len(sel), n_carve=int(carve_mask.sum()),
                   n_train=len(train_idx), depth_classes=DEPTH_CLASSES,
-                  checkpoints={k: str(v) for k, v in ckpts.items()},
-                  epochs=args.epochs, batch=args.batch, lr=args.lr, width=args.width,
-                  seed=args.seed, augment=not args.no_aug),
+                  checkpoints=ckpt_meta, run_flags=dict(
+                      epochs=args.epochs, batch=args.batch, lr=args.lr, width=args.width,
+                      seed=args.seed, augment=not args.no_aug, trained_here=not bool(args.ckpt))),
         arms=arms, verdict=verdict(arms, "carve"),
+        reference=reference_arms({int(held["row"][i]) for i in pops["carve"]}),
         nn_footprint_iou=float(np.median([
             float((held["fp"][i] & bank_fp[j]).sum()) / max(float((held["fp"][i] | bank_fp[j]).sum()), 1)
             for i, j in enumerate(nn)])),
@@ -667,8 +840,7 @@ def main() -> None:
     if args.montage:
         model_names = [n for n in heights if n in ckpts]
         key = model_names[0] if model_names else "nn_retrieval"
-        idx = [i for i in range(len(sel)) if carve_mask[i]]
-        by = sorted(idx, key=lambda i: rows[key][i]["extra"])
+        by = sorted(pops["carve"].tolist(), key=lambda i: rows[key][i]["extra"])
         picks = dict(best=by[:args.montage],
                      representative=by[len(by) // 2:len(by) // 2 + args.montage],
                      worst=by[-args.montage:])
