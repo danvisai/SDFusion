@@ -85,10 +85,12 @@ from scripts.foundations.train_height_map_generator import (                    
 )
 
 A2_CKPT = REPO / "weights/massing-vecset/vecset_v4_surf.pth"
-# #127's height-map generator. Trained by scripts/foundations/train_height_map_generator.py; the
-# checkpoint is not in the repo (it is 13 MB of weights and *.pth is gitignored), so the arm is
-# offered only when the file is present and the page says so when it is not.
-HEIGHTMAP_CKPT = REPO / "outputs/height_map_generator/heightmap_ce.pt"
+# #127's height-map generator. Weights live beside A2's under weights/, which is the staging tree
+# that gets published; the training output is kept as a fallback so a fresh retrain is picked up
+# without a copy step. Checkpoints are gitignored (*.pt), so the arm is simply absent when neither
+# path exists, and `/health` says so.
+HEIGHTMAP_CKPTS = (REPO / "weights/massing-heightmap/heightmap_ce.pt",
+                   REPO / "outputs/height_map_generator/heightmap_ce.pt")
 WEB = Path(__file__).resolve().parent / "web"
 SPACING = 2.0 / (RES - 1)
 # Read the corpus margin FROM the function that built the corpus rather than restating 1.05 here.
@@ -109,6 +111,13 @@ DECODE_CHUNK = 131072
 # A guard rail, not a capability claim: an accidental 500-footprint import would occupy the GPU for
 # over an hour with no way to call it back. The Munich Altstadt preset is 29.
 MAX_BUILDINGS = 120
+
+# Every massing generator this service can run, in reading order: what you start from, then what
+# each arm does to it. `a2` is last because it is the incumbent being compared against, not the
+# subject. `_arm_field` validates against this list, so an unknown arm is a 400 and never a silent
+# fallback to some default -- a demo that quietly shows you a different model than you asked for is
+# worse than one that refuses.
+ARM_ORDER = ("envelope", "heightmap_mode", "heightmap_median", "retrieval", "a2")
 
 app = FastAPI(title="Town generation via A2 (map #97, #99)")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -146,18 +155,21 @@ def _load_heightmap_arms(dev) -> None:
     a comparison that refuses to start because one arm is unavailable is worse than a short one.
     """
     t0 = time.time()
-    if HEIGHTMAP_CKPT.exists():
-        ck = torch.load(HEIGHTMAP_CKPT, map_location="cpu", weights_only=False)
+    path = next((p for p in HEIGHTMAP_CKPTS if p.exists()), None)
+    if path is not None:
+        ck = torch.load(path, map_location="cpu", weights_only=False)
         net = build_model(DEPTH_CLASSES if ck["objective"] == "ce" else 1, ck["width"]).to(dev)
         net.load_state_dict(ck["state"])
         net.eval()
         _state["hm"] = net
         _state["hm_meta"] = dict(epoch=ck.get("epoch"), objective=ck["objective"],
-                                 params=ck.get("params"))
+                                 params=ck.get("params"), path=str(path.relative_to(REPO)))
         print(f"[town_generate] #127 height map ({ck['objective']}, epoch {ck.get('epoch')}, "
-              f"{ck.get('params', 0)/1e6:.2f}M) loaded ({time.time()-t0:.0f}s)", flush=True)
+              f"{ck.get('params', 0)/1e6:.2f}M) from {path.relative_to(REPO)} "
+              f"({time.time()-t0:.0f}s)", flush=True)
     else:
-        print(f"[town_generate] no height-map checkpoint at {HEIGHTMAP_CKPT} -- arm unavailable",
+        print(f"[town_generate] no height-map checkpoint in "
+              f"{[str(p.relative_to(REPO)) for p in HEIGHTMAP_CKPTS]} -- arm unavailable",
               flush=True)
     if CACHE.exists():
         d = np.load(CACHE)
@@ -173,6 +185,9 @@ def _load_heightmap_arms(dev) -> None:
 class ProjectionKnobs(BaseModel):
     """The C1 projection's settings, shared by both endpoints so they cannot drift apart."""
 
+    arm: str = "a2"                    # which massing generator to run; see ARM_ORDER. Defaults to
+                                        # a2 so every existing caller of /generate_building and
+                                        # /generate_town keeps the behaviour it had before #127.
     region: int = SOURCE_ID["nl"]      # the conditioning corpus a building claims to come from. A
                                         # hand-drawn footprint carries no such signal, so it defaults
                                         # to the majority training source (see ingest_citygml_lod2).
@@ -181,6 +196,13 @@ class ProjectionKnobs(BaseModel):
     steps: int = 20
     guidance: float = 1.0
     seed: Optional[int] = None
+    # ⚠️ Height-map arms are DETERMINISTIC: identical footprints give bit-identical buildings, which
+    # in a town reads as obvious cloning (A2 gets its variety from per-building noise instead). This
+    # jitters the decode quantile per building -- a coherent "deeper or shallower roof", not
+    # per-column noise, which would be rubble. **Defaults to 0**, so the demo shows the arm that was
+    # actually measured; quality away from q=0.5 is unmeasured and this is a demo affordance, not a
+    # research knob. Ignored by every other arm.
+    roof_variation: float = 0.0
 
 
 class GenerateReq(ProjectionKnobs):
@@ -189,10 +211,12 @@ class GenerateReq(ProjectionKnobs):
 
 
 class GenerateResp(BaseModel):
+    arm: str                           # which generator produced this, echoed back so a client
+                                        # cannot mislabel a mesh it asked for by name
     vertices: List[List[float]]        # world meters, y-up, ready for a three.js BufferGeometry
     faces: List[List[int]]
-    vs_input: float                    # overlap with the blockout this projected from; near 1.0
-                                        # means A2 barely edited it -- report this, don't hide it
+    vs_input: float                    # overlap with the footprint envelope this started from; near
+                                        # 1.0 means the arm barely edited it -- report, don't hide
     gen_seconds: float
 
 
@@ -245,9 +269,30 @@ def _height_voxel_range(height: float, s: float) -> tuple[int, int]:
     return y0, y1
 
 
-def _require_models():
-    if "codec" not in _state:
+# Warm, measured on one A100: A2 is 20 denoise steps through a 191M codec; the height-map arms are
+# a forward pass of a 3.4M convnet plus a marching-cubes surface. Only used to size the refusal
+# message and the editor's ETA, never to decide anything.
+ARM_SECONDS = {"a2": 7.0, "heightmap_mode": 0.3, "heightmap_median": 0.3,
+               "retrieval": 0.5, "envelope": 0.2}
+
+
+def _require_models(arm: str = "a2"):
+    """Refuse early, and only for what this arm actually needs.
+
+    The height-map arms compile straight to voxels, so a blanket "codec not loaded" guard would
+    refuse them for a dependency they do not have -- which is the same claim `_load_heightmap_arms`
+    is written around, and it has to hold at the endpoint too or it is not true of the service.
+    """
+    # A name nobody implements is the caller's mistake (400); a name this box cannot serve today is
+    # the service's state (503). Collapsing them tells a client to retry a request that can never
+    # succeed, and hides a typo behind what looks like a transient outage.
+    if arm not in ARM_ORDER:
+        raise HTTPException(400, f"unknown arm {arm!r}; expected one of {list(ARM_ORDER)}")
+    if arm == "a2" and "codec" not in _state:
         raise HTTPException(503, "models still loading")
+    if arm not in _available_arms():
+        raise HTTPException(503, f"arm {arm!r} is not available on this box "
+                                 f"(have: {_available_arms()})")
 
 
 def _generate_one(points: Sequence[Sequence[float]], height: float, knobs: ProjectionKnobs,
@@ -277,34 +322,55 @@ def _generate_one(points: Sequence[Sequence[float]], height: float, knobs: Proje
     bo = blockout_sdf(fp, y0, y1)
     if bo is None:
         raise HTTPException(400, "footprint rasterized to nothing (too small / too thin)")
-    bv, bf = mesh_sdf_surface(np.clip(bo, -TRUNC, TRUNC))
-    if bv is None:
-        raise HTTPException(400, "blockout produced no surface")
 
-    with torch.no_grad():
-        z0 = (codec.encode(Building(verts=verts_to_world(bv), faces=bf)).float()
-              - mu) / sd
-        fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
-        ht = torch.tensor([height], device=dev)
-        rg = torch.tensor([knobs.region], device=dev)
-        zp = op.project(blockout=z0, footprint=fpt, height=ht, region=rg,
-                        strength=knobs.strength, steps=knobs.steps, guidance=knobs.guidance,
-                        seed=seed)
-        fld = codec.decode_grid(zp * sd + mu, RES).cpu().numpy()[0, 0]
-
-    verts, faces = mesh_sdf_surface(fld)
+    fld = _arm_field(knobs.arm, fp, y0, y1, height, knobs, seed, bo)
+    verts, faces = mesh_sdf_surface(np.clip(fld, -TRUNC, TRUNC))
     if verts is None:
-        raise HTTPException(500, "A2 output produced no surface (collapsed to empty/solid)")
-
-    bo_occ = bo <= 0
-    out_occ = fld <= 0
-    vsi = _vs_input(out_occ, bo_occ)
+        raise HTTPException(500, f"{knobs.arm} produced no surface (collapsed to empty/solid)")
 
     return dict(
+        arm=knobs.arm,
         **_to_world_mesh(verts, faces, s, cx, cz, height),
-        vs_input=vsi,
+        vs_input=_vs_input(fld <= 0, bo <= 0),
         gen_seconds=time.time() - t0,
     )
+
+
+def _arm_field(arm: str, fp: np.ndarray, y0: int, y1: int, height: float,
+               knobs: "ProjectionKnobs", seed: Optional[int], envelope: np.ndarray) -> np.ndarray:
+    """One arm, one SDF on the corpus grid. The single place an arm name turns into geometry.
+
+    Every endpoint dispatches here, so `/generate_building`, `/generate_town` and `/compare_arms`
+    cannot drift apart in what an arm *means* -- the same failure `_generate_one` was already shared
+    to prevent between the single and batch paths.
+    """
+    if arm not in ARM_ORDER:
+        raise HTTPException(400, f"unknown arm {arm!r}; expected one of {list(ARM_ORDER)}")
+    if arm not in _available_arms():
+        raise HTTPException(503, f"arm {arm!r} is not available on this box "
+                                 f"(have: {_available_arms()})")
+    if arm == "envelope":
+        return envelope
+    if arm in ("heightmap_mode", "heightmap_median"):
+        q = None if arm == "heightmap_mode" else _roof_quantile(knobs.roof_variation, seed)
+        return _heightmap_field(fp, y0, y1, height, knobs.region, q)
+    if arm == "retrieval":
+        return _retrieval_field(fp, y0, y1)
+
+    dev, codec, op = _state["dev"], _state["codec"], _state["op"]
+    mu, sd = _state["mu"], _state["sd"]
+    bv, bf = mesh_sdf_surface(np.clip(envelope, -TRUNC, TRUNC))
+    if bv is None:
+        raise HTTPException(400, "blockout produced no surface")
+    with torch.no_grad():
+        z0 = (codec.encode(Building(verts=verts_to_world(bv), faces=bf)).float() - mu) / sd
+        fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
+        zp = op.project(blockout=z0, footprint=fpt,
+                        height=torch.tensor([height], device=dev),
+                        region=torch.tensor([knobs.region], device=dev),
+                        strength=knobs.strength, steps=knobs.steps, guidance=knobs.guidance,
+                        seed=seed)
+        return codec.decode_grid(zp * sd + mu, RES).cpu().numpy()[0, 0]
 
 
 def _to_world_mesh(verts, faces, s: float, cx: float, cz: float, height: float) -> dict:
@@ -336,9 +402,17 @@ class CompareReq(BaseModel):
     arms: Optional[List[str]] = None     # None -> every arm this service can currently offer
 
 
-# The order is the reading order on the page: what you start from, then what each arm does to it.
-# `a2` is last because it is the incumbent being compared against, not the subject.
-ARM_ORDER = ("envelope", "heightmap_mode", "heightmap_median", "retrieval", "a2")
+def _roof_quantile(variation: float, seed: Optional[int]) -> float:
+    """The decode quantile for one building: 0.5 unless the caller asked for variety.
+
+    Clamped to [0.2, 0.8] because the tails are not roofs -- q -> 0 is the mode's under-carve and
+    q -> 1 carves the building away -- and the clamp is on the QUANTILE rather than on the result,
+    so it cannot interact with the height map's own guarantees.
+    """
+    if variation <= 0 or seed is None:
+        return 0.5
+    u = np.random.default_rng(seed).random()
+    return float(np.clip(0.5 + (u - 0.5) * 2.0 * float(variation), 0.2, 0.8))
 
 
 def _heightmap_field(fp: np.ndarray, y0: int, y1: int, height: float, region: int,
@@ -375,55 +449,33 @@ def _available_arms() -> List[str]:
 def compare_arms(req: CompareReq):
     """Carve one footprint with every arm and return them together, for a visual judgement.
 
+    A loop over the same `_generate_one` that `/generate_building` calls, so an arm cannot look one
+    way here and another way in the town editor.
+
     ⚠️ There is **no ground truth for a footprint you drew**, so `missing` / `extra` -- the numbers
     #126 made the headline and #127 is judged on -- cannot be computed here and are not reported.
     What this endpoint gives is `vs_input` (did the arm act on the footprint envelope at all) and
     the geometry. The judgement it supports is the visual one, which is this project's stated first
     criterion and the one #127's scorecard was measured to be blind to.
     """
-    pts = np.asarray(req.points, dtype=np.float64)
-    if pts.ndim != 2 or pts.shape[1] != 2 or len(pts) < 3:
-        raise HTTPException(400, "need at least 3 footprint points as [[x, z], ...]")
-    if req.height <= 0:
-        raise HTTPException(400, "height must be positive")
-
-    s, cx, cz = _footprint_normalization(pts, req.height)
-    fp = _rasterize_footprint(pts, s, cx, cz)
-    y0, y1 = _height_voxel_range(req.height, s)
-    envelope = blockout_sdf(fp, y0, y1)
-    if envelope is None:
-        raise HTTPException(400, "footprint rasterized to nothing (too small / too thin)")
-    env_occ = envelope <= 0
-
-    wanted = [a for a in (req.arms or _available_arms()) if a in _available_arms()]
+    _require_models("envelope")
+    have = _available_arms()
+    wanted = [a for a in (req.arms or have) if a in have]
     out, notes = [], []
     for arm in wanted:
-        t0 = time.time()
         try:
-            if arm == "envelope":
-                field = envelope
-            elif arm == "heightmap_mode":
-                field = _heightmap_field(fp, y0, y1, req.height, req.region, None)
-            elif arm == "heightmap_median":
-                field = _heightmap_field(fp, y0, y1, req.height, req.region, 0.5)
-            elif arm == "retrieval":
-                field = _retrieval_field(fp, y0, y1)
-            else:
-                out.append(dict(arm=arm, **_generate_one(req.points, req.height,
-                                                         ProjectionKnobs(region=req.region), None)))
-                continue
-            verts, faces = mesh_sdf_surface(np.clip(field, -TRUNC, TRUNC))
-            if verts is None:
-                notes.append(f"{arm}: produced no surface")
-                continue
-            out.append(dict(arm=arm, **_to_world_mesh(verts, faces, s, cx, cz, req.height),
-                            vs_input=_vs_input(field <= 0, env_occ),
-                            gen_seconds=time.time() - t0))
+            out.append(_generate_one(req.points, req.height,
+                                     ProjectionKnobs(arm=arm, region=req.region), None))
         except HTTPException as exc:
             notes.append(f"{arm}: {exc.detail}")
-    return dict(arms=out, notes=notes, available=_available_arms(),
-                footprint_voxels=int(fp.sum()), extent_voxels=int(y1 - y0 + 1),
-                heightmap=_state.get("hm_meta"))
+    if not out and notes:
+        raise HTTPException(400, "; ".join(notes))
+    pts = np.asarray(req.points, dtype=np.float64)
+    s, cx, cz = _footprint_normalization(pts, req.height)
+    y0, y1 = _height_voxel_range(req.height, s)
+    return dict(arms=out, notes=notes, available=have,
+                footprint_voxels=int(_rasterize_footprint(pts, s, cx, cz).sum()),
+                extent_voxels=int(y1 - y0 + 1), heightmap=_state.get("hm_meta"))
 
 
 @app.get("/arms")
@@ -433,7 +485,7 @@ def arms_page():
 
 @app.post("/generate_building", response_model=GenerateResp)
 def generate_building(req: GenerateReq):
-    _require_models()
+    _require_models(req.arm)
     return GenerateResp(**_generate_one(req.points, req.height, req, req.seed))
 
 
@@ -449,13 +501,13 @@ def generate_town(req: TownReq):
     committed the moment the first byte leaves; anything that must fail the whole request has to be
     checked here, before the StreamingResponse is returned.
     """
-    _require_models()
+    _require_models(req.arm)
     if not req.buildings:
         raise HTTPException(400, "no buildings to generate")
     if len(req.buildings) > MAX_BUILDINGS:
-        mins = len(req.buildings) * SECS_PER_BUILDING // 60
+        mins = len(req.buildings) * ARM_SECONDS.get(req.arm, SECS_PER_BUILDING) / 60
         raise HTTPException(400, f"{len(req.buildings)} buildings exceeds the {MAX_BUILDINGS} limit "
-                                 f"(~{mins} min of GPU time)")
+                                 f"(~{mins:.0f} min of GPU time on {req.arm})")
     if req.default_height <= 0:
         raise HTTPException(400, "default_height must be positive")
 

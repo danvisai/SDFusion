@@ -85,6 +85,13 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
   were run after seeing that. ⚠️ **The montage disagrees with the scorecard** — every trained arm
   returns a rounded mound where the real roof is planes meeting at a ridge, and three amplitude
   statistics failed to separate them. The open problem has moved from *amount* to *form*.
+  ✅ **The human reviewed the montages on 2026-08-28 and accepted them**: this meets the scope
+  *"input a shape, get a blockout that looks like a building"* where earlier approaches did not.
+  Recorded as their judgement on criterion 1; it does not change the scalar record above.
+  **Served in the demo** by `town_generate_service.py` behind an `arm` knob (default still `a2`),
+  with a `/arms` comparison page — ~0.1 s/building against A2's ~7 s, because a height map needs no
+  codec. ⚠️ It is **deterministic**: identical footprints give identical buildings, so a town needs
+  the `roof_variation` knob (default 0 = the arm that was scored). Weights: `weights/massing-heightmap/`.
 
 ## Language
 

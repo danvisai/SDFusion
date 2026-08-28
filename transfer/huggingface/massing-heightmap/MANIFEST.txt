@@ -1,0 +1,28 @@
+#127 -- footprint-conditioned height-map massing generator
+=========================================================
+
+Trained by scripts/foundations/train_height_map_generator.py on the 34,909 non-held-out rows of
+data/real_massing_v1/real.h5. Scored on the pre-registered 714 held-out buildings; the write-up is
+docs/wayfinding/solid-first-subtractive-modeling/127-height-map-generator.md and the numbers are
+execution/artifacts/height_map_generator_714.json.
+
+heightmap_ce.pt    3.37M params, cross-entropy over 64 carve-depth classes, epoch 26 of 40.
+                   THE ONE THE DEMO SERVES. Read two ways from the same weights:
+                     argmax           extra 0.1178   vs_input 0.9304   collapse 0.032
+                     posterior median extra 0.0603   vs_input 0.8432   collapse 0.027
+heightmap_mse.pt   3.36M params, regression on relative carve depth, epoch 33 of 40.
+                   extra 0.0638   vs_input 0.8173   collapse 0.051
+
+Medians over the 411 carve-needing held-out buildings. The footprint envelope scores extra 0.2308,
+and the shipped 49M vecset model scores 0.2357 at vs_input 0.9852 -- worse than its own input.
+
+WHAT THESE MODELS CANNOT DO
+  * Anything 3-D. The output is a 64x64 height map: one height per plan column. Courtyards,
+    passages, arcades and overhangs are not representable. #10 measured that the LoD2 corpus at
+    64^3 contains none of them, which is why the representation is sufficient FOR THIS CORPUS and
+    is not a claim about architecture.
+  * Detail. This is massing only, above the detail scale s* (ADR 0004).
+  * A symbolic edit program. The output is geometry, not a recipe, so it does not by itself carry
+    this project's editability claim.
+
+⚠️ The pre-registered bar for #127 was NOT met by the arm it was registered for. See the write-up.

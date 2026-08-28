@@ -70,6 +70,26 @@
     <label>Default height <span class="val" id="dhv">12 m</span></label>
     <input type="range" id="dh" min="3" max="60" value="12" step="1"/>
 
+    <label>Massing model</label>
+    <select id="arm" style="width:100%;padding:5px;margin-bottom:4px">
+      <option value="heightmap_median">#127 height map — ~0.1 s/building</option>
+      <option value="heightmap_mode">#127 height map · mode — carves less</option>
+      <option value="a2">a2 · shipped 49M — ~7 s/building</option>
+      <option value="retrieval">retrieval — nearest real roof, zero training</option>
+      <option value="envelope">envelope — no carve, for comparison</option>
+    </select>
+    <small style="color:#8a8d94;display:block;margin-bottom:8px">
+      Compare them on one footprint at <a href="/arms" target="_blank">/arms</a>.
+    </small>
+
+    <label>Roof variation <span class="val" id="rvv">0 — as measured</span></label>
+    <input type="range" id="rv" min="0" max="40" value="0" step="5"/>
+    <small style="color:#8a8d94;display:block;margin-bottom:8px">
+      The height map is deterministic, so identical footprints give identical buildings. This
+      varies the roof depth per building. ⚠️ Above 0 you are no longer looking at the arm that
+      was scored.
+    </small>
+
     <div class="row">
       <button class="sec sm" id="newB">+ New building</button>
       <button class="sec sm" id="closeB" disabled>✓ Close shape</button>
@@ -266,11 +286,15 @@ const q = new URLSearchParams(location.search);
 const EXTRACT_PORT = q.get('extract') || 8766;
 const GEN_PORT     = q.get('gen')     || 8767;
 const svc = port => `${location.protocol}//${location.hostname}:${port}`;
-// Measured on the AMD box (#99, and again after #101 widened the decode chunk): ~7.0s/building,
-// now split about evenly between the Dora grid decode and A2's own 20 denoise steps. Only used to
-// size the ETA before any building has come back; the estimate switches to observed timings as
-// soon as the first one does.
-const SECS_PER_BUILDING = 7;
+// Measured on the AMD box (#99, and again after #101 widened the decode chunk): ~7.0s/building for
+// A2, now split about evenly between the Dora grid decode and A2's own 20 denoise steps. #127's
+// height-map arms are a forward pass of a 3.4M convnet plus a marching-cubes surface and are ~0.1s
+// warm on one A100; quoting A2's number for them would make a 29-building town read as three
+// minutes when it finishes in five seconds. Only used to size the ETA before any building has come
+// back; the estimate switches to observed timings as soon as the first one does.
+const SECS_PER_BUILDING = {a2:7, heightmap_median:0.3, heightmap_mode:0.3, retrieval:0.5,
+                           envelope:0.2};
+const armSeconds = () => SECS_PER_BUILDING[$('arm').value] ?? 7;
 
 let imgData=null;
 // One path for "an image became the current import source", whichever way it arrived — file
@@ -293,6 +317,11 @@ dropEl.ondragover=e=>{ e.preventDefault(); dropEl.classList.add('hot'); };
 dropEl.ondragleave=()=>dropEl.classList.remove('hot');
 dropEl.ondrop=e=>{ e.preventDefault(); dropEl.classList.remove('hot'); if(e.dataTransfer.files[0]) loadImg(e.dataTransfer.files[0]); };
 $('imgSpan').oninput=()=>{ $('imgSpanV').textContent=$('imgSpan').value+' m'; };
+// Changing the model or the roof variation invalidates every generated mesh, the same way changing
+// a height does -- otherwise the viewport mixes buildings from two different models.
+$('rv').oninput=()=>{ $('rvv').textContent = $('rv').value==='0' ? '0 — as measured'
+                        : '±'+$('rv').value+'% — unmeasured'; footprints.forEach(markStale); };
+$('arm').onchange=()=>{ footprints.forEach(markStale); };
 
 async function importFromImage(){
   if(!imgData) return;
@@ -415,7 +444,7 @@ async function generateTown(){
   // first ~10s reads as a broken demo. The first finished building brings the camera over.
   // `kept` is what the viewport actually shows, which is not the same as what the server generated:
   // a footprint edited or deleted mid-run has its result thrown away (see the stream loop below).
-  let doneCount=0, kept=0, failed=0, discarded=0, framed=false, secsEach=SECS_PER_BUILDING;
+  let doneCount=0, kept=0, failed=0, discarded=0, framed=false, secsEach=armSeconds();
   let lastRec=performance.now();
   const tick=()=>{
     $('progBar').style.width=`${100*doneCount/pending.length}%`;
@@ -446,7 +475,8 @@ async function generateTown(){
       method:'POST', headers:{'Content-Type':'application/json'}, signal:genAbort.signal,
       body:JSON.stringify({
         buildings:pending.map(fp=>({points:fp.points.map(p=>[p.x,p.z]), height:fp.heightOverride})),
-        default_height:defaultHeight(), seed:0})});
+        default_height:defaultHeight(), seed:0, arm:$('arm').value,
+        roof_variation:(+$('rv').value)/100})});
     if(!r.ok) throw new Error((await r.text()).slice(0,200));
 
     // NDJSON: each building appears as it finishes, so a 29-building town builds up in front of

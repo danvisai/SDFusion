@@ -268,6 +268,45 @@ def _stream_town(client, payload):
         return [json.loads(line) for line in r.iter_lines() if line.strip()]
 
 
+def check_town_arm(client):
+    """A whole town on #127's height map -- the wiring the town editor's model selector uses.
+
+    Separate from `check_town` because it is a different claim. `check_town` proves the streaming
+    contract; this proves the arm knob reaches the batch path at all, which is the failure that
+    would let the editor's dropdown silently keep serving A2.
+
+    ⚠️ It asserts speed, which a test normally should not. The justification is that the speed IS
+    the wiring evidence here: the height-map arms need no codec, so a town that still takes A2's
+    ~7s per building is a town that silently ran A2. The bound is loose (2s/building against a
+    measured ~0.1s warm and A2's ~7s) so it fails on a wrong arm, not on a busy GPU.
+    """
+    far = [[x + 90.0, z + 30.0] for x, z in RECT]
+    payload = {"buildings": [{"points": RECT, "height": 15.0}, {"points": far},
+                             {"points": LSHAPE, "height": 24.0}],
+               "default_height": 21.0, "seed": 0, "arm": "heightmap_median"}
+    t0 = time.time()
+    recs = _stream_town(client, payload)
+    dt = time.time() - t0
+    built = [x for x in recs if x["kind"] == "building"]
+    assert len(built) == 3, f"expected 3 buildings, got {len(built)} ({recs[-1]})"
+    for rec in built:
+        assert rec["arm"] == "heightmap_median", f"town record came back as {rec['arm']!r}"
+        assert _placement_overlap(rec["vertices"], np.asarray(
+            payload["buildings"][rec["index"]]["points"], dtype=np.float64)) >= MIN_PLACEMENT_OVERLAP
+    per = dt / len(built)
+    assert per < 2.0, (f"{per:.2f}s/building on the height-map arm -- too slow to have skipped the "
+                       f"codec, so the arm knob probably did not reach the batch path")
+    print(f"[town] height-map arm: {len(built)} buildings in {dt:.1f}s ({per:.2f}s each)  OK")
+
+    # An arm nobody implements is a client error; an arm this box cannot serve today is service
+    # state. A client told 503 will retry a request that can never succeed, so the two must differ.
+    bad = client.post("/generate_building",
+                      json={"points": RECT, "height": 15.0, "arm": "not_an_arm"})
+    assert bad.status_code == 400, (f"an unknown arm must be a 400, got {bad.status_code} "
+                                    f"-- 503 tells the client to retry something impossible")
+    print(f"[town] unknown arm rejected with 400  OK")
+
+
 def check_town(client):
     """One call, N buildings, streamed -- each landing at its own drawn position."""
     far = [[x + 90.0, z + 30.0] for x, z in RECT]
@@ -336,6 +375,7 @@ def main():
         check_single(client)
         check_arms(client)
         check_town(client)
+        check_town_arm(client)
     print("\nALL CHECKS PASSED")
 
 

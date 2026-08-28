@@ -255,6 +255,102 @@ was drawn from, per the montages above.
 - **This is the corpus's 2.5-D structure** (#10). Nothing here transfers to massing with genuine
   through-voids, which this corpus does not contain at 64³.
 
+## ✅ The human reviewed the montages and accepted them
+
+*Recorded 2026-08-28, after the montages above.* The human's verdict on the visual criterion is
+**yes** — this satisfies the scope they set, which was *"input a shape and get a blockout which
+looks like a building"*, and it does so where the other approaches on this project did not.
+
+⚠️ **This is recorded as their judgement, and it is not the same as mine.** My reading of the same
+sheets is in the section above: the trained arms return a mound where the real roof is planes
+meeting at a ridge. Both readings are on the record because #127 asks for a human review and the
+human is the judge of criterion 1, not the analyst — the same posture `docs/SESSION-HANDOVER-
+2026-08-03.md` took when the human accepted an earlier model. The scalar record is unchanged: the
+pre-registered arm still missed its bar, and the form gap in "What follows" is still open.
+
+## Wired into the demo
+
+`scripts/server/town_generate_service.py` serves the arm everywhere it serves A2. One knob,
+`arm`, on `/generate_building`, `/generate_town` and `/compare_arms`, defaulting to `a2` so no
+existing caller changed behaviour. `/arms` is a page that carves one drawn footprint with every arm
+on a synchronised camera; the town editor gained a model selector.
+
+🔑 **The cost difference is the demo's headline, not the quality difference.** Measured warm on one
+A100, in the service:
+
+| arm | per building | a 29-building town (the Munich preset) |
+|---|---|---|
+| a2 (49M, through the Dora codec) | ~1.1–7 s | ~3.5 min |
+| **height map (3.4M, no codec)** | **~0.1–0.25 s** | **~5 s** |
+
+A height map compiles straight to voxels, so the arm needs no codec at all and is offered even on a
+box where Dora is absent.
+
+⚠️ **The height-map arm is deterministic, and that shows in a town.** Two identical footprints
+produce *bit-identical* buildings — measured, 0.000000 m apart after recentering — where A2 gets its
+variety from per-building noise. A `roof_variation` knob jitters the decode quantile per building
+(a coherent deeper-or-shallower roof, never per-column noise, which would be rubble). It
+**defaults to 0**, so the demo shows the arm that was actually scored; above 0 the output is no
+longer the measured model and the editor says so.
+
+Weights are staged at `weights/massing-heightmap/` with a manifest and checksums, beside A2's.
+
+## What this is research-usable for, and what it is not
+
+The user's scope — footprint in, building-shaped mass out — is met. That is a **capability**
+milestone. Stated honestly, it is not by itself a **contribution**, and the two should not be
+conflated in a write-up.
+
+**Not novel as a method.** `NOVELTY_SURVEY.md` already lists "footprint or site polygon to
+procedural 3D building" and "neural architectural DSL prediction plus deterministic compilation"
+among *established ingredients*. A convnet predicting a 64×64 height field from a footprint is an
+image-to-image regression with a long precedent, and nothing here changes that.
+
+**What is defensible:**
+
+1. **The measurement.** Six arms across two representations converged to no-op (#69–#92). This
+   shows the no-op was a property of the **output space**, not of the models or the data — the same
+   corpus, the same conditioning, a 15× smaller network, and it carves. That is a result about
+   representation choice, and it is the part worth writing down.
+2. **A baseline the program route must now beat.** #10's recovered carving program reaches `extra`
+   0.0030 *while seeing the answer*. Any learned program predictor is now required to beat **0.0603
+   from a 3.4M convnet**, not the envelope's 0.2308. That raises the bar for #1/#4/#6 considerably.
+3. **It retires a route.** #113 specifies whole-volume binary segmentation of the start box. On this
+   corpus the label is a height map, so that route is over-parameterised by a factor of 64 — #10
+   found this and #127 is the working demonstration.
+
+**What it cannot support, and must not be claimed:**
+
+- **Anything 3-D.** One height per plan column. Courtyards, passages, arcades, light wells and
+  overhangs are *not representable*. #10 measured that this corpus contains none at 64³, so the
+  representation is sufficient **for this corpus** — that is a fact about the data, not about
+  architecture, and `NOVELTY_SURVEY.md`'s hypothesis 2 ("architectural voids as first-class
+  generative objects") is untestable here.
+- **The editability claim.** The output is geometry, not a **semantic architectural edit program**.
+  `CONTEXT.md`'s thesis is that editability is core rather than a wrapper; a height map does not
+  carry a recipe, so this arm is no better placed than A2 on C1's editing half. #128's edit-stack
+  bridge is on the *program*, not on this.
+- **Detail.** Massing only, above s\* (ADR 0004). Unchanged.
+- **Generality.** One corpus, one resolution, one seed, one architecture.
+
+## Retraining: what would and would not help
+
+**Nothing needs retraining for the demo.** The served checkpoint is the best measured, and training
+had converged — the training loss is flat from about epoch 10 of 40, and the swing between adjacent
+epochs is larger than the gap between the last twenty. More epochs buy nothing, and this project has
+twice been wrong reading that curve.
+
+**One retrain is principled, and it is small.** The decode and the objective currently disagree: the
+model is trained with cross-entropy, whose Bayes act is the *mode*, and then read at the *median*
+because the mode under-carves. Training a **quantile (pinball) loss at q=0.5** would make the thing
+optimised and the thing decoded the same quantity. Expected to be worth something because the
+post-hoc median already bought `extra` 0.1178 → 0.0603 without any retraining; expected to be
+modest because it removes a mismatch rather than adding capacity. One run, ~16 minutes.
+
+**The form gap will not be closed by retraining this model at all.** A mound is what per-column
+independence produces. That needs a different output space — a program — not a better fit of this
+one.
+
 ## What follows
 
 - **The question #127 asked is answered: yes, it carves**, decisively and at 1/15th the parameters
