@@ -642,6 +642,56 @@ route (#6) provides and what this probe was run to find out cheaply. It cost 20 
 one loss term, and the served arm does not change.
 
 
+## Why the output is not a building: the roof is in the posterior, and no per-column read gets it out
+
+*Measured 2026-08-29 on the served CE checkpoint, the same 411 carve-needing buildings. Asked
+because the montages raise the obvious question — is the model unable to learn the height at each
+position, or is something else going on?*
+
+| what was asked of the model's own posterior | measured |
+|---|---|
+| GT depth lies inside the column's 10–90% band | **0.952** |
+| GT depth is among the column's top-5 of 64 classes | 0.527 |
+| width of that 80% band, in voxels | **13.0** |
+| Spearman(predicted depth, GT depth) *within* a building | 0.403 |
+| deepest-quartile overlap with GT (Jaccard; ≈0.14 by chance) | 0.363 |
+
+🔑 **The model is not blind — it is uncertain, and honestly so.** The true depth sits inside its own
+80% band on 95% of columns, so the information "this column is carved and roughly this deep" is
+there. What is missing is *sharpness*: the band is 13 voxels wide on buildings 20–60 voxels tall,
+which is the difference between a flat top and a full gable, and the within-building correlation of
+0.40 says the positional signal is real but weak. Some of that width is correct behaviour rather
+than weakness — #126 measured that footprint + height does **not** determine the roof (two matched
+real buildings differ by a median 3-D IoU of 0.886), so a confident posterior here would be a lie.
+
+**And the decode cannot rescue it.** An oracle allowed to pick the single best quantile *per
+building* — one global knob, chosen with the answer in hand, never per column:
+
+| | `missing` | `extra` | sym | form (ops) |
+|---|---|---|---|---|
+| fixed median decode (served) | 0.0385 | 0.0603 | 0.0988 | 6.0 |
+| **oracle: one quantile per building** | 0.0323 | 0.0435 | 0.0870 | **6.0** |
+
+It buys 12% of the symmetric difference and **exactly zero shape**. The chosen quantile's median is
+0.50, i.e. the served decode is already the right global choice on average. Sliding the whole
+surface up or down does not make it a roof.
+
+🔑🔑 **So the mound is a summarising artifact, not a training failure.** Each column reports a wide,
+multi-modal belief; the decode takes a per-column statistic of it; and the pointwise median of a
+family of possible roofs is not any of them. If a roof could ridge along either diagonal, asking
+every column for its own median returns the average of both — a dome, which is neither. #127 already
+found that reading the posterior at its *median* rather than its *mode* is worth `extra` 0.1178 →
+0.0603; this bounds what is left on that road at roughly a further 0.012, and none of it is form.
+
+⚠️ Read with the slope-term result above, this is the same conclusion arriving from the other side.
+Supervision could not put planes in (the slope arm), and decoding cannot take a roof out (this
+probe). What neither can supply is a **joint commitment** — one coherent hypothesis chosen across
+columns rather than 4,096 independent summaries. A program does exactly that by construction: it
+picks a ridge line and a few planes and compiles them, so every column's height comes from the same
+decision. That is #6, and it is now supported by measurement from both directions rather than by the
+montage alone.
+
+
 ## What follows
 
 - **The question #127 asked is answered: yes, it carves**, decisively and at 1/15th the parameters
