@@ -566,12 +566,26 @@ def build_plane_model(k_planes: int, width: int = 64):
             self.assign = nn.Conv2d(width, k_planes, 1)
             self.params = nn.Sequential(nn.Linear(width, 4 * width), nn.SiLU(),
                                         nn.Linear(4 * width, k_planes * 3))
-            # a: mid-height, b/c: flat. A near-degenerate start makes every plane identical and the
-            # assignment arbitrary, so the biases spread the intercepts before training begins.
+            # ⚠️ The initialisation is load-bearing, and the first version of it was wrong. It set
+            # every slope to exactly 0 and crushed the head's weights by 100x, so the planes began
+            # flat and STAYED flat: measured after 40 epochs, a plane tilted a median of 0.21 voxels
+            # across the whole plan. The model became six horizontal terraces -- a ziggurat, which is
+            # #10's own name for this failure -- and its `planar_fraction` fell to 0.00 while the
+            # per-column model managed 0.20. Planarity was free; SLOPE was not, because a flat region
+            # is a strong local optimum under L1 and the straight-through gradient never escaped it.
+            #
+            # So the planes now start DIVERSE in slope as well as in height: half flat, half tilted
+            # by half an extent across the plan in evenly spread directions. Buildings sit at
+            # arbitrary grid rotations (#10), so the directions must cover the circle rather than the
+            # axes, and the corpus is 54% flat columns, so the flat half is not optional either.
             with torch.no_grad():
-                self.params[-1].weight.mul_(0.01)
+                self.params[-1].weight.mul_(0.1)
                 bias = torch.zeros(k_planes, 3)
                 bias[:, 0] = torch.linspace(0.55, 1.0, k_planes)
+                tilted = k_planes // 2
+                ang = torch.linspace(0, float(np.pi), tilted + 1)[:tilted]
+                bias[k_planes - tilted:, 1] = 0.5 * torch.cos(ang)
+                bias[k_planes - tilted:, 2] = 0.5 * torch.sin(ang)
                 self.params[-1].bias.copy_(bias.reshape(-1))
             self.k = k_planes
 

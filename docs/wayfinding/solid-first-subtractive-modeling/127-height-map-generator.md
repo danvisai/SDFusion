@@ -282,6 +282,43 @@ which are planes. A mound cannot be explained by planes, so the fitter falls bac
 *from* the envelope; an arm that did nothing needs nothing to explain it. Whether an arm acted is
 `extra` and `vs_input`'s job. Read form beside them and never alone.
 
+### The planar representation: half the description length, still not a roof
+
+*Run 2026-08-28, after the metric existed.* The fix the metric pointed to: make planarity free the
+way the clamped height map made validity free. The output became **K=6 planes plus a per-column
+region assignment**, so description length is at most K by construction and a mound is not
+representable. An untrained head already scored 3 ops against the per-column model's 6.
+
+| arm | `missing` | `extra` | collapse | **form (ops)** | **planar** | *(3D IoU)* |
+|---|---|---|---|---|---|---|
+| the real building | — | — | — | **2.0** | **0.50** | — |
+| per-column CE + median *(served)* | 0.0385 | **0.0603** | 0.0268 | 6.0 | 0.20 | *0.8948* |
+| **planes K=6** | 0.0324 | 0.0772 | **0.0195** | **3.0** | **0.00** | *0.8901* |
+
+**Half the description length and the best collapse rate of any acting arm — and it is still not a
+roof.** `planar_fraction` went to **0.00**, worse than the per-column model it replaced. The
+representation delivered exactly what it promised and the promise was not sufficient.
+
+🔑 **The slopes collapse to flat, from any initialisation.** Measured on the trained model's real
+per-building output, a plane tilts by **0.25 voxels across a 40-voxel building**. The first run
+initialised every slope at zero and it never left; the second initialised half the planes tilted by
+*half an extent* in spread directions, the biases survived at 0.45 — and the network's learned
+weights cancel them back to 0.006. Two initialisations, same answer.
+
+So the model uses its six planes as six **horizontal terraces**. That is #10's own name for this
+failure — *"a ziggurat of three or four giant steps"* — and the montages show it as concentric flat
+rings where the real roof is a hip or a gable. It swapped a mound for a terrace.
+
+⚠️ **The metric earned its keep here.** Description length alone would have called this a win: 6 → 3
+ops. Only the `planar_fraction` half showed that the budget moved from `Layer`-plus-mound to
+`Layer`-only, with no plane in it at all. A single-number form metric would have shipped this.
+
+**What it means for the route.** Composing planes with a *learned soft assignment* does not teach
+slope: a flat region is a strong optimum under L1, and the assignment can always subdivide a pitch
+into more flat steps rather than tilt one plane. The remaining route is to predict the **program
+itself** — typed operations with explicit parameters, where a `Ramp`'s slope is an output rather
+than something that has to survive a straight-through gradient. #10 already built that supervision.
+
 ### Three scalar attempts at the visual difference, all negative
 
 | arm | relief | curvature | speckle | the eye |
