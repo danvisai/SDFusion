@@ -65,7 +65,67 @@ as a special case, and the 42% no-op majority #10 warned about is passed rather 
 ⚠️ The `mean_roof` arm is the counter-example that shows this is not free: it carves 100% of columns
 there too and eats 9.4% of GT.
 
-## The pre-registered bar: NOT MET by the arm it was registered for
+## ⚖️ The bar was reconsidered by the human, and 1-NN demoted to a reference point
+
+*Ruled 2026-08-28, **after** the results below were seen. Recorded that way on purpose — the
+original pre-registration is kept intact underneath, because a bar edited after the fact and
+presented as the original is worthless.*
+
+The ruling: **1-NN retrieval is a reference point, not a gate.** The reasoning is that the two arms
+are not the same kind of object. Retrieval is **non-parametric** — it carries all 34,909 training
+roofs to inference time and copies one. The generator carries 3.4M parameters and must invent a
+roof. Retrieval is therefore crisp and planar by construction, because it emits a *real* roof; a
+generator cannot get that for free. Requiring the generator to beat it treats a compression
+constraint as a quality failure.
+
+⚠️ **The premise that motivated the ruling did not hold, and that is worth stating.** The concern
+was that retrieval "will always beat it". Measured, it does not — three of the four trained arms
+beat it, and the served one beats it by **41.5%**:
+
+| arm | `extra` | against 1-NN's 0.1031 | collapse |
+|---|---|---|---|
+| CE + argmax *(the pre-registered arm)* | 0.1178 | **−14.3%** — loses | 0.0316 |
+| **CE + median** *(served)* | **0.0603** | **+41.5%** — beats | **0.0268** |
+| MSE | 0.0638 | +38.1% — beats | 0.0511 |
+| quantile q=0.5 | 0.0685 | +33.5% — beats | 0.0219 |
+
+🔑 And on safety the generator is not close to retrieval — it is **six times better**. Retrieval
+collapses on **65 of 411** buildings, because a roof borrowed from a look-alike still cuts into this
+building. The served arm collapses on **11**. Retrieval buys its crisp shape by sometimes destroying
+the building; that is the cost the aggregate hides.
+
+So the standing verdict is: **the approach clears the bar the ticket set; one decode of one arm did
+not.** "Failure" was my word for that and it was too broad — the precise statement is that a single
+pre-registered decode missed a single threshold by 0.0147, while every other arm cleared it.
+
+### The validity criterion, and why it cannot rank these arms
+
+The human's proposed criterion is that massing counts as architecture only if it is **connected to
+the building** — no floating voxels, no islands, no noise off to the side. Measured on the 411
+carve-needing buildings, 26-connectivity, every arm:
+
+| arm | connected components | floating voxels |
+|---|---|---|
+| the real building | 1–2 (median 1) | 0.00000 |
+| footprint envelope | 1–2 (median 1) | 0.00000 |
+| 1-NN retrieval | 1–2 (median 1) | 0.00000 |
+| every height-map arm | 1–2 (median 1) | 0.00000 |
+
+🔑 **Identical across every arm, including GT itself.** The criterion is satisfied *by construction*
+in this output space: `apply_depth` keeps at least one voxel on every footprint column, so a solid
+run from the base is the only thing representable. The 1–2 components are inherited from footprints
+that are themselves two blobs in plan — GT has them too.
+
+So the criterion **cannot discriminate between these arms**. ⚠️ It is not idle, though: it is exactly
+what the *earlier* representations failed. #80's dense-SDF failure mode was hollow shells, A2
+collapses on 12.4% of these buildings and the deployed map-24 model on 16.3%. Moving to a height map
+is what made floating geometry unrepresentable, and that is a result about the representation rather
+than a metric for ranking within it.
+
+What the criterion is reaching for and does not yet capture is **roof form** — planes meeting at a
+ridge against a rounded mound. That remains open, and three amplitude statistics failed at it.
+
+## The original pre-registration, kept intact: NOT MET by the arm it was registered for
 
 The bar was committed before the first run (`f1f0dcd`): median `extra` strictly below 1-NN's on the
 same rows, collapse no worse than 1-NN's, `vs_input` < 0.98.

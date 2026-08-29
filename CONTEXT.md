@@ -81,8 +81,13 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
 - 🔑 **#127 broke the no-op.** A 3.4M-parameter footprint→height-map generator carves: `extra`
   0.2308 → **0.0603** with `vs_input` 0.8432, against the shipped 49M model's 0.2357 at 0.9852
   vs-input. The pattern that closed #69–#92 was a property of the output space, not of the task.
-  ⚠️ Its **pre-registered arm missed the 1-NN bar** (0.1178 against 0.1031); the arms that clear it
-  were run after seeing that. ⚠️ **The montage disagrees with the scorecard** — every trained arm
+  ⚖️ **1-NN was demoted to a reference point by the human on 2026-08-28**, after the results: it is
+  non-parametric (it carries 34,909 real roofs to inference and copies one), so requiring a 3.4M
+  generator to beat it charges a compression constraint as a quality failure. ⚠️ The premise that
+  motivated the ruling — that retrieval always wins — is **false as measured**: three of four arms
+  beat it and the served one beats it by 41.5%, at **six times better collapse** (11 of 411 against
+  retrieval's 65). Its **pre-registered arm did miss** (0.1178 against 0.1031) and the original
+  pre-registration is kept intact in the doc; the arms that clear it were run after seeing that. ⚠️ **The montage disagrees with the scorecard** — every trained arm
   returns a rounded mound where the real roof is planes meeting at a ridge, and three amplitude
   statistics failed to separate them. The open problem has moved from *amount* to *form*.
   ✅ **The human reviewed the montages on 2026-08-28 and accepted them**: this meets the scope
