@@ -59,6 +59,22 @@ Run -- one arm at a time, then score them together against the baselines:
               heightmap_mse=outputs/height_map_generator/heightmap_mse.pt \
               --median_decode --montage 6
 
+The 3D montage says whether an arm reads as a building. The plan-view pair says *why* -- the height
+map shows where the volume went, the normal map shows whether what is left is made of planes -- and
+it scores nothing, so it runs from finished checkpoints in seconds:
+
+    $P --ckpt heightmap_ce=outputs/height_map_generator/heightmap_ce.pt \
+              heightmap_planes=outputs/height_map_generator/heightmap_planes.pt \
+              --median_decode --maps_only --maps 4          # best/representative/worst sheets
+    $P --ckpt ... --median_decode --maps_only --maps_ids 1341 19229 20650   # named buildings
+    $P --ckpt ... --maps_only --maps_arms heightmap_ce_median heightmap_ce_slope_median
+
+The joint SLOPE term is an arm like any other and is off by default, so every arm on the record is
+unaffected. Its pre-registered weight is 1.0 (`docs/wayfinding/solid-first-subtractive-modeling/
+127-height-map-generator.md`):
+
+    $P --objective ce --slope_weight 1.0 --tag heightmap_ce_slope --epochs 40 --montage 0 --no_form
+
 The first invocation builds `outputs/height_map_generator/height_fields.npz` from the corpus, which
 takes ~12 minutes and is then reused by everything else.
 """
@@ -95,6 +111,11 @@ CACHE = WORK / "height_fields.npz"
 # 59 voxels of a 60-voxel extent, and no column is ever cut below 1, so depth lies in [0, 63] and 64
 # covers the label range exactly with nothing clipped away at training time.
 DEPTH_CLASSES = RES
+
+# Which decode the joint slope term takes its hard forward at. NOT a flag: #127 measured that the
+# mode under-carves and the arm is served at its posterior median, so the term must see the surface
+# the arm is actually read at. Exposing it as a sweepable option would be selecting on the answer.
+SLOPE_DECODE_QUANTILE = 0.5
 
 # Buildings held back from training to select the checkpoint. Drawn from the TRAINING rows -- the
 # pinned 714 are never seen, not even for early stopping.
@@ -450,6 +471,77 @@ def per_column_loss(out, y, ext, objective: str, quantile: float):
     return torch.maximum(quantile * -err, (quantile - 1.0) * -err)
 
 
+def differentiable_depth(out, ext, objective: str, quantile: float | None):
+    """Network output -> per-column carve depth in voxels, differentiably, with a HARD forward.
+
+    The slope term needs a *height* to take differences of, and a cross-entropy head predicts a
+    distribution. Collapsing it with the softmax expectation would measure the slope of a BLENDED
+    field, and this ticket's own finding (`compose_planes`) is that a smooth blend of surfaces is a
+    mound -- the exact failure being fixed. So the forward pass takes the arm's real decode, and the
+    gradient flows back through the soft probabilities: the same straight-through the plane head
+    already uses, for the same reason.
+
+    `quantile` picks which decode: `None` is the mode (the pre-registered decode) and 0.5 the
+    median (the decode the arm is actually served at). The regressions have no distribution to
+    collapse, so their own predicted depth passes straight through.
+
+    ⚠️ The depth is returned UNCLAMPED, so it is `apply_depth`'s input rather than its output. On a
+    column the model would carve away entirely the clamp returns a flat one-voxel slab, and a term
+    reading that would have no gradient exactly where the prediction is worst.
+    """
+    import torch
+
+    if objective == "planes":
+        return ext[:, None, None] - out                     # `out` is already a height map
+    if objective != "ce":
+        return out[:, 0] * ext[:, None, None]               # relative depth -> voxels
+    p = torch.softmax(out, dim=1)
+    levels = torch.arange(DEPTH_CLASSES, device=out.device, dtype=p.dtype).view(1, -1, 1, 1)
+    with torch.no_grad():
+        # the cumulative sum in float64, because `decode_logits` serves this same posterior in
+        # float64: a column whose cdf lands on the quantile picks a different class in the two
+        # precisions, and then the term would be shaping a surface the arm is never read at. No
+        # gradient passes through the index, so the cast costs a temporary and nothing else.
+        idx = (p.argmax(1, keepdim=True) if quantile is None else
+               (torch.cumsum(p.double(), 1) >= quantile).float().argmax(1, keepdim=True))
+    hard = torch.zeros_like(p).scatter_(1, idx, 1.0)
+    # grouped so the straight-through residual is EXACTLY zero in the forward pass: `hard + p - p`
+    # left to right rounds through an intermediate and returns 5.9999995 where the decode says 6,
+    # and this value is compared against `decode_logits` by test, not just used as a gradient path
+    return ((hard + (p - p.detach())) * levels).sum(1)
+
+
+def slope_loss(depth, y, mask):
+    """🔑 The joint term: L1 between the prediction's first differences and GT's, per column PAIR.
+
+    Every objective in `per_column_loss` scores each of the 4,096 plan columns on its own, so the
+    ridge line -- a property of a *run* of columns -- is not in any of them, and a mound and a hip
+    roof that remove the same volume cost the same. This term is the quantity the normal map draws,
+    moved from the picture into the objective: a pitched plane is a constant step along a run and a
+    hard break at the ridge, a mound is a step that drifts everywhere.
+
+    Two properties make it an addition to the per-column loss rather than a replacement:
+
+      * it is **blind to a constant offset**, so it says nothing about how deep to carve -- that
+        stays cross-entropy's job -- and only about how the carve is arranged;
+      * it matches GT's steps rather than minimising them, so a sharp ridge is **free**. A term that
+        merely penalised roughness would prefer a rounded ridge, which is the mound again.
+
+    ⚠️ It shapes the loss, not the architecture: at inference the head still emits one posterior per
+    column independently. #127's diagnosis is that per-column *independence* is what produces a
+    mound, so this is a probe of how much of that can be recovered by supervision alone, and a
+    negative result is a real answer to that question.
+
+    Only pairs with both columns inside the footprint are counted: off the footprint there is no
+    surface, and the footprint wall is a vertical cliff that would otherwise dominate every edge.
+    """
+    d, t, m = depth.float(), y.float(), mask.bool()
+    dz, tz, mz = d[:, 1:] - d[:, :-1], t[:, 1:] - t[:, :-1], m[:, 1:] & m[:, :-1]
+    dx, tx, mx = d[:, :, 1:] - d[:, :, :-1], t[:, :, 1:] - t[:, :, :-1], m[:, :, 1:] & m[:, :, :-1]
+    num = ((dz - tz).abs() * mz).sum() + ((dx - tx).abs() * mx).sum()
+    return num / (mz.sum() + mx.sum()).clamp(min=1)
+
+
 def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective: str,
                       quantile: float | None) -> np.ndarray:
     """One network output -> one height map. The inverse of `per_column_loss`, kept beside it.
@@ -685,7 +777,11 @@ def train(cache: dict, args) -> Path:
         out = (forward_heights(model, x, ext, args.objective) if args.objective == "planes"
                else model(x))
         per = per_column_loss(out, y, ext, args.objective, args.quantile)
-        return (per * m).sum() / m.sum().clamp(min=1)
+        loss = (per * m).sum() / m.sum().clamp(min=1)
+        if args.slope_weight:
+            loss = loss + args.slope_weight * slope_loss(
+                differentiable_depth(out, ext, args.objective, SLOPE_DECODE_QUANTILE), y, m)
+        return loss
 
     def to_dev(b):
         x, y, e = b
@@ -724,6 +820,8 @@ def train(cache: dict, args) -> Path:
             best, mark = (ve + vm, vl), "  <- best"
             torch.save(dict(state=model.state_dict(), objective=args.objective, width=args.width,
                             quantile=args.quantile, k_planes=args.k_planes,
+                            slope_weight=args.slope_weight,
+                            slope_decode_quantile=SLOPE_DECODE_QUANTILE,
                             epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
                             val_symmetric=ve + vm, params=n_par), best_path)
         print(f"  epoch {ep+1:>3}/{args.epochs}  train {run:.4f}  val {vl:.4f}  "
@@ -807,6 +905,8 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
                              f"regression (trained at q={d.get('quantile')})"
                              if d["objective"] == "quantile" else "regression"),
                      trained_quantile=d.get("quantile"),
+                     slope_weight=d.get("slope_weight", 0.0),
+                     slope_decode_quantile=d.get("slope_decode_quantile"),
                      epoch=d.get("epoch"), val_loss=d.get("val"), val_extra=d.get("val_extra"),
                      val_missing=d.get("val_missing"), val_symmetric=d.get("val_symmetric"),
                      params=d.get("params"), selected_on="validation missing+extra",
@@ -955,6 +1055,216 @@ def montage(cases, out: Path, cell: int = 5) -> Path:
     return out
 
 
+# ==================================================================================================
+# plan-view maps -- the same surfaces the montage draws in 3D, read as height and as slope
+# ==================================================================================================
+
+LEGEND_W = 1000          # the map sheet's legends need this much width whatever the tiles need
+
+
+def height_rgb(h: np.ndarray, fp: np.ndarray, extent: int, contour: int = 2,
+               lo: int = 0) -> np.ndarray:
+    """[Z, X, 3] plan view of a height map, coloured by level, with iso-contours every `contour`.
+
+    The ramp is shared by every arm on the row and by the real building, so a colour means the same
+    height across the row and the arms can be compared by eye. It spans `lo`..extent rather than
+    0..extent: the deepest level any arm on that row reaches is usually well above the base, and
+    stretching the ramp over the empty part of the range spends most of the colours on heights no
+    arm predicted. `lo` is the deepest level anything on the row reaches, the real building
+    included, so every arm is read against one scale and none is flattered by its own.
+
+    Contours are drawn because the open question is **form**: a mound and a hip roof can carve the
+    same volume and score the same `extra`, and closed concentric rings against a few straight bands
+    separate them at a glance where shading does not.
+    """
+    from matplotlib import colormaps
+
+    m = np.asarray(fp, bool)
+    e = max(int(extent), 1)
+    lvl = np.clip(np.asarray(h, np.int32), 0, e)
+    t = (lvl - int(lo)) / max(e - int(lo), 1)
+    rgb = (np.asarray(colormaps["turbo"](np.where(m, np.clip(t, 0.0, 1.0), 0.0)))[..., :3]
+           * 255).astype(np.uint8)
+    if contour:
+        band = lvl // max(int(contour), 1)
+        edge = np.zeros_like(m)
+        edge[:, :-1] |= m[:, :-1] & m[:, 1:] & (band[:, :-1] != band[:, 1:])
+        edge[:-1, :] |= m[:-1, :] & m[1:, :] & (band[:-1, :] != band[1:, :])
+        rgb[edge] = (rgb[edge] * 0.45).astype(np.uint8)
+    rgb[~m] = 246
+    return rgb
+
+
+def normal_rgb(h: np.ndarray, fp: np.ndarray) -> np.ndarray:
+    """[Z, X, 3] plan view of the top surface's unit normal, R=x-slope, G=z-slope, B=up.
+
+    🔑 This reads the *derivative* of the height field, which is where a roof and a mound differ.
+    `roof_shape_stats` failed because GT is itself terraced at 64^3 and no amplitude statistic can
+    tell a discretised plane from a dome; slope can, and directly: a pitched plane is one flat
+    colour, a ridge is a hard seam between two of them, and a dome is a continuous rainbow. Flat
+    tops come out pale blue, which is the familiar normal-map convention.
+
+    The gradient is taken with off-footprint columns filled from the nearest footprint column, so
+    the footprint wall -- a vertical cliff carrying no roof information -- does not paint a false
+    slope around every building.
+    """
+    m = np.asarray(fp, bool)
+    H = np.asarray(h, np.float64)
+    if m.any():
+        H = H[tuple(ndimage.distance_transform_edt(~m, return_indices=True)[1])]
+    gz, gx = np.gradient(H)
+    n = np.stack([-gx, -gz, np.ones_like(gx)])
+    n /= np.linalg.norm(n, axis=0, keepdims=True)
+    rgb = ((n.transpose(1, 2, 0) * 0.5 + 0.5) * 255).astype(np.uint8)
+    rgb[~m] = 246
+    return rgb
+
+
+def _normal_key(size: int = 96) -> np.ndarray:
+    """The legend for `normal_rgb`: every direction a roof can face, drawn as a hemisphere."""
+    v, u = np.mgrid[0:size, 0:size] / (size / 2.0) - 1.0
+    up = np.sqrt(np.clip(1.0 - (u ** 2 + v ** 2), 0.0, 1.0))
+    rgb = (np.stack([u, v, up], -1) * 0.5 + 0.5) * 255
+    rgb[(u ** 2 + v ** 2) > 1.0] = 246
+    return rgb.astype(np.uint8)
+
+
+def map_sheet(cases, out: Path, cell: int = 6, contour: int = 2) -> Path:
+    """Height map and normal map, real building beside every arm, one row per building.
+
+    The 3D montage answers "would you take this over the extruded footprint". These two views
+    answer *why*: the height map shows where the volume went, and the normal map shows whether what
+    is left is made of planes. They are drawn from the same `int16` height maps the arms are scored
+    on, so nothing here is a separate rendering path that could disagree with the numbers.
+    """
+    from PIL import Image, ImageDraw
+
+    names = list(cases[0]["arms"])
+    def tile(a, box):
+        z0, z1, x0, x1 = box
+        return Image.fromarray(a[z0:z1, x0:x1]).resize(((x1 - x0) * cell, (z1 - z0) * cell),
+                                                       Image.NEAREST)
+
+    rows, lo = [], []
+    for c in cases:
+        zs, xs = np.nonzero(c["fp"])
+        box = (max(zs.min() - 1, 0), min(zs.max() + 2, c["fp"].shape[0]),
+               max(xs.min() - 1, 0), min(xs.max() + 2, c["fp"].shape[1]))
+        lo.append(min(int(np.asarray(a)[c["fp"]].min()) for a in c["arms"].values()))
+        rows.append([t for n in names
+                     for t in (tile(height_rgb(c["arms"][n], c["fp"], c["extent"], contour,
+                                               lo[-1]), box),
+                               tile(normal_rgb(c["arms"][n], c["fp"]), box))])
+
+    tw = max(t.width for r in rows for t in r)
+    th = max(t.height for r in rows for t in r)
+    head, pad, lab, foot = 40, 10, 30, 150
+    cols = 2 * len(names)
+    # LEGEND_W is a floor on the sheet, not a decoration: `--maps_arms` narrows the sheet to one
+    # arm, and a canvas sized only by the tiles silently clips the key that says what a colour means
+    sheet = Image.new("RGB", (max(cols * (tw + pad) + pad, LEGEND_W),
+                              head + len(rows) * (th + lab) + foot), (255, 255, 255))
+    d = ImageDraw.Draw(sheet)
+    for j, n in enumerate(names):
+        x = pad + 2 * j * (tw + pad)
+        d.text((x, 8), n.upper(), fill=(0, 0, 0))
+        d.text((x, 24), "height", fill=(90, 90, 96))
+        d.text((x + tw + pad, 24), "normals (slope)", fill=(90, 90, 96))
+        if j:
+            d.line([(x - pad // 2, 0), (x - pad // 2, head + len(rows) * (th + lab))],
+                   fill=(210, 210, 215))
+    for i, r in enumerate(rows):
+        y = head + i * (th + lab)
+        for j, t in enumerate(r):
+            sheet.paste(t, (pad + j * (tw + pad) + (tw - t.width) // 2, y + (th - t.height) // 2))
+        c = cases[i]
+        d.text((pad, y + th + 6), f"id {c['id']}   extent {int(c['extent'])} vx"
+               f"   {c['height_m']:.1f} m   ramp {lo[i]}-{int(c['extent'])} vx   " + "   ".join(
+                   f"{n} extra {c['extra'][n]:.3f}" for n in names if n in c["extra"]),
+               fill=(40, 40, 40))
+        d.line([(0, y + th + lab - 2), (sheet.width, y + th + lab - 2)], fill=(228, 228, 232))
+
+    # the two legends: what a colour means on each half of the sheet
+    y = head + len(rows) * (th + lab) + 16
+    from matplotlib import colormaps
+    ramp = (np.asarray(colormaps["turbo"](np.linspace(0, 1, 256)))[None, :, :3]
+            * 255).astype(np.uint8)
+    sheet.paste(Image.fromarray(np.repeat(ramp, 22, 0)).resize((512, 22)), (pad, y + 16))
+    d.text((pad, y), "HEIGHT   shared per row: the deepest level any arm reaches -> the extent",
+           fill=(0, 0, 0))
+    d.text((pad, y + 42), "deepest carve on the row", fill=(60, 60, 60))
+    d.text((pad + 400, y + 42), "uncarved (the blockout)", fill=(60, 60, 60))
+    kx = pad + 620
+    sheet.paste(Image.fromarray(_normal_key()), (kx, y + 12))
+    d.text((kx, y), "NORMALS   which way the roof faces", fill=(0, 0, 0))
+    d.text((kx + 108, y + 20), "pale blue = flat   |   one flat colour = one pitched plane",
+           fill=(60, 60, 60))
+    d.text((kx + 108, y + 38), "hard seam = a ridge   |   smooth rainbow = a mound, not a roof",
+           fill=(60, 60, 60))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out)
+    return out
+
+
+def sheet_picks(rank, eligible, per_sheet: int) -> dict:
+    """best / representative / worst, ranked by ONE arm's surplus over the eligible rows.
+
+    🔑 Both sheet writers rank by the **first trained arm**, which is the pre-registered one, so
+    "worst" means worst for the arm the bar was written for and not for whichever arm happens to be
+    first in the dict. The rule lived at the montage call site while the map sheets silently ranked
+    by the blockout; it is one function now so the two cannot drift apart again.
+    """
+    by = sorted(eligible, key=lambda i: rank[i])
+    h = len(by) // 2
+    return dict(best=by[:per_sheet], representative=by[h:h + per_sheet], worst=by[-per_sheet:])
+
+
+def _pick_arms(heights: dict, names) -> dict:
+    """The arms to draw, in the order asked for. Unknown names are an error, not a silent drop:
+    a sheet quietly missing the arm it was made to show is worse than no sheet."""
+    if not names:
+        return heights
+    missing = [n for n in names if n not in heights]
+    if missing:
+        sys.exit(f"--maps_arms: no such arm {missing}; have {list(heights)}")
+    return {n: heights[n] for n in names}
+
+
+def write_map_sheets(held: dict, heights: dict, per_sheet: int, ids=None,
+                     rank_by: str | None = None) -> None:
+    """Pick the buildings and write the map sheets, ranked by the arm the caller names.
+
+    `extra` here comes from `height_split`, the column-space identity of `volume_split` -- the sheet
+    is a picture of the same surfaces the artifact scores, and its captions must not come from a
+    second, differently-computed number.
+    """
+    key = rank_by or next(iter(heights))
+    extra = {name: [height_split(h[i], held["target"][i])["extra"] for i in range(len(h))]
+             for name, h in heights.items()}
+    if ids:
+        want = {int(i) for i in ids}
+        rows = {int(r): i for i, r in enumerate(held["row"])}
+        if not want <= set(rows):
+            sys.exit(f"--maps_ids: not in the pinned population: {sorted(want - set(rows))}")
+        picks = {"picked": [rows[i] for i in ids]}
+    else:
+        # the carve-needing subset only: on a building whose envelope is already right, a map sheet
+        # shows two flat rectangles and says nothing about form (#126 point 4)
+        carve = [i for i in range(len(held["fp"]))
+                 if height_split(apply_depth(held["fp"][i], int(held["extent"][i]),
+                                             envelope_depth(held["fp"][i])),
+                                 held["target"][i])["extra"] >= CARVE_NEEDED]
+        picks = sheet_picks(extra[key], carve, per_sheet)
+    for tag, sub in picks.items():
+        cases = [dict(id=int(held["row"][i]), fp=held["fp"][i], extent=int(held["extent"][i]),
+                      height_m=float(held["height_m"][i]),
+                      arms={"real building": held["target"][i],
+                            **{a: heights[a][i] for a in heights}},
+                      extra={a: extra[a][i] for a in heights}) for i in sub]
+        if cases:
+            print(f"[maps] {map_sheet(cases, WORK / f'maps_{tag}.png')}", flush=True)
+
+
 def report(res: dict) -> None:
     print("\n" + "=" * 100)
     print("the aggregate is right of the bar: #126 demoted it, so it may not head the row")
@@ -1004,9 +1314,15 @@ def main() -> None:
                     help="planes for --objective planes. #10 measured a median of 5 operations to "
                          "explain a real roof and 9 at p75, so 6 is the median-plus with room")
     ap.add_argument("--quantile", type=float, default=0.5,
-                    help="the pinball loss's quantile; only used by --objective quantile. 0.5 is "
+                    help="the pinball loss's quantile; used by --objective quantile ONLY -- the "
+                         "slope term reads its own fixed SLOPE_DECODE_QUANTILE. 0.5 is "
                          "the median and is the value #127 pre-committed to -- sweeping it trades "
                          "`missing` against `extra` directly and would be selecting on the answer")
+    ap.add_argument("--slope_weight", type=float, default=0.0,
+                    help="weight on the joint SLOPE term, added to the per-column loss and never "
+                         "in place of it. 0 disables it, which is every arm on #127's record; the "
+                         "pre-registered value is 1.0, fixed a priori as a 20%% share of the "
+                         "converged loss (CE 1.5552, slope 0.3090) and deliberately not swept")
     ap.add_argument("--tag", default=None, help="run name; defaults to the objective")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=64)
@@ -1027,6 +1343,16 @@ def main() -> None:
                          "than the mode. A decode ablation reported beside the pre-registered arm, "
                          "never in place of it")
     ap.add_argument("--montage", type=int, default=6, help="buildings per sheet; 0 disables")
+    ap.add_argument("--maps", type=int, default=0,
+                    help="buildings per height/normal MAP sheet -- the plan-view pair that shows "
+                         "where the volume went and whether what is left is made of planes")
+    ap.add_argument("--maps_ids", type=int, nargs="*", default=None,
+                    help="render exactly these corpus row ids, e.g. the ones already on a montage")
+    ap.add_argument("--maps_arms", nargs="*", default=None,
+                    help="restrict the map sheet to these arms. Seven arms is 16 columns and "
+                         "unreadable at any print size, and an unreadable figure decides nothing")
+    ap.add_argument("--maps_only", action="store_true",
+                    help="write the map sheets from --ckpt and exit, skipping the scored run")
     ap.add_argument("--out", default="execution/artifacts/height_map_generator_714.json")
     args = ap.parse_args()
     args.tag = args.tag or f"heightmap_{args.objective}"
@@ -1049,6 +1375,20 @@ def main() -> None:
     held["fp"] = held["fp"] > 0
     held["target"] = held["target"].astype(np.int16)
     print(f"[ids] {len(sel)} pinned buildings from {args.ids_from}", flush=True)
+
+    if args.maps_only:
+        # The sheet only needs the arms' own height maps, so it skips 1-NN retrieval, the mean roof
+        # and the form fitter -- minutes of work that would produce nothing this figure draws.
+        if not args.ckpt:
+            sys.exit("--maps_only scores nothing, so it needs --ckpt to say what to draw")
+        heights = {}
+        for name, path in ckpts.items():
+            heights[name], meta = predict(path, held, cpu=args.cpu)
+            if args.median_decode and meta["objective"] == "ce":
+                heights[f"{name}_median"], _ = predict(path, held, cpu=args.cpu, quantile=0.5)
+        arms = _pick_arms(heights, args.maps_arms)
+        write_map_sheets(held, arms, args.maps or 6, args.maps_ids, rank_by=next(iter(arms)))
+        return
 
     # ---- the arms -------------------------------------------------------------------------------
     train_idx = np.nonzero((cache["ok"] > 0) & (cache["held"] == 0))[0]
@@ -1126,15 +1466,18 @@ def main() -> None:
     report(res)
     print(f"\n[artifact] {out}")
 
+    # ranked by the FIRST trained arm, which is the pre-registered one -- so "worst" means worst
+    # for the arm the bar was written for, not for whichever arm happens to lead the dict
+    model_names = [n for n in heights if n in ckpts]
+    key = model_names[0] if model_names else "nn_retrieval"
+
+    if args.maps or args.maps_ids:
+        arms = _pick_arms(heights, args.maps_arms)
+        write_map_sheets(held, arms, args.maps or 6, args.maps_ids,
+                         rank_by=key if key in arms else next(iter(arms)))
+
     if args.montage:
-        # ranked by the FIRST trained arm, which is the pre-registered one -- so "worst" means
-        # worst for the arm the bar was written for, not for whichever arm scores best
-        model_names = [n for n in heights if n in ckpts]
-        key = model_names[0] if model_names else "nn_retrieval"
-        by = sorted(pops["carve"].tolist(), key=lambda i: rows[key][i]["extra"])
-        picks = dict(best=by[:args.montage],
-                     representative=by[len(by) // 2:len(by) // 2 + args.montage],
-                     worst=by[-args.montage:])
+        picks = sheet_picks([r["extra"] for r in rows[key]], pops["carve"].tolist(), args.montage)
         for tag, sub in picks.items():
             cases = [dict(id=int(held["row"][i]), fp=held["fp"][i], target=held["target"][i],
                           arms={n: heights[n][i] for n in heights},

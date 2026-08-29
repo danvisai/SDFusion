@@ -461,9 +461,16 @@ image-to-image regression with a long precedent, and nothing here changes that.
 2. **A baseline the program route must now beat.** #10's recovered carving program reaches `extra`
    0.0030 *while seeing the answer*. Any learned program predictor is now required to beat **0.0603
    from a 3.4M convnet**, not the envelope's 0.2308. That raises the bar for #1/#4/#6 considerably.
-3. **It retires a route.** #113 specifies whole-volume binary segmentation of the start box. On this
-   corpus the label is a height map, so that route is over-parameterised by a factor of 64 — #10
-   found this and #127 is the working demonstration.
+3. **It measures a route as over-parameterised — it does not retire it.** #113 specifies
+   whole-volume binary segmentation of the start box. On this corpus the label is a height map, so
+   that route carries 64× more parameters than the label needs — #10 found this and #127 is the
+   working demonstration.
+
+   ⚠️ **#113 stays open by the owner's decision (2026-08-29).** An earlier draft of this section
+   said this result "retires" the voxel route; it does not. The 64× figure is a measurement about
+   *this corpus at this resolution* and says nothing about what the voxel generator is for — voids,
+   overhangs and anything genuinely 3-D are outside what a height map can represent at all. The
+   ticket is to be worked later; no session may close it or fold it into the program route.
 
 **What it cannot support, and must not be claimed:**
 
@@ -524,6 +531,107 @@ should be run on it.
 **The form gap will not be closed by retraining this model at all.** A mound is what per-column
 independence produces. That needs a different output space — a program — not a better fit of this
 one.
+
+## Follow-up arm: the slope term — PRE-REGISTERED 2026-08-29, before the run
+
+Everything above says the same thing twice: every arm removes about the right *amount* and none
+produces planes. The diagnosis on the record is per-column independence. Before chartering a program
+generator, one cheaper hypothesis is worth eliminating — that some of the joint structure can be
+recovered by **supervision** alone, without changing what the network emits.
+
+**The change, in one sentence.** Add a second loss term that compares the *step between neighbouring
+columns* in the prediction against the step in GT — the quantity the plan-view normal map draws —
+and keep cross-entropy exactly as it is. `slope_loss` in `train_height_map_generator.py`.
+
+Two properties are pinned by test rather than argued:
+
+- it is **blind to a constant offset**, so it cannot do CE's job (how deep to carve) and only speaks
+  to how the carve is arranged;
+- it **matches** GT's steps rather than minimising them, so a sharp ridge is free. A term that
+  merely penalised roughness would prefer a rounded ridge, which is the mound again.
+
+The term needs a height to difference, and a CE head predicts a distribution. Collapsing it with the
+softmax expectation would measure the slope of a *blended* field, and `compose_planes` already
+records that a smooth blend of surfaces is a mound. So `differentiable_depth` takes a **hard
+forward** at the decode the arm is actually served at (the posterior median), with the gradient
+flowing through the soft probabilities — the same straight-through the plane head uses, for the same
+reason.
+
+**The weight is fixed a priori at λ = 1.0** by one rule, stated before the run and not swept: it
+gives the slope term a **20% share** of the converged per-column loss. Measured on the served
+checkpoint over 256 validation buildings, CE = 1.5552 and the slope term = 0.3090, so
+0.2 × 1.5552 / 0.3090 = 1.007. Sweeping λ against the scorecard would be selecting on the answer.
+
+Nothing else moves: same 40 epochs, same seed, same width, same augmentation, same selection rule
+(validation `missing + extra`), same post-hoc median decode, same 411 carve-needing buildings, same
+harness.
+
+**The bar, on the 411 carve-needing buildings, against the served arm (`extra` 0.0603, collapse
+0.0268, form 6.0 ops / 0.20 planar):**
+
+  PASS      median `dl_ops` **strictly below 6.0** AND `planar_fraction` **strictly above 0.20**,
+            with `extra` <= 0.0663 (the served arm plus 10%), collapse <= 0.0268, `vs_input` < 0.98.
+  NEGATIVE  form unchanged or worse — `dl_ops` >= 6.0 or `planar_fraction` <= 0.20. This is a real
+            answer: it would say supervision cannot buy joint structure and the program route is the
+            only way to it.
+  KILL      `extra` >= 0.2308. That is the blockout, i.e. identity.
+
+⚠️ **Predicted outcome, recorded so it cannot be revised afterwards: NEGATIVE on form, and a small
+improvement in `extra`.** The term shapes the loss but not the architecture — at inference the head
+still emits one posterior per column independently — so the mechanism #127 blames is untouched. The
+probe is worth its 16 minutes because a *positive* result would be much cheaper than a program
+generator, and because "supervision cannot fix it" is a claim this map should be able to cite rather
+than assume.
+
+
+### Result — PASS on the bar as written, and the bar as written was too generous
+
+*Run 2026-08-29. 40 epochs, checkpoint selected at epoch 26 by the unchanged rule. Scored on the
+same 411 carve-needing buildings, artifact `execution/artifacts/height_map_generator_slope_714.json`.*
+
+| arm | `missing` | `extra` | `vs_input` | collapse | **form (ops)** | **planar** | *(3D IoU)* |
+|---|---|---|---|---|---|---|---|
+| the real building | — | — | — | — | **2.0** | **0.50** | — |
+| CE + median *(served)* | 0.0385 | **0.0603** | 0.8432 | 0.0268 | 6.0 | 0.20 | *0.8948* |
+| **CE + slope + median** | 0.0353 | 0.0651 | 0.8435 | **0.0243** | **5.0** | 0.22 | *0.8944* |
+
+Every pre-registered condition is met on the statistic it was written against, so the verdict is
+**PASS**. Taken apart, one half is solid and the other is not, and the difference only shows up
+under #126's like-for-like rule:
+
+- 🔑 **Description length is a real, robust gain.** Paired on the same buildings, the slope arm
+  needs fewer operations on 216 of 278 non-ties (Wilcoxon **p = 3.5e-22**), mean 6.05 → 5.04. It is
+  not bought by carving less: `corr(Δops, Δextra) = −0.09`, and on the **229** buildings where the
+  two arms removed essentially the same volume (|Δ`extra`| < 0.005) the mean is still 5.65 → 4.86
+  with B simpler on 105/136 non-ties (**p = 1.6e-10**). The fitter also explains **100%** of the
+  slope arm's surfaces within the budget against 99.0%, at a slightly lower residual — the surfaces
+  are genuinely simpler, not merely cheaper to give up on.
+- ⚠️ **Planarity is not.** Pooled, `planar_fraction` 0.20 → 0.22 clears the bar but is not separable
+  (p = 0.089). On the matched-volume subset it **reverses** — 0.2222 → 0.2000, higher on 66 of 138,
+  p = 0.895. Had the planar condition been pre-registered like-for-like, as #126 requires of every
+  other comparison on this map, it would read **NOT MET**. Recorded that way.
+- **Surplus is unchanged.** `extra` 0.0603 → 0.0651 on the median but p = 0.40 with essentially
+  equal means; `missing`, collapse and 3-D IoU are all within noise.
+
+⚠️ **My pre-registered prediction was wrong, and wrong in a specific way worth keeping.** I
+predicted no form movement and a small `extra` gain; what happened is the opposite on both counts.
+Supervision *can* buy **simplicity** — the same roof explained by one operation fewer — and it
+cannot buy **planes**. The operations the slope term saves are still `Layer` terraces; it makes the
+mound smoother and cheaper to describe without making any part of it a plane.
+
+**The montage and the map sheets agree with that reading and not with the ops number alone.** The
+slope arm's contour rings are fewer and straighter, its normal maps hold larger uniform regions —
+and it is still a mound, in the same family as every other trained arm. `maps_*.png` renders the two
+arms side by side; `--maps_arms` exists because seven arms is sixteen columns and an unreadable
+figure decides nothing.
+
+🔑 **What this settles for the map.** The joint structure a roof needs is not only missing from the
+*loss* — it is missing from the *output space*. A term that couples neighbouring columns recovers
+description length and stops there, which is the sharpest evidence yet that planes have to be in the
+vocabulary by construction rather than encouraged by supervision. That is exactly what the program
+route (#6) provides and what this probe was run to find out cheaply. It cost 20 minutes of A100 and
+one loss term, and the served arm does not change.
+
 
 ## What follows
 

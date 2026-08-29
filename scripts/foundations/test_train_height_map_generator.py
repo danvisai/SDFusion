@@ -23,6 +23,7 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+from scipy import ndimage
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E402
@@ -30,7 +31,9 @@ from scripts.foundations.recover_massing_programs import occupancy  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     COND_CHANNELS, DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
-    per_column_loss, decode_prediction, retrieve_nn, roof_description_length,
+    differentiable_depth, height_rgb, normal_rgb,
+    per_column_loss, decode_prediction, retrieve_nn, roof_description_length, sheet_picks,
+    slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict,
 )
 
@@ -495,6 +498,229 @@ class TestSummarise(unittest.TestCase):
         s = summarise([])
         self.assertEqual(s["n"], 0)
         self.assertTrue(np.isnan(s["extra"]))
+
+
+class TestPlanViewMaps(unittest.TestCase):
+    """The height and normal maps must show what the montage cannot: whether the roof is planar.
+
+    The claim the sheet is read for is that a normal map separates a roof from a mound -- one flat
+    colour per pitch, a seam at a ridge, a continuum on a dome. `roof_shape_stats` is a recorded
+    negative for exactly this question, so the replacement is pinned on shapes whose answer is known
+    by construction rather than trusted because the pictures look right.
+    """
+
+    GRID, EXTENT = 32, 20
+
+    def _fp(self):
+        return _rect(self.GRID, 8, 24, 8, 24)
+
+    def _interior_colours(self, h, fp):
+        rgb = normal_rgb(h, fp)[10:22, 10:22]      # one ring in from the footprint wall
+        return {tuple(c) for c in rgb.reshape(-1, 3)}
+
+    def test_off_the_footprint_both_maps_are_background(self):
+        fp = self._fp()
+        h = apply_depth(fp, self.EXTENT, np.zeros_like(fp, np.int16))
+        for rgb in (height_rgb(h, fp, self.EXTENT), normal_rgb(h, fp)):
+            self.assertTrue((rgb[~fp] == 246).all())
+            self.assertFalse((rgb[fp] == 246).all())
+
+    def test_a_flat_roof_is_one_normal_and_it_is_up(self):
+        fp = self._fp()
+        h = apply_depth(fp, self.EXTENT, np.zeros_like(fp, np.int16))
+        self.assertEqual(self._interior_colours(h, fp), {(127, 127, 255)})
+
+    def test_one_pitch_is_one_colour_and_a_gable_is_two_plus_a_ridge(self):
+        fp = self._fp()
+        z, x = np.mgrid[0:self.GRID, 0:self.GRID]
+        pitch = apply_depth(fp, self.EXTENT, np.clip(z - 8, 0, None).astype(np.int16))
+        gable = apply_depth(fp, self.EXTENT,
+                            np.clip(np.minimum(x - 8, 23 - x), 0, None).astype(np.int16))
+        self.assertEqual(len(self._interior_colours(pitch, fp)), 1)
+        # two pitches and the ridge between them, which is two columns wide on an even-width
+        # plan -- four colours in total, and nothing else
+        self.assertLessEqual(len(self._interior_colours(gable, fp)), 4)
+
+    def test_a_dome_is_a_continuum_of_normals_and_a_gable_is_not(self):
+        fp = self._fp()
+        z, x = np.mgrid[0:self.GRID, 0:self.GRID]
+        r = np.sqrt((z - 15.5) ** 2 + (x - 15.5) ** 2)
+        dome = apply_depth(fp, self.EXTENT, np.clip(r, 0, None).astype(np.int16))
+        gable = apply_depth(fp, self.EXTENT,
+                            np.clip(np.minimum(x - 8, 23 - x), 0, None).astype(np.int16))
+        self.assertGreater(len(self._interior_colours(dome, fp)),
+                           4 * len(self._interior_colours(gable, fp)))
+
+    def test_the_height_ramp_is_shared_so_equal_levels_get_equal_colour(self):
+        fp = self._fp()
+        z, _ = np.mgrid[0:self.GRID, 0:self.GRID]
+        a = apply_depth(fp, self.EXTENT, np.clip(z - 8, 0, None).astype(np.int16))
+        b = apply_depth(fp, self.EXTENT, np.zeros_like(fp, np.int16))
+        ra, rb = (height_rgb(m, fp, self.EXTENT, contour=0, lo=4) for m in (a, b))
+        top = a == self.EXTENT                                    # the columns neither arm carved
+        self.assertTrue((ra[top] == rb[top]).all())
+        self.assertFalse((ra[fp] == rb[fp]).all())
+
+
+class TestSlopeLoss(unittest.TestCase):
+    """The joint term. Cross-entropy judges every column alone, so a mound and a roof that remove
+    the same volume cost the same; this one judges the STEP between neighbouring columns, which is
+    the quantity the normal map draws and the only thing measured so far that separates them.
+    """
+
+    GRID, EXTENT = 24, 20
+
+    def setUp(self):
+        import torch
+        self.torch = torch
+        self.fp = _rect(self.GRID, 4, 20, 4, 20)
+        z, x = np.mgrid[0:self.GRID, 0:self.GRID]
+        # a gable: two opposing pitches meeting at a ridge, in DEPTH (0 = uncarved)
+        self.gable = np.clip(np.minimum(x - 4, 19 - x), 0, None).astype(np.float64) * self.fp
+        self.mask = torch.from_numpy(self.fp)[None]
+        self.y = torch.from_numpy(self.gable)[None]
+
+    def _slope(self, pred):
+        return float(slope_loss(self.torch.from_numpy(np.asarray(pred, np.float64))[None],
+                                self.y, self.mask))
+
+    def test_an_exact_prediction_costs_nothing(self):
+        self.assertAlmostEqual(self._slope(self.gable), 0.0)
+
+    def test_it_is_blind_to_a_constant_offset_because_it_measures_shape(self):
+        """🔑 Why it is an ADDITION to cross-entropy and not a replacement for it: the level is
+        CE's job, the arrangement is this term's, and neither can do the other's."""
+        self.assertAlmostEqual(self._slope(self.gable + 3.0), 0.0)
+
+    def test_two_predictions_with_the_same_column_error_are_separated_by_their_slope(self):
+        """The claim, stated as a test: equal error per column, one planar and one domed."""
+        z, x = np.mgrid[0:self.GRID, 0:self.GRID]
+        dome = np.sqrt(np.clip(64.0 - (z - 11.5) ** 2 - (x - 11.5) ** 2, 0.0, None))
+        dome = dome / dome[self.fp].mean()                    # mean |error| of exactly 1 voxel
+        planar, domed = self.gable + 1.0, self.gable + dome
+        self.assertAlmostEqual(float(np.abs(planar - self.gable)[self.fp].mean()),
+                               float(np.abs(domed - self.gable)[self.fp].mean()), places=6)
+        self.assertLess(self._slope(planar) + 0.05, self._slope(domed))
+
+    def test_only_footprint_pairs_count(self):
+        off = self.gable.copy()
+        off[~self.fp] = 99.0
+        self.assertAlmostEqual(self._slope(off), 0.0)
+
+    def test_a_ridge_is_not_punished_for_being_sharp(self):
+        """⚠️ The failure mode to avoid: a term that merely smooths would prefer a rounded ridge.
+        This one matches GT's steps, so the sharp ridge is free and the rounded one is not."""
+        rounded = ndimage.uniform_filter(self.gable, 3) * self.fp
+        self.assertLess(self._slope(self.gable), self._slope(rounded))
+
+
+class TestDifferentiableDepth(unittest.TestCase):
+    """Hard forward, soft backward -- the same straight-through the plane head already uses.
+
+    A softmax blend of depths is a smooth field, and a smooth field is the mound being fixed, so
+    the slope term must see the depth the arm will actually be decoded at while still passing a
+    gradient back to the logits it came from.
+    """
+
+    def _logits(self):
+        import torch
+        # #127's own example: a dominant "do nothing" class whose MEDIAN is six voxels deeper.
+        # The masses avoid a cumulative sum that lands exactly on 0.5, where the median is an
+        # interval rather than a point and float32 rounding decides which end is returned.
+        p = np.full(DEPTH_CLASSES, 1e-6)
+        p[0], p[6], p[12] = 0.40, 0.35, 0.25
+        return torch.log(torch.tensor(p, dtype=torch.float32)).view(1, DEPTH_CLASSES, 1, 1)
+
+    def test_the_forward_value_is_the_decode_not_a_blend(self):
+        import torch
+        z = self._logits()
+        ext = torch.tensor([20.0])
+        self.assertEqual(float(differentiable_depth(z, ext, "ce", None)), 0.0)
+        self.assertEqual(float(differentiable_depth(z, ext, "ce", 0.5)), 6.0)
+
+    def test_it_agrees_with_the_decode_the_arm_is_read_at(self):
+        import torch
+        z = self._logits()
+        fp = _rect(1, 0, 1, 0, 1)
+        for q in (None, 0.5):
+            decoded = decode_logits(z[0].detach().numpy(), fp, 20, q)
+            self.assertEqual(int(20 - decoded[0, 0]),
+                             int(differentiable_depth(z, torch.tensor([20.0]), "ce", q)))
+
+    def test_the_gradient_reaches_the_logits(self):
+        import torch
+        z = self._logits().requires_grad_(True)
+        differentiable_depth(z, torch.tensor([20.0]), "ce", 0.5).sum().backward()
+        self.assertIsNotNone(z.grad)
+        self.assertGreater(float(z.grad.abs().sum()), 0.0)
+
+    def test_the_regressions_pass_their_own_depth_through(self):
+        import torch
+        out = torch.full((1, 1, 2, 2), 0.25)
+        d = differentiable_depth(out, torch.tensor([20.0]), "mse", None)
+        self.assertAlmostEqual(float(d.mean()), 5.0)
+
+    def test_the_plane_head_is_read_as_a_height_and_inverted_to_depth(self):
+        """`planes` hands the loss a composed height map, not logits -- the one objective whose
+        `out` is already in voxels, so the conversion is a subtraction and not a decode."""
+        import torch
+        heights = torch.full((1, 2, 2), 14.0)
+        d = differentiable_depth(heights, torch.tensor([20.0]), "planes", 0.5)
+        self.assertAlmostEqual(float(d.mean()), 6.0)
+
+
+class TestSheetPicks(unittest.TestCase):
+    """Which buildings land on a sheet, and ranked by WHICH arm.
+
+    ⚠️ Written because the map sheets shipped ranked by the **blockout**: `write_map_sheets` took
+    the first key of an arms dict that starts with the baselines, so "worst" meant worst for the
+    envelope -- a figure labelled with a claim it was not showing. The rule is one function now and
+    this is the pin.
+    """
+
+    def test_it_ranks_by_the_arm_it_is_given_not_by_the_first_one(self):
+        rank = [0.9, 0.1, 0.5, 0.7, 0.3]
+        picks = sheet_picks(rank, [0, 1, 2, 3, 4], 2)
+        self.assertEqual(picks["best"], [1, 4])
+        self.assertEqual(picks["worst"], [3, 0])
+
+    def test_only_the_eligible_rows_are_drawn(self):
+        rank = [0.9, 0.1, 0.5, 0.7, 0.3]
+        self.assertEqual(sheet_picks(rank, [0, 3], 1)["best"], [3])
+
+    def test_the_representative_pick_is_the_middle_of_the_ranking(self):
+        picks = sheet_picks([0.1, 0.2, 0.3, 0.4, 0.5], list(range(5)), 1)
+        self.assertEqual(picks["representative"], [2])
+
+    def test_a_sheet_wider_than_the_population_does_not_raise(self):
+        picks = sheet_picks([0.4, 0.2], [0, 1], 6)
+        self.assertEqual(picks["best"], [1, 0])
+
+
+class TestTrainTimeDecodeMatchesTheServedDecode(unittest.TestCase):
+    """⚠️ The slope term shapes whatever surface `differentiable_depth` hands it, so if that surface
+    is not the one `decode_logits` serves, the arm is trained on a building nobody ever sees. The
+    two run in different precisions (float32 on the GPU, float64 at serve time), which is exactly
+    the kind of gap that hides until a posterior lands on the quantile."""
+
+    def test_they_agree_on_two_hundred_random_posteriors(self):
+        import torch
+        rng = np.random.default_rng(0)
+        z = torch.tensor(rng.normal(0, 3, (1, DEPTH_CLASSES, 20, 10)), dtype=torch.float32)
+        fp = _rect(20, 0, 20, 0, 10)[:, :10]
+        served = 40 - decode_logits(z[0].numpy(), fp, 40, SLOPE_DECODE_QUANTILE)
+        trained = differentiable_depth(z, torch.tensor([40.0]), "ce",
+                                       SLOPE_DECODE_QUANTILE)[0].numpy().astype(np.int16)
+        # ⚠️ The one place they may differ is `apply_depth`'s clamp, which keeps a voxel under every
+        # footprint column. The training term deliberately sees the UNCLAMPED depth: on a column the
+        # model would carve away entirely, the clamped value is flat and carries no gradient back.
+        deep = trained >= 40
+        np.testing.assert_array_equal(served[~deep], trained[~deep])
+        self.assertTrue((served[deep] == 39).all())
+        self.assertGreater(int((~deep).sum()), 100, "the agreement must be tested on real columns")
+
+    def test_the_pre_registered_decode_is_the_median(self):
+        self.assertEqual(SLOPE_DECODE_QUANTILE, 0.5)
 
 
 if __name__ == "__main__":
