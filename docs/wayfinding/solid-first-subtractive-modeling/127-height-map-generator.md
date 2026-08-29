@@ -625,6 +625,15 @@ and it is still a mound, in the same family as every other trained arm. `maps_*.
 arms side by side; `--maps_arms` exists because seven arms is sixteen columns and an unreadable
 figure decides nothing.
 
+⚠️ 🔑 **The 3-D montage shows one thing no column of the scorecard does: the slope arm puts shallow
+squiggles on roofs that should be flat.** On the buildings where both arms already match GT volume
+(`extra` 0.000 — the "best" sheet), the served arm returns a clean flat top and the slope arm returns
+a flat top crossed by snaking one- and two-voxel terraces. They are too shallow to cost `extra`, too
+shallow to add an operation once the fitter's allowance absorbs them, and clearly wrong to the eye.
+That is the **fourth** time on this map that reading a picture found something the metric could not
+see, and it is the honest counterweight to the description-length win: the term makes the *deep*
+structure simpler and the *shallow* structure noisier.
+
 🔑 **What this settles for the map.** The joint structure a roof needs is not only missing from the
 *loss* — it is missing from the *output space*. A term that couples neighbouring columns recovers
 description length and stops there, which is the sharpest evidence yet that planes have to be in the
