@@ -233,6 +233,55 @@ form**, and this ticket is the demonstration. The project's stated priority is *
 footprint match second*; on the visual criterion the zero-training retrieval arm wins, and it is the
 arm that loses the numeric bar.
 
+### 🔑 The form metric: description length in the project's own vocabulary
+
+*Found 2026-08-28, after the three amplitude statistics below failed.*
+
+Ask the question the way #10 already asks it: **how many architectural operations explain this
+roof?** Run #10's `Layer` / `Ramp` / `CutRoof` fitter on each arm's *own* surface and count the
+operations it needs. A real roof is a handful of planes meeting at ridges; a mound is a continuum of
+orientations and has no short description.
+
+Validated on shapes whose answer is known by construction, before it was pointed at any arm:
+
+| surface | ops | program |
+|---|---|---|
+| flat roof | 1 | `Layer` |
+| shed — one tilted plane | 1 | `Ramp` |
+| gable — two planes and a ridge | 2 | `CutRoof > Ramp` |
+| hip — four planes | 4 | |
+| two-step setback | 2 | `Layer > Layer` |
+| **a dome** | **9** | and mostly `Layer`s |
+| **noise** | **16+** | and still not explained |
+
+🔑 **Slope is not complexity.** A shed roof steps at every column and is the simplest roof after a
+flat one. That is precisely what `roof_relief` got wrong, and why an amplitude statistic could never
+work here.
+
+### The gap, measured on the 411
+
+| arm | `extra` | **form (ops)** | **planar fraction** |
+|---|---|---|---|
+| **the real building** | — | **2.0** | **0.50** |
+| footprint envelope | 0.2308 | 0.0 | 0.00 |
+| 1-NN retrieval | 0.1031 | **2.0** | 0.17 |
+| CE + argmax | 0.1178 | 3.0 | 0.00 |
+| **CE + median** *(served)* | **0.0603** | **6.0** | 0.20 |
+| MSE | 0.0638 | 5.0 | 0.25 |
+| quantile q=0.5 | 0.0685 | 5.0 | 0.25 |
+
+**The served arm needs three times the description length of a real roof**, and spends only 20% of
+its budget on planes against GT's 50%. 1-NN matches GT at 2 ops, which is what "it copies a real
+roof" means quantitatively. That is the form gap, and it is now a number rather than an impression.
+
+The **operation mix** is the mechanism: architecture spends its budget on `Ramp` and `CutRoof`,
+which are planes. A mound cannot be explained by planes, so the fitter falls back to stacking flat
+`Layer`s — which is exactly the concentric contour banding the montages show.
+
+⚠️ **The metric is not carve-aware, by design.** The envelope scores 0 ops because the fitter starts
+*from* the envelope; an arm that did nothing needs nothing to explain it. Whether an arm acted is
+`extra` and `vs_input`'s job. Read form beside them and never alone.
+
 ### Three scalar attempts at the visual difference, all negative
 
 | arm | relief | curvature | speckle | the eye |
@@ -250,10 +299,9 @@ roughly opposite to the eye.
 
 The cause is that **GT is itself terraced at 64³** — #10 measured exactly this, "roof-slope
 terracing, the staircase a sloped roof makes on a 64³ grid" — so an amplitude statistic cannot tell
-a discretised plane from a mound. What separates them is the *organisation* of the steps: parallel
-runs against closed contours, a directional property none of these three measures. They are kept,
-computed and published in the artifact so the attempt is on the record; this is the same wall map
-#34 hit ("2 scalar metrics failed") and #71 ("ribbing is not melt").
+a discretised plane from a mound. What separates them is the *organisation* of the steps, which is
+what the description length above finally captures. These three are kept, computed and published so
+the failed attempt stays on the record beside the one that worked.
 
 ## What was pinned, and what the output space actually gives for free
 

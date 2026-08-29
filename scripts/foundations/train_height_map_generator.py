@@ -147,6 +147,50 @@ def height_split(pred: np.ndarray, target: np.ndarray) -> dict:
                 extra=float((av - inter) / gv) if gv else 0.0)
 
 
+def roof_description_length(surface: np.ndarray, fp: np.ndarray, y0: int, extent: int,
+                            max_ops: int = 16, allowance: float = CARVE_NEEDED) -> dict:
+    """🔑 The form metric. **How many architectural operations explain this roof?**
+
+    Three amplitude statistics failed at this (`roof_shape_stats`), because GT is itself terraced at
+    64^3 and no measure of step size can tell a discretised plane from a mound. What separates them
+    is not amplitude, it is *organisation*: a real roof is a handful of planes meeting at ridges, and
+    a mound is a continuum of orientations. So the question is asked in the project's own vocabulary
+    -- #10's `Layer` / `Ramp` / `CutRoof` fitter is run on the arm's OWN surface, and what is
+    reported is the **description length**: the number of operations needed to explain it.
+
+    Validated on shapes whose answer is known by construction (`test_roof_description_length`):
+
+        flat roof              1 op    Layer
+        shed (one plane)       1 op    Ramp
+        gable (two planes)     2 ops   CutRoof > Ramp
+        hip (four planes)      4 ops
+        two-step setback       2 ops   Layer > Layer
+        a dome                 9 ops   and mostly Layers -- contour terraces, not planes
+        noise                 16+ ops  and still not explained
+
+    🔑 The **operation mix** is as diagnostic as the count. Architecture spends its budget on `Ramp`
+    and `CutRoof`, which are planes; a mound cannot be explained by planes, so the fitter falls back
+    to stacking flat `Layer`s, which is exactly the concentric contour banding the montages show.
+
+    ⚠️ This metric is **not carve-aware, by design**. The footprint envelope is one flat plane and
+    scores 1 op, which is *correct* -- the envelope genuinely is planar. Form is a separate axis from
+    surplus, and `extra` / `missing` / `vs_input` already police whether the arm acted. Read the two
+    together and never this one alone.
+    """
+    from scripts.foundations.recover_massing_programs import fit_program
+
+    m = np.asarray(fp, bool)
+    surf = np.asarray(surface, np.int16)
+    prog, fitted = fit_program(m, int(y0), int(y0) + int(extent) - 1, surf, max_ops, allowance)
+    vox = int(surf[m].sum())
+    residual = float((fitted[m] - surf[m]).sum() / vox) if vox else 0.0
+    mix = [o["op"] for o in prog]
+    planar = sum(1 for o in mix if o in ("Ramp", "CutRoof"))
+    return dict(ops=len(prog), residual=residual, explained=bool(residual <= allowance),
+                planar_ops=planar,
+                planar_fraction=float(planar / len(mix)) if mix else 0.0)
+
+
 def roof_shape_stats(h: np.ndarray, fp: np.ndarray) -> dict:
     """Three attempts at a scalar for "does this roof look like a building", and all three fail.
 
@@ -652,7 +696,7 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
 # scoring
 # ==================================================================================================
 
-def score_arm(heights: np.ndarray, held: dict) -> list:
+def score_arm(heights: np.ndarray, held: dict, form: bool = True) -> list:
     """One row of metrics per pinned building, in the order #126 decided they must be read."""
     rows = []
     for i in range(len(heights)):
@@ -668,7 +712,11 @@ def score_arm(heights: np.ndarray, held: dict) -> list:
                  gt_carved_cols=float((held["target"][i][fp] < extent).mean()),
                  **{f"roof_{k}": v for k, v in roof_shape_stats(heights[i], fp).items()},
                  **{f"gt_roof_{k}": v for k, v in
-                    roof_shape_stats(held["target"][i], fp).items()})
+                    roof_shape_stats(held["target"][i], fp).items()},
+                 **({f"dl_{k}": v for k, v in roof_description_length(
+                        heights[i], fp, y0, extent).items()} if form else {}),
+                 **({f"gt_dl_{k}": v for k, v in roof_description_length(
+                        held["target"][i], fp, y0, extent).items()} if form else {}))
         r.update(volume_split(occ, gt))
         r.update(footprint_split(occ, fp))
         r["fp_iou"] = fp_iou(occ, fp)
@@ -685,6 +733,11 @@ def summarise(rows: list) -> dict:
                 gt_carved_cols=med("gt_carved_cols"),
                 **{k: med(k) for k in ("roof_relief", "roof_curvature", "roof_speckle",
                                        "gt_roof_relief", "gt_roof_curvature", "gt_roof_speckle")},
+                **({k: med(k) for k in ("dl_ops", "dl_planar_fraction", "dl_residual",
+                                        "gt_dl_ops", "gt_dl_planar_fraction")}
+                   if rows and "dl_ops" in rows[0] else {}),
+                **(dict(dl_explained=float(np.mean([r["dl_explained"] for r in rows])))
+                   if rows and "dl_ops" in rows[0] else {}),
                 collapse_rate=float(np.mean([r["missing"] >= COLLAPSE_MISSING for r in rows]))
                 if rows else float("nan"),
                 fp_iou=med("fp_iou"), spill=med("spill"), vol_iou=med("vol_iou"))
@@ -789,21 +842,24 @@ def report(res: dict) -> None:
                        ("all", "all pinned buildings")):
         print(f"\n== {label} (n={res['arms']['blockout'][pop]['n']}) ==")
         print(f"{'arm':22s} {'miss':>7} {'extra':>7} {'vs_inp':>7} {'collapse':>9} "
-              f"{'>env:xtr':>9} {'carved':>7} {'relief':>7} | {'(3D IoU)':>9}   "
+              f"{'>env:xtr':>9} {'carved':>7} {'FORM:ops':>9} {'planar':>7} | {'(3D IoU)':>9}   "
               f"(GT: carves {res['arms']['blockout'][pop]['gt_carved_cols']:.3f} of columns, "
-              f"relief {res['arms']['blockout'][pop]['gt_roof_relief']:.2f})")
+              f"form {res['arms']['blockout'][pop].get('gt_dl_ops', float('nan')):.1f} ops, "
+              f"planar {res['arms']['blockout'][pop].get('gt_dl_planar_fraction', float('nan')):.2f})")
         for name, a in res["arms"].items():
             s = a[pop]
             w = a["beats_envelope_extra"][pop]["rate_ex_ties"]
             print(f"{name:22s} {s['missing']:>7.4f} {s['extra']:>7.4f} {s['vs_input']:>7.4f} "
                   f"{s['collapse_rate']:>9.4f} {w:>9.3f} {s['carved_cols']:>7.3f} "
-                  f"{s['roof_relief']:>7.2f} | {s['vol_iou']:>9.4f}")
+                  f"{s.get('dl_ops', float('nan')):>9.1f} "
+                  f"{s.get('dl_planar_fraction', float('nan')):>7.2f} | {s['vol_iou']:>9.4f}")
     if res.get("reference"):
         print("\n== this project's arms of record, re-summarised on the SAME carve-needing rows ==")
         for name, a in res["reference"].items():
             vi = "     -" if a["vs_input"] is None else f"{a['vs_input']:>7.4f}"
             print(f"{name:22s} {a['missing']:>7.4f} {a['extra']:>7.4f} {vi} "
-                  f"{a['collapse_rate']:>9.4f} {'':>9} {'':>7} {'':>7} | {a['vol_iou']:>9.4f}")
+                  f"{a['collapse_rate']:>9.4f} {'':>9} {'':>7} {'':>9} {'':>7} | "
+                  f"{a['vol_iou']:>9.4f}")
 
     print("\n== the pre-registered bar, on the carve-needing subset ==")
     for name, v in res["verdict"].items():
@@ -838,6 +894,10 @@ def main() -> None:
     ap.add_argument("--rebuild_cache", action="store_true")
     ap.add_argument("--ckpt", nargs="*", default=None,
                     help="score these checkpoints instead of training (name=path or path)")
+    ap.add_argument("--no_form", action="store_true",
+                    help="skip the description-length form metric. It fits a Layer/Ramp/CutRoof "
+                         "program to every arm's own surface, which is the only measure found that "
+                         "separates a roof from a mound -- and it costs ~0.07s per building per arm")
     ap.add_argument("--median_decode", action="store_true",
                     help="add a second arm per CE checkpoint decoding the posterior MEDIAN rather "
                          "than the mode. A decode ablation reported beside the pre-registered arm, "
@@ -902,7 +962,8 @@ def main() -> None:
             heights[alt], ckpt_meta[alt] = predict(path, held, cpu=args.cpu, quantile=0.5)
 
     # ---- score, split by population, never pooled -----------------------------------------------
-    rows = {name: score_arm(h, held) for name, h in heights.items()}
+    rows = {name: score_arm(h, held, form=not args.no_form)
+            for name, h in heights.items()}
     carve_mask = np.array([r["blockout_extra"] >= CARVE_NEEDED for r in rows["blockout"]])
     pops = {p: np.nonzero(m)[0] for p, m in
             dict(all=np.ones(len(carve_mask), bool), carve=carve_mask, flat=~carve_mask).items()}

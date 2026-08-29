@@ -30,7 +30,8 @@ from scripts.foundations.recover_massing_programs import occupancy  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     COND_CHANNELS, DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
-    per_column_loss, decode_prediction, retrieve_nn, roof_shape_stats, summarise, verdict,
+    per_column_loss, decode_prediction, retrieve_nn, roof_description_length,
+    roof_shape_stats, summarise, verdict,
 )
 
 
@@ -128,6 +129,66 @@ class TestHeightSplit(unittest.TestCase):
         t = apply_depth(fp, 12, np.full(fp.shape, 3, np.int16))
         s = height_split(t, t)
         self.assertEqual((s["missing"], s["extra"], s["vol_iou"]), (0.0, 0.0, 1.0))
+
+
+class TestRoofDescriptionLength(unittest.TestCase):
+    """🔑 The form metric, pinned on shapes whose answer is known BY CONSTRUCTION.
+
+    This is the measure that succeeded where the three amplitude statistics failed, so what it
+    claims has to be checkable without reference to the corpus: a plane is one operation however
+    steep, a gable is two, and a mound is many. If a change to the fitter ever breaks that ordering,
+    the metric has stopped meaning what the write-up says it means.
+    """
+
+    E = 40                                          # extent in voxels; y0 is arbitrary
+
+    def _surface(self, h):
+        fp = np.zeros((RES, RES), bool)
+        fp[16:48, 12:52] = True
+        return fp, np.where(fp, np.clip(np.rint(h), 1, self.E), 0).astype(np.int16)
+
+    def _ops(self, h):
+        fp, surf = self._surface(h)
+        return roof_description_length(surf, fp, 8, self.E)
+
+    def test_a_flat_roof_is_one_operation(self):
+        self.assertEqual(self._ops(np.full((RES, RES), 30.0))["ops"], 1)
+
+    def test_a_tilted_plane_is_still_one_operation(self):
+        """🔑 Slope is not complexity. This is exactly what `roof_relief` got wrong: a shed roof
+        steps at every column and is nonetheless the simplest roof after a flat one."""
+        _, xx = np.mgrid[0:RES, 0:RES]
+        r = self._ops(30 - 0.45 * (xx - 12))
+        self.assertEqual(r["ops"], 1)
+        self.assertEqual(r["planar_fraction"], 1.0)          # spent on a Ramp, not a Layer
+
+    def test_a_gable_is_two_operations(self):
+        _, xx = np.mgrid[0:RES, 0:RES]
+        self.assertLessEqual(self._ops(34 - 0.55 * np.abs(xx - 32))["ops"], 2)
+
+    def test_a_dome_costs_far_more_than_a_gable_and_spends_it_on_layers(self):
+        """The mound the montages show: no plane explains it, so the fitter stacks flat terraces."""
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        gable = self._ops(34 - 0.55 * np.abs(xx - 32))
+        dome = self._ops(36 - 0.020 * ((xx - 32) ** 2 + (zz - 32) ** 2))
+        self.assertGreater(dome["ops"], 3 * gable["ops"])
+        self.assertLess(dome["planar_fraction"], 0.5)
+
+    def test_noise_exhausts_the_budget_and_is_not_explained(self):
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        r = self._ops(30 + 4 * np.sin(xx * 0.9) * np.cos(zz * 0.9))
+        self.assertEqual(r["ops"], 16)
+        self.assertFalse(r["explained"])
+
+    def test_the_envelope_itself_costs_zero_operations(self):
+        """⚠️ The fitter starts FROM the envelope, so an arm that did nothing needs no operations to
+        explain. 0 ops means "identical to the input", which reads the same way `vs_input` = 1.000
+        does -- and it is why this metric must never be read without `extra` beside it."""
+        self.assertEqual(self._ops(np.full((RES, RES), float(self.E)))["ops"], 0)
+
+    def test_a_flat_roof_below_the_envelope_costs_one(self):
+        """One `Layer` down from the envelope: the simplest carve there is."""
+        self.assertEqual(self._ops(np.full((RES, RES), float(self.E) - 10))["ops"], 1)
 
 
 class TestRoofShapeStats(unittest.TestCase):
