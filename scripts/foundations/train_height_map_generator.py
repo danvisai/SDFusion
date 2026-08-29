@@ -393,12 +393,29 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
 # the model
 # ==================================================================================================
 
-OBJECTIVES = ("ce", "mse", "quantile")
+OBJECTIVES = ("ce", "mse", "quantile", "planes")
 
 
 def head_channels(objective: str) -> int:
-    """`ce` predicts a distribution over depths; the two regressions predict one number."""
+    """`ce` predicts a distribution over depths; the regressions predict one number per column."""
     return DEPTH_CLASSES if objective == "ce" else 1
+
+
+def make_model(objective: str, width: int, k_planes: int):
+    """The one place an objective chooses an architecture."""
+    if objective == "planes":
+        return build_plane_model(k_planes, width)
+    return build_model(head_channels(objective), width)
+
+
+def forward_heights(model, x, ext, objective: str):
+    """Any objective -> a height map in voxels, differentiably. `ce` is excluded: it predicts a
+    distribution, and collapsing it to a height before the loss is exactly the mistake this ticket
+    found (its loss must see the classes, not their summary)."""
+    out = model(x)
+    if objective == "planes":
+        return compose_planes(out[0], out[1], ext)
+    return (1.0 - out[:, 0]) * ext[:, None, None]      # relative depth -> height, in voxels
 
 
 def per_column_loss(out, y, ext, objective: str, quantile: float):
@@ -423,6 +440,10 @@ def per_column_loss(out, y, ext, objective: str, quantile: float):
 
     if objective == "ce":
         return F.cross_entropy(out, y.clamp(0, DEPTH_CLASSES - 1), reduction="none")
+    if objective == "planes":
+        # `out` is already a composed height map; the target height is extent - depth
+        err = out - (ext[:, None, None] - y.float())
+        return torch.maximum(quantile * -err, (quantile - 1.0) * -err)
     err = (out[:, 0] - y.float() / ext[:, None, None]) * ext[:, None, None]   # voxels, signed
     if objective == "mse":
         return err ** 2
@@ -441,6 +462,8 @@ def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective:
     """
     if objective == "ce":
         return decode_logits(out_k, fp, extent, quantile)
+    if objective == "planes":
+        return apply_depth(fp, extent, extent - np.rint(out_k))     # out_k is a height map
     return apply_depth(fp, extent, np.rint(out_k[0] * extent))
 
 
@@ -482,6 +505,82 @@ def build_model(out_channels: int, width: int = 64):
             return self.head(x)
 
     return UNet()
+
+
+# ==================================================================================================
+# the planar head -- #127's form gap attacked in the representation, not in the loss
+# ==================================================================================================
+
+def compose_planes(logits, params, extent, hard: bool = True):
+    """K planes plus a per-column assignment -> one height map, **piecewise-planar by construction**.
+
+    🔑 The design move that already worked twice on this ticket: put the invariant in the
+    representation rather than in the loss. A clamped height map made *validity* free -- no floating
+    voxels are representable. This makes *planarity* free: the output is K planes and an assignment,
+    so its description length is at most K by construction, and a mound is not representable at all.
+
+    Why an assignment and not just `min` over the planes. A gable IS the min of two opposing planes,
+    and so is a hip -- but a **setback** is not: two flat roofs at different heights over different
+    parts of the plan have a min that is just the lower one everywhere. #10 measured `Layer` at
+    **75.4%** of all removed volume, so setbacks are the majority of the corpus and a min-only
+    composition would be unable to express most of it. The assignment is what makes each operation
+    a *region*, which is exactly what `Layer` and `Ramp` are.
+
+    ⚠️ Hard assignment forward, soft gradient backward (straight-through). A softmax BLEND of planes
+    is smooth, and a smooth blend of planes is a mound -- the exact failure being fixed. So the
+    forward pass must be hard even though that is what makes the gradient awkward.
+    """
+    import torch
+
+    b, k, res, _ = logits.shape
+    zz = torch.linspace(-0.5, 0.5, res, device=logits.device).view(1, 1, res, 1)
+    xx = torch.linspace(-0.5, 0.5, res, device=logits.device).view(1, 1, 1, res)
+    a, bz, cx = params[..., 0:1, None], params[..., 1:2, None], params[..., 2:3, None]
+    planes = (a + bz * zz + cx * xx) * extent.view(b, 1, 1, 1)          # [B,K,res,res], in voxels
+    soft = torch.softmax(logits, dim=1)
+    if not hard:
+        return (soft * planes).sum(1)
+    onehot = torch.zeros_like(soft).scatter_(1, soft.argmax(1, keepdim=True), 1.0)
+    w = onehot + soft - soft.detach()                                   # straight-through
+    return (w * planes).sum(1)
+
+
+def build_plane_model(k_planes: int, width: int = 64):
+    """The same U-Net trunk, with two heads: a per-column assignment and K global plane parameters.
+
+    The planes are **global per building** and the assignment is **spatial**, which is the split the
+    vocabulary already has: a `Ramp` is one plane over one region. Pooling the bottleneck is what
+    makes a plane a property of the whole building rather than of a neighbourhood, so a ridge line
+    stays straight across the plan instead of drifting -- the per-column independence that produced
+    the mound is exactly what this removes.
+    """
+    import torch
+    import torch.nn as nn
+
+    trunk = build_model(width, width)          # reuse the tested U-Net; its head becomes features
+
+    class PlaneNet(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.trunk = trunk
+            self.assign = nn.Conv2d(width, k_planes, 1)
+            self.params = nn.Sequential(nn.Linear(width, 4 * width), nn.SiLU(),
+                                        nn.Linear(4 * width, k_planes * 3))
+            # a: mid-height, b/c: flat. A near-degenerate start makes every plane identical and the
+            # assignment arbitrary, so the biases spread the intercepts before training begins.
+            with torch.no_grad():
+                self.params[-1].weight.mul_(0.01)
+                bias = torch.zeros(k_planes, 3)
+                bias[:, 0] = torch.linspace(0.55, 1.0, k_planes)
+                self.params[-1].bias.copy_(bias.reshape(-1))
+            self.k = k_planes
+
+        def forward(self, x):
+            f = self.trunk(x)
+            p = self.params(f.mean(dim=(2, 3))).view(-1, self.k, 3)
+            return self.assign(f), p
+
+    return PlaneNet()
 
 
 def _d4(fp, target, k: int, flip: bool):
@@ -560,7 +659,7 @@ def train(cache: dict, args) -> Path:
     print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}, "
           f"device={dev}", flush=True)
 
-    model = build_model(head_channels(args.objective), args.width).to(dev)
+    model = make_model(args.objective, args.width, args.k_planes).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
@@ -569,7 +668,9 @@ def train(cache: dict, args) -> Path:
 
     def loss_of(x, y, ext):
         m = x[:, 0] > 0                                   # footprint columns only
-        per = per_column_loss(model(x), y, ext, args.objective, args.quantile)
+        out = (forward_heights(model, x, ext, args.objective) if args.objective == "planes"
+               else model(x))
+        per = per_column_loss(out, y, ext, args.objective, args.quantile)
         return (per * m).sum() / m.sum().clamp(min=1)
 
     def to_dev(b):
@@ -608,8 +709,8 @@ def train(cache: dict, args) -> Path:
         if (ve + vm, vl) < best:
             best, mark = (ve + vm, vl), "  <- best"
             torch.save(dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                            quantile=args.quantile, epoch=ep + 1, val=vl, val_extra=ve,
-                            val_missing=vm,
+                            quantile=args.quantile, k_planes=args.k_planes,
+                            epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
                             val_symmetric=ve + vm, params=n_par), best_path)
         print(f"  epoch {ep+1:>3}/{args.epochs}  train {run:.4f}  val {vl:.4f}  "
               f"val extra {ve:.4f}  val miss {vm:.4f}  sym {ve+vm:.4f}  "
@@ -635,7 +736,8 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev) -> tu
             x, y, e = va.batch(sel)
             xt, yt = torch.from_numpy(x).to(dev), torch.from_numpy(y).to(dev)
             et = torch.from_numpy(e).to(dev)
-            out = model(xt)
+            out = (forward_heights(model, xt, et, objective) if objective == "planes"
+                   else model(xt))
             m = xt[:, 0] > 0
             per = per_column_loss(out, yt, et, objective, quantile)
             losses.append(float(((per * m).sum() / m.sum().clamp(min=1)).detach()))
@@ -662,7 +764,7 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
 
     d = torch.load(ckpt, map_location="cpu", weights_only=False)
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
-    model = build_model(head_channels(d["objective"]), d["width"]).to(dev)
+    model = make_model(d["objective"], d["width"], d.get("k_planes", 6)).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     out = np.zeros((len(held["fp"]), RES, RES), np.int16)
@@ -672,7 +774,12 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
             x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
                                              float(held["height_m"][i]), int(held["region"][i]))
                           for i in sel])
-            y = model(torch.from_numpy(x).to(dev)).cpu().numpy()
+            xt = torch.from_numpy(x).to(dev)
+            if d["objective"] == "planes":
+                et = torch.tensor([float(held["extent"][i]) for i in sel], device=dev)
+                y = forward_heights(model, xt, et, "planes").cpu().numpy()
+            else:
+                y = model(xt).cpu().numpy()
             for k, i in enumerate(sel):
                 out[i] = decode_prediction(y[k], held["fp"][i], int(held["extent"][i]),
                                            d["objective"], quantile)
@@ -879,6 +986,9 @@ def main() -> None:
     ap.add_argument("--objective", default="ce", choices=OBJECTIVES,
                     help="which statistic of the per-column posterior to target: ce -> the mode, "
                          "mse -> the mean, quantile -> --quantile (0.5 = the median)")
+    ap.add_argument("--k_planes", type=int, default=6,
+                    help="planes for --objective planes. #10 measured a median of 5 operations to "
+                         "explain a real roof and 9 at p75, so 6 is the median-plus with room")
     ap.add_argument("--quantile", type=float, default=0.5,
                     help="the pinball loss's quantile; only used by --objective quantile. 0.5 is "
                          "the median and is the value #127 pre-committed to -- sweeping it trades "
