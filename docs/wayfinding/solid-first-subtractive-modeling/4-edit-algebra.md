@@ -89,7 +89,7 @@ with real voids can flip `learnable_here` without anyone rediscovering why it wa
 | **terrace** | `layer` | ✅ | a Layer, or a stack of them |
 | **roof cut** | `cut_roof` | ✅ | the core operation, hip or gable |
 | **roof volume** | `ramp` | ✅ | a pitched roof is one or more Ramps; a gable is two opposing ones |
-| **wing** | — | ✅ | **not an edit**: a wing is part of the *footprint*, which is this system's immutable input. Nothing carves a wing |
+| **wing** | `layer` | ✅ | ⚠️ **two senses.** A wing at a *different height* is a `Layer` over that part of the plan — the commonest operation in the corpus. A wing as plan *geometry* (the arm of an L) is not an edit: it is footprint, this system's immutable input |
 | **courtyard** | `box` | ❌ | a through-void. **0 voxels in 4,324,919** |
 | **passage** | `box` | ❌ | a through-void; 0 voxels |
 | **light well** | `cylinder` | ❌ | a through-void; 0 voxels |
@@ -131,6 +131,30 @@ reference an operation can hold *to another operation*. Containment within a sin
 already carried by polygon rings (outer, then holes). If the volumetric tier is ever trained, this
 answer expires with it — an additive operation must land on something, and that is when support
 relations become real.
+
+
+## ⚠️ "Wings" means two things, and the distinction is load-bearing
+
+A **height** wing — one part of the plan sitting lower or higher than another — is a `Layer`, and it
+is the commonest thing in this corpus: #10's recovered programs average **3.06** of them per
+building. Measured on the 411 carve-needing held-out buildings, distinct height plateaus covering
+≥5% of the footprint each:
+
+| arm | plateaus / building | ≥2 | ≥3 | plan below top level |
+|---|---|---|---|---|
+| the real building | **3.34** | 0.642 | 0.472 | 0.768 |
+| program label (sees GT) | 4.12 | 0.769 | 0.633 | 0.732 |
+| **CE + median** *(the served arm)* | **3.12** | 0.691 | 0.501 | 0.690 |
+| **#6 program arm** | **1.91** | 0.635 | **0.251** | 0.488 |
+| blockout (the input) | 1.00 | 0.000 | 0.000 | 0.000 |
+
+🔑 So stepped massing is **not** a missing capability — the served arm produces it at close to GT
+rate. It is the **#6 program arm** that flattens it, which is the slot collapse that ticket already
+recorded (1.19 slots used against 3.06 in its own labels). A reader looking at the demo and seeing
+only a roof has almost certainly selected `heightmap_program`.
+
+A **plan** wing — the arm of an L — is a different thing and is not an edit at all: it is footprint,
+and the footprint is immutable input.
 
 
 ## What this ticket does NOT deliver

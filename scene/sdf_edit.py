@@ -131,9 +131,16 @@ ARCHITECTURAL_VOCABULARY = {
     "roof volume": VocabEntry("ramp", True,
                               "a pitched roof is one or more Ramps; a gable is two opposing ones, "
                               "which is why the core cuts roofs rather than adding solids"),
-    "wing": VocabEntry(None, True,
-                       "not an edit: a wing is part of the FOOTPRINT, and the footprint is this "
-                       "system's immutable input (#127 conditioning). Nothing carves a wing"),
+    # ⚠️ TWO SENSES, and only one of them is "not an edit". Distinguished here because the first
+    # version of this entry answered only the plan sense and read as if the system could not do
+    # stepped massing at all -- which is false: `Layer` is exactly that operation, the recovered
+    # programs average 3.06 of them per building, and the served arm produces 3.12 height plateaus
+    # per building against GT's 3.34.
+    "wing": VocabEntry("layer", True,
+                       "a wing at a DIFFERENT HEIGHT is a Layer over that part of the plan -- the "
+                       "single commonest operation in the corpus. A wing as plan GEOMETRY (the arm "
+                       "of an L) is not an edit at all: it is part of the footprint, which is this "
+                       "system's immutable input (#127 conditioning)"),
     "courtyard": VocabEntry("box", False,
                             "a through-void. 0 voxels in 4,324,919 of carve -- cuttable in the SDF, "
                             "never learnable from this corpus"),
