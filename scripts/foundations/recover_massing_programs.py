@@ -36,6 +36,18 @@ THE VOCABULARY
 `ApplySetback` is not a separate operation: in a height field a setback *is* a Layer whose polygon
 is the inward offset of the footprint, and the fitter finds it as one.
 
+THE POLYGON VERTEX BUDGET (#131)
+--------------------------------
+`--vertex_budget` re-reads a finished artifact and asks what those polygons actually cost. Every
+recovered region is an exact voxel-boundary ring at a median of **94 vertices**, which is a raster
+trace rather than an architectural region, so a program's real DSL token cost -- and any claim about
+program simplicity resting on `dl_ops`, which counts operations and ignores their vertices -- is
+measured with the dominant term missing. Cutting each polygon back until one more deletion would
+move a cell takes the median region to **58** vertices and a program from **578 tokens to 342**
+with the geometry unchanged to the voxel. Below that a budget is a fidelity trade, and 🔑 it is a
+worse one than the median `extra` suggests: a region that shrinks abandons its columns to the full
+envelope height, so the surplus stands up as spikes rather than spreading over the roof.
+
 Output is a semantic program per building plus the recovery statistics. It trains nothing, touches
 no GPU, and does not modify the active #92 experiment.
 """
@@ -690,6 +702,413 @@ def report_commutativity(d: dict) -> None:
     print("   -> the algebra is COMMUTATIVE iff the last row is 0")
 
 
+# ----------------------------------------------------------------------------------------------
+# the polygon vertex budget (#131)
+# ----------------------------------------------------------------------------------------------
+
+# #4 and #128 both flagged this and neither started it. Every recovered region is an EXACT
+# voxel-boundary ring at a median of 94 vertices per region, which is a raster trace rather than an
+# architectural region: nobody can read it, a generator would have to emit it, and so the real DSL
+# token cost of a program -- and any claim about program simplicity resting on `dl_ops`, which
+# counts operations and ignores their vertices -- is measured with one term missing.
+VERTEX_BUDGETS = (4, 6, 8, 12, 16, 24, 94)
+
+
+def _cross(a, b, c) -> float:
+    return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])
+
+
+def _segments_cross(p1, p2, p3, p4) -> bool:
+    d1, d2 = _cross(p3, p4, p1), _cross(p3, p4, p2)
+    d3, d4 = _cross(p1, p2, p3), _cross(p1, p2, p4)
+    return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
+
+
+def _chord_is_simple(ring, i) -> bool:
+    """The shortcut that skips vertex `i` must not cross a non-adjacent edge of its own ring."""
+    n = len(ring)
+    a, b = ring[(i - 1) % n], ring[(i + 1) % n]
+    skip = {(i - 1) % n, i, (i + 1) % n}
+    for j in range(n):
+        k = (j + 1) % n
+        if j in skip or k in skip:
+            continue
+        if _segments_cross(a, b, ring[j], ring[k]):
+            return False
+    return True
+
+
+def _triangle_cells(a, v, b, res: int = RES, eps: float = -1e-9) -> np.ndarray:
+    """The integer cell centres inside triangle (a, v, b).
+
+    Ring vertices sit on half-voxel offsets so a voxel centre never lies on an *axis-aligned* edge
+    (`mask_to_rings`), but a 45-degree shortcut between two of them passes exactly through one --
+    and on this corpus that tie is the common case, not the rare one. `eps` picks the side:
+
+      * `eps < 0` counts the boundary as inside. Conservative, and what the containment rule wants:
+        it can refuse a deletion that was in fact safe, never admit one that was not.
+      * `eps > 0` counts only cells strictly inside. A cell there really does change hands, so this
+        is the test for "this deletion definitely moves the geometry".
+    """
+    xs, zs = (a[0], v[0], b[0]), (a[1], v[1], b[1])
+    x0, x1 = max(int(np.ceil(min(xs))), 0), min(int(np.floor(max(xs))), res - 1)
+    z0, z1 = max(int(np.ceil(min(zs))), 0), min(int(np.floor(max(zs))), res - 1)
+    if x1 < x0 or z1 < z0:
+        return np.empty((0, 2), int)
+    gx, gz = np.meshgrid(np.arange(x0, x1 + 1), np.arange(z0, z1 + 1), indexing="ij")
+    p = np.stack([gx.ravel(), gz.ravel()], 1).astype(float)
+    s = 1.0 if _cross(a, v, b) > 0 else -1.0
+    keep = np.ones(len(p), bool)
+    for u, w in ((a, v), (v, b), (b, a)):
+        keep &= (s * ((w[0] - u[0]) * (p[:, 1] - u[1]) - (w[1] - u[1]) * (p[:, 0] - u[0]))) >= eps
+    return p[keep].astype(int)
+
+
+def simplify_region(rings, budget: int, exact_mask=None, res: int = RES, rule: str = "contained"):
+    """One region's rings -> the same region under a vertex budget, cheapest corner first.
+
+    Greedy least-area vertex deletion (Visvalingam) run over **every ring of the region at once**,
+    so the budget is a per-region total and a hole competes with the outer boundary for it.
+
+    🔑 With `exact_mask` given, a deletion is admitted only when every cell it would ADD to the
+    region is already inside the exact region. That keeps the simplified region a subset of the
+    exact one **at the cell level, which is the level the compiler rasterizes at** -- so #10's
+    containment guarantee survives: a region that only ever shrinks can only leave surplus, and can
+    never cut into GT. `missing` and `collapse_rate` stay 0 by construction, and the whole cost of
+    the budget lands on `extra`, where it is visible.
+
+    ⚠️ The cell level is the right level and the polygon level is the wrong one. A chord across a
+    staircase of half-voxel steps bulges outside the exact *polygon* while covering not one new
+    voxel *centre*: an exact 62-vertex diagonal trace is the same 30 cells as a 4-vertex triangle.
+    Constraining the polygon instead would refuse that for nothing.
+
+    Three rules, and they differ in that one test alone:
+
+      * `contained` -- admit a deletion only if every cell it ADDS is already in the exact region.
+        Needs `exact_mask`. The region can only shrink, so the whole cost lands on `extra`.
+      * `lossless`  -- admit a deletion only if its triangle holds NO cell centre at all, so the
+        rasterized region does not change by one cell. Run to `budget=0` this answers the question
+        the ticket actually asks: **how many vertices does this region need?** Every vertex above
+        that count is the rasterizer's, not the architecture's.
+      * `free`      -- no test. It may also delete a ring outright once it is down to a triangle,
+        which is how a one-cell speckle hole disappears -- by swallowing its cell.
+
+    ⚠️ Marching squares is the obvious tool for this and is wrong here (`mask_to_rings` says why):
+    it chamfers every corner diagonally, handing a plain rectangular shed four 45-degree eaves it
+    does not have. This deletes *existing* vertices and never invents one, so a rectangle stays a
+    rectangle at every budget -- the check `test_simplify_region_keeps_a_plain_shed` pins.
+    """
+    rs = [[[float(v[0]), float(v[1])] for v in r] for r in rings]
+    while sum(len(r) for r in rs) > budget:
+        cand = []
+        for ri, ring in enumerate(rs):
+            n = len(ring)
+            if n <= 3:
+                if rule == "free" and n == 3:
+                    cand.append((abs(_cross(*ring)) / 2.0, ri, None, False))
+                continue
+            for i in range(n):
+                a, v, b = ring[(i - 1) % n], ring[i], ring[(i + 1) % n]
+                turn = _cross(a, v, b)
+                tie = False
+                if rule == "lossless":
+                    if len(_triangle_cells(a, v, b, res, +1e-9)):
+                        continue                     # a cell centre is strictly inside: it moves
+                    # a centre exactly ON the shortcut is a tie the rasterizer has to settle
+                    tie = bool(len(_triangle_cells(a, v, b, res)))
+                # ring 0 is the outer boundary and the rest are holes, subtracted by position. So a
+                # REFLEX corner of the outer ring bulges outward, and a CONVEX corner of a hole
+                # shrinks the hole: both hand the region cells it did not have.
+                elif rule == "contained" and ((turn < 0) if ri == 0 else (turn > 0)):
+                    cells = _triangle_cells(a, v, b, res)
+                    if len(cells) and not exact_mask[cells[:, 1], cells[:, 0]].all():
+                        continue
+                cand.append((abs(turn) / 2.0, ri, i, tie))
+        cand.sort(key=lambda c: c[0])
+        for _, ri, i, tie in cand:
+            if i is None:
+                rs.pop(ri)
+                break
+            if not _chord_is_simple(rs[ri], i):
+                continue
+            if tie:
+                trial = [r[:] for r in rs]
+                trial[ri].pop(i)
+                if not np.array_equal(_rings_to_mask([r for r in trial if len(r) >= 3], res),
+                                      exact_mask):
+                    continue
+            rs[ri].pop(i)
+            break
+        else:
+            break                    # nothing admissible is left, so this budget is not reachable
+    return [r for r in rs if len(r) >= 3]
+
+
+def simplify_program(program, budget: int, rule: str = "contained", res: int = RES):
+    """Re-cut every polygon in a program to `budget` vertices, and measure what it cost.
+
+    Returns the rewritten program and the per-region ledger: vertices before and after, cells the
+    region gained (the containment breach, which must be 0 under `contained`) and cells it gave up.
+    """
+    out, ledger = [], []
+    for op in program:
+        op = dict(op)
+        rings = op.get("region")
+        if rings:
+            exact = _rings_to_mask(rings, res)
+            simp = simplify_region(rings, budget, exact, res, rule)
+            got = _rings_to_mask(simp, res) if simp else np.zeros((res, res), bool)
+            ledger.append(dict(op=op["op"], before=sum(len(r) for r in rings),
+                               after=sum(len(r) for r in simp),
+                               rings_before=len(rings), rings_after=len(simp),
+                               met=bool(sum(len(r) for r in simp) <= budget),
+                               added=int((got & ~exact).sum()), lost=int((exact & ~got).sum()),
+                               area=int(exact.sum())))
+            op["region"] = simp
+        out.append(op)
+    return out, ledger
+
+
+def dsl_tokens(program) -> int:
+    """A program's real token cost, counted the way a generator would have to emit it.
+
+    One token for the operation name, one per scalar parameter, one per ring (its separator), and
+    **two per vertex**. `dl_ops` counts the first of those and ignores the rest, which is exactly
+    the missing term: at the exact ring a two-operation roof costs 4 tokens by `dl_ops` and around
+    380 by this.
+    """
+    n = 0
+    for op in program:
+        if op["op"] == "Layer":
+            n += 2                                            # Layer, height
+        elif op["op"] == "Ramp":
+            n += 4                                            # Ramp, plane a/b/c
+        elif op["op"] == "CutRoof":
+            n += 4                                            # CutRoof, kind, eaves, rate
+        else:
+            raise ValueError(f"unknown operation '{op['op']}'")
+        for ring in op.get("region", []):
+            n += 1 + 2 * len(ring)
+    return n
+
+
+_H5_HANDLE = None
+
+
+def _h5():
+    """One h5 handle per worker process, opened on first use rather than pickled."""
+    global _H5_HANDLE
+    if _H5_HANDLE is None:
+        _H5_HANDLE = h5py.File(H5, "r")
+    return _H5_HANDLE
+
+
+def _budget_case(task):
+    """Score one building's program at the exact ring and at every budget, both arms.
+
+    Runs in a worker process. The exact-ring row is not read from the recovery artifact but
+    re-derived through the same replay as every other row, so the control and the arms differ only
+    in the polygons -- and its agreement with the recorded numbers is itself a check that the
+    artifact is a program rather than a result (#128).
+    """
+    bid, program, budgets = task
+    g = _h5()
+    gt = np.asarray(g["sdf"][bid], np.float32) <= 0
+    fp = np.asarray(g["footprint"][bid]) > 0
+    hf = height_field(gt, fp)
+    if hf is None:
+        return bid, None
+    y0, y1, target = hf
+    extent = y1 - y0 + 1
+    bo_occ = occupancy(fp, y0, np.where(fp, np.int16(extent), 0).astype(np.int16))
+
+    from scripts.foundations.train_height_map_generator import roof_description_length
+
+    def score(prog, ledger):
+        h = replay_program(fp, y0, y1, prog)
+        occ = occupancy(fp, y0, h)
+        row = volume_split(occ, gt)
+        row["vs_input"] = vs_input(occ, bo_occ)
+        dl = roof_description_length(h, fp, y0, extent)
+        row["dl_ops"], row["dl_planar_fraction"] = dl["ops"], dl["planar_fraction"]
+        row["tokens"] = dsl_tokens(prog)
+        row["verts"] = sum(sum(len(r) for r in o.get("region", [])) for o in prog)
+        row["regions"] = len(ledger)
+        row["regions_met"] = sum(1 for e in ledger if e["met"])
+        row["regions_added"] = sum(1 for e in ledger if e["added"])
+        row["cells_added"] = sum(e["added"] for e in ledger)
+        row["cells_lost"] = sum(e["lost"] for e in ledger)
+        row["cells_region"] = sum(e["area"] for e in ledger)
+        row["region_verts"] = [e["after"] for e in ledger]
+        row["region_verts_exact"] = [e["before"] for e in ledger]
+        # ⚠️ the median `extra` hides WHERE the surplus goes. A region that pulls back leaves the
+        # columns it abandoned standing at the full envelope height, and the montage shows those as
+        # spikes -- a visible fault, not an approximation, so they are priced beside the median.
+        surplus = (h.astype(np.int32) - target.astype(np.int32))[fp]
+        row["surplus_max"] = int(surplus.max()) if surplus.size else 0
+        row["spike_columns"] = int((surplus > S_STAR_VOXELS).sum())
+        return row
+
+    exact_ledger = [dict(op=o["op"], before=sum(len(r) for r in o["region"]),
+                         after=sum(len(r) for r in o["region"]), rings_before=len(o["region"]),
+                         rings_after=len(o["region"]), met=True, added=0, lost=0,
+                         area=int(_rings_to_mask(o["region"]).sum()))
+                    for o in program if o.get("region")]
+    out = {"exact": score(program, exact_ledger)}
+    # the vertices the regions actually NEED: simplified until the rasterized cells would change,
+    # with no budget at all. Everything above this count is the rasterizer's, not the building's.
+    out["lossless"] = score(*simplify_program(program, 0, "lossless"))
+    for v in budgets:
+        for arm, rule in (("inner", "contained"), ("free", "free")):
+            out[f"{arm}{v}"] = score(*simplify_program(program, v, rule))
+    return bid, out
+
+
+def measure_vertex_budget(rows, budgets=VERTEX_BUDGETS, workers: int = 0) -> dict:
+    """#131, on the pinned carve-needing subset: what does each vertex budget cost the building?
+
+    Only carve-needing buildings are scored, per #126: an already-flat building has no operations,
+    so no polygon, so nothing a budget could change -- pooling them in would dilute every number
+    with 303 rows that are identical in every column.
+    """
+    import multiprocessing as mp
+    from scripts.foundations.train_height_map_generator import roof_description_length  # noqa: F401
+
+    carve = [(int(b), r["program"], tuple(budgets)) for b, r in rows.items()
+             if r["blockout_extra"] >= CARVE_NEEDED]
+    n = workers or min(len(carve), max(mp.cpu_count() - 2, 1))
+    print(f"[#131] {len(carve)} carve-needing buildings x {1 + 2 * len(budgets)} configurations "
+          f"on {n} workers", flush=True)
+    t0, out = time.time(), {}
+    with mp.get_context("fork").Pool(n) as pool:
+        for k, (bid, res) in enumerate(pool.imap_unordered(_budget_case, carve, chunksize=1)):
+            if res is not None:
+                out[str(bid)] = res
+            if (k + 1) % 50 == 0:
+                print(f"  {k+1}/{len(carve)}  {time.time()-t0:.0f}s", flush=True)
+    return dict(meta=dict(created=time.strftime("%Y-%m-%dT%H:%M:%S"), question="#131",
+                          n=len(out), budgets=list(budgets), allowance=CARVE_NEEDED,
+                          collapse_missing=COLLAPSE_MISSING),
+                per_building=out)
+
+
+def report_vertex_budget(art: dict) -> None:
+    """The fidelity-against-budget table, with #126's guards on every row and not only the headline."""
+    pb, budgets = art["per_building"], art["meta"]["budgets"]
+    med = lambda cfg, k: float(np.median([r[cfg][k] for r in pb.values()]))
+    tot = lambda cfg, k: int(sum(r[cfg][k] for r in pb.values()))
+    coll = lambda cfg: float(np.mean([r[cfg]["missing"] >= COLLAPSE_MISSING for r in pb.values()]))
+
+    print(f"\n{'=' * 108}")
+    print(f"#131 THE POLYGON VERTEX BUDGET   n={len(pb)} carve-needing buildings")
+    print(f"{'=' * 108}")
+    print(f"{'budget':>8} {'arm':<6} | {'verts':>6} {'tokens':>7} | {'missing':>8} {'extra':>7} "
+          f"{'vs_input':>8} {'collapse':>8} | {'ops':>4} {'planar':>6} | {'spike':>6} {'spiked':>7} "
+          f"| {'contained':>9} {'met':>5} {'cells+':>7}")
+    print("-" * 118)
+
+    def line(label, arm, cfg):
+        regions, met = tot(cfg, "regions"), tot(cfg, "regions_met")
+        breached = tot(cfg, "regions_added")
+        spiked = float(np.mean([r[cfg]["spike_columns"] > 0 for r in pb.values()]))
+        print(f"{label:>8} {arm:<6} | {med(cfg, 'verts'):>6.0f} {med(cfg, 'tokens'):>7.0f} | "
+              f"{med(cfg, 'missing'):>8.4f} {med(cfg, 'extra'):>7.4f} "
+              f"{med(cfg, 'vs_input'):>8.4f} {coll(cfg):>8.4f} | "
+              f"{med(cfg, 'dl_ops'):>4.1f} {med(cfg, 'dl_planar_fraction'):>6.2f} | "
+              f"{med(cfg, 'surplus_max'):>6.0f} {spiked:>7.3f} "
+              f"| {1 - breached / max(regions, 1):>9.4f} {met / max(regions, 1):>5.2f} "
+              f"{tot(cfg, 'cells_added'):>7}")
+
+    line("exact", "-", "exact")
+    line("needed", "-", "lossless")
+    for v in budgets:
+        print("-" * 118)
+        for arm in ("inner", "free"):
+            line(str(v), arm, f"{arm}{v}")
+    print("-" * 118)
+    print("  `contained` = fraction of regions that gained NO cell, so #10's guarantee holds and")
+    print("  `missing`/collapse stay 0 by construction.  `met` = fraction that reached the budget.")
+    print("  `needed` = every polygon cut back until one more deletion would move a cell: same")
+    print("  building to the voxel, so the difference from `exact` is pure rasterizer.")
+    print(f"  `spike` = median worst column surplus in voxels; `spiked` = fraction of buildings")
+    print(f"  with any column more than s* = {S_STAR_VOXELS} voxels proud of GT (ADR 0004).")
+
+    ex = np.array([v for r in pb.values() for v in r["exact"]["region_verts_exact"]])
+    nd = np.array([v for r in pb.values() for v in r["lossless"]["region_verts"]])
+    print(f"\n  VERTICES PER REGION, over all {len(ex)} regions   "
+          f"(the ticket asks for the distribution, not the median)")
+    print(f"{'':>14}{'min':>6}{'p10':>6}{'p25':>6}{'median':>8}{'p75':>6}{'p90':>6}{'p99':>6}"
+          f"{'max':>6}   {'<=4':>6} {'<=8':>6} {'<=16':>6}")
+    for label, a in (("exact ring", ex), ("needed", nd)):
+        pct = lambda q: np.percentile(a, q)
+        print(f"  {label:<12}{a.min():>6}{pct(10):>6.0f}{pct(25):>6.0f}{np.median(a):>8.0f}"
+              f"{pct(75):>6.0f}{pct(90):>6.0f}{pct(99):>6.0f}{a.max():>6}   "
+              f"{np.mean(a <= 4):>6.2f} {np.mean(a <= 8):>6.2f} {np.mean(a <= 16):>6.2f}")
+    print(f"{'=' * 108}")
+
+
+def build_budget_sheet(cases, out: Path, budget: int, cell: int = 6) -> Path:
+    """The real building, the exact-ring program, and the same program at one vertex budget."""
+    from PIL import Image, ImageDraw
+
+    cols = ["REAL BUILDING", "EXACT RING (median 94 verts)",
+            f"BUDGET {budget}, CONTAINED", f"BUDGET {budget}, FREE"]
+    tiles = [(c, [render_iso(h, c["fp"], cell) for h in
+                  (c["target"], c["exact"], c["inner"], c["free"])]) for c in cases]
+    tw = max(max(t.width for t in ts) for _, ts in tiles)
+    th = max(max(t.height for t in ts) for _, ts in tiles)
+    head, pad, lab = 26, 10, 44
+    W = len(cols) * (tw + pad) + pad
+    sheet = Image.new("RGB", (W, head + len(tiles) * (th + lab)), (255, 255, 255))
+    d = ImageDraw.Draw(sheet)
+    for j, c in enumerate(cols):
+        d.text((pad + j * (tw + pad), 8), c, fill=(0, 0, 0))
+    for i, (c, ts) in enumerate(tiles):
+        y = head + i * (th + lab)
+        for j, t in enumerate(ts):
+            sheet.paste(t, (pad + j * (tw + pad) + (tw - t.width) // 2, y + (th - t.height) // 2))
+        d.text((pad, y + th + 4),
+               f"id {c['id']}   {' > '.join(c['ops']) or 'empty'}   "
+               f"{c['verts_exact']} verts -> {c['verts_inner']} contained / {c['verts_free']} free",
+               fill=(40, 40, 40))
+        d.text((pad, y + th + 20),
+               f"surplus  exact {c['extra_exact']:.4f}   contained {c['extra_inner']:.4f}   "
+               f"free {c['extra_free']:.4f}  (free cuts into GT: missing {c['missing_free']:.4f})",
+               fill=(120, 40, 40))
+        d.line([(0, y + th + lab - 2), (W, y + th + lab - 2)], fill=(225, 225, 228))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out)
+    return out
+
+
+def budget_montage(rows, art: dict, budget: int, out: Path, n: int = 6) -> Path:
+    """Six representative carve-needing buildings, rendered at the exact ring and at `budget`."""
+    pb = art["per_building"]
+    ranked = sorted(pb, key=lambda b: pb[b][f"inner{budget}"]["extra"])
+    picks = [ranked[int(round(q * (len(ranked) - 1)))]
+             for q in np.linspace(0.1, 0.9, n)]
+    cases = []
+    with h5py.File(H5, "r") as g:
+        for b in picks:
+            gt = np.asarray(g["sdf"][int(b)], np.float32) <= 0
+            fp = np.asarray(g["footprint"][int(b)]) > 0
+            y0, y1, target = height_field(gt, fp)
+            prog = rows[b]["program"]
+            hs = {"exact": replay_program(fp, y0, y1, prog)}
+            for arm, rule in (("inner", "contained"), ("free", "free")):
+                p, _ = simplify_program(prog, budget, rule)
+                hs[arm] = replay_program(fp, y0, y1, p)
+            cases.append(dict(id=int(b), fp=fp, target=target, ops=rows[b]["ops"], **hs,
+                              verts_exact=pb[b]["exact"]["verts"],
+                              verts_inner=pb[b][f"inner{budget}"]["verts"],
+                              verts_free=pb[b][f"free{budget}"]["verts"],
+                              extra_exact=pb[b]["exact"]["extra"],
+                              extra_inner=pb[b][f"inner{budget}"]["extra"],
+                              extra_free=pb[b][f"free{budget}"]["extra"],
+                              missing_free=pb[b][f"free{budget}"]["missing"]))
+    return build_budget_sheet(cases, out, budget)
+
+
 def verify_edit_stack(cases, out_dir: Path, sheet_rows: int = 6):
     """Load each recovered program into `EditableBuilding` and check it is the same building.
 
@@ -799,6 +1218,16 @@ def main() -> None:
                     help="replay N committed programs under permutation, under both the old "
                          "Layer-as-SET reading and the current Layer-as-MIN one, and report #4's "
                          "ordering table. Reads --out as an EXISTING artifact and writes nothing")
+    ap.add_argument("--vertex_budget", nargs="*", type=int, default=None, metavar="V",
+                    help="#131: re-cut every polygon in --out to each vertex budget and re-score "
+                         "the compiled building, under both the containment-preserving arm and the "
+                         "unconstrained one. Reads --out as an EXISTING artifact and writes a "
+                         "companion; no fit is re-run. Bare flag = the pre-registered budgets")
+    ap.add_argument("--budget_montage", type=int, default=0, metavar="V",
+                    help="with --vertex_budget, render six buildings at budget V beside the "
+                         "exact-ring fit")
+    ap.add_argument("--workers", type=int, default=0,
+                    help="processes for --vertex_budget; 0 = all but two cores")
     ap.add_argument("--verify_edit_stack", type=int, default=0,
                     help="load this many recovered programs into EditableBuilding and check the "
                          "SDF composition, the replay and undo against the voxel compiler (#128)")
@@ -809,6 +1238,21 @@ def main() -> None:
         # so it cannot disturb the record it is checking
         rows = json.load(open(args.out))["per_building"]
         report_commutativity(measure_commutativity(rows, n=args.measure_commutativity))
+        return
+
+    if args.vertex_budget is not None:
+        # a measurement over ALREADY-RECOVERED programs, like --measure_commutativity: it re-runs
+        # no fit and never rewrites --out, so it cannot disturb the record it is reading
+        rows = json.load(open(args.out))["per_building"]
+        art = measure_vertex_budget(rows, args.vertex_budget or VERTEX_BUDGETS, args.workers)
+        p = Path(args.out).with_name(Path(args.out).stem + "_vertex_budget.json")
+        json.dump(art, open(p, "w"), indent=1)
+        print(f"[artifact] {p}", flush=True)
+        report_vertex_budget(art)
+        if args.budget_montage:
+            sheet = budget_montage(rows, art, args.budget_montage,
+                                   REPO / "outputs/program_recovery/vertex_budget.png")
+            print(f"[montage] {sheet}")
         return
 
     ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]

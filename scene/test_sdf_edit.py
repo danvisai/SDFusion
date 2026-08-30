@@ -107,8 +107,8 @@ class TestMaskToRings(unittest.TestCase):
     """A voxel region becomes a polygon whose interior is *exactly* the region's cells.
 
     ⚠️ No simplification: the ring traces the cell boundary at half-voxel offsets, so voxel centres
-    never land on an edge and the point-in-polygon test can never tie. Turning these into few-vertex
-    polygons under a budget is a separate, unstarted question (#4).
+    never land on an edge and the point-in-polygon test can never tie. Cutting these down to a
+    vertex budget is a separate question, and `TestVertexBudget` below is where it is pinned (#131).
     """
 
     def _covers_exactly(self, mask):
@@ -165,6 +165,125 @@ class TestMaskToRings(unittest.TestCase):
         with self.assertRaises(ValueError):
             mask_to_rings(m)
         self.assertEqual(len(mask_components_rings(m)), 2)
+
+
+class TestVertexBudget(unittest.TestCase):
+    """#131: a region re-cut to a vertex budget, and the containment guarantee it must not break.
+
+    The exact ring is a raster trace at a median of 94 vertices per region. These pin what the
+    budget may and may not do to it -- above all that the **contained** arm never hands an operation
+    a cell the exact region did not have, because that is the one property keeping `missing` and
+    `collapse_rate` 0 by construction (#10).
+    """
+
+    def _cells(self, rings):
+        from scripts.foundations.recover_massing_programs import _rings_to_mask
+        return _rings_to_mask(rings, RES) if rings else np.zeros((RES, RES), bool)
+
+    def _rings(self, mask):
+        return [r.tolist() for r in mask_to_rings(mask)]
+
+    def _simplify(self, mask, budget, rule="contained"):
+        from scripts.foundations.recover_massing_programs import simplify_region
+        rings = self._rings(mask)
+        exact = self._cells(rings)
+        got = simplify_region(rings, budget, exact, RES, rule)
+        return got, self._cells(got), exact
+
+    def test_simplify_region_keeps_a_plain_shed(self):
+        """⚠️ The check the ticket demands by eye: a rectangle keeps its four right angles.
+
+        Marching squares would chamfer each corner diagonally and hand this shed four 45-degree
+        eaves it does not have. Deleting existing vertices can never invent one.
+        """
+        m = np.zeros((RES, RES), bool)
+        m[5:20, 4:24] = True
+        for budget in (4, 6, 8, 12, 94):
+            for rule in ("contained", "lossless", "free"):
+                rings, got, exact = self._simplify(m, budget, rule)
+                self.assertEqual(sum(len(r) for r in rings), 4, f"budget {budget}")
+                np.testing.assert_array_equal(got, exact)
+
+    def test_an_exact_diagonal_trace_is_really_a_triangle(self):
+        """🔑 The finding the budget is for: the raster trace carries no information.
+
+        A staircase down a diagonal costs one vertex pair per step, and the same cells are covered
+        by a 4-vertex polygon -- so the vertices are the rasterizer's, not the architecture's.
+        """
+        m = self._staircase()
+        self.assertGreater(sum(len(r) for r in self._rings(m)), 20, "the exact ring is a staircase")
+        rings, got, exact = self._simplify(m, 4, "contained")
+        self.assertEqual(sum(len(r) for r in rings), 4)
+        np.testing.assert_array_equal(got, exact, "not one cell changes")
+
+    def test_the_lossless_rule_changes_no_cell_at_all(self):
+        """🔑 What "the vertices a region needs" means: run to no budget and lose nothing.
+
+        A deletion is admitted only when its triangle holds no cell centre, so the rasterized
+        region is the same set of cells before and after -- the same building to the voxel, at a
+        fraction of the vertices.
+        """
+        for name, m in (("staircase", self._staircase()), ("concave", self._concave()),
+                        ("holed", self._holed())):
+            rings, got, exact = self._simplify(m, 0, "lossless")
+            np.testing.assert_array_equal(got, exact, f"{name} changed a cell")
+            self.assertLessEqual(sum(len(r) for r in rings),
+                                 sum(len(r) for r in self._rings(m)), name)
+        rings, _, _ = self._simplify(self._staircase(), 0, "lossless")
+        self.assertEqual(sum(len(r) for r in rings), 4, "a diagonal trace needs four")
+
+    def test_the_contained_arm_never_gains_a_cell(self):
+        for name, m in (("concave", self._concave()), ("holed", self._holed())):
+            for budget in (4, 6, 8, 12, 16, 24, 94):
+                _, got, exact = self._simplify(m, budget, "contained")
+                self.assertEqual(int((got & ~exact).sum()), 0,
+                                 f"{name} at budget {budget} gained a cell: the region may only "
+                                 f"shrink, or the program cuts into GT")
+
+    def test_the_free_arm_does_break_it(self):
+        """The constraint is load-bearing rather than decorative: without it the region grows."""
+        gained = 0
+        for m in (self._concave(), self._holed()):
+            for budget in (4, 6):
+                _, got, exact = self._simplify(m, budget, "free")
+                gained += int((got & ~exact).sum())
+        self.assertGreater(gained, 0)
+
+    def test_a_one_cell_hole_is_irreducible_while_contained(self):
+        """A speckle hole is 4 vertices that cannot be spent: shrinking it hands back its cell."""
+        m = self._holed()
+        rings, got, exact = self._simplify(m, 4, "contained")
+        self.assertEqual(len(rings), 2, "the hole survives")
+        self.assertGreater(sum(len(r) for r in rings), 4, "so the budget is NOT reachable")
+        np.testing.assert_array_equal(got & ~exact, np.zeros_like(exact))
+        free, got_free, _ = self._simplify(m, 4, "free")
+        self.assertEqual(len(free), 1, "the free arm drops the hole")
+        self.assertEqual(int((got_free & ~exact).sum()), 1, "and swallows its cell")
+
+    def test_dsl_tokens_counts_what_a_generator_must_emit(self):
+        from scripts.foundations.recover_massing_programs import dsl_tokens
+        square = [[[0.5, 0.5], [4.5, 0.5], [4.5, 4.5], [0.5, 4.5]]]
+        self.assertEqual(dsl_tokens([dict(op="Layer", height=3, region=square)]), 2 + 1 + 8)
+        self.assertEqual(dsl_tokens([dict(op="Ramp", plane=[1, 2, 3], region=square)]), 4 + 1 + 8)
+        self.assertEqual(dsl_tokens([dict(op="CutRoof", kind="hip", eaves=2, rate=0.5)]), 4)
+
+    def _staircase(self):
+        m = np.zeros((RES, RES), bool)
+        for i in range(12):
+            m[6 + i, 4:8 + i] = True
+        return m
+
+    def _concave(self):
+        m = np.zeros((RES, RES), bool)
+        m[5:20, 5:20] = True
+        m[5:12, 12:20] = False
+        return m
+
+    def _holed(self):
+        m = np.zeros((RES, RES), bool)
+        m[5:20, 5:20] = True
+        m[12, 12] = False
+        return m
 
 
 class TestEditOpRoundTrip(unittest.TestCase):
