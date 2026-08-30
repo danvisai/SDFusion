@@ -30,10 +30,15 @@ Two endpoints, because a town is not one building N times:
 Since #127 it also serves a third endpoint and a second page:
 
   /compare_arms       one footprint carved by EVERY arm -- the footprint envelope, #127's height-map
-                      generator read two ways, the zero-training retrieval baseline, and A2 -- in one
-                      response, for a side-by-side visual judgement. ⚠️ A hand-drawn footprint has no
-                      ground truth, so `missing`/`extra` cannot be computed there and are not
-                      reported; the endpoint returns `vs_input` and the geometry.
+                      generator read two ways, #127's slope arm, #6's program arm, the zero-training
+                      retrieval baseline, and A2 -- in one response, for a side-by-side visual
+                      judgement. ⚠️ A hand-drawn footprint has no ground truth, so `missing`/`extra`
+                      cannot be computed there and are not reported; the endpoint returns `vs_input`
+                      and the geometry.
+                      ⚠️ An arm is NOT the same thing as a model. `heightmap_mode` and
+                      `heightmap_median` are one checkpoint read at two decodes; `HEIGHTMAP_ARMS`
+                      maps every arm to its (model, decode) pair and the response carries it, so
+                      the page can say which of these differ in weights and which only in reading.
   /arms               the page that drives it.
 The height-map arms need no codec (a height map compiles straight to voxels), run in ~0.08s against
 A2's ~1.1s, and are simply absent from `available` if their checkpoint or the corpus cache is not on
@@ -81,16 +86,29 @@ from scripts.foundations.recover_massing_programs import occ_to_field, occupancy
 from scripts.foundations.measure_scoring_optimum import transplant_height              # noqa: E402
 from scripts.foundations.train_height_map_generator import (                           # noqa: E402
     CACHE, DEPTH_CLASSES, apply_depth, build_model, condition_channels, decode_logits,
-    envelope_depth, retrieve_nn,
+    decode_prediction, envelope_depth, make_model, retrieve_nn,
 )
 
 A2_CKPT = REPO / "weights/massing-vecset/vecset_v4_surf.pth"
-# #127's height-map generator. Weights live beside A2's under weights/, which is the staging tree
-# that gets published; the training output is kept as a fallback so a fresh retrain is picked up
-# without a copy step. Checkpoints are gitignored (*.pt), so the arm is simply absent when neither
-# path exists, and `/health` says so.
-HEIGHTMAP_CKPTS = (REPO / "weights/massing-heightmap/heightmap_ce.pt",
-                   REPO / "outputs/height_map_generator/heightmap_ce.pt")
+# The height-map generators. Weights live beside A2's under weights/, the staging tree that gets
+# published; checkpoints are gitignored (*.pt).
+#
+# ⚠️ One entry per TRAINED MODEL, not per arm. Two arms (`heightmap_mode`, `heightmap_median`) read
+# the SAME `ce` weights at two different decodes, and the demo previously listed them side by side
+# with nothing saying so -- which reads as a model picker and is not one. `/arms` now reports the
+# checkpoint behind every arm so the page cannot imply a difference the weights do not have.
+#
+# Each value is a fallback chain: the published staging tree first, then the raw training output, so
+# a fresh retrain is picked up without a copy step. A model whose file is absent is simply not
+# offered, and `/health` says which are loaded.
+HEIGHTMAP_MODELS = {
+    "ce": (REPO / "weights/massing-heightmap/heightmap_ce.pt",
+           REPO / "outputs/height_map_generator/heightmap_ce.pt"),
+    "slope": (REPO / "weights/massing-heightmap/heightmap_ce_slope.pt",
+              REPO / "outputs/height_map_generator/heightmap_ce_slope.pt"),
+    "program": (REPO / "weights/massing-heightmap/heightmap_program.pt",
+                REPO / "outputs/height_map_generator/heightmap_program.pt"),
+}
 WEB = Path(__file__).resolve().parent / "web"
 SPACING = 2.0 / (RES - 1)
 # Read the corpus margin FROM the function that built the corpus rather than restating 1.05 here.
@@ -117,7 +135,22 @@ MAX_BUILDINGS = 120
 # subject. `_arm_field` validates against this list, so an unknown arm is a 400 and never a silent
 # fallback to some default -- a demo that quietly shows you a different model than you asked for is
 # worse than one that refuses.
-ARM_ORDER = ("envelope", "heightmap_mode", "heightmap_median", "retrieval", "a2")
+ARM_ORDER = ("envelope", "heightmap_mode", "heightmap_median", "heightmap_slope",
+             "heightmap_program", "retrieval", "a2")
+
+# arm -> (which model in `HEIGHTMAP_MODELS`, how its posterior is read). The map is the honest
+# answer to "which of these are different models": `mode` and `median` share a checkpoint and
+# differ only in the decode, and until this existed the page gave no way to tell.
+HEIGHTMAP_ARMS = {
+    "heightmap_mode": ("ce", "argmax"),
+    "heightmap_median": ("ce", "posterior median"),
+    # ⚠️ served at its median, not its mode: #127 fixed SLOPE_DECODE_QUANTILE at 0.5 because that is
+    # the decode the slope term was trained against, so serving its argmax would show a surface the
+    # arm was never shaped for.
+    "heightmap_slope": ("slope", "posterior median"),
+    # the program arm decodes by COMPILING its predicted program, so it has no quantile to pick
+    "heightmap_program": ("program", "compiled program"),
+}
 
 app = FastAPI(title="Town generation via A2 (map #97, #99)")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -155,22 +188,37 @@ def _load_heightmap_arms(dev) -> None:
     a comparison that refuses to start because one arm is unavailable is worse than a short one.
     """
     t0 = time.time()
-    path = next((p for p in HEIGHTMAP_CKPTS if p.exists()), None)
-    if path is not None:
-        ck = torch.load(path, map_location="cpu", weights_only=False)
-        net = build_model(DEPTH_CLASSES if ck["objective"] == "ce" else 1, ck["width"]).to(dev)
+    _state["hm_nets"], _state["hm_models"] = {}, {}
+    for name, chain in HEIGHTMAP_MODELS.items():
+        p = next((c for c in chain if c.exists()), None)
+        if p is None:
+            continue
+        ck = torch.load(p, map_location="cpu", weights_only=False)
+        # `make_model` is the one place an objective chooses an architecture, so the program arm's
+        # two-headed net is built by the same function the training used rather than a second
+        # spelling here that could drift from it.
+        net = (make_model("program", ck["width"], ck.get("k_planes", 6)) if ck["objective"] == "program"
+               else build_model(DEPTH_CLASSES if ck["objective"] == "ce" else 1, ck["width"])).to(dev)
         net.load_state_dict(ck["state"])
         net.eval()
-        _state["hm"] = net
-        _state["hm_meta"] = dict(epoch=ck.get("epoch"), objective=ck["objective"],
-                                 params=ck.get("params"), path=str(path.relative_to(REPO)))
-        print(f"[town_generate] #127 height map ({ck['objective']}, epoch {ck.get('epoch')}, "
-              f"{ck.get('params', 0)/1e6:.2f}M) from {path.relative_to(REPO)} "
+        _state["hm_nets"][name] = net
+        _state["hm_models"][name] = dict(epoch=ck.get("epoch"), objective=ck["objective"],
+                                         params=ck.get("params"), slope_weight=ck.get("slope_weight"),
+                                         path=str(p.relative_to(REPO)))
+        print(f"[town_generate] height map '{name}' ({ck['objective']}, epoch {ck.get('epoch')}, "
+              f"{ck.get('params', 0)/1e6:.2f}M) from {p.relative_to(REPO)}", flush=True)
+    if _state["hm_nets"]:
+        # kept for the existing /compare_arms payload, which reports one height-map provenance block
+        _state["hm"] = _state["hm_nets"].get("ce")
+        _state["hm_meta"] = dict(models=_state["hm_models"],
+                                 arms={a: dict(model=m, decode=d)
+                                       for a, (m, d) in HEIGHTMAP_ARMS.items()})
+        print(f"[town_generate] {len(_state['hm_nets'])} height-map model(s) loaded "
               f"({time.time()-t0:.0f}s)", flush=True)
     else:
-        print(f"[town_generate] no height-map checkpoint in "
-              f"{[str(p.relative_to(REPO)) for p in HEIGHTMAP_CKPTS]} -- arm unavailable",
-              flush=True)
+        print(f"[town_generate] no height-map checkpoint under "
+              f"{sorted({str(c[0].parent.relative_to(REPO)) for c in HEIGHTMAP_MODELS.values()})}"
+              f" -- height-map arms unavailable", flush=True)
     if CACHE.exists():
         d = np.load(CACHE)
         keep = (d["ok"] > 0) & (d["held"] == 0)          # TRAINING rows only, never the pinned 714
@@ -273,6 +321,7 @@ def _height_voxel_range(height: float, s: float) -> tuple[int, int]:
 # a forward pass of a 3.4M convnet plus a marching-cubes surface. Only used to size the refusal
 # message and the editor's ETA, never to decide anything.
 ARM_SECONDS = {"a2": 7.0, "heightmap_mode": 0.3, "heightmap_median": 0.3,
+               "heightmap_slope": 0.3, "heightmap_program": 0.3,
                "retrieval": 0.5, "envelope": 0.2}
 
 
@@ -351,9 +400,12 @@ def _arm_field(arm: str, fp: np.ndarray, y0: int, y1: int, height: float,
                                  f"(have: {_available_arms()})")
     if arm == "envelope":
         return envelope
-    if arm in ("heightmap_mode", "heightmap_median"):
-        q = None if arm == "heightmap_mode" else _roof_quantile(knobs.roof_variation, seed)
-        return _heightmap_field(fp, y0, y1, height, knobs.region, q)
+    if arm in HEIGHTMAP_ARMS:
+        model, decode = HEIGHTMAP_ARMS[arm]
+        if decode == "compiled program":
+            return _program_field(fp, y0, y1, height, knobs.region, model)
+        q = None if decode == "argmax" else _roof_quantile(knobs.roof_variation, seed)
+        return _heightmap_field(fp, y0, y1, height, knobs.region, q, model)
     if arm == "retrieval":
         return _retrieval_field(fp, y0, y1)
 
@@ -416,14 +468,38 @@ def _roof_quantile(variation: float, seed: Optional[int]) -> float:
 
 
 def _heightmap_field(fp: np.ndarray, y0: int, y1: int, height: float, region: int,
-                     quantile: Optional[float]) -> np.ndarray:
-    """#127's generator on a hand-drawn footprint. Conditioning only -- no ground truth exists here."""
+                     quantile: Optional[float], model: str = "ce") -> np.ndarray:
+    """#127's per-column generator on a hand-drawn footprint. Conditioning only -- no GT exists here.
+
+    `model` selects which trained checkpoint runs; `quantile` selects how its posterior is read.
+    They are separate arguments because they are separate decisions, and conflating them is what
+    made two decodes of one checkpoint look like two models on the compare page.
+    """
     extent = int(y1 - y0 + 1)
     mask = fp.astype(bool)
     x = condition_channels(mask, extent, float(height), int(region))
     with torch.no_grad():
-        logits = _state["hm"](torch.from_numpy(x)[None].to(_state["dev"])).cpu().numpy()[0]
+        logits = _state["hm_nets"][model](
+            torch.from_numpy(x)[None].to(_state["dev"])).cpu().numpy()[0]
     return occ_to_field(occupancy(mask, y0, decode_logits(logits, mask, extent, quantile)))
+
+
+def _program_field(fp: np.ndarray, y0: int, y1: int, height: float, region: int,
+                   model: str = "program") -> np.ndarray:
+    """#6's program arm: predict typed slots plus an assignment, then COMPILE them to a height map.
+
+    It has no quantile knob because it has no per-column posterior to read at one -- the slot and
+    the type are argmaxed and the planes are compiled, which is `decode_prediction`'s `program`
+    branch. `roof_variation` therefore does nothing on this arm, and the compare page says so
+    rather than silently ignoring the slider.
+    """
+    extent = int(y1 - y0 + 1)
+    mask = fp.astype(bool)
+    x = condition_channels(mask, extent, float(height), int(region))
+    with torch.no_grad():
+        heads = _state["hm_nets"][model](torch.from_numpy(x)[None].to(_state["dev"]))
+    out = tuple(t[0].cpu().numpy() for t in heads)
+    return occ_to_field(occupancy(mask, y0, decode_prediction(out, mask, extent, "program", None)))
 
 
 def _retrieval_field(fp: np.ndarray, y0: int, y1: int) -> np.ndarray:
@@ -436,8 +512,9 @@ def _retrieval_field(fp: np.ndarray, y0: int, y1: int) -> np.ndarray:
 
 def _available_arms() -> List[str]:
     have = {"envelope"}
-    if "hm" in _state:
-        have |= {"heightmap_mode", "heightmap_median"}
+    # each arm is gated on ITS OWN checkpoint, so a box with only the `ce` weights offers the two
+    # `ce` decodes and simply does not list the others
+    have |= {a for a, (m, _) in HEIGHTMAP_ARMS.items() if m in _state.get("hm_nets", {})}
     if "bank" in _state:
         have.add("retrieval")
     if "codec" in _state:
@@ -473,7 +550,11 @@ def compare_arms(req: CompareReq):
     pts = np.asarray(req.points, dtype=np.float64)
     s, cx, cz = _footprint_normalization(pts, req.height)
     y0, y1 = _height_voxel_range(req.height, s)
-    return dict(arms=out, notes=notes, available=have,
+    # `arm_order` is every arm this build implements, `available` only those this box can serve.
+    # The page needs both and used to hardcode the first, so an arm added here did not appear there
+    # and the demo silently kept showing the old set -- which is exactly how a stale model hides.
+    return dict(arms=out, notes=notes, available=have, arm_order=list(ARM_ORDER),
+                arm_models={a: dict(model=m, decode=d) for a, (m, d) in HEIGHTMAP_ARMS.items()},
                 footprint_voxels=int(_rasterize_footprint(pts, s, cx, cz).sum()),
                 extent_voxels=int(y1 - y0 + 1), heightmap=_state.get("hm_meta"))
 

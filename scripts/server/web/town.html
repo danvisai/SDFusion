@@ -70,13 +70,21 @@
     <label>Default height <span class="val" id="dhv">12 m</span></label>
     <input type="range" id="dh" min="3" max="60" value="12" step="1"/>
 
-    <label>Massing model</label>
+    <label>Massing arm <span class="val" style="font-weight:400">model · decode</span></label>
     <select id="arm" style="width:100%;padding:5px;margin-bottom:4px">
-      <option value="heightmap_median">#127 height map — ~0.1 s/building</option>
-      <option value="heightmap_mode">#127 height map · mode — carves less</option>
-      <option value="a2">a2 · shipped 49M — ~7 s/building</option>
-      <option value="retrieval">retrieval — nearest real roof, zero training</option>
-      <option value="envelope">envelope — no carve, for comparison</option>
+      <optgroup label="#127 height map (one checkpoint, two decodes)">
+        <option value="heightmap_median">ce · median — ~0.1 s/building</option>
+        <option value="heightmap_mode">ce · mode — carves less</option>
+      </optgroup>
+      <optgroup label="other trained models">
+        <option value="heightmap_slope">#127 slope-trained · median — simpler roofs</option>
+        <option value="heightmap_program">#6 program · compiled — planar, leaves more</option>
+        <option value="a2">a2 · shipped 49M — ~7 s/building</option>
+      </optgroup>
+      <optgroup label="baselines">
+        <option value="retrieval">retrieval — nearest real roof, zero training</option>
+        <option value="envelope">envelope — no carve, for comparison</option>
+      </optgroup>
     </select>
     <small style="color:#8a8d94;display:block;margin-bottom:8px">
       Compare them on one footprint at <a href="/arms" target="_blank">/arms</a>.
@@ -292,7 +300,8 @@ const svc = port => `${location.protocol}//${location.hostname}:${port}`;
 // warm on one A100; quoting A2's number for them would make a 29-building town read as three
 // minutes when it finishes in five seconds. Only used to size the ETA before any building has come
 // back; the estimate switches to observed timings as soon as the first one does.
-const SECS_PER_BUILDING = {a2:7, heightmap_median:0.3, heightmap_mode:0.3, retrieval:0.5,
+const SECS_PER_BUILDING = {a2:7, heightmap_median:0.3, heightmap_mode:0.3,
+                           heightmap_slope:0.3, heightmap_program:0.3, retrieval:0.5,
                            envelope:0.2};
 const armSeconds = () => SECS_PER_BUILDING[$('arm').value] ?? 7;
 

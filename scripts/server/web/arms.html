@@ -143,9 +143,15 @@ pts = PRESETS.l.map(p => p.slice());
 drawPad();
 
 /* ---------- one three.js viewport per arm ------------------------------------------------ */
+/* ⚠️ An arm is not a model. `mode` and `median` are ONE checkpoint read two ways; the caption
+   under each cell carries the (model, decode) pair the server reports, so this page can never
+   again imply a difference the weights do not have. */
 const LABEL = {
   envelope: 'envelope (the input)', heightmap_mode: '#127 height map · mode',
-  heightmap_median: '#127 height map · median', retrieval: 'retrieval (zero training)',
+  heightmap_median: '#127 height map · median',
+  heightmap_slope: '#127 height map · slope-trained',
+  heightmap_program: '#6 program · typed slots, compiled',
+  retrieval: 'retrieval (zero training)',
   a2: 'a2 · the shipped 49M model',
 };
 const views = [];
@@ -219,12 +225,14 @@ $('go').onclick = async () => {
     for (const rec of data.arms) {
       const vsi = rec.vs_input == null ? '' :
         `vs input ${rec.vs_input.toFixed(3)}${rec.vs_input > 0.98 ? ' — did not act' : ''}`;
-      const v = makeCell(rec.arm, `${vsi} · ${rec.gen_seconds.toFixed(1)} s`);
+      const am = (data.arm_models || {})[rec.arm];
+      const prov = am ? ` · weights “${am.model}”, read at ${am.decode}` : '';
+      const v = makeCell(rec.arm, `${vsi} · ${rec.gen_seconds.toFixed(1)} s${prov}`);
       views.push(v); addMesh(v, rec);
     }
     fitAll(); linkCameras();
-    const missing = ['envelope','heightmap_mode','heightmap_median','retrieval','a2']
-      .filter(a => !data.available.includes(a));
+    /* driven by the server's own ARM_ORDER, never a copy of it kept here */
+    const missing = (data.arm_order || []).filter(a => !data.available.includes(a));
     $('status').textContent =
       `${data.arms.length} arms · footprint ${data.footprint_voxels} voxels · `
       + `${data.extent_voxels} voxels tall`
