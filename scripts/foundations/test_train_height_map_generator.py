@@ -477,6 +477,18 @@ class TestVerdict(unittest.TestCase):
         self.assertTrue(v["killed_identity"])
         self.assertFalse(v["pass"])
 
+    def test_an_arm_that_sees_gt_is_a_ceiling_and_is_never_given_a_verdict(self):
+        """⚠️ #6's compiled-label arm is the fitter's own program with the answer in hand. It scores
+        better than anything a generator could and would collect a PASS mechanically, which would be
+        this scorecard reporting that the target was hit by looking at it. It is a reference the
+        trained arms are read against, so it must not appear in the verdict at all."""
+        arms = self._arms(cand=(0.0603, 0.0268, 0.8432))
+        arms["program_label (sees GT)"] = {"carve": dict(extra=0.0035, collapse_rate=0.0,
+                                                         vs_input=0.83)}
+        v = verdict(arms, "carve")
+        self.assertNotIn("program_label (sees GT)", v)
+        self.assertIn("cand", v)
+
     def test_the_baselines_are_never_judged_against_themselves(self):
         self.assertEqual(set(verdict(self._arms(cand=(0.05, 0.0, 0.8)), "carve")), {"cand"})
 

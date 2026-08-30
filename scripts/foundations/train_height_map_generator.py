@@ -1356,12 +1356,21 @@ def summarise(rows: list) -> dict:
                 fp_iou=med("fp_iou"), spill=med("spill"), vol_iou=med("vol_iou"))
 
 
+NOT_GENERATORS = ("blockout", "nn_retrieval", "program_label (sees GT)")
+
+
 def verdict(arms: dict, pop: str) -> dict:
-    """The pre-registered bar, evaluated mechanically so the write-up cannot soften it."""
+    """The pre-registered bar, evaluated mechanically so the write-up cannot soften it.
+
+    ⚠️ `NOT_GENERATORS` are excluded. Two of them are the bar itself; the third is #6's compiled
+    label, which is the fitter's program built WITH GT IN HAND. It beats anything a generator can
+    reach and would collect a mechanical PASS -- a scorecard reporting that the target was hit by
+    looking at it. It is a ceiling the trained arms are read against, never a competitor.
+    """
     out = {}
     bo, nn = arms["blockout"][pop], arms["nn_retrieval"][pop]
     for name, a in arms.items():
-        if name in ("blockout", "nn_retrieval"):
+        if name in NOT_GENERATORS:
             continue
         s = a[pop]
         out[name] = dict(
@@ -1811,6 +1820,19 @@ def main() -> None:
         for i, j in enumerate(nn)])
     print(f"[1-NN] retrieved in {time.time()-t0:.0f}s  "
           f"(median footprint IoU to the retrieved row reported in the artifact)", flush=True)
+
+    # #6's CEILING, scored down the same path as every other arm so its form is comparable: the
+    # program the fitter recovered WITH GT IN HAND, compiled. It is not a generator and never
+    # competes -- it is the answer to "how good could a program arm be if it predicted perfectly",
+    # and #127's record is that a ceiling nobody measured is how a representation gets adopted on a
+    # promise. Included whenever the label cache exists, so it costs nothing to have it.
+    if PROGRAM_CACHE.exists():
+        pl = np.load(PROGRAM_CACHE)
+        pidx = {int(r): i for i, r in enumerate(pl["row"])}
+        pk = np.array([pidx[int(r)] for r in held["row"]])
+        heights["program_label (sees GT)"] = np.stack([
+            compile_program(pl["assign"][pk[i]], pl["types"][pk[i]], pl["planes"][pk[i]],
+                            held["fp"][i], int(held["extent"][i])) for i in range(len(sel))])
 
     ckpt_meta = {}
     for name, path in ckpts.items():

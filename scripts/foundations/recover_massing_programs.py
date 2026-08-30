@@ -658,6 +658,11 @@ def main() -> None:
                          "beam search of this width over programs")
     ap.add_argument("--branch", type=int, default=6,
                     help="candidates expanded per beam per step")
+    ap.add_argument("--ops_allowed", nargs="*", default=list(VOCABULARY), choices=VOCABULARY,
+                    help="restrict the vocabulary. `--ops_allowed Layer Ramp` is what #6 fits its "
+                         "training labels with, because a CutRoof surface is a distance transform "
+                         "rather than a plane and no (type, plane) slot can carry it; running it "
+                         "against the default measures what that exclusion costs")
     ap.add_argument("--montage", type=int, default=0,
                     help="rows per sheet; emits a worst-N and a representative-N trace")
     ap.add_argument("--verify_edit_stack", type=int, default=0,
@@ -682,9 +687,10 @@ def main() -> None:
             bo_occ = occupancy(fp, y0, np.where(fp, np.int16(y1 - y0 + 1), 0).astype(np.int16))
             if args.beam > 1:
                 ops, h = fit_program_beam(fp, y0, y1, target, args.max_ops, args.allowance,
-                                          args.beam, args.branch)
+                                          args.beam, args.branch, tuple(args.ops_allowed))
             else:
-                ops, h = fit_program(fp, y0, y1, target, args.max_ops, args.allowance)
+                ops, h = fit_program(fp, y0, y1, target, args.max_ops, args.allowance,
+                                     tuple(args.ops_allowed))
             occ = occupancy(fp, y0, h)
 
             ops = finalise_program(ops)
@@ -712,7 +718,7 @@ def main() -> None:
     json.dump(dict(meta=dict(created=time.strftime("%Y-%m-%dT%H:%M:%S"), n=len(rows),
                              gt_h5=str(H5.relative_to(REPO)), ids_from=args.ids_from,
                              max_ops=args.max_ops, allowance=args.allowance, beam=args.beam,
-                             vocabulary=["Layer", "CutRoof", "Ramp"]),
+                             vocabulary=list(args.ops_allowed)),
                    ids=[int(b) for b in rows], per_building=rows), open(out, "w"), indent=1)
     print(f"[artifact] {out}", flush=True)
     if args.montage:
