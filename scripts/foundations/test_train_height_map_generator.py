@@ -1003,7 +1003,7 @@ class TestReplayCommutes(unittest.TestCase):
     column an earlier operation had already lowered.
 
     Measured on 250 recovered programs before this test was written: 78% have two operations whose
-    regions overlap, and a permutation changed the compiled building on **68.8%** of them. Reading
+    regions overlap, and a permutation changed the compiled building on **69.6%** of them. Reading
     `Layer` as a MIN changed the result on **0 of 250**, and left **0 of 2,000** permutations
     changed. So the two compilers agreed only because #10's fitter never emits an operation that
     would raise a column -- a property of the *search*, which a hand-authored or generated program

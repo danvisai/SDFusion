@@ -436,10 +436,20 @@ class TestOntology(unittest.TestCase):
     can ever be learned.
     """
 
-    def test_every_palette_kind_is_in_the_ontology(self):
-        """A kind the compiler accepts but the algebra does not describe is a hole in the spec."""
-        for kind in PALETTE:
-            self.assertIn(kind, ALGEBRA, f"{kind!r} is compilable but undeclared")
+    def test_the_palette_is_exactly_the_ontology(self):
+        """Both directions. A kind the compiler accepts but the algebra does not describe is a hole
+        in the spec; a kind the algebra declares but the palette omits is unreachable. `PALETTE` and
+        `PROGRAM_KINDS` are derived from `ALGEBRA` so this holds by construction -- the test is here
+        to catch anyone re-literalising them, which is how the three lists drifted before."""
+        self.assertEqual(set(PALETTE), set(ALGEBRA))
+        self.assertEqual(set(PROGRAM_KINDS), {k for k, v in ALGEBRA.items() if v.tier == CORE})
+
+    def test_the_palette_keeps_the_order_the_host_shows(self):
+        """⚠️ `tools/blender_addon/.../bridge.py` returns `PALETTE` straight to a UI enum, so its
+        order is user-visible and deriving it must not reshuffle the hand tools."""
+        self.assertEqual(PALETTE[:8],
+                         ("box", "rounded_box", "sphere", "cylinder", "cone", "gable", "hip",
+                          "element"))
 
     def test_the_three_recovered_operations_are_the_core(self):
         for kind in PROGRAM_KINDS:
@@ -532,7 +542,7 @@ class TestCommutativity(unittest.TestCase):
     """🔑🔑 #4's 'ordering and commutativity', and the decision the whole algebra turns on.
 
     Measured on 250 recovered programs before this was written: 78% have two operations whose
-    regions overlap, and permuting the operations changed the compiled building on **68.8%** of
+    regions overlap, and permuting the operations changed the compiled building on **69.6%** of
     them -- so the serialised algebra was ORDERED, and nothing said so. The cause was entirely that
     the height-map replay applied `Layer` as a SET (`where(region, v, h)`), which can RAISE a column
     a previous operation had lowered.

@@ -561,7 +561,7 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
     algebra: a hand-authored or generated program is under no obligation to have it.
 
     Measured over 250 recovered programs before the change: 78% have two operations whose regions
-    overlap and a permutation changed the building on **68.8%** of them; taking the min instead
+    overlap and a permutation changed the building on **69.6%** of them; taking the min instead
     changed the result on **0 of 250** and left **0 of 2,000** permutations changed. So
     commutativity cost nothing and bought a canonical form, an equivalence test, and deletion of
     any operation rather than only the last (`EditableBuilding.remove`).
@@ -583,6 +583,111 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
             raise ValueError(f"unknown operation '{kind}'")
         h = np.where(fp, np.maximum(cand.astype(np.int16), 1), 0).astype(np.int16)
     return h
+
+
+def replay_program_ordered(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
+    """`replay_program` as it was BEFORE #4: `Layer` SETS its region rather than taking a min.
+
+    ⚠️ Kept deliberately, and used only by `measure_commutativity`. #4's decision rests on a
+    before/after number -- permuting the operations changed the building on 69.6% of programs under
+    these semantics and 0% under the min -- and a "before" that cannot be re-run is an anecdote
+    rather than a measurement. Nothing in the pipeline calls this.
+    """
+    h = np.where(fp, np.int16(y1 - y0 + 1), 0).astype(np.int16)
+    dists = _dists_for(fp)
+    for op in program:
+        kind = op["op"]
+        if kind == "Layer":
+            region = _rings_to_mask(op["region"]) & fp
+            h = np.where(region, np.int16(op["height"]), h).astype(np.int16)
+            continue
+        if kind == "Ramp":
+            region = _rings_to_mask(op["region"]) & fp
+            cand = np.where(region, np.minimum(h, plane_surface(op["plane"])), h)
+        elif kind == "CutRoof":
+            slope = (dists[op["kind"]].astype(np.float32) - 1.0) * float(op["rate"])
+            cand = np.minimum(h, np.floor(int(op["eaves"]) + slope))
+        else:
+            raise ValueError(f"unknown operation '{kind}'")
+        h = np.where(fp, np.maximum(cand.astype(np.int16), 1), 0).astype(np.int16)
+    return h
+
+
+def measure_commutativity(rows, n: int = 250, perms: int = 8, seed: int = 0) -> dict:
+    """🔑🔑 #4's central measurement: is the serialised algebra ORDERED or COMMUTATIVE?
+
+    The SDF compiler composes every operation with `sdf_subtract`, and subtracting A then B is
+    subtracting their union, so `EditableBuilding` commutes by construction. The height-map replay
+    did not, because `Layer` used to *set* its region -- which can RAISE a column an earlier
+    operation lowered. This runs both readings over real recovered programs and reports the four
+    numbers #4's decision was made on, so the decision is re-checkable rather than quoted.
+
+    `rows` is `per_building` from a `program_recovery_*.json` artifact.
+    """
+    import itertools
+    import random
+
+    import h5py
+
+    rng = random.Random(seed)
+    out = dict(n=0, overlapping=0, ordered_permutation_changed=0,
+               min_differs_from_set=0, raises_a_column=0, commuting_permutation_changed=0,
+               perms=perms)
+    with h5py.File(H5, "r") as g:
+        for b, row in rows.items():
+            prog = row.get("program") or []
+            if len(prog) < 2:
+                continue
+            gt = np.asarray(g["sdf"][int(b)], np.float32) <= 0
+            fp = np.asarray(g["footprint"][int(b)]) > 0
+            hf = height_field(gt, fp)
+            if hf is None:
+                continue
+            y0, y1, _ = hf
+            out["n"] += 1
+            masks = [(_rings_to_mask(o["region"]) & fp) if o.get("region") is not None else fp
+                     for o in prog]
+            if any((masks[i] & masks[j]).any()
+                   for i, j in itertools.combinations(range(len(prog)), 2)):
+                out["overlapping"] += 1
+            set_base = replay_program_ordered(fp, y0, y1, prog)
+            min_base = replay_program(fp, y0, y1, prog)
+            if not np.array_equal(set_base, min_base):
+                out["min_differs_from_set"] += 1
+            h = np.where(fp, np.int16(y1 - y0 + 1), 0).astype(np.int16)
+            for k in range(len(prog)):
+                nxt = replay_program_ordered(fp, y0, y1, prog[:k + 1])
+                if (nxt[fp] > h[fp]).any():
+                    out["raises_a_column"] += 1
+                    break
+                h = nxt
+            for tag, replay, base in (("ordered_permutation_changed", replay_program_ordered,
+                                       set_base),
+                                      ("commuting_permutation_changed", replay_program, min_base)):
+                for _ in range(perms):
+                    p = prog[:]
+                    rng.shuffle(p)
+                    if not np.array_equal(replay(fp, y0, y1, p), base):
+                        out[tag] += 1
+                        break
+            if out["n"] >= n:
+                break
+    return out
+
+
+def report_commutativity(d: dict) -> None:
+    n = max(d["n"], 1)
+    print(f"\n-- #4 COMMUTATIVITY  n={d['n']} programs of >=2 operations, "
+          f"{d['perms']} permutations each")
+    for key, label in (("overlapping", "two operation regions overlap"),
+                       ("ordered_permutation_changed",
+                        "Layer-as-SET: a permutation changes the building"),
+                       ("min_differs_from_set", "Layer-as-MIN differs from Layer-as-SET"),
+                       ("raises_a_column", "some operation RAISES a column"),
+                       ("commuting_permutation_changed",
+                        "Layer-as-MIN: a permutation changes the building")):
+        print(f"   {label:<52} {d[key]:>4}  ({d[key]/n:.3f})")
+    print("   -> the algebra is COMMUTATIVE iff the last row is 0")
 
 
 def verify_edit_stack(cases, out_dir: Path, sheet_rows: int = 6):
@@ -690,10 +795,21 @@ def main() -> None:
                          "against the default measures what that exclusion costs")
     ap.add_argument("--montage", type=int, default=0,
                     help="rows per sheet; emits a worst-N and a representative-N trace")
+    ap.add_argument("--measure_commutativity", type=int, default=0, metavar="N",
+                    help="replay N committed programs under permutation, under both the old "
+                         "Layer-as-SET reading and the current Layer-as-MIN one, and report #4's "
+                         "ordering table. Reads --out as an EXISTING artifact and writes nothing")
     ap.add_argument("--verify_edit_stack", type=int, default=0,
                     help="load this many recovered programs into EditableBuilding and check the "
                          "SDF composition, the replay and undo against the voxel compiler (#128)")
     args = ap.parse_args()
+
+    if args.measure_commutativity:
+        # a measurement over ALREADY-RECOVERED programs: it re-runs no fit and writes no artifact,
+        # so it cannot disturb the record it is checking
+        rows = json.load(open(args.out))["per_building"]
+        report_commutativity(measure_commutativity(rows, n=args.measure_commutativity))
+        return
 
     ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]
     if args.n:

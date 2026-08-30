@@ -27,7 +27,7 @@ Measured on 250 recovered programs, before any code changed:
 | | |
 |---|---|
 | programs where two operation regions overlap | **78.0%** |
-| …where **permuting the operations changed the compiled building** | **68.8%** |
+| …where **permuting the operations changed the compiled building** | **69.6%** |
 | …where reading `Layer` as a `min` instead differs from the `set` | **0.0%** |
 | …where any operation raises a column | **0.0%** |
 
@@ -36,6 +36,15 @@ Then, after switching to `min`, 250 programs × 8 permutations each:
 | | |
 |---|---|
 | permutations that changed the building | **0 of 2,000** |
+
+Re-runnable from the repo, which is what makes these a measurement rather than a recollection:
+
+    ./sdfusion/bin/python scripts/foundations/recover_massing_programs.py \
+      --measure_commutativity 250 --out execution/artifacts/program_recovery_714.json
+
+It reads an existing artifact, re-runs no fit and writes nothing, so it cannot disturb the record it
+is checking. `replay_program_ordered` keeps the old `Layer`-as-set reading alive for exactly this
+purpose and nothing in the pipeline calls it.
 
 So the algebra was order-dependent by accident, the two compilers agreed only because **#10's
 fitter never emits an operation that would raise a column** — a property of the *search*, which a

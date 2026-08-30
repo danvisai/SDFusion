@@ -39,13 +39,9 @@ from scene.sdf_primitives import (
     sample_grid, grid_to_mesh,
 )
 
-PALETTE = ("box", "rounded_box", "sphere", "cylinder", "cone", "gable", "hip", "element",
-           "layer", "ramp", "cut_roof")
-
-# The three layer-program kinds are all one shape -- a polygonal prism, optionally capped by
-# half-spaces -- and differ only in the cap: `layer` has none (the whole prism goes), `ramp` has
-# one plane, `cut_roof` has one per eave. See `layer_program_to_ops`.
-PROGRAM_KINDS = ("layer", "ramp", "cut_roof")
+# `PALETTE` and `PROGRAM_KINDS` are DERIVED from `ALGEBRA` below, so there is one list of kinds
+# rather than three that can drift apart. They keep their names because a host imports them
+# (`tools/blender_addon/.../bridge.py`).
 
 
 # ================================================================================================
@@ -74,6 +70,7 @@ class OpSpec:
     subtractive_only: bool
     height_map: bool                       # expressible as a per-column height?
     requires: Tuple[str, ...] = ()         # EditOp fields that may not be None
+    plane_clauses: Optional[int] = None    # exact number of cap clauses, when the kind fixes it
     note: str = ""
 
 
@@ -82,24 +79,34 @@ _PRISM = ("polygon", "size")
 ALGEBRA = {
     # -- the core: what #10 recovered and #6 generates -------------------------------------------
     "layer": OpSpec(CORE, True, True, _PRISM,
-                    "one connected region flattened to one height. ArcPro's CreateLayer, and the "
-                    "operation a SETBACK and a TERRACE both resolve to"),
-    "ramp": OpSpec(CORE, True, True, _PRISM + ("planes",),
-                   "the tightest PLANE above the target over one region -- the shed roof CutRoof "
-                   "cannot express, at arbitrary rotation"),
+                    note="one connected region flattened to one height. ArcPro's CreateLayer, and "
+                         "the operation a SETBACK and a TERRACE both resolve to"),
+    "ramp": OpSpec(CORE, True, True, _PRISM + ("planes",), plane_clauses=1,
+                   note="the tightest PLANE above the target over one region -- the shed roof "
+                        "CutRoof cannot express, at arbitrary rotation"),
     "cut_roof": OpSpec(CORE, True, True, _PRISM,
-                       "height falls off with distance from the region's edge: hip erodes on all "
-                       "sides, gable on one axis"),
+                       note="height falls off with distance from the region's edge: hip erodes on "
+                            "all sides, gable on one axis"),
     # -- volumetric: compilable, never learnable from THIS corpus --------------------------------
-    "box": OpSpec(VOLUMETRIC, False, False, (), "raw CSG; how a courtyard or light well is cut"),
-    "rounded_box": OpSpec(VOLUMETRIC, False, False, (), "raw CSG"),
-    "sphere": OpSpec(VOLUMETRIC, False, False, (), "raw CSG"),
-    "cylinder": OpSpec(VOLUMETRIC, False, False, (), "raw CSG; a round light well"),
-    "cone": OpSpec(VOLUMETRIC, False, False, (), "raw CSG"),
-    "gable": OpSpec(VOLUMETRIC, False, False, (), "a roof SOLID, added; the core cuts roofs instead"),
-    "hip": OpSpec(VOLUMETRIC, False, False, (), "a roof SOLID, added; the core cuts roofs instead"),
-    "element": OpSpec(VOLUMETRIC, False, False, (), "retrieved BuildingNet component geometry"),
+    "box": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG; how a courtyard or light well is cut"),
+    "rounded_box": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG"),
+    "sphere": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG"),
+    "cylinder": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG; a round light well"),
+    "cone": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG"),
+    "gable": OpSpec(VOLUMETRIC, False, False, (), note="a roof SOLID, added; the core cuts roofs instead"),
+    "hip": OpSpec(VOLUMETRIC, False, False, (), note="a roof SOLID, added; the core cuts roofs instead"),
+    "element": OpSpec(VOLUMETRIC, False, False, (), note="retrieved BuildingNet component geometry"),
 }
+
+
+# One source of truth for "what kinds exist", in the order the host shows them: volumetric first
+# (the hand palette), then the three architectural operations #10 recovered.
+PALETTE = tuple(k for k, v in ALGEBRA.items() if v.tier == VOLUMETRIC) + \
+          tuple(k for k, v in ALGEBRA.items() if v.tier == CORE)
+# The three layer-program kinds are all one shape -- a polygonal prism, optionally capped by
+# half-spaces -- and differ only in the cap: `layer` has none (the whole prism goes), `ramp` has
+# one plane, `cut_roof` has one per eave. See `layer_program_to_ops`.
+PROGRAM_KINDS = tuple(k for k, v in ALGEBRA.items() if v.tier == CORE)
 
 
 @dataclass(frozen=True)
@@ -161,8 +168,10 @@ def op_problems(op: "EditOp") -> List[str]:
         for i, ring in enumerate(op.polygon):
             if len(ring) < 3:
                 out.append(f"ring {i} has {len(ring)} vertices; a polygon ring needs at least 3")
-    if op.kind == "ramp" and op.planes is not None and len(op.planes) != 1:
-        out.append(f"a ramp is ONE plane over one region; got {len(op.planes)} clauses")
+    if spec.plane_clauses is not None and op.planes is not None \
+            and len(op.planes) != spec.plane_clauses:
+        out.append(f"{op.kind!r} takes exactly {spec.plane_clauses} cap clause(s); "
+                   f"got {len(op.planes)}")
     if op.kind == "cut_roof" and op.planes is None and op.roof is None:
         out.append("cut_roof needs either eave planes (gable) or a (rate, offset) cap (hip)")
     return out
@@ -177,7 +186,7 @@ def commutes(ops: Sequence["EditOp"]) -> bool:
     """Does the order of these operations change the building? 🔑 #4's central question.
 
     **Measured before this was written**, on 250 recovered programs: 78% have two operations whose
-    regions overlap, and permuting them changed the compiled building on **68.8%** -- so the
+    regions overlap, and permuting them changed the compiled building on **69.6%** -- so the
     serialised algebra WAS order-dependent, and nothing said so. The entire cause was that the
     height-map replay applied `Layer` as a SET, which can raise a column an earlier operation had
     lowered. Reading it as a MIN changed nothing on 0 of 250, and made permutation change nothing
