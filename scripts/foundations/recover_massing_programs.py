@@ -552,20 +552,30 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
     It repeats the Layer/Ramp/CutRoof cascade that `scene.sdf_edit.layer_program_to_ops` also walks,
     and that repetition is the point: one reads the program into height-map space and the other into
     an SDF, and a check is only worth running while the two are written independently.
+
+    🔑 **Every operation takes a MIN, so the program COMMUTES** (#4). `Layer` used to *set*
+    (`where(region, v, h)`), which can raise a column an earlier operation had lowered -- and the
+    SDF path cannot, because it composes with `sdf_subtract` and subtracting A then B is
+    subtracting their union. The two therefore agreed on order only because #10's fitter never
+    emits an operation that would raise a column, which is a property of the **search**, not of the
+    algebra: a hand-authored or generated program is under no obligation to have it.
+
+    Measured over 250 recovered programs before the change: 78% have two operations whose regions
+    overlap and a permutation changed the building on **68.8%** of them; taking the min instead
+    changed the result on **0 of 250** and left **0 of 2,000** permutations changed. So
+    commutativity cost nothing and bought a canonical form, an equivalence test, and deletion of
+    any operation rather than only the last (`EditableBuilding.remove`).
     """
     h = np.where(fp, np.int16(y1 - y0 + 1), 0).astype(np.int16)
     dists = _dists_for(fp)
-    zz, xx = np.mgrid[0:RES, 0:RES]
     for op in program:
         kind = op["op"]
         if kind == "Layer":
             region = _rings_to_mask(op["region"]) & fp
-            h = np.where(region, np.int16(op["height"]), h).astype(np.int16)
-            continue
-        if kind == "Ramp":
+            cand = np.where(region, np.minimum(h, np.int16(op["height"])), h)
+        elif kind == "Ramp":
             region = _rings_to_mask(op["region"]) & fp
-            a, b, c = (float(v) for v in op["plane"])
-            cand = np.where(region, np.minimum(h, np.floor(a + b * xx + c * zz + FLOOR_EPS)), h)
+            cand = np.where(region, np.minimum(h, plane_surface(op["plane"])), h)
         elif kind == "CutRoof":
             slope = (dists[op["kind"]].astype(np.float32) - 1.0) * float(op["rate"])
             cand = np.minimum(h, np.floor(int(op["eaves"]) + slope))

@@ -28,7 +28,7 @@ from scipy import ndimage
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E402
 from scripts.foundations.recover_massing_programs import (  # noqa: E402
-    K_OPS, fit_program, occupancy, program_to_slots,
+    K_OPS, fit_program, occupancy, program_to_slots, replay_program,
 )
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     COND_CHANNELS, DEPTH_CLASSES, PROGRAM_TYPES, _d4, _d4_program,
@@ -991,6 +991,66 @@ class TestPlaneConventions(unittest.TestCase):
         a = plane_to_normalised(np.array([20.0, 0.0, 0.0]), 40)
         b = plane_to_normalised(np.array([10.0, 0.0, 0.0]), 20)
         np.testing.assert_allclose(a, b, atol=1e-6)
+
+
+class TestReplayCommutes(unittest.TestCase):
+    """🔑🔑 #4: the height-map compiler must agree with the SDF compiler on ORDER, not just on
+    geometry.
+
+    `EditableBuilding` composes every layer-program operation with `sdf_subtract`, and subtracting
+    A then B is subtracting their union -- so the SDF path is commutative by construction.
+    `replay_program` was not: it applied `Layer` as a SET (`where(region, v, h)`), which can RAISE a
+    column an earlier operation had already lowered.
+
+    Measured on 250 recovered programs before this test was written: 78% have two operations whose
+    regions overlap, and a permutation changed the compiled building on **68.8%** of them. Reading
+    `Layer` as a MIN changed the result on **0 of 250**, and left **0 of 2,000** permutations
+    changed. So the two compilers agreed only because #10's fitter never emits an operation that
+    would raise a column -- a property of the *search*, which a hand-authored or generated program
+    is under no obligation to have.
+    """
+
+    E = 20
+
+    def _case(self):
+        from scene.sdf_edit import mask_to_rings
+        fp = np.zeros((RES, RES), bool)
+        fp[8:28, 8:32] = True
+        a = np.zeros((RES, RES), bool); a[10:24, 10:28] = True; a &= fp
+        b = np.zeros((RES, RES), bool); b[16:28, 8:24] = True; b &= fp
+        self.assertTrue((a & b).any(), "the fixture must exercise OVERLAPPING regions")
+        prog = [dict(op="Layer", height=14, region=[r.tolist() for r in mask_to_rings(a)]),
+                dict(op="Layer", height=6, region=[r.tolist() for r in mask_to_rings(b)])]
+        return fp, prog
+
+    def test_a_permutation_does_not_change_the_replayed_building(self):
+        fp, prog = self._case()
+        first = replay_program(fp, 0, self.E - 1, prog)
+        second = replay_program(fp, 0, self.E - 1, list(reversed(prog)))
+        np.testing.assert_array_equal(first, second)
+
+    def test_no_operation_ever_raises_a_column(self):
+        """The monotone-descent invariant the whole algebra rests on, checked step by step rather
+        than assumed from the fitter's good behaviour."""
+        fp, prog = self._case()
+        h = np.where(fp, np.int16(self.E), 0).astype(np.int16)
+        for k in range(len(prog)):
+            nxt = replay_program(fp, 0, self.E - 1, prog[:k + 1])
+            self.assertFalse((nxt[fp] > h[fp]).any(), f"operation {k} raised a column")
+            h = nxt
+
+    def test_the_deeper_layer_wins_wherever_they_overlap(self):
+        """What `min` means here, stated as geometry: the overlap takes the LOWER of the two."""
+        fp, prog = self._case()
+        h = replay_program(fp, 0, self.E - 1, prog)
+        from scene.sdf_edit import mask_to_rings                       # noqa: F401
+        from scripts.foundations.recover_massing_programs import _rings_to_mask
+        a = _rings_to_mask(prog[0]["region"]) & fp
+        b = _rings_to_mask(prog[1]["region"]) & fp
+        both = a & b
+        self.assertTrue(both.any())
+        self.assertTrue((h[both] == 6).all(), "the overlap must take the lower of 14 and 6")
+        self.assertTrue((h[a & ~b] == 14).all())
 
 
 class TestProgramAugmentation(unittest.TestCase):

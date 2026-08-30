@@ -24,6 +24,7 @@ Design notes:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional, Sequence, Tuple
 
@@ -45,6 +46,192 @@ PALETTE = ("box", "rounded_box", "sphere", "cylinder", "cone", "gable", "hip", "
 # half-spaces -- and differ only in the cap: `layer` has none (the whole prism goes), `ramp` has
 # one plane, `cut_roof` has one per eave. See `layer_program_to_ops`.
 PROGRAM_KINDS = ("layer", "ramp", "cut_roof")
+
+
+# ================================================================================================
+# #4 -- the semantic architectural edit algebra
+#
+# The palette above is a list of shapes the compiler accepts. This is the part that says what they
+# MEAN: which are architecture and which are raw CSG, which may be added and which only cut, and --
+# the distinction everything else turns on -- which are expressible as a **height field**.
+#
+# 🔑 That last one is load-bearing because of a measurement, not a preference. #10 measured this
+# corpus at 64^3: `missing` = 0 on 714/714, 100% of carve volume above the topmost GT voxel in its
+# column, **0 voxels** of through-void, 71 overhang voxels in 4,324,919. Every real building is
+# exactly a 64x64 height map. So an operation that leaves the height field is not merely unusual
+# here -- it has **no training signal at all**, and can never be learned from this corpus however
+# good the generator is. `height_map` records that, and `learnable_here` is its consequence.
+# ================================================================================================
+
+CORE = "core"                 # 2.5-D, subtract-only; BOTH compilers run it; learnable from this corpus
+VOLUMETRIC = "volumetric"     # only the SDF compiler runs it; zero training signal on this corpus
+
+
+@dataclass(frozen=True)
+class OpSpec:
+    """What one operation kind is, in the algebra rather than in the compiler."""
+    tier: str
+    subtractive_only: bool
+    height_map: bool                       # expressible as a per-column height?
+    requires: Tuple[str, ...] = ()         # EditOp fields that may not be None
+    note: str = ""
+
+
+_PRISM = ("polygon", "size")
+
+ALGEBRA = {
+    # -- the core: what #10 recovered and #6 generates -------------------------------------------
+    "layer": OpSpec(CORE, True, True, _PRISM,
+                    "one connected region flattened to one height. ArcPro's CreateLayer, and the "
+                    "operation a SETBACK and a TERRACE both resolve to"),
+    "ramp": OpSpec(CORE, True, True, _PRISM + ("planes",),
+                   "the tightest PLANE above the target over one region -- the shed roof CutRoof "
+                   "cannot express, at arbitrary rotation"),
+    "cut_roof": OpSpec(CORE, True, True, _PRISM,
+                       "height falls off with distance from the region's edge: hip erodes on all "
+                       "sides, gable on one axis"),
+    # -- volumetric: compilable, never learnable from THIS corpus --------------------------------
+    "box": OpSpec(VOLUMETRIC, False, False, (), "raw CSG; how a courtyard or light well is cut"),
+    "rounded_box": OpSpec(VOLUMETRIC, False, False, (), "raw CSG"),
+    "sphere": OpSpec(VOLUMETRIC, False, False, (), "raw CSG"),
+    "cylinder": OpSpec(VOLUMETRIC, False, False, (), "raw CSG; a round light well"),
+    "cone": OpSpec(VOLUMETRIC, False, False, (), "raw CSG"),
+    "gable": OpSpec(VOLUMETRIC, False, False, (), "a roof SOLID, added; the core cuts roofs instead"),
+    "hip": OpSpec(VOLUMETRIC, False, False, (), "a roof SOLID, added; the core cuts roofs instead"),
+    "element": OpSpec(VOLUMETRIC, False, False, (), "retrieved BuildingNet component geometry"),
+}
+
+
+@dataclass(frozen=True)
+class VocabEntry:
+    """One name from #4's required vocabulary, and what it resolves to here."""
+    kind: Optional[str]
+    learnable_here: bool
+    note: str
+
+
+# ⚠️ #4 requires the algebra to represent nine named things. Four of them cannot fire on this
+# corpus, two are spellings of `layer`, and one is not an edit at all. Recorded per name so that
+# none of them is quietly dropped, and so a later corpus with real voids can flip `learnable_here`
+# without anybody having to rediscover why it was False.
+ARCHITECTURAL_VOCABULARY = {
+    "setback": VocabEntry("layer", True,
+                          "NOT a separate operation: in a height field a setback IS a Layer whose "
+                          "polygon is the inward offset of the footprint, and #10's fitter finds "
+                          "it as one"),
+    "terrace": VocabEntry("layer", True, "a Layer, or a stack of them -- the same operation"),
+    "roof cut": VocabEntry("cut_roof", True, "the core operation, hip or gable"),
+    "roof volume": VocabEntry("ramp", True,
+                              "a pitched roof is one or more Ramps; a gable is two opposing ones, "
+                              "which is why the core cuts roofs rather than adding solids"),
+    "wing": VocabEntry(None, True,
+                       "not an edit: a wing is part of the FOOTPRINT, and the footprint is this "
+                       "system's immutable input (#127 conditioning). Nothing carves a wing"),
+    "courtyard": VocabEntry("box", False,
+                            "a through-void. 0 voxels in 4,324,919 of carve -- cuttable in the SDF, "
+                            "never learnable from this corpus"),
+    "passage": VocabEntry("box", False, "a through-void; see courtyard. 0 voxels measured"),
+    "light well": VocabEntry("cylinder", False, "a through-void; see courtyard. 0 voxels measured"),
+    "arcade": VocabEntry("box", False,
+                         "an overhang, not a void, but still outside the height field: 71 overhang "
+                         "voxels in 4,324,919, which is 0.0016%"),
+}
+
+
+def op_problems(op: "EditOp") -> List[str]:
+    """Everything wrong with one operation, as sentences. Empty means well formed.
+
+    #4 asks for *constrained geometry per type* and *invalid references*, and both were previously
+    discovered by crashing somewhere inside a prism -- a stack trace rather than a diagnosis. This
+    is the predicate a host can run before compiling, and the one `program_problems` reports by
+    index so a bad operation can be pointed at rather than hunted.
+    """
+    out: List[str] = []
+    spec = ALGEBRA.get(op.kind)
+    if spec is None:
+        return [f"unknown kind {op.kind!r}; expected one of {sorted(ALGEBRA)}"]
+    if op.mode not in ("add", "subtract"):
+        out.append(f"mode must be add|subtract, got {op.mode!r}")
+    elif spec.subtractive_only and op.mode != "subtract":
+        out.append(f"{op.kind!r} is subtract-only ({spec.note}); got mode {op.mode!r}")
+    for fieldname in spec.requires:
+        if getattr(op, fieldname, None) is None:
+            out.append(f"{op.kind!r} requires {fieldname!r}")
+    if op.polygon is not None:
+        for i, ring in enumerate(op.polygon):
+            if len(ring) < 3:
+                out.append(f"ring {i} has {len(ring)} vertices; a polygon ring needs at least 3")
+    if op.kind == "ramp" and op.planes is not None and len(op.planes) != 1:
+        out.append(f"a ramp is ONE plane over one region; got {len(op.planes)} clauses")
+    if op.kind == "cut_roof" and op.planes is None and op.roof is None:
+        out.append("cut_roof needs either eave planes (gable) or a (rate, offset) cap (hip)")
+    return out
+
+
+def program_problems(ops: Sequence["EditOp"]) -> List[str]:
+    """`op_problems` over a stack, each prefixed with the index of the operation it belongs to."""
+    return [f"op {i}: {p}" for i, op in enumerate(ops) for p in op_problems(op)]
+
+
+def commutes(ops: Sequence["EditOp"]) -> bool:
+    """Does the order of these operations change the building? 🔑 #4's central question.
+
+    **Measured before this was written**, on 250 recovered programs: 78% have two operations whose
+    regions overlap, and permuting them changed the compiled building on **68.8%** -- so the
+    serialised algebra WAS order-dependent, and nothing said so. The entire cause was that the
+    height-map replay applied `Layer` as a SET, which can raise a column an earlier operation had
+    lowered. Reading it as a MIN changed nothing on 0 of 250, and made permutation change nothing
+    on 0 of 2,000 permutations.
+
+    The condition is simply that every operation subtracts: `subtract(subtract(B, P), Q)` is
+    `subtract(B, union(P, Q))`, and union is commutative and associative. One additive operation
+    destroys it, because a union does not commute with a subtraction.
+
+    ⚠️ This is what makes DELETION, EQUIVALENCE and a CANONICAL FORM well defined at all -- an
+    ordered algebra has no normal form that is not just "the order you happened to write".
+    """
+    return all(op.mode == "subtract" for op in ops)
+
+
+def is_height_map_representable(ops: Sequence["EditOp"]) -> bool:
+    """Can the per-column compiler run this program, or does it need the full SDF?
+
+    On this corpus that is the same question as "could this ever have been learned": a program that
+    leaves the height field has zero training signal here (0 through-void voxels in 4.3M).
+    """
+    return all(ALGEBRA[op.kind].height_map for op in ops if op.kind in ALGEBRA) and all(
+        op.kind in ALGEBRA for op in ops)
+
+
+def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
+    """The program's normal form: the same operations in a deterministic order.
+
+    Two spellings of the same building compare equal on this, without compiling either. It is only
+    sound because the core commutes -- so it REFUSES a program that does not, rather than sorting
+    an ordered stack and silently changing what it denotes.
+
+    The key is (kind, then the geometry) rather than anything positional, so it survives a round
+    trip through JSON and does not depend on how the host happened to enumerate the ops.
+    """
+    if not commutes(ops):
+        raise ValueError("canonical_form is only defined for a commuting (all-subtractive) "
+                         "program; this one contains an additive operation")
+    problems = program_problems(ops)
+    if problems:
+        raise ValueError("; ".join(problems))
+    return sorted((op.to_dict() for op in ops), key=lambda d: json.dumps(d, sort_keys=True))
+
+
+def equivalent(base_sdf: SDF, a: Sequence["EditOp"], b: Sequence["EditOp"],
+               res: int = 64, device: str = "cpu") -> bool:
+    """Do two programs denote the same building? Decided on the GEOMETRY, not the spelling.
+
+    `canonical_form` is the cheap syntactic test and this is the semantic one: it catches the cases
+    a sort cannot, such as an operation that removes nothing because another already removed it.
+    """
+    ea = EditableBuilding(base_sdf, list(a)).to_occupancy(res=res, device=device)
+    eb = EditableBuilding(base_sdf, list(b)).to_occupancy(res=res, device=device)
+    return bool(np.array_equal(ea, eb))
 
 # Why every cut plane carries a `+1` on the y term, and why no epsilon is needed with it.
 #
@@ -229,6 +416,26 @@ class EditableBuilding:
 
     def undo(self) -> Optional[EditOp]:
         return self.ops.pop() if self.ops else None
+
+    def remove(self, index: int) -> EditOp:
+        """Delete operation `index`, not just the last one. #4's *deletion*.
+
+        🔑 Only well defined because the core commutes: with every operation subtractive the stack
+        denotes `subtract(base, union(all of them))`, so dropping one is exactly the program
+        without it, whatever position it held. `undo()` can only unwind from the top, which cannot
+        serve #3's edit locality -- a user re-rolling one decision while everything unrelated
+        survives is this operation, not a rewind.
+
+        ⚠️ A negative index is REFUSED rather than wrapped. Python would delete the last operation
+        for `remove(-1)`, which is a silent wrong answer when the caller passed an id it failed to
+        resolve -- #4's *invalid references*, and the kind of bug that shows up as a user losing an
+        edit they did not touch.
+        """
+        if not isinstance(index, int) or isinstance(index, bool):
+            raise IndexError(f"operation index must be an int, got {index!r}")
+        if index < 0 or index >= len(self.ops):
+            raise IndexError(f"no operation at index {index}; the stack has {len(self.ops)}")
+        return self.ops.pop(index)
 
     def clear(self):
         self.ops.clear()

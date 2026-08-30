@@ -11,6 +11,7 @@ Run: env -u LD_PRELOAD ./sdfusion/bin/python scene/test_sdf_edit.py
 """
 from __future__ import annotations
 
+import itertools
 import json
 import sys
 import unittest
@@ -23,8 +24,10 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from scene.sdf_edit import (  # noqa: E402
-    EditableBuilding, EditOp, footprint_envelope_sdf, layer_program_to_ops,
-    mask_components_rings, mask_to_rings,
+    ALGEBRA, ARCHITECTURAL_VOCABULARY, CORE, PALETTE, PROGRAM_KINDS, VOLUMETRIC,
+    EditableBuilding, EditOp, canonical_form, commutes, equivalent, footprint_envelope_sdf,
+    is_height_map_representable, layer_program_to_ops,
+    mask_components_rings, mask_to_rings, op_problems, program_problems,
 )
 from scene.sdf_primitives import sdf_plane_halfspace  # noqa: E402
 
@@ -416,6 +419,250 @@ class TestEditAndUndo(unittest.TestCase):
         state = json.loads(json.dumps(eb.edit_state()))
         again = EditableBuilding.from_state(self.base, state)
         self.assertEqual(iou(eb.to_occupancy(res=RES), again.to_occupancy(res=RES)), 1.0)
+
+
+# ================================================================================================
+# #4 -- the semantic architectural edit algebra
+# ================================================================================================
+
+
+class TestOntology(unittest.TestCase):
+    """🔑 #4's first question: what are the operations, and what does each one mean?
+
+    The palette had grown into a flat list mixing raw CSG primitives (box, sphere) with the three
+    architectural operations #10 recovered, and nothing declared which was which. `ALGEBRA` is that
+    declaration, and it carries the one distinction the rest of the algebra turns on: whether an
+    operation is expressible as a **height field**, because on this corpus that decides whether it
+    can ever be learned.
+    """
+
+    def test_every_palette_kind_is_in_the_ontology(self):
+        """A kind the compiler accepts but the algebra does not describe is a hole in the spec."""
+        for kind in PALETTE:
+            self.assertIn(kind, ALGEBRA, f"{kind!r} is compilable but undeclared")
+
+    def test_the_three_recovered_operations_are_the_core(self):
+        for kind in PROGRAM_KINDS:
+            spec = ALGEBRA[kind]
+            self.assertEqual(spec.tier, CORE)
+            self.assertTrue(spec.height_map, f"{kind} must be height-map representable")
+            self.assertTrue(spec.subtractive_only, "#10 measured missing=0 on 714/714")
+
+    def test_the_csg_primitives_are_volumetric_and_not_height_map_representable(self):
+        for kind in ("box", "sphere", "cylinder", "cone"):
+            self.assertEqual(ALGEBRA[kind].tier, VOLUMETRIC)
+            self.assertFalse(ALGEBRA[kind].height_map)
+
+    def test_every_name_the_ticket_lists_is_resolved(self):
+        """⚠️ #4 says the algebra must represent nine named things. Each one is either a core
+        operation, a spelling of one, or a volumetric operation that CANNOT FIRE on this corpus --
+        and the table says which, so none of them is quietly dropped."""
+        for name in ("courtyard", "passage", "arcade", "light well", "setback", "terrace",
+                     "roof cut", "wing", "roof volume"):
+            self.assertIn(name, ARCHITECTURAL_VOCABULARY, f"{name!r} is unaccounted for")
+            entry = ARCHITECTURAL_VOCABULARY[name]
+            self.assertTrue(entry.note, f"{name!r} has no stated resolution")
+            if entry.kind is not None:
+                self.assertIn(entry.kind, ALGEBRA)
+
+    def test_a_setback_is_a_layer_and_not_its_own_operation(self):
+        """The owner's measurement on this ticket: in a height field a setback IS a Layer whose
+        polygon is the inward offset of the footprint, and the fitter finds it as one."""
+        self.assertEqual(ARCHITECTURAL_VOCABULARY["setback"].kind, "layer")
+
+    def test_the_void_operations_are_declared_unfireable_on_this_corpus(self):
+        """0 voxels of through-void in 4,324,919 of carve. They are representable in the SDF and
+        have zero training signal, which is a different claim from 'unsupported'."""
+        for name in ("courtyard", "passage", "arcade", "light well"):
+            entry = ARCHITECTURAL_VOCABULARY[name]
+            self.assertFalse(entry.learnable_here,
+                             f"{name} cannot be learned from a corpus with no through-voids")
+            self.assertFalse(ALGEBRA[entry.kind].height_map)
+
+
+class TestOpValidity(unittest.TestCase):
+    """#4's 'constrained geometry per type' and 'invalid references', as a checkable predicate.
+
+    Nothing previously stopped a `layer` reaching the compiler with no polygon; it raised somewhere
+    inside a prism instead, which is a stack trace rather than a diagnosis.
+    """
+
+    def _layer(self, **kw):
+        d = dict(kind="layer", mode="subtract", size=(-0.5, 0.5),
+                 polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]])
+        d.update(kw)
+        return EditOp(**d)
+
+    def test_a_well_formed_layer_has_no_problems(self):
+        self.assertEqual(op_problems(self._layer()), [])
+
+    def test_a_layer_without_a_polygon_is_refused(self):
+        self.assertTrue(any("polygon" in p for p in op_problems(self._layer(polygon=None))))
+
+    def test_a_ring_of_two_vertices_is_not_a_polygon(self):
+        bad = self._layer(polygon=[[[0.0, 0.0], [1.0, 0.0]]])
+        self.assertTrue(any("vertices" in p or "ring" in p for p in op_problems(bad)))
+
+    def test_an_unknown_kind_is_refused_by_name(self):
+        probs = op_problems(EditOp(kind="buttress"))
+        self.assertTrue(any("buttress" in p for p in probs))
+
+    def test_a_core_operation_may_not_be_additive(self):
+        """The core is subtract-only by measurement, so an additive `layer` is a spec violation and
+        not merely unusual -- it would also break commutativity, which everything below relies on."""
+        self.assertTrue(any("subtract" in p for p in op_problems(self._layer(mode="add"))))
+
+    def test_mode_must_be_add_or_subtract(self):
+        self.assertTrue(any("mode" in p for p in op_problems(self._layer(mode="sideways"))))
+
+    def test_a_ramp_needs_exactly_one_plane_clause(self):
+        r = dict(kind="ramp", mode="subtract", size=(-0.5, 0.5),
+                 polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]])
+        self.assertEqual(op_problems(EditOp(**r, planes=[[[0.0, 1.0, 0.0, 0.0]]])), [])
+        self.assertTrue(op_problems(EditOp(**r, planes=None)))
+
+    def test_program_problems_reports_the_offending_index(self):
+        ops = [self._layer(), self._layer(polygon=None)]
+        probs = program_problems(ops)
+        self.assertTrue(probs)
+        self.assertTrue(any(p.startswith("op 1") for p in probs), probs)
+
+
+class TestCommutativity(unittest.TestCase):
+    """🔑🔑 #4's 'ordering and commutativity', and the decision the whole algebra turns on.
+
+    Measured on 250 recovered programs before this was written: 78% have two operations whose
+    regions overlap, and permuting the operations changed the compiled building on **68.8%** of
+    them -- so the serialised algebra was ORDERED, and nothing said so. The cause was entirely that
+    the height-map replay applied `Layer` as a SET (`where(region, v, h)`), which can RAISE a column
+    a previous operation had lowered.
+
+    Reading `Layer` as a MIN instead changed the result on **0 of 250** recovered programs, and made
+    permutation change nothing on **0 of 2,000** permutations. So commutativity was available for
+    free, and it is what makes deletion, equivalence and a canonical form well defined at all.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+        a = np.zeros((RES, RES), bool); a[10:22, 8:24] = True; a &= self.fx.fp
+        b = np.zeros((RES, RES), bool); b[14:24, 6:20] = True; b &= self.fx.fp
+        self.assertTrue((a & b).any(), "the fixture must exercise OVERLAPPING regions")
+        prog = [self.fx.layer(a, 12), self.fx.layer(b, 8)]
+        self.ops = layer_program_to_ops(prog, self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_a_subtractive_program_commutes(self):
+        forward = EditableBuilding(self.base, list(self.ops)).to_occupancy(res=RES)
+        for perm in itertools.permutations(range(len(self.ops))):
+            got = EditableBuilding(self.base, [self.ops[i] for i in perm]).to_occupancy(res=RES)
+            self.assertEqual(iou(got, forward), 1.0, f"order {perm} changed the building")
+
+    def test_commutes_is_true_for_an_all_subtractive_program(self):
+        self.assertTrue(commutes(self.ops))
+
+    def test_one_additive_operation_breaks_it(self):
+        """A union does not commute with a subtraction, so the predicate must refuse."""
+        added = list(self.ops) + [EditOp(kind="box", mode="add", size=(0.2, 0.2, 0.2))]
+        self.assertFalse(commutes(added))
+
+    def test_the_empty_program_commutes(self):
+        self.assertTrue(commutes([]))
+
+
+class TestCanonicalForm(unittest.TestCase):
+    """#4's 'canonical normal form' and 'equivalence'.
+
+    Only meaningful because the core commutes: a normal form for an ORDERED algebra would have to
+    preserve order, and then two spellings of the same building would stay distinguishable.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+        a = np.zeros((RES, RES), bool); a[10:22, 8:24] = True; a &= self.fx.fp
+        b = np.zeros((RES, RES), bool); b[14:24, 6:20] = True; b &= self.fx.fp
+        self.ops = layer_program_to_ops([self.fx.layer(a, 12), self.fx.layer(b, 8)],
+                                        self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_a_permutation_has_the_same_canonical_form(self):
+        self.assertEqual(canonical_form(self.ops), canonical_form(list(reversed(self.ops))))
+
+    def test_it_is_idempotent(self):
+        once = canonical_form(self.ops)
+        self.assertEqual(once, canonical_form([EditOp.from_dict(d) for d in once]))
+
+    def test_a_different_program_has_a_different_canonical_form(self):
+        other = list(self.ops[:1])
+        self.assertNotEqual(canonical_form(self.ops), canonical_form(other))
+
+    def test_it_refuses_a_program_that_does_not_commute(self):
+        """⚠️ Sorting an ordered program would silently change the building it denotes."""
+        with self.assertRaises(ValueError):
+            canonical_form(list(self.ops) + [EditOp(kind="box", mode="add")])
+
+    def test_equivalence_is_decided_on_the_geometry_not_the_spelling(self):
+        shuffled = list(reversed(self.ops))
+        self.assertTrue(equivalent(self.base, self.ops, shuffled, res=RES))
+        self.assertFalse(equivalent(self.base, self.ops, self.ops[:1], res=RES))
+
+
+class TestDeletion(unittest.TestCase):
+    """#4's 'deletion'. `undo()` pops the last operation; an edit stack that can only be unwound
+    from the top cannot serve #3's edit locality, where a user re-rolls one decision and everything
+    unrelated must survive. Commutativity is what makes removing operation *i* well defined."""
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+        a = np.zeros((RES, RES), bool); a[10:22, 8:24] = True; a &= self.fx.fp
+        b = np.zeros((RES, RES), bool); b[14:24, 6:20] = True; b &= self.fx.fp
+        self.ops = layer_program_to_ops([self.fx.layer(a, 12), self.fx.layer(b, 8)],
+                                        self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_removing_the_first_equals_the_program_without_it(self):
+        eb = EditableBuilding(self.base, list(self.ops))
+        eb.remove(0)
+        want = EditableBuilding(self.base, list(self.ops[1:])).to_occupancy(res=RES)
+        self.assertEqual(iou(eb.to_occupancy(res=RES), want), 1.0)
+
+    def test_it_returns_the_operation_it_removed(self):
+        eb = EditableBuilding(self.base, list(self.ops))
+        self.assertEqual(eb.remove(0).to_dict(), self.ops[0].to_dict())
+        self.assertEqual(len(eb.ops), len(self.ops) - 1)
+
+    def test_an_out_of_range_index_is_refused(self):
+        eb = EditableBuilding(self.base, list(self.ops))
+        with self.assertRaises(IndexError):
+            eb.remove(len(self.ops))
+
+    def test_a_negative_index_is_refused_rather_than_wrapping(self):
+        """⚠️ Python would happily delete the LAST operation for `remove(-1)`, which is a silent
+        wrong answer when the caller meant an id it failed to resolve (#4: invalid references)."""
+        eb = EditableBuilding(self.base, list(self.ops))
+        with self.assertRaises(IndexError):
+            eb.remove(-1)
+
+
+class TestHeightMapRepresentable(unittest.TestCase):
+    """The property that decides which compiler can run a program -- and, on this corpus, whether
+    it could ever have been learned."""
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        m = np.zeros((RES, RES), bool); m[14:24, 6:26] = True; m &= self.fx.fp
+        self.ops = layer_program_to_ops([self.fx.layer(m, 9)],
+                                        self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_a_recovered_program_is_height_map_representable(self):
+        self.assertTrue(is_height_map_representable(self.ops))
+
+    def test_a_subtracted_box_is_not(self):
+        """This is how a courtyard would be cut, and why it leaves the 2.5-D world."""
+        self.assertFalse(is_height_map_representable(
+            list(self.ops) + [EditOp(kind="box", mode="subtract", size=(0.2, 0.9, 0.2))]))
+
+    def test_the_empty_program_is(self):
+        self.assertTrue(is_height_map_representable([]))
 
 
 if __name__ == "__main__":
