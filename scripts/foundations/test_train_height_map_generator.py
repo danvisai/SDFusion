@@ -31,13 +31,13 @@ from scripts.foundations.recover_massing_programs import (  # noqa: E402
     K_OPS, fit_program, occupancy, program_to_slots, replay_program,
 )
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
-    COND_CHANNELS, DEPTH_CLASSES, PROGRAM_TYPES, _d4, _d4_program,
-    apply_depth, carve_depth, compile_program,
-    condition_channels, decode_logits,
+    COND_CHANNELS, DEPTH_CLASSES, PLANE_BINS, PROGRAM_TYPES, _d4, _d4_program,
+    apply_depth, bins_to_plane, carve_depth, compile_program,
+    condition_channels, decode_logits, decode_plane_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
     differentiable_depth, height_rgb, normal_rgb,
-    per_column_loss, decode_prediction, plane_to_normalised, plane_to_voxel, program_loss,
-    retrieve_nn, roof_description_length, sheet_picks,
+    per_column_loss, decode_prediction, plane_to_bins, plane_to_normalised, plane_to_voxel,
+    program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict,
 )
@@ -1166,6 +1166,311 @@ class TestProgramLoss(unittest.TestCase):
         loss = program_loss((out[0], out[1], noise), (assign, types, planes),
                             torch.ones(2, RES, RES, dtype=torch.bool))
         self.assertLess(float(loss), 1e-3)
+
+
+# ==================================================================================================
+# #129 -- the plane parameters CLASSIFIED, and the decode that is most of the ticket
+# ==================================================================================================
+
+class TestSlotCentroids(unittest.TestCase):
+    """The anchor the offset is measured at. It has to be a function of the ASSIGNMENT alone, so
+    that training (label assignment) and inference (predicted assignment) compute it the same way
+    from the same code."""
+
+    def test_a_centred_region_is_the_plan_centre(self):
+        assign = np.full((RES, RES), K_OPS, np.uint8)
+        assign[16:48, 16:48] = 0
+        c = slot_centroids(assign, K_OPS)
+        np.testing.assert_allclose(c[0], [0.0, 0.0], atol=1e-6)
+
+    def test_an_offset_region_moves_the_anchor_with_it(self):
+        assign = np.full((RES, RES), K_OPS, np.uint8)
+        assign[0:8, 56:64] = 0                       # top-left in z, far in x
+        c = slot_centroids(assign, K_OPS)
+        self.assertLess(c[0][0], -0.4)
+        self.assertGreater(c[0][1], 0.4)
+
+    def test_a_slot_owning_nothing_falls_back_to_the_plan_centre(self):
+        """Total, like everything else the compiler is handed: an untrained head may assign no
+        column at all to a slot, and that must not raise."""
+        assign = np.full((RES, RES), K_OPS, np.uint8)
+        c = slot_centroids(assign, K_OPS)
+        np.testing.assert_allclose(c, np.zeros((K_OPS, 2)), atol=1e-9)
+
+
+class TestPlaneBins(unittest.TestCase):
+    """🔑 #129's discretisation. Three quantities, and the reason for each split is the reason the
+    decode can work at all:
+
+        offset   the plane's height AT ITS OWN REGION'S CENTROID, in units of the building. Not the
+                 height at the plan centre -- a steep plane over an off-centre region extrapolates
+                 to a plan-centre height of 4.4 building-heights, and binning that wastes the
+                 resolution where the roof actually is.
+        pitch    atan of the slope magnitude. Non-negative, and INVARIANT under the mirror that
+                 makes the signed slope symmetric, so the symmetry is not in it at all.
+        azimuth  the uphill direction. This is where ALL the symmetry went, and it is categorical.
+    """
+
+    def _centroid(self, assign=None):
+        if assign is None:
+            assign = np.full((RES, RES), K_OPS, np.uint8)
+            assign[16:48, 12:52] = 0
+        return slot_centroids(assign, K_OPS)[0]
+
+    def test_bins_are_in_range_for_any_plane_at_all(self):
+        rng = np.random.default_rng(0)
+        for _ in range(200):
+            p = rng.normal(0, 20, 3)
+            b = plane_to_bins(p, self._centroid())
+            self.assertEqual(b.shape, (3,))
+            self.assertTrue(((b >= 0) & (b < PLANE_BINS)).all(), msg=f"{p} -> {b}")
+
+    def test_a_flat_plane_round_trips_to_exactly_flat(self):
+        """🔑 A `Layer`'s label is (h, 0, 0) and the compiler reads only its offset, so the flat bin
+        has to decode to EXACTLY zero slope -- otherwise the centroid correction would move the
+        offset back by a fraction of a bin and a flat roof would not survive its own encoding."""
+        c = self._centroid()
+        for h in (0.05, 0.3, 0.5, 0.82, 0.98):
+            b = plane_to_bins(np.array([h, 0.0, 0.0]), c)
+            p = bins_to_plane(b, c)
+            self.assertEqual(float(p[1]), 0.0)
+            self.assertEqual(float(p[2]), 0.0)
+            self.assertLess(abs(float(p[0]) - h), 1.0 / PLANE_BINS)
+
+    def test_the_offset_bin_is_anchored_at_the_region_not_at_the_plan_centre(self):
+        """The property that shrinks the dynamic range: two planes that agree over their own region
+        share an offset bin however differently they extrapolate across the rest of the plan."""
+        c = self._centroid()
+        flat = np.array([0.8, 0.0, 0.0])
+        tilted = np.array([0.8, 0.0, 0.0])            # same height at the centroid, big slope
+        tilted[1] = 1.5
+        tilted[0] = 0.8 - 1.5 * c[0]
+        self.assertEqual(int(plane_to_bins(flat, c)[0]), int(plane_to_bins(tilted, c)[0]))
+
+    def test_a_tilted_plane_round_trips_within_the_bin_resolution(self):
+        c = self._centroid()
+        rng = np.random.default_rng(1)
+        for _ in range(200):
+            mag = float(rng.uniform(0.05, 2.5))
+            ang = float(rng.uniform(0, 2 * np.pi))
+            p = np.array([float(rng.uniform(0.1, 0.9)), mag * np.cos(ang), mag * np.sin(ang)])
+            p[0] -= p[1] * c[0] + p[2] * c[1]        # so the centroid height is the drawn offset
+            q = bins_to_plane(plane_to_bins(p, c), c)
+            # the surface, not the parameters: what a bin costs is voxels over the region
+            zn, xn = c
+            self.assertLess(abs((q[0] + q[1] * zn + q[2] * xn) - (p[0] + p[1] * zn + p[2] * xn)),
+                            1.0 / PLANE_BINS)
+            self.assertLess(abs(np.hypot(q[1], q[2]) - mag), 0.15 * (1 + mag ** 2))
+            d = abs(np.arctan2(q[2], q[1]) - ang) % (2 * np.pi)
+            self.assertLess(min(d, 2 * np.pi - d), 2 * np.pi / PLANE_BINS)
+
+    def test_the_binned_label_compiles_to_the_fitted_surface(self):
+        """End to end, on a real fit: quantising the label must not change what it draws by more
+        than a voxel or two, or the ceiling of the classified space is the binning and not the
+        model."""
+        fp = np.zeros((RES, RES), bool)
+        fp[10:40, 18:56] = True
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        e = 40
+        target = np.where(fp, np.clip(np.rint(36 - 0.4 * (xx - 18) - 0.25 * (zz - 10)), 1, e),
+                          0).astype(np.int16)
+        ops, _ = _fit(fp, target, e)
+        assign, types, planes = program_to_slots(fp, e, ops)
+        exact = compile_program(assign, types, planes, fp, e)
+        cen = slot_centroids(assign, K_OPS)
+        n = np.stack([plane_to_normalised(planes[k], e) for k in range(K_OPS)])
+        b = np.stack([plane_to_bins(n[k], cen[k]) for k in range(K_OPS)])
+        q = np.stack([plane_to_voxel(bins_to_plane(b[k], cen[k]), e) for k in range(K_OPS)])
+        got = compile_program(assign, types, q, fp, e)
+        self.assertLess(float(np.abs(got[fp].astype(float) - exact[fp]).mean()), 2.0)
+
+
+class TestPlaneDecode(unittest.TestCase):
+    """🔑🔑 The ticket. #127's single biggest lever was the decode of exactly such a head, and #129's
+    warning is that copying that read here would land back on flat: the posterior median of a
+    symmetric bimodal slope is zero. The split into (offset, pitch, azimuth) exists so that each
+    quantity gets the read its own posterior deserves, and these tests are the pre-registration of
+    which read that is.
+
+        offset   MEDIAN  -- ordinal, and no symmetry: the mirrored roof has the SAME height at its
+                            own region's centroid, so the two competing hypotheses agree here.
+        pitch    MEDIAN  -- ordinal, non-negative, and invariant under the mirror, so #127's
+                            argument applies unchanged: the mode shrinks towards the majority bin.
+        azimuth  ARGMAX  -- categorical, and its posterior is antipodally bimodal BY CONSTRUCTION.
+                            Any averaging statistic over the circle lands between two roofs, which
+                            is #127's mound arriving by a third route.
+    """
+
+    def _logits(self, offset=None, pitch=None, azimuth=None):
+        lg = np.full((1, 3, PLANE_BINS), -20.0, np.float32)
+        for row, spec in enumerate((offset, pitch, azimuth)):
+            for b, w in (spec or {0: 1.0}).items():
+                lg[0, row, b] = np.log(max(w, 1e-9)) + 10.0
+        return lg
+
+    def test_the_azimuth_commits_to_one_mode_and_does_not_average_two(self):
+        """The whole ticket in one assertion. Equal mass on two OPPOSITE directions is exactly the
+        corpus's own symmetry; a mean or a median returns a direction neither mode holds, and the
+        compiled roof is flat or wrong. `argmax` returns one of the two."""
+        half = PLANE_BINS // 2
+        lg = self._logits(offset={PLANE_BINS // 2: 1.0}, pitch={PLANE_BINS // 2: 1.0},
+                          azimuth={8: 1.0, 8 + half: 1.0})
+        p = decode_plane_logits(lg, np.zeros((1, 2)))[0]
+        got = np.arctan2(p[2], p[1]) % (2 * np.pi)
+        want = [(b + 0.5) * 2 * np.pi / PLANE_BINS for b in (8, 8 + half)]
+        self.assertTrue(min(abs(got - w) for w in want) < 2 * np.pi / PLANE_BINS,
+                        msg=f"azimuth {got:.3f} is neither mode {want}")
+
+    def test_a_bimodal_azimuth_still_decodes_to_a_pitched_plane(self):
+        """The failure being avoided, stated as a magnitude: whatever the azimuth read does, the
+        decoded plane must still have a slope. #6's arm typed 46% of its slots `Ramp` and drew them
+        with a median 0.00-voxel rise."""
+        half = PLANE_BINS // 2
+        lg = self._logits(offset={PLANE_BINS // 2: 1.0}, pitch={40: 1.0},
+                          azimuth={3: 1.0, 3 + half: 1.0})
+        p = decode_plane_logits(lg, np.zeros((1, 2)))[0]
+        self.assertGreater(float(np.hypot(p[1], p[2])), 0.5)
+
+    def test_the_offset_takes_the_posterior_median_not_the_mode(self):
+        """#127's lever, kept where it still applies. A posterior with its mode low and its mass
+        high must decode high."""
+        lg = self._logits(offset={2: 0.4, 40: 0.3, 44: 0.3}, pitch={0: 1.0}, azimuth={0: 1.0})
+        p = decode_plane_logits(lg, np.zeros((1, 2)))[0]
+        self.assertGreater(float(p[0]), 0.5)
+
+    def test_the_pitch_takes_the_posterior_median_not_the_mode(self):
+        lg = self._logits(offset={PLANE_BINS // 2: 1.0}, pitch={0: 0.4, 40: 0.35, 44: 0.25},
+                          azimuth={0: 1.0})
+        p = decode_plane_logits(lg, np.zeros((1, 2)))[0]
+        self.assertGreater(float(np.hypot(p[1], p[2])), 0.5)
+
+    def test_the_decode_of_a_one_hot_posterior_is_the_bin_it_encodes(self):
+        """The decode and the encoder are inverses on a confident head, so a perfect classifier
+        reaches the quantisation ceiling and nothing else stands between them."""
+        c = np.array([[0.1, -0.2]])
+        p = np.array([0.62, 0.9, -0.4])
+        p[0] -= p[1] * c[0, 0] + p[2] * c[0, 1]
+        b = plane_to_bins(p, c[0])
+        lg = self._logits(offset={int(b[0]): 1.0}, pitch={int(b[1]): 1.0},
+                          azimuth={int(b[2]): 1.0})
+        np.testing.assert_allclose(decode_plane_logits(lg, c)[0], bins_to_plane(b, c[0]),
+                                   atol=1e-6)
+
+    def test_it_is_total_for_an_untrained_head(self):
+        rng = np.random.default_rng(3)
+        p = decode_plane_logits(rng.normal(0, 5, (K_OPS, 3, PLANE_BINS)),
+                                rng.uniform(-0.5, 0.5, (K_OPS, 2)))
+        self.assertEqual(p.shape, (K_OPS, 3))
+        self.assertTrue(np.isfinite(p).all())
+
+
+class TestProgramLossClassifiesThePlanes(unittest.TestCase):
+    """The same three-term structure as #6, with the one L1 replaced by three cross-entropies. What
+    must not change is which slots are supervised at all, and what must change is that a slope now
+    has a Bayes act that is not flat."""
+
+    def _case(self):
+        import torch
+        assign = torch.full((2, RES, RES), K_OPS, dtype=torch.long)
+        assign[:, 16:48, 12:32] = 0
+        assign[:, 16:48, 32:52] = 1
+        types = torch.tensor([[1, 0, -1, -1], [1, 0, -1, -1]], dtype=torch.long)
+        cen = torch.from_numpy(np.stack([
+            slot_centroids(assign[i].numpy(), K_OPS) for i in range(2)])).float()
+        planes = torch.zeros(2, K_OPS, 3)
+        planes[:, 0] = torch.tensor([0.7, 0.0, -0.9])
+        planes[:, 1] = torch.tensor([0.5, 0.0, 0.0])
+        bins = torch.from_numpy(np.stack([
+            np.stack([plane_to_bins(planes[i, k].numpy(), cen[i, k].numpy())
+                      for k in range(K_OPS)]) for i in range(2)])).long()
+        return assign, types, bins
+
+    def _perfect(self, assign, types, bins):
+        import torch
+        a = torch.zeros(2, K_OPS + 1, RES, RES).scatter_(1, assign[:, None], 20.0)
+        t = torch.zeros(2, K_OPS, len(PROGRAM_TYPES)).scatter_(
+            2, types.clamp(min=0)[..., None], 20.0)
+        p = torch.zeros(2, K_OPS, 3, PLANE_BINS).scatter_(3, bins[..., None], 20.0)
+        return a, t, p
+
+    def test_an_exact_program_costs_nothing(self):
+        import torch
+        assign, types, bins = self._case()
+        out = self._perfect(assign, types, bins)
+        m = torch.ones(2, RES, RES, dtype=torch.bool)
+        self.assertLess(float(program_loss(out, (assign, types, bins), m, "class")), 1e-3)
+
+    def test_a_wrong_azimuth_costs(self):
+        """🔑 The term that did not exist before. Under the L1 a slope could go to zero for free at
+        the population level; here the direction is a class and getting it wrong is a full CE."""
+        import torch
+        assign, types, bins = self._case()
+        a, t, p = self._perfect(assign, types, bins)
+        exact = float(program_loss((a, t, p), (assign, types, bins),
+                                   torch.ones(2, RES, RES, dtype=torch.bool), "class"))
+        p2 = p.clone()
+        p2[:, 0, 2] = 0.0
+        p2[:, 0, 2, (int(bins[0, 0, 2]) + PLANE_BINS // 2) % PLANE_BINS] = 20.0
+        wrong = float(program_loss((a, t, p2), (assign, types, bins),
+                                   torch.ones(2, RES, RES, dtype=torch.bool), "class"))
+        self.assertGreater(wrong - exact, 1.0)
+
+    def test_a_layers_pitch_and_azimuth_are_not_supervised(self):
+        """A flat slot has no direction, and the compiler ignores the one it is handed. Spending
+        capacity teaching the head a number nothing reads is #6's own rule, kept."""
+        import torch
+        assign, types, bins = self._case()
+        a, t, p = self._perfect(assign, types, bins)
+        p2 = p.clone()
+        p2[:, 1, 1:] = 0.0
+        p2[:, 1, 1:, 7] = 20.0                       # garbage pitch/azimuth on the Layer slot
+        m = torch.ones(2, RES, RES, dtype=torch.bool)
+        self.assertLess(float(program_loss((a, t, p2), (assign, types, bins), m, "class")), 1e-3)
+
+    def test_inactive_slots_do_not_contribute(self):
+        import torch
+        assign, types, bins = self._case()
+        a, t, p = self._perfect(assign, types, bins)
+        p2 = p.clone()
+        p2[:, 2:] = 0.0
+        p2[:, 2:, :, 11] = 20.0
+        m = torch.ones(2, RES, RES, dtype=torch.bool)
+        self.assertLess(float(program_loss((a, t, p2), (assign, types, bins), m, "class")), 1e-3)
+
+
+class TestClassPlaneAugmentation(unittest.TestCase):
+    """The binned label has to rotate with the plan exactly as the continuous one does, or the arm
+    trains on roofs pitched the wrong way -- and the assignment would still line up perfectly, so
+    only the compiled surface would show it."""
+
+    E = 40
+
+    def test_the_binned_program_survives_every_plan_symmetry(self):
+        fp = np.zeros((RES, RES), bool)
+        fp[10:40, 18:56] = True
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        target = np.where(fp, np.clip(np.rint(36 - 0.4 * (xx - 18) - 0.25 * (zz - 10)),
+                                      1, self.E), 0).astype(np.int16)
+        ops, _ = _fit(fp, target, self.E)
+        assign, types, planes = program_to_slots(fp, self.E, ops)
+
+        def binned_surface(a, t, p, plan):
+            cen = slot_centroids(a, K_OPS)
+            n = np.stack([plane_to_normalised(p[k], self.E) for k in range(K_OPS)])
+            b = np.stack([plane_to_bins(n[k], cen[k]) for k in range(K_OPS)])
+            v = np.stack([plane_to_voxel(bins_to_plane(b[k], cen[k]), self.E)
+                          for k in range(K_OPS)])
+            return compile_program(a, t, v, plan, self.E)
+
+        base = binned_surface(assign, types, planes, fp)
+        for k in range(4):
+            for flip in (False, True):
+                with self.subTest(k=k, flip=flip):
+                    fp2, want = _d4(fp, base, k, flip)
+                    a2, t2, p2 = _d4_program(assign, types, planes, k, flip)
+                    got = binned_surface(a2, t2, p2, fp2)
+                    self.assertLess(float(np.abs(got[fp2].astype(float)
+                                                 - want[fp2].astype(float)).max()), 1.5)
 
 
 if __name__ == "__main__":

@@ -139,6 +139,97 @@ Same 411 rows, same discipline. The reference numbers are #127's, re-read on tho
     $P --objective program --tag heightmap_program --epochs 40 --montage 0
 
 The first program run builds `outputs/height_map_generator/program_labels.npz` (56 s, 48 cores).
+
+
+#129 -- CLASSIFY THE PLANE PARAMETERS, AND DECODE THEM THE WAY #127's DEPTH HEAD TAUGHT
+=======================================================================================
+#6 kept its formulation and killed its training strategy, with a proof rather than a number: the
+signed slope of every `Ramp` in the corpus is **exactly symmetric** -- mean +0.0009, median
++0.0000, 50.0% positive / 49.6% negative over 52,792 components -- so an L1 or a quantile on it
+returns a flat roof however long it trains. That is the objective's own Bayes act, not a training
+failure. #129 asks whether **classifying** those parameters recovers the pitch that regressing them
+provably cannot.
+
+`--plane_head class` on `--objective program`. The ONLY difference from #6's arm is the last layer
+of the slot head and the term that supervises it; the trunk, the assignment head, the type head,
+the canonicalisation, the augmentation, the selection rule and the compiler are all untouched, so
+a difference between the two arms is attributable to the plane head.
+
+WHAT IS CLASSIFIED, AND WHY IT IS NOT (A, Bz, Cx)
+-------------------------------------------------
+Three quantities at `PLANE_BINS`=64 each, and the re-parametrisation is the argument:
+
+  offset   the plane's height **at its own region's centroid**, in units of the building. `A` is the
+           height at the *plan* centre, which a steep plane over a corner region extrapolates to
+           4.4 building-heights -- measured over the corpus, `A` runs -1.34..+4.38 while the
+           centroid height runs 0.07..0.98. Binning `A` spends its resolution where no roof is.
+  pitch    `atan` of the slope magnitude, over [0, pi/2). Needs no range constant and cannot clip.
+  azimuth  the uphill direction, over [0, 2pi).
+
+🔑🔑 **The symmetry #6 proved is a MIRROR, and a mirror fixes the pitch and the centroid height and
+sends the azimuth to its antipode.** So this split moves the entire symmetry into ONE categorical
+variable and leaves the other two free of it. That is what makes the decode below possible at all.
+
+THE DECODE, WHICH #129 SAYS IS MOST OF THE TICKET
+--------------------------------------------------
+This map's single biggest lever was the decode of exactly such a head -- argmax -> posterior median
+on #127's depth classifier, one line, `extra` 0.1178 -> 0.0603. ⚠️ And its loudest warning is that
+copying that read here lands straight back on flat, because the median of a symmetric bimodal slope
+is zero. So the read is chosen per quantity and fixed in `PLANE_DECODE` before the first step:
+
+  offset   MEDIAN  ordinal, and both competing roofs agree on it (a mirror does not move the height
+                   at the region's own centroid), so #127's argument applies unchanged.
+  pitch    MEDIAN  ordinal, non-negative, and INVARIANT under the mirror -- the two roofs the
+                   conditioning cannot choose between have the same pitch -- so its posterior is not
+                   the symmetric bimodal one and the median is not defeated by it.
+  azimuth  ARGMAX  categorical, and antipodally bimodal by construction. A circular mean over two
+                   opposite modes returns a direction NEITHER holds, which is #127's mound arriving
+                   by a third route. `argmax` commits to one of the two, which is what #126 says the
+                   task is: the conditioning does not determine which roof, so pick one.
+
+The other seven reads are measured after the fact (`decode_ablation`) and reported. They do not
+choose; a row that beats the pre-registered one is a finding, not a decode to adopt retroactively.
+
+MEASURED BEFORE THE RUN
+------------------------
+    the bins' own ceiling, on the 411   binned at 64:  extra 0.0063  missing 0.0035
+    against the continuous ceiling                     extra 0.0035  missing 0.0000
+    at 128 bins (available, NOT taken)                 extra 0.0039  missing 0.0026
+
+64 bins leave the ceiling an order of magnitude below the 0.0603 the arm must beat, so the binning
+is not the limiter and the binding constraint is examples-per-class. `plane_quantisation_ceiling`
+is the re-runnable form of that table.
+
+THE BAR FOR #129, PRE-REGISTERED BEFORE THE FIRST TRAINING STEP
+---------------------------------------------------------------
+🔑 **`PROGRAM_BAR`, unchanged.** #129 is judged by exactly the bar #6 was judged by, on exactly the
+same 411 carve-needing rows, evaluated by the same `verdict()` -- so the arm cannot be credited by a
+bar that moved with it. Restated for the reader:
+
+  PASS   median `dl_ops` <= 3.0 AND median `dl_planar_fraction` >= 0.40 AND median `extra` < 0.0603.
+  GUARD  collapse rate no worse than 1-NN's, and `vs_input` < 0.98 (#75).
+  KILL   median `dl_planar_fraction` <= 0.20. The terrace failure repeating in a fourth
+         representation, and it would answer #129 "no".
+
+  reported beside every number, never as a gate:
+    the REALISED RISE inside each `Ramp`-typed slot's own region. #6's arm typed 46% of its slots
+    `Ramp` correctly and drew them with a median **0.00-voxel** range, so "it predicted a ramp" is
+    not evidence that it drew one, and only the surface says which.
+    `vs_input` and the collapse rate (#126), and a montage -- three amplitude statistics failed to
+    separate a mound from a roof, and the picture is what caught it.
+
+  for reference, on those same rows:  GT                    2.0 ops / 0.50 planar
+                                      compiled label        extra 0.0035 / 2.0 / 0.50
+                                      CE+median (served)    extra 0.0603 / 6.0 / 0.20
+                                      #6 program (regress)  extra 0.1236 / 1.0 / 0.00
+                                      1-NN retrieval        extra 0.1031 / 2.0 / 0.17
+
+⚠️ The checkpoint is chosen on **validation geometry, not loss** -- #6's best was epoch 13 of 40
+with the remaining 27 flat, and this map has three near-misses from reading a curve as a trend.
+
+    $P --objective program --plane_head class --tag heightmap_program_class --epochs 40 --montage 0
+    $P --diagnose_program outputs/height_map_generator/heightmap_program_class.pt \\
+       --out execution/artifacts/height_map_generator_class.json
 """
 
 from __future__ import annotations
@@ -196,6 +287,32 @@ PROGRAM_TYPES = SLOT_TYPES
 # building's own height), and this ticket's record has two near-misses from reading a curve as a
 # trend. A sweep here would be selecting on the answer.
 PROGRAM_TERM_WEIGHTS = dict(assign=1.0, type=1.0, param=1.0)
+
+# #129's discretisation of a slot's plane. One number, used for all three quantities, and it is
+# DEPTH_CLASSES -- the resolution #127 already showed a per-column ordinal head learns at, so the
+# classified plane head is asked to do nothing at a resolution this trunk has not already done.
+# Measured before the run (`plane_quantisation_ceiling`, and the `--diagnose_program` table): at 64
+# bins the exact labels still compile to `extra` 0.0063 / `missing` 0.0035 on the 411, which is an
+# order of magnitude below the 0.0603 the arm has to beat, so the binning is not the limiter.
+# 128 bins buys 0.0039/0.0026 and was NOT taken: the ceiling is already far below the bar and the
+# binding constraint is how many examples a class gets, not how fine it is.
+PLANE_BINS = DEPTH_CLASSES
+
+# The three quantities, in the order the head emits them. NOT (A, Bz, Cx): see `plane_to_bins`.
+PLANE_QUANTITIES = ("offset", "pitch", "azimuth")
+
+# ⚠️ Load-bearing, not a convenience. Pitch bin 0 decodes to EXACTLY zero slope, so a `Layer`'s
+# label -- which is (h, 0, 0) with the slope exactly zero, checked over the whole corpus -- survives
+# its own encoding. Without it the centroid correction would subtract a bin-centre slope from the
+# offset and a flat roof would come back a fraction of a bin off for no reason at all.
+PITCH_FLAT_BIN = 0
+
+# 🔑🔑 #129's DECODE, pre-registered here before the first training step and read by
+# `decode_plane_logits`, in the order of `PLANE_QUANTITIES`. The reasons are in that docstring and
+# they are per-quantity, because this map's biggest lever and its loudest warning are both about
+# this line: argmax -> median was worth `extra` 0.1178 -> 0.0603 on #127's ordinal depth head, and
+# copying that read onto a symmetric bimodal slope would land straight back on flat.
+PLANE_DECODE = ("median", "median", "argmax")
 
 # ⚠️ `recover_massing_programs.FLOOR_EPS` is 1e-9, which is the right snap for the float64 plane
 # `linprog` returns. A slot's plane is stored in the label cache and predicted by the network in
@@ -514,10 +631,10 @@ def head_channels(objective: str) -> int:
     return DEPTH_CLASSES if objective == "ce" else 1
 
 
-def make_model(objective: str, width: int, k_planes: int):
+def make_model(objective: str, width: int, k_planes: int, plane_head: str = "regress"):
     """The one place an objective chooses an architecture."""
     if objective == "program":
-        return build_program_model(K_OPS, width)
+        return build_program_model(K_OPS, width, plane_head)
     if objective == "planes":
         return build_plane_model(k_planes, width)
     return build_model(head_channels(objective), width)
@@ -637,7 +754,7 @@ def slope_loss(depth, y, mask):
 
 
 def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective: str,
-                      quantile: float | None) -> np.ndarray:
+                      quantile: float | None, plane_head: str = "regress") -> np.ndarray:
     """One network output -> one height map. The inverse of `per_column_loss`, kept beside it.
 
     ⚠️ `quantile` means two different things by objective and that is deliberate: for `ce` it picks
@@ -653,8 +770,12 @@ def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective:
         # surface belonging to neither, which is #127's mound arriving by a third route. The one
         # place the network's scale-free plane is converted back to the fitter's voxel convention.
         a, t, p = out_k
-        return compile_program(np.argmax(a, axis=0).astype(np.uint8),
-                               np.argmax(t, axis=-1).astype(np.int8),
+        assign = np.argmax(a, axis=0).astype(np.uint8)
+        # 🔑 the assignment is decoded FIRST, because #129's offset is anchored at each slot's own
+        # region and the region is what the assignment says it is
+        if plane_head == "class":
+            p = decode_plane_logits(p, slot_centroids(assign, len(p)))
+        return compile_program(assign, np.argmax(t, axis=-1).astype(np.int8),
                                np.stack([plane_to_voxel(p[k], extent) for k in range(len(p))]),
                                fp, extent)
     if objective == "planes":
@@ -823,6 +944,160 @@ def plane_to_voxel(params, extent) -> np.ndarray:
     return np.array([A * e - 0.5 * (RES - 1) * (b + c), b, c], np.float64)
 
 
+# --------------------------------------------------------------------------------------------------
+# #129 -- the plane parameters as three CLASSES, and the anchor that makes their range sane
+# --------------------------------------------------------------------------------------------------
+
+def _plan_grid() -> tuple:
+    """The normalised plan coordinates `plane_to_normalised` is written against, cached once."""
+    global _PLAN_ZN, _PLAN_XN
+    try:
+        return _PLAN_ZN, _PLAN_XN
+    except NameError:
+        n = RES - 1
+        gz, gx = np.meshgrid(np.arange(RES), np.arange(RES), indexing="ij")
+        _PLAN_ZN, _PLAN_XN = (gz - n / 2.0) / n, (gx - n / 2.0) / n
+        return _PLAN_ZN, _PLAN_XN
+
+
+def _azimuth_centres() -> np.ndarray:
+    """The angle each azimuth bin represents, cached once. Only the circular reads need it."""
+    global _AZ_CENTRES
+    try:
+        return _AZ_CENTRES
+    except NameError:
+        _AZ_CENTRES = (np.arange(PLANE_BINS) + 0.5) * (2 * np.pi) / PLANE_BINS
+        return _AZ_CENTRES
+
+
+def slot_centroids(assign, k_ops: int = K_OPS) -> np.ndarray:
+    """Each slot's own region's centre, in normalised plan coordinates. `(k_ops, 2)` as `(zn, xn)`.
+
+    🔑 A function of the ASSIGNMENT alone, and that is the point: training reads it off the label
+    assignment and inference off the predicted one, through this same code, so the offset a slot
+    was trained to emit is the offset the decode puts back.
+
+    ⚠️ Total. A slot owning no column at all -- which an untrained head emits constantly -- falls
+    back to the plan centre, where the offset means exactly what #6's `A` meant. `compile_program`
+    skips such a slot anyway, so the fallback only has to not raise.
+    """
+    zn, xn = _plan_grid()
+    a = np.asarray(assign)
+    out = np.zeros((int(k_ops), 2), np.float64)
+    for k in range(int(k_ops)):
+        m = a == k
+        if m.any():
+            out[k] = (zn[m].mean(), xn[m].mean())
+    return out
+
+
+def plane_to_bins(params, centroid, bins: int = 0) -> np.ndarray:
+    """A slot's normalised plane `(A, Bz, Cx)` -> three class indices. #129's supervision.
+
+    🔑 The three quantities are NOT the three parameters, and the re-parametrisation is the whole
+    reason a classifier can be asked for them:
+
+      offset   the plane's height **at its own region's centroid**, in units of the building. `A` is
+               the height at the *plan* centre, which a steep plane over a corner region
+               extrapolates to 4.4 building-heights (measured over the corpus: `A` runs -1.34 to
+               +4.38, while the centroid height runs 0.07 to 0.98). Binning `A` would spend most of
+               its resolution on heights no roof is ever at. Anchoring at the region makes the
+               quantity a *height on the building*, bounded like a `Layer`'s offset already was.
+      pitch    `atan` of the slope magnitude, over [0, pi/2). Non-negative, needs no range constant,
+               and it does not clip -- the corpus's steepest fitted plane rises 13.7 building-
+               heights across the plan and still lands inside the last bin.
+      azimuth  the uphill direction over [0, 2pi).
+
+    🔑🔑 **The split is where the ticket's argument lives.** #6 measured that the signed slope of
+    every `Ramp` in the corpus is exactly symmetric -- 50.0% positive, 49.6% negative, median
+    +0.0000 -- so an L1 or a quantile on it must return flat. That symmetry is a MIRROR, and a
+    mirror leaves the pitch and the region-centroid height untouched and sends the azimuth to its
+    antipode. Splitting this way therefore moves the entire symmetry into ONE categorical variable
+    and leaves the other two free of it, which is what lets each be decoded by the read its own
+    posterior deserves (`decode_plane_logits`).
+
+    ⚠️ Total, like every other function on this path: any plane at all, including the wildly
+    out-of-range ones an untrained head emits, lands in a bin rather than raising.
+
+    `bins` overrides `PLANE_BINS`, and exists only so `plane_quantisation_ceiling` can price the
+    resolutions that were not chosen.
+    """
+    nb = int(bins) or PLANE_BINS
+    A, Bz, Cx = (float(v) for v in np.asarray(params, np.float64))
+    zc, xc = (float(v) for v in np.asarray(centroid, np.float64))
+    h = A + Bz * zc + Cx * xc
+    mag = float(np.hypot(Bz, Cx))
+    off = int(np.clip(np.floor(h * nb), 0, nb - 1))
+    pit = int(np.clip(np.floor(np.arctan(mag) / (np.pi / 2) * nb), 0, nb - 1))
+    azi = int(np.floor((np.arctan2(Cx, Bz) % (2 * np.pi)) / (2 * np.pi) * nb)) % nb
+    return np.array([off, pit, azi], np.int64)
+
+
+def bins_to_plane(bins, centroid, n_bins: int = 0) -> np.ndarray:
+    """Three class indices -> a normalised plane `(A, Bz, Cx)`. The inverse of `plane_to_bins`.
+
+    Every bin is represented by its centre, with the one documented exception of `PITCH_FLAT_BIN`.
+    The offset is un-anchored last, so a slot's plane is reconstructed to pass through the height
+    the offset class names **at that slot's own centroid** -- which is only the same anchor the
+    label was encoded at if the assignment agrees, and that is the intended coupling: a slot whose
+    region moved should carry its roof with it.
+    """
+    nb = int(n_bins) or PLANE_BINS
+    off, pit, azi = (int(v) for v in np.asarray(bins))
+    zc, xc = (float(v) for v in np.asarray(centroid, np.float64))
+    h = (off + 0.5) / nb
+    mag = 0.0 if pit == PITCH_FLAT_BIN else float(np.tan((pit + 0.5) * (np.pi / 2) / nb))
+    th = (azi + 0.5) * (2 * np.pi) / nb
+    Bz, Cx = mag * np.cos(th), mag * np.sin(th)
+    return np.array([h - Bz * zc - Cx * xc, Bz, Cx], np.float64)
+
+
+def decode_plane_logits(logits, centroids, reads=None) -> np.ndarray:
+    """🔑🔑 #129's decode, and most of the ticket. `(K, 3, PLANE_BINS)` logits -> `(K, 3)` planes.
+
+    This map's single biggest lever was the decode of exactly such a head: argmax -> posterior
+    median on #127's depth classifier moved `extra` 0.1178 -> 0.0603, one line. ⚠️ And #129's own
+    warning is that copying that read wholesale here would land straight back on flat, because the
+    median of a symmetric bimodal slope IS zero. So the read is chosen per quantity, from the shape
+    of that quantity's posterior, and pre-registered here before the first training step:
+
+      offset   **posterior MEDIAN.** Ordinal, and free of the symmetry: the mirrored roof has the
+               same height at its own region's centroid, so both competing hypotheses agree on this
+               number and averaging them costs nothing. #127's read, where #127's argument holds.
+      pitch    **posterior MEDIAN.** Ordinal, non-negative, and *invariant* under the mirror -- the
+               two roofs the conditioning cannot choose between have the SAME pitch -- so its
+               posterior is not the symmetric bimodal one and the median is not defeated by it.
+               The marginal is the conditional, which is why reading it from a separate head costs
+               nothing.
+      azimuth  **ARGMAX.** Categorical, and its posterior is antipodally bimodal by construction
+               (#6: 50.0% / 49.6%). A circular mean or median over two opposite modes returns a
+               direction *neither* holds, and a plane pointing nowhere in particular is #127's mound
+               arriving by a third route. `argmax` commits to one of the two roofs, which is what
+               #126 says the task is: the conditioning does not determine which, so pick one.
+
+    ⚠️ The alternative reads are measured (`decode_ablation`) but `PLANE_DECODE` above is fixed in
+    this docstring beforehand. A decode picked after seeing which scored best would be selecting on
+    the answer, which is the mistake this map has three near-misses from. `reads` exists ONLY so
+    that ablation can re-read the same weights; it defaults to the pre-registered triple.
+    """
+    lg = np.asarray(logits, np.float64)
+    cen = np.asarray(centroids, np.float64)
+    rd = tuple(reads or PLANE_DECODE)
+    p = np.exp(lg - lg.max(axis=-1, keepdims=True))
+    p /= p.sum(axis=-1, keepdims=True)
+    stat = dict(
+        median=(np.cumsum(p, axis=-1) >= 0.5).argmax(axis=-1),    # smallest bin reaching the mass
+        argmax=p.argmax(axis=-1),
+        # the natural averaging statistic on a circle, and the one #129 warns against: over two
+        # antipodal modes its resultant cancels and the angle it returns is held by neither
+        circmean=np.floor(
+            (np.arctan2((p * np.sin(_azimuth_centres())).sum(-1),
+                        (p * np.cos(_azimuth_centres())).sum(-1)) % (2 * np.pi))
+            / (2 * np.pi) * PLANE_BINS).astype(np.int64) % PLANE_BINS)
+    bins = np.stack([stat[rd[q]][:, q] for q in range(3)], axis=-1)
+    return np.stack([bins_to_plane(bins[k], cen[k]) for k in range(len(bins))])
+
+
 def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
     """A predicted program -> one height map. The output space of #6's arm.
 
@@ -865,7 +1140,7 @@ def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
     return np.where(m, np.clip(h, 1, max(e, 1)), 0).astype(np.int16)
 
 
-def program_loss(out, labels, mask):
+def program_loss(out, labels, mask, plane_head: str = "regress"):
     """🔑 #6's training strategy, in one function: supervise the **program**, never the surface.
 
     #127 established the trap this avoids, twice and from both directions. Supervision on the
@@ -878,10 +1153,20 @@ def program_loss(out, labels, mask):
                 is where the *regions* are learned, and it is a segmentation, not a height.
         type    cross-entropy per ACTIVE slot over (Layer, Ramp). The discrete flat-or-pitched
                 decision that a straight-through slope could never make.
-        param   L1 on the plane, in units of the building's own height, per active slot -- and on
-                the OFFSET ONLY for a slot typed `Layer`, because a flat roof's slope is not a
-                quantity the label has an opinion about and regressing it towards zero would spend
-                capacity teaching the model something the compiler already ignores.
+        param   `regress` (#6): L1 on the plane, in units of the building's own height, per active
+                slot -- and on the OFFSET ONLY for a slot typed `Layer`, because a flat roof's slope
+                is not a quantity the label has an opinion about and regressing it towards zero
+                would spend capacity teaching the model something the compiler already ignores.
+
+                `class` (#129): the MEAN of three cross-entropies -- offset, pitch and azimuth --
+                over the bins `plane_to_bins` defines, with the same masking. ⚠️ The mean, not the
+                sum, so the term keeps the weight and the scale #6 gave it: three nats averaged is
+                one nats-valued `param` term, `PROGRAM_TERM_WEIGHTS` is untouched, and nothing here
+                was swept. #6 refuted the L1 with a proof rather than a number -- the signed slope
+                of every `Ramp` in the corpus is exactly symmetric, so the objective's own Bayes act
+                is a flat roof however long it trains -- and a cross-entropy has no such act: its
+                Bayes act is the whole posterior, and what is done with it is the decode's problem
+                (`decode_plane_logits`), which is where #129 says the difficulty actually is.
 
     ⚠️ Inactive slots contribute nothing to any term. A building the fitter explained in two
     operations must not be pushed to invent four; #10 measured a median of 4 and a mode of 4 at the
@@ -903,17 +1188,24 @@ def program_loss(out, labels, mask):
               if bool(active.any()) else assign_logits.sum() * 0.0)
 
     # a Layer's slope is not in the label, so it is not in the loss: weight the offset everywhere
-    # and the two slope components only where the slot is a Ramp
+    # and the two slope quantities only where the slot is a Ramp. One mask, both heads.
     is_ramp = (types == SLOT_TYPES.index("Ramp")) & active
     w = torch.stack([active.float(), is_ramp.float(), is_ramp.float()], dim=-1)
-    l_param = ((params - planes).abs() * w).sum() / w.sum().clamp(min=1)
+    if plane_head == "class":
+        # (B, K, 3, PLANE_BINS) logits against (B, K, 3) bins
+        flat = F.cross_entropy(params.reshape(-1, params.shape[-1]),
+                               planes.reshape(-1).clamp(0, params.shape[-1] - 1),
+                               reduction="none").view(w.shape)
+        l_param = (flat * w).sum() / w.sum().clamp(min=1)
+    else:
+        l_param = ((params - planes).abs() * w).sum() / w.sum().clamp(min=1)
 
     return (PROGRAM_TERM_WEIGHTS["assign"] * l_assign +
             PROGRAM_TERM_WEIGHTS["type"] * l_type +
             PROGRAM_TERM_WEIGHTS["param"] * l_param)
 
 
-def build_program_model(k_ops: int, width: int = 64):
+def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"):
     """The same U-Net trunk, with an assignment head and a slot head. ~3.6M parameters.
 
     The split is the vocabulary's own: an operation is **one plane over one region**, so the plane
@@ -923,21 +1215,29 @@ def build_program_model(k_ops: int, width: int = 64):
 
     The slot head emits type logits and plane parameters together, from the same pooled feature, so
     a slot's "am I flat" decision and its slope are read off one representation rather than two.
+
+    🔑 `plane_head` is the ONE mechanical difference between #6's arm and #129's, and it is confined
+    to the last layer's width: `regress` emits 3 numbers per slot and `class` emits
+    `3 x PLANE_BINS` logits. Same trunk, same assignment head, same type head, same loss structure,
+    same decode for everything except the plane -- so a difference between the two arms is
+    attributable to the plane head and to nothing else. It costs 0.8M parameters, 3.6M -> 4.4M.
     """
     import torch
     import torch.nn as nn
 
     trunk = build_model(width, width)             # the tested U-Net; its head becomes features
     n_type = len(SLOT_TYPES)
+    n_plane = 3 * PLANE_BINS if plane_head == "class" else 3
 
     class ProgramNet(nn.Module):
         def __init__(self):
             super().__init__()
             self.trunk = trunk
             self.k = k_ops
+            self.plane_head = plane_head
             self.assign = nn.Conv2d(width, k_ops + 1, 1)
             self.slots = nn.Sequential(nn.Linear(width, 4 * width), nn.SiLU(),
-                                       nn.Linear(4 * width, k_ops * (n_type + 3)))
+                                       nn.Linear(4 * width, k_ops * (n_type + n_plane)))
             # ⚠️ #127's plane head recorded that this initialisation is load-bearing: starting every
             # plane flat left them flat after 40 epochs. The labels here supervise the slope
             # directly, so the failure cannot repeat for that reason -- but the slots are still
@@ -947,17 +1247,32 @@ def build_program_model(k_ops: int, width: int = 64):
             # the circle because buildings sit at arbitrary grid rotations (#10).
             with torch.no_grad():
                 self.slots[-1].weight.mul_(0.1)
-                bias = torch.zeros(k_ops, n_type + 3)
-                bias[:, n_type] = torch.linspace(0.9, 0.5, k_ops)
+                bias = torch.zeros(k_ops, n_type + n_plane)
+                heights = torch.linspace(0.9, 0.5, k_ops)
                 ang = torch.linspace(0, float(np.pi), k_ops + 1)[:k_ops]
-                bias[:, n_type + 1] = 0.25 * torch.cos(ang)
-                bias[:, n_type + 2] = 0.25 * torch.sin(ang)
+                if plane_head == "class":
+                    # the same spread, expressed in the classified parametrisation: nudge slot k's
+                    # offset and azimuth towards the bin its regressed counterpart started at. A
+                    # nudge and not a one-hot -- a saturated init would take epochs to unlearn.
+                    pl = bias[:, n_type:].view(k_ops, 3, PLANE_BINS)
+                    for k in range(k_ops):
+                        p = np.array([float(heights[k]), 0.25 * float(torch.cos(ang[k])),
+                                      0.25 * float(torch.sin(ang[k]))])
+                        for q, b in enumerate(plane_to_bins(p, np.zeros(2))):
+                            pl[k, q, int(b)] = 1.0
+                else:
+                    bias[:, n_type] = heights
+                    bias[:, n_type + 1] = 0.25 * torch.cos(ang)
+                    bias[:, n_type + 2] = 0.25 * torch.sin(ang)
                 self.slots[-1].bias.copy_(bias.reshape(-1))
 
         def forward(self, x):
             f = self.trunk(x)
-            s = self.slots(f.mean(dim=(2, 3))).view(-1, self.k, n_type + 3)
-            return self.assign(f), s[..., :n_type], s[..., n_type:]
+            s = self.slots(f.mean(dim=(2, 3))).view(-1, self.k, n_type + n_plane)
+            planes = s[..., n_type:]
+            if self.plane_head == "class":
+                planes = planes.view(-1, self.k, 3, PLANE_BINS)
+            return self.assign(f), s[..., :n_type], planes
 
     return ProgramNet()
 
@@ -1065,10 +1380,16 @@ class HeightFieldSet:
     `program` adds #6's slot labels alongside the per-column depth rather than in place of it: the
     depth label is still what the validation geometry is measured against, so the program arm is
     selected by exactly the rule every other arm on this ticket was.
+
+    ⚠️ `plane_head="class"` changes what the third program tensor *is* -- integer bins rather than
+    float parameters -- and it is built here rather than in the loss because the bins are anchored
+    at each slot's own centroid and the centroid has to be taken from the SAME augmented assignment
+    the plane was rotated with. Doing it downstream would let the two desync silently.
     """
 
     def __init__(self, cache: dict, idx: np.ndarray, augment: bool, seed: int = 0,
-                 program: dict | None = None):
+                 program: dict | None = None, plane_head: str = "regress"):
+        self.plane_head = plane_head
         self.fp = cache["fp"][idx] > 0
         self.target = cache["target"][idx].astype(np.int16)
         self.extent = cache["extent"][idx].astype(np.int32)
@@ -1101,10 +1422,15 @@ class HeightFieldSet:
                                       self.program["planes"][i], k, flip)
                 pa.append(a)
                 pt.append(t)
-                pp.append(np.stack([plane_to_normalised(p[j], int(self.extent[i]))
-                                    for j in range(len(p))]))
+                n = np.stack([plane_to_normalised(p[j], int(self.extent[i]))
+                              for j in range(len(p))])
+                if self.plane_head == "class":
+                    cen = slot_centroids(a, len(p))
+                    n = np.stack([plane_to_bins(n[j], cen[j]) for j in range(len(p))])
+                pp.append(n)
         prog = (np.stack(pa).astype(np.int64), np.stack(pt).astype(np.int64),
-                np.stack(pp).astype(np.float32)) if self.program is not None else None
+                np.stack(pp).astype(np.int64 if self.plane_head == "class" else np.float32)) \
+            if self.program is not None else None
         return (np.stack(xs), np.stack(ys).astype(np.int64),
                 self.extent[sel].astype(np.float32), prog)
 
@@ -1142,12 +1468,14 @@ def train(cache: dict, args) -> Path:
     val_idx, tr_idx = pool[perm[:VAL_BUILDINGS]], pool[perm[VAL_BUILDINGS:]]
     prog = (build_program_cache(cache, force=args.rebuild_program_cache)
             if args.objective == "program" else None)
-    tr = HeightFieldSet(cache, tr_idx, augment=not args.no_aug, seed=args.seed, program=prog)
-    va = HeightFieldSet(cache, val_idx, augment=False, program=prog)
-    print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}, "
-          f"device={dev}", flush=True)
+    tr = HeightFieldSet(cache, tr_idx, augment=not args.no_aug, seed=args.seed, program=prog,
+                        plane_head=args.plane_head)
+    va = HeightFieldSet(cache, val_idx, augment=False, program=prog, plane_head=args.plane_head)
+    print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}"
+          + (f", plane_head={args.plane_head}" if args.objective == "program" else "")
+          + f", device={dev}", flush=True)
 
-    model = make_model(args.objective, args.width, args.k_planes).to(dev)
+    model = make_model(args.objective, args.width, args.k_planes, args.plane_head).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
@@ -1160,7 +1488,7 @@ def train(cache: dict, args) -> Path:
             # 🔑 the program arm never sees its own compiled surface during training. No `slope_
             # weight` either: the joint structure is in the output space now, and #127 measured
             # that adding it to the loss buys description length without buying planes.
-            return program_loss(model(x), prog_labels, m)
+            return program_loss(model(x), prog_labels, m, args.plane_head)
         out = (forward_heights(model, x, ext, args.objective) if args.objective == "planes"
                else model(x))
         per = per_column_loss(out, y, ext, args.objective, args.quantile)
@@ -1200,7 +1528,8 @@ def train(cache: dict, args) -> Path:
             run += float(loss.detach())
         run /= max(len(order) // args.batch, 1)
         model.eval()
-        vl, ve, vm = _validate(model, va, val_carve, args.objective, args.quantile, dev)
+        vl, ve, vm = _validate(model, va, val_carve, args.objective, args.quantile, dev,
+                               args.plane_head)
         curve.append(dict(epoch=ep + 1, train=run, val=vl, val_extra=ve, val_missing=vm,
                           val_symmetric=ve + vm))
         mark = ""
@@ -1208,7 +1537,7 @@ def train(cache: dict, args) -> Path:
             best, mark = (ve + vm, vl), "  <- best"
             torch.save(dict(state=model.state_dict(), objective=args.objective, width=args.width,
                             quantile=args.quantile, k_planes=args.k_planes,
-                            slope_weight=args.slope_weight,
+                            plane_head=args.plane_head, slope_weight=args.slope_weight,
                             slope_decode_quantile=SLOPE_DECODE_QUANTILE,
                             epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
                             val_symmetric=ve + vm, params=n_par), best_path)
@@ -1221,7 +1550,8 @@ def train(cache: dict, args) -> Path:
     return best_path
 
 
-def _validate(model, va, carve_mask, objective: str, quantile: float, dev) -> tuple:
+def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
+              plane_head: str = "regress") -> tuple:
     """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings."""
     import torch
 
@@ -1240,7 +1570,7 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev) -> tu
             if objective == "program":
                 out = model(xt)
                 losses.append(float(program_loss(
-                    out, tuple(torch.from_numpy(t).to(dev) for t in p), m).detach()))
+                    out, tuple(torch.from_numpy(t).to(dev) for t in p), m, plane_head).detach()))
                 o = [tuple(t[k].cpu().numpy() for t in out) for k in range(len(sel))]
             else:
                 out = (forward_heights(model, xt, et, objective) if objective == "planes"
@@ -1251,7 +1581,8 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev) -> tu
             for k, i in enumerate(sel):
                 ext, fp = int(va.extent[i]), va.fp[i]
                 splits.append(height_split(
-                    decode_prediction(o[k], fp, ext, objective, decode_q), va.target[i]))
+                    decode_prediction(o[k], fp, ext, objective, decode_q, plane_head),
+                    va.target[i]))
     carve = [d for d, m in zip(splits, carve_mask) if m]
     return (float(np.mean(losses)),
             float(np.median([d["extra"] for d in carve])) if carve else float("nan"),
@@ -1270,7 +1601,9 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
 
     d = torch.load(ckpt, map_location="cpu", weights_only=False)
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
-    model = make_model(d["objective"], d["width"], d.get("k_planes", 6)).to(dev)
+    # ⚠️ default "regress": #6's committed checkpoints predate the flag and must still load
+    head = d.get("plane_head", "regress")
+    model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     out = np.zeros((len(held["fp"]), RES, RES), np.int16)
@@ -1291,7 +1624,7 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
                 y = model(xt).cpu().numpy()
             for k, i in enumerate(sel):
                 out[i] = decode_prediction(y[k], held["fp"][i], int(held["extent"][i]),
-                                           d["objective"], quantile)
+                                           d["objective"], quantile, head)
     # the whole training curve travels into the artifact, not a summary of it: this project has
     # twice recommended stopping at a dip that recovered (#80), and a curve nobody can re-read is
     # how that happens a third time.
@@ -1299,10 +1632,13 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"],
                      decode=("argmax" if d["objective"] == "ce" and quantile is None else
                              f"posterior q={quantile}" if d["objective"] == "ce" else
-                             "compiled program (argmax slot, argmax type)"
+                             "compiled program (argmax slot, argmax type, "
+                             + ("median offset, median pitch, argmax azimuth)"
+                                if head == "class" else "regressed plane)")
                              if d["objective"] == "program" else
                              f"regression (trained at q={d.get('quantile')})"
                              if d["objective"] == "quantile" else "regression"),
+                     plane_head=head if d["objective"] == "program" else None,
                      trained_quantile=d.get("quantile"),
                      slope_weight=d.get("slope_weight", 0.0),
                      slope_decode_quantile=d.get("slope_decode_quantile"),
@@ -1461,15 +1797,24 @@ def reference_arms(carve_ids: set) -> dict:
 # them is wrong -- so each of these replaces or perturbs exactly one thing and re-scores.
 # ==================================================================================================
 
-def program_predictions(ckpt: Path, held: dict, cpu: bool = False):
-    """(assignment, types, plane params) per pinned building, as the compiler would receive them."""
+def program_predictions(ckpt: Path, held: dict, cpu: bool = False, raw: bool = False):
+    """(assignment, types, plane params) per pinned building, as the compiler would receive them.
+
+    🔑 The planes come back in #6's normalised `(A, Bz, Cx)` whichever head produced them -- a
+    classified head is decoded here, once, by the served decode. Every diagnostic downstream
+    therefore reads one convention and #6's tables stay directly comparable to #129's.
+
+    `raw=True` returns the classified head's logits instead, which is what `decode_ablation` needs
+    to re-read the same weights at a different statistic without a second forward pass.
+    """
     import torch
 
     d = torch.load(ckpt, map_location="cpu", weights_only=False)
     if d["objective"] != "program":
         raise ValueError(f"{ckpt} is a '{d['objective']}' arm; the program diagnostics need one")
+    head = d.get("plane_head", "regress")
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
-    model = make_model("program", d["width"], d.get("k_planes", 6)).to(dev)
+    model = make_model("program", d["width"], d.get("k_planes", 6), head).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     A, T, P = [], [], []
@@ -1480,9 +1825,14 @@ def program_predictions(ckpt: Path, held: dict, cpu: bool = False):
                                              float(held["height_m"][i]), int(held["region"][i]))
                           for i in sel])
             al, tl, pr = model(torch.from_numpy(x).to(dev))
-            A.append(al.argmax(1).cpu().numpy().astype(np.uint8))
+            a = al.argmax(1).cpu().numpy().astype(np.uint8)
+            p = pr.cpu().numpy()
+            if head == "class" and not raw:
+                p = np.stack([decode_plane_logits(p[k], slot_centroids(a[k], p.shape[1]))
+                              for k in range(len(a))])
+            A.append(a)
             T.append(tl.argmax(-1).cpu().numpy().astype(np.int8))
-            P.append(pr.cpu().numpy())
+            P.append(p)
     return np.concatenate(A), np.concatenate(T), np.concatenate(P)
 
 
@@ -1663,6 +2013,104 @@ def label_robustness(label, held, rows, seed: int = 0) -> dict:
     return out
 
 
+def plane_quantisation_ceiling(label, held, rows) -> dict:
+    """🔑 #129's ceiling, and the measurement that chose `PLANE_BINS`. No network involved.
+
+    A classifier cannot beat its own bins, so the first thing to know about a discretisation is what
+    it costs the *exact* labels. This encodes every fitted plane to bins and decodes it straight
+    back, then compiles and scores -- so the row below the continuous ceiling is the best any
+    classifier over these bins could ever reach, and the gap between them is the price of asking
+    the question this way at all.
+
+    ⚠️ Reported at several resolutions on purpose. `PLANE_BINS` was fixed at 64 with the 128 row
+    already visible and deliberately not taken: at 64 the ceiling is an order of magnitude below
+    the 0.0603 the arm has to beat, so the binding constraint is how many examples a class gets,
+    not how fine it is -- and taking the finer grid *because it scores better here* would be
+    selecting a design on a number the trained arm cannot cash.
+    """
+    la, lt, lp = label
+    out = {}
+    hs = [compile_program(la[i], lt[i], lp[i], held["fp"][i], int(held["extent"][i]))
+          for i in rows]
+    out["exact (the continuous ceiling)"] = _median_split(hs, held, rows)
+    for bins in (32, 64, 128):
+        hs = []
+        for i in rows:
+            e = int(held["extent"][i])
+            cen = slot_centroids(la[i], lp.shape[1])
+            q = []
+            for k in range(lp.shape[1]):
+                n = plane_to_normalised(lp[i][k], e)
+                q.append(plane_to_voxel(
+                    bins_to_plane(plane_to_bins(n, cen[k], bins), cen[k], bins), e))
+            hs.append(compile_program(la[i], lt[i], np.stack(q), held["fp"][i], e))
+        out[f"binned at {bins}" + ("  <- PLANE_BINS" if bins == PLANE_BINS else "")] = \
+            _median_split(hs, held, rows)
+    return out
+
+
+def decode_ablation(ckpt: Path, held: dict, rows, cpu: bool = False) -> dict:
+    """🔑🔑 #129's own question, measured: how much of the arm is the DECODE?
+
+    Same weights, same forward pass, eight reads of the posterior. #127's record is that this is
+    where the leverage on such a head is -- argmax -> posterior median moved `extra` 0.1178 ->
+    0.0603 with no retraining at all -- and #129's warning is that the read has to be chosen per
+    quantity rather than copied.
+
+    ⚠️ The pre-registered decode is `PLANE_DECODE`, fixed in `decode_plane_logits` before the first
+    training step. This table is read AFTER the fact and reports what the alternatives would have
+    scored; it does not choose. A row that beats the pre-registered one is a finding to report, not
+    a decode to adopt retroactively.
+
+    The `circmean` azimuth rows are the failure the ticket names: over an antipodal posterior the
+    resultant cancels, so the direction returned is held by neither mode.
+    """
+    a, t, lg = program_predictions(ckpt, held, cpu, raw=True)
+    if lg.ndim != 4:
+        return {}
+    out = {}
+    for off in ("median", "argmax"):
+        for pit in ("median", "argmax"):
+            for azi in ("argmax", "circmean"):
+                reads = (off, pit, azi)
+                hs, rise = [], []
+                for i in rows:
+                    e = int(held["extent"][i])
+                    cen = slot_centroids(a[i], lg.shape[1])
+                    n = decode_plane_logits(lg[i], cen, reads)
+                    hs.append(compile_program(a[i], t[i],
+                                              np.stack([plane_to_voxel(n[k], e)
+                                                        for k in range(len(n))]),
+                                              held["fp"][i], e))
+                    rise += _realised_rise(hs[-1], a[i], t[i], held["fp"][i])
+                name = " / ".join(f"{q} {r}" for q, r in zip(PLANE_QUANTITIES, reads))
+                out[name + ("   <- PRE-REGISTERED" if reads == tuple(PLANE_DECODE) else "")] = \
+                    dict(**_median_split(hs, held, rows), n_ramp_slots=len(rise),
+                         realised_rise_median_voxels=float(np.median(rise)) if rise else 0.0)
+    return out
+
+
+def _realised_rise(height: np.ndarray, assign, types, fp) -> list:
+    """The height RANGE the compiled surface actually spans inside each slot typed `Ramp`.
+
+    🔑 #129 asks for this beside every number, and the reason is #6's result: that arm typed 46% of
+    its slots `Ramp` correctly and drew them with a median rise of **0.00 voxels**. "It predicted a
+    ramp" is not evidence that it drew one, and only this reads the surface rather than the label.
+
+    ⚠️ Returns one entry per SLOT, not a per-building summary, and the caller pools them -- which is
+    what `slot_usage` does and the two numbers have to be read against each other. Averaging within
+    a building first would score every building that used no `Ramp` at all as a 0-voxel rise and
+    drag the median to zero for a reason that is about the type head, not about the surface.
+
+    ⚠️ `Ramp`-typed slots only, which is NARROWER than `slot_usage`'s number over every used slot --
+    a flat `Layer` genuinely reads 0 and would dilute this. The 20-column floor is `slot_usage`'s,
+    so the two are on the same regions otherwise.
+    """
+    return [float(height[m].max() - height[m].min())
+            for k in range(len(types)) if int(types[k]) == SLOT_TYPES.index("Ramp")
+            for m in [(assign == k) & fp] if int(m.sum()) > 20]
+
+
 def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
                      cpu: bool = False) -> dict:
     """Every #6 diagnostic, run together so the write-up's argument is re-runnable from the repo.
@@ -1682,6 +2130,10 @@ def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
         canonicalisation=canonicalisation_cost(pred, label, held, rows),
         slot_usage=slot_usage(pred, label, held, rows),
         robustness=label_robustness(label, held, rows),
+        # #129's two. Both are empty for a `regress` checkpoint, which has no bins and no posterior.
+        quantisation_ceiling=plane_quantisation_ceiling(label, held, rows),
+        decode_ablation=decode_ablation(ckpt, held, rows, cpu),
+        plane_decode=list(PLANE_DECODE), plane_bins=PLANE_BINS,
     )
 
 
@@ -1718,6 +2170,17 @@ def report_program_diagnostics(d: dict) -> None:
                          ("assignment randomised", "assignment_corrupted")):
         for key, v in d["robustness"][rowset].items():
             print(f"    {kind} {key:>5}  extra {v['extra']:.4f}   missing {v['missing']:.4f}")
+    if d.get("quantisation_ceiling"):
+        print(f"\n  #129: what the BINS cost the exact labels (no network) -- "
+              f"PLANE_BINS={d.get('plane_bins')}")
+        for name, v in d["quantisation_ceiling"].items():
+            print(f"    {name:42s} extra {v['extra']:.4f}   missing {v['missing']:.4f}")
+    if d.get("decode_ablation"):
+        print(f"\n  #129: the same weights, eight reads of the posterior. Pre-registered: "
+              f"{' / '.join(f'{q} {r}' for q, r in zip(PLANE_QUANTITIES, d['plane_decode']))}")
+        for name, v in d["decode_ablation"].items():
+            print(f"    {name:52s} extra {v['extra']:.4f}   missing {v['missing']:.4f}   "
+                  f"ramp rise {v['realised_rise_median_voxels']:5.2f} vox")
     print("=" * 100)
 
 
@@ -2009,6 +2472,12 @@ def main() -> None:
     ap.add_argument("--objective", default="ce", choices=OBJECTIVES,
                     help="which statistic of the per-column posterior to target: ce -> the mode, "
                          "mse -> the mean, quantile -> --quantile (0.5 = the median)")
+    ap.add_argument("--plane_head", default="regress", choices=("regress", "class"),
+                    help="#129. How --objective program predicts a slot's plane: `regress` is #6's "
+                         "L1 on (A, Bz, Cx), which must return flat because the corpus's signed "
+                         "slope is exactly symmetric; `class` is cross-entropy over binned "
+                         "(offset, pitch, azimuth), which has no such Bayes act. The ONLY "
+                         "difference between the two arms, so a gap is attributable to it")
     ap.add_argument("--k_planes", type=int, default=6,
                     help="planes for --objective planes. #10 measured a median of 5 operations to "
                          "explain a real roof and 9 at p75, so 6 is the median-plus with room")
@@ -2061,7 +2530,9 @@ def main() -> None:
                     help="write the map sheets from --ckpt and exit, skipping the scored run")
     ap.add_argument("--out", default="execution/artifacts/height_map_generator_714.json")
     args = ap.parse_args()
-    args.tag = args.tag or f"heightmap_{args.objective}"
+    args.tag = args.tag or (f"heightmap_{args.objective}"
+                            + ("_class" if args.objective == "program"
+                               and args.plane_head == "class" else ""))
 
     cache = build_cache(force=args.rebuild_cache)
 
@@ -2194,7 +2665,8 @@ def main() -> None:
                   n_train=len(train_idx), depth_classes=DEPTH_CLASSES,
                   checkpoints=ckpt_meta, run_flags=dict(
                       epochs=args.epochs, batch=args.batch, lr=args.lr, width=args.width,
-                      seed=args.seed, augment=not args.no_aug, trained_here=not bool(args.ckpt))),
+                      seed=args.seed, augment=not args.no_aug, plane_head=args.plane_head,
+                      trained_here=not bool(args.ckpt))),
         arms=arms, verdict=verdict(arms, "carve"),
         reference=reference_arms({int(held["row"][i]) for i in pops["carve"]}),
         nn_footprint_iou=float(np.median([
