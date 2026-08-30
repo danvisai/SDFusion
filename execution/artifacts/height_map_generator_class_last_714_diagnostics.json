@@ -1,0 +1,191 @@
+{
+ "n": 411,
+ "checkpoint": "outputs/height_map_generator/heightmap_program_class_last.pt",
+ "head_ablation": {
+  "all three predicted": {
+   "extra": 0.09020076031292218,
+   "missing": 0.10647636039250669
+  },
+  "label types": {
+   "extra": 0.09650639916983743,
+   "missing": 0.0991988756148981
+  },
+  "label assignment": {
+   "extra": 0.09253204629197156,
+   "missing": 0.11843872766442783
+  },
+  "label planes": {
+   "extra": 0.08661811656198486,
+   "missing": 0.000589386827204412
+  },
+  "all three from the label (the ceiling)": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0
+  }
+ },
+ "flatten_ramps": {
+  "compiled as fitted": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "ops": 2.0,
+   "planar_fraction": 0.5
+  },
+  "every Ramp flattened": {
+   "extra": 0.0527537847125476,
+   "missing": 0.0,
+   "ops": 1.0,
+   "planar_fraction": 0.0
+  }
+ },
+ "slope_symmetry": {
+  "n": 52792,
+  "mean": 0.0008517440489446268,
+  "median": 5.385612548233488e-16,
+  "p25": -0.6474373117089272,
+  "p75": 0.6431724419719295,
+  "positive": 0.5003788452795879,
+  "negative": 0.4960600090922867,
+  "median_abs": 0.6460239998996258
+ },
+ "canonicalisation": {
+  "n": 411,
+  "canonical_order": 0.5967625959025307,
+  "best_permutation": 0.5082604310470362,
+  "cost": 0.08850216485549452,
+  "cost_share": 0.14830380701331622
+ },
+ "slot_usage": {
+  "slots_used_by_arm": 1.1532846715328466,
+  "slots_used_by_label": 3.0608272506082725,
+  "arm_uses_exactly_one": 0.7931873479318735,
+  "used_slots_typed_ramp": 0.5042194092827004,
+  "realised_rise_median_voxels": 4.0,
+  "used_slots_compiling_flat": 0.4805491990846682
+ },
+ "robustness": {
+  "plane_noise": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0
+   },
+   "0.02": {
+    "extra": 0.012789880534082924,
+    "missing": 0.006888826659199104
+   },
+   "0.05": {
+    "extra": 0.02542899858433775,
+    "missing": 0.015318940791960335
+   },
+   "0.10": {
+    "extra": 0.035022301516503124,
+    "missing": 0.030119660629450568
+   }
+  },
+  "assignment_corrupted": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0
+   },
+   "0.05": {
+    "extra": 0.010127697049757816,
+    "missing": 0.010357276235528444
+   },
+   "0.25": {
+    "extra": 0.03264722528372702,
+    "missing": 0.05137684345150074
+   }
+  }
+ },
+ "quantisation_ceiling": {
+  "exact (the continuous ceiling)": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0
+  },
+  "binned at 32": {
+   "extra": 0.01071881798404641,
+   "missing": 0.005151286520800271
+  },
+  "binned at 64  <- PLANE_BINS": {
+   "extra": 0.006340654786572731,
+   "missing": 0.0034770792534271214
+  },
+  "binned at 128": {
+   "extra": 0.0038784645572725045,
+   "missing": 0.00258336314136958
+  }
+ },
+ "decode_ablation": {
+  "offset median / pitch median / azimuth argmax   <- PRE-REGISTERED": {
+   "extra": 0.09020076031292218,
+   "missing": 0.10647636039250669,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 20.0
+  },
+  "offset median / pitch median / azimuth circmean": {
+   "extra": 0.07482710207477511,
+   "missing": 0.1400937674174617,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 22.0
+  },
+  "offset median / pitch argmax / azimuth argmax": {
+   "extra": 0.09397090703446542,
+   "missing": 0.10931644738641648,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 22.0
+  },
+  "offset median / pitch argmax / azimuth circmean": {
+   "extra": 0.08114979577093001,
+   "missing": 0.12950206652233812,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 24.0
+  },
+  "offset argmax / pitch median / azimuth argmax": {
+   "extra": 0.09671033688453787,
+   "missing": 0.09151686463825193,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 19.0
+  },
+  "offset argmax / pitch median / azimuth circmean": {
+   "extra": 0.0811150429695963,
+   "missing": 0.13037871589520836,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 21.0
+  },
+  "offset argmax / pitch argmax / azimuth argmax": {
+   "extra": 0.09748045178105995,
+   "missing": 0.08476517754868271,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 21.0
+  },
+  "offset argmax / pitch argmax / azimuth circmean": {
+   "extra": 0.08588567802964757,
+   "missing": 0.12018318790309468,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 23.0
+  },
+  "offset median / pitch q0.25 / azimuth argmax": {
+   "extra": 0.09155682223013893,
+   "missing": 0.0815754039497307,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 15.0
+  },
+  "offset median / pitch q0.35 / azimuth argmax": {
+   "extra": 0.09123462556437802,
+   "missing": 0.09242445537596627,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 18.0
+  },
+  "offset median / pitch q0.75 / azimuth argmax": {
+   "extra": 0.08594295877532872,
+   "missing": 0.1370408015100915,
+   "n_ramp_slots": 227,
+   "realised_rise_median_voxels": 23.0
+  }
+ },
+ "plane_decode": [
+  "median",
+  "median",
+  "argmax"
+ ],
+ "plane_bins": 64
+}

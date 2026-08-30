@@ -1085,8 +1085,8 @@ def decode_plane_logits(logits, centroids, reads=None) -> np.ndarray:
     rd = tuple(reads or PLANE_DECODE)
     p = np.exp(lg - lg.max(axis=-1, keepdims=True))
     p /= p.sum(axis=-1, keepdims=True)
+    cdf = np.cumsum(p, axis=-1)
     stat = dict(
-        median=(np.cumsum(p, axis=-1) >= 0.5).argmax(axis=-1),    # smallest bin reaching the mass
         argmax=p.argmax(axis=-1),
         # the natural averaging statistic on a circle, and the one #129 warns against: over two
         # antipodal modes its resultant cancels and the angle it returns is held by neither
@@ -1094,7 +1094,12 @@ def decode_plane_logits(logits, centroids, reads=None) -> np.ndarray:
             (np.arctan2((p * np.sin(_azimuth_centres())).sum(-1),
                         (p * np.cos(_azimuth_centres())).sum(-1)) % (2 * np.pi))
             / (2 * np.pi) * PLANE_BINS).astype(np.int64) % PLANE_BINS)
-    bins = np.stack([stat[rd[q]][:, q] for q in range(3)], axis=-1)
+    bins = np.stack([
+        # "median" is q0.50, spelled out so the pre-registered read and an ablation quantile go
+        # through the same line and cannot drift apart
+        (cdf[:, q] >= (0.5 if rd[q] == "median" else float(rd[q][1:]))).argmax(axis=-1)
+        if rd[q] == "median" or rd[q].startswith("q") else stat[rd[q]][:, q]
+        for q in range(3)], axis=-1)
     return np.stack([bins_to_plane(bins[k], cen[k]) for k in range(len(bins))])
 
 
@@ -1220,7 +1225,8 @@ def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"
     to the last layer's width: `regress` emits 3 numbers per slot and `class` emits
     `3 x PLANE_BINS` logits. Same trunk, same assignment head, same type head, same loss structure,
     same decode for everything except the plane -- so a difference between the two arms is
-    attributable to the plane head and to nothing else. It costs 0.8M parameters, 3.6M -> 4.4M.
+    attributable to the plane head and to nothing else. It costs 0.19M parameters, 3.39M -> 3.58M,
+    which is 5.7% and far too little to be an explanation of any gap on its own.
     """
     import torch
     import torch.nn as nn
@@ -1457,6 +1463,14 @@ def train(cache: dict, args) -> Path:
     The symmetric difference cannot be gamed from either end -- no-op and over-carve are both
     penalised -- and it needs no threshold. Validation loss is recorded for the curve and breaks
     ties.
+
+    🔑 The FINAL epoch is also written, as `<tag>_last.pt`, and it is a **diagnostic and never the
+    arm**. The rule above is the only thing that selects. It exists because #129's run is the first
+    on this ticket where the rule and the bar point at different epochs -- the classified head
+    trades `missing` for `extra` as it trains, so the symmetric difference stops improving while
+    `extra` keeps falling -- and "what would the endpoint have scored" is then a question the
+    record should be able to answer from disk instead of by argument. Reporting it is disclosure;
+    scoring the run on it would be selecting on the answer.
     """
     import torch
     import torch.nn.functional as F
@@ -1505,6 +1519,7 @@ def train(cache: dict, args) -> Path:
                 tuple(torch.from_numpy(t).to(dev) for t in p) if p is not None else None)
 
     curve, best, best_path = [], (float("inf"), float("inf")), WORK / f"{args.tag}.pt"
+    last_path = WORK / f"{args.tag}_last.pt"
     best_path.parent.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(args.seed + 1)
     val_carve = np.array([
@@ -1533,20 +1548,25 @@ def train(cache: dict, args) -> Path:
         curve.append(dict(epoch=ep + 1, train=run, val=vl, val_extra=ve, val_missing=vm,
                           val_symmetric=ve + vm))
         mark = ""
+        snap = dict(state=model.state_dict(), objective=args.objective, width=args.width,
+                    quantile=args.quantile, k_planes=args.k_planes,
+                    plane_head=args.plane_head, slope_weight=args.slope_weight,
+                    slope_decode_quantile=SLOPE_DECODE_QUANTILE,
+                    epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
+                    val_symmetric=ve + vm, params=n_par)
         if (ve + vm, vl) < best:
             best, mark = (ve + vm, vl), "  <- best"
-            torch.save(dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                            quantile=args.quantile, k_planes=args.k_planes,
-                            plane_head=args.plane_head, slope_weight=args.slope_weight,
-                            slope_decode_quantile=SLOPE_DECODE_QUANTILE,
-                            epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
-                            val_symmetric=ve + vm, params=n_par), best_path)
+            torch.save(snap, best_path)
+        if ep + 1 == args.epochs:
+            torch.save(dict(snap, selected_by="NOTHING -- the final epoch, a diagnostic only"),
+                       last_path)
         print(f"  epoch {ep+1:>3}/{args.epochs}  train {run:.4f}  val {vl:.4f}  "
               f"val extra {ve:.4f}  val miss {vm:.4f}  sym {ve+vm:.4f}  "
               f"{time.time()-t0:.0f}s{mark}", flush=True)
     json.dump(curve, open(WORK / f"{args.tag}_curve.json", "w"), indent=1)
     print(f"[train] best validation missing+extra {best[0]:.4f} (loss {best[1]:.4f}) -> "
-          f"{best_path}", flush=True)
+          f"{best_path}\n[train] final epoch, a diagnostic and NOT the arm -> {last_path}",
+          flush=True)
     return best_path
 
 
@@ -2068,25 +2088,29 @@ def decode_ablation(ckpt: Path, held: dict, rows, cpu: bool = False) -> dict:
     a, t, lg = program_predictions(ckpt, held, cpu, raw=True)
     if lg.ndim != 4:
         return {}
+    grid = [(o, p, z) for o in ("median", "argmax") for p in ("median", "argmax")
+            for z in ("argmax", "circmean")]
+    # ⚠️ A pitch SWEEP, at the pre-registered offset and azimuth. Not a candidate decode -- it is
+    # here because `missing` and `extra` are asymmetric in the pitch: a plane a little too steep
+    # dives below GT over the far end of its region, while one a little too shallow only leaves
+    # surplus above it. If that asymmetry is real, a *lower* quantile buys `missing` cheaply, and
+    # that is a finding for the next arm to pre-register, never a read to adopt here.
+    grid += [("median", f"q{q}", "argmax") for q in (0.25, 0.35, 0.75)]
     out = {}
-    for off in ("median", "argmax"):
-        for pit in ("median", "argmax"):
-            for azi in ("argmax", "circmean"):
-                reads = (off, pit, azi)
-                hs, rise = [], []
-                for i in rows:
-                    e = int(held["extent"][i])
-                    cen = slot_centroids(a[i], lg.shape[1])
-                    n = decode_plane_logits(lg[i], cen, reads)
-                    hs.append(compile_program(a[i], t[i],
-                                              np.stack([plane_to_voxel(n[k], e)
-                                                        for k in range(len(n))]),
-                                              held["fp"][i], e))
-                    rise += _realised_rise(hs[-1], a[i], t[i], held["fp"][i])
-                name = " / ".join(f"{q} {r}" for q, r in zip(PLANE_QUANTITIES, reads))
-                out[name + ("   <- PRE-REGISTERED" if reads == tuple(PLANE_DECODE) else "")] = \
-                    dict(**_median_split(hs, held, rows), n_ramp_slots=len(rise),
-                         realised_rise_median_voxels=float(np.median(rise)) if rise else 0.0)
+    for reads in grid:
+        hs, rise = [], []
+        for i in rows:
+            e = int(held["extent"][i])
+            cen = slot_centroids(a[i], lg.shape[1])
+            n = decode_plane_logits(lg[i], cen, reads)
+            hs.append(compile_program(a[i], t[i],
+                                      np.stack([plane_to_voxel(n[k], e) for k in range(len(n))]),
+                                      held["fp"][i], e))
+            rise += _realised_rise(hs[-1], a[i], t[i], held["fp"][i])
+        name = " / ".join(f"{q} {r}" for q, r in zip(PLANE_QUANTITIES, reads))
+        out[name + ("   <- PRE-REGISTERED" if reads == tuple(PLANE_DECODE) else "")] = \
+            dict(**_median_split(hs, held, rows), n_ramp_slots=len(rise),
+                 realised_rise_median_voxels=float(np.median(rise)) if rise else 0.0)
     return out
 
 
@@ -2665,7 +2689,11 @@ def main() -> None:
                   n_train=len(train_idx), depth_classes=DEPTH_CLASSES,
                   checkpoints=ckpt_meta, run_flags=dict(
                       epochs=args.epochs, batch=args.batch, lr=args.lr, width=args.width,
-                      seed=args.seed, augment=not args.no_aug, plane_head=args.plane_head,
+                      seed=args.seed, augment=not args.no_aug,
+                      # ⚠️ None on a --ckpt rerun: this block is the flags of THIS invocation, and
+                      # a head recorded here that did not produce the checkpoints beside it is the
+                      # same trap `predict` avoids by carrying its own provenance
+                      plane_head=args.plane_head if not args.ckpt else None,
                       trained_here=not bool(args.ckpt))),
         arms=arms, verdict=verdict(arms, "carve"),
         reference=reference_arms({int(held["row"][i]) for i in pops["carve"]}),

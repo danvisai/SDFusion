@@ -36,7 +36,8 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     condition_channels, decode_logits, decode_plane_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
     differentiable_depth, height_rgb, normal_rgb,
-    per_column_loss, decode_prediction, plane_to_bins, plane_to_normalised, plane_to_voxel,
+    per_column_loss, decode_prediction, PLANE_DECODE, plane_to_bins, plane_to_normalised,
+    plane_to_voxel,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict,
@@ -1355,6 +1356,25 @@ class TestPlaneDecode(unittest.TestCase):
                           azimuth={int(b[2]): 1.0})
         np.testing.assert_allclose(decode_plane_logits(lg, c)[0], bins_to_plane(b, c[0]),
                                    atol=1e-6)
+
+    def test_an_ablation_quantile_reads_the_same_posterior_lower(self):
+        """`decode_ablation` sweeps the pitch, so `q0.25` has to be the same cdf read at a lower
+        mass -- and never below `q0.5`'s bin, or the sweep would not be measuring what it says."""
+        lg = self._logits(offset={PLANE_BINS // 2: 1.0},
+                          pitch={4: 0.3, 30: 0.3, 50: 0.4}, azimuth={0: 1.0})
+        cen = np.zeros((1, 2))
+        lo = np.hypot(*decode_plane_logits(lg, cen, ("median", "q0.25", "argmax"))[0, 1:])
+        mid = np.hypot(*decode_plane_logits(lg, cen, PLANE_DECODE)[0, 1:])
+        hi = np.hypot(*decode_plane_logits(lg, cen, ("median", "q0.75", "argmax"))[0, 1:])
+        self.assertLess(lo, mid)
+        self.assertLess(mid, hi)
+
+    def test_median_and_q_half_are_the_same_read(self):
+        rng = np.random.default_rng(11)
+        lg, cen = rng.normal(0, 3, (K_OPS, 3, PLANE_BINS)), rng.uniform(-.4, .4, (K_OPS, 2))
+        np.testing.assert_allclose(
+            decode_plane_logits(lg, cen, ("median", "median", "argmax")),
+            decode_plane_logits(lg, cen, ("q0.5", "q0.5", "argmax")))
 
     def test_it_is_total_for_an_untrained_head(self):
         rng = np.random.default_rng(3)
