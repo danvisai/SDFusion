@@ -477,6 +477,52 @@ class TestVerdict(unittest.TestCase):
         self.assertTrue(v["killed_identity"])
         self.assertFalse(v["pass"])
 
+    def _form_arms(self, **arm_extra):
+        """A scorecard carrying the form columns #6's bar is written on."""
+        def block(extra, ops, planar):
+            return {"carve": dict(extra=extra, collapse_rate=0.0, vs_input=0.85,
+                                  dl_ops=ops, dl_planar_fraction=planar)}
+        arms = {"blockout": block(0.2308, 0.0, 0.00),
+                "nn_retrieval": block(0.1031, 2.0, 0.17)}
+        arms.update({k: block(*v) for k, v in arm_extra.items()})
+        return arms
+
+    def test_the_program_bar_needs_all_three_clauses(self):
+        """#6's bar, evaluated here rather than in prose -- which is this function's whole reason
+        for existing. An arm at the compiled label's own form and under the served arm's surplus."""
+        v = verdict(self._form_arms(cand=(0.0400, 2.0, 0.50)), "carve")["cand"]
+        self.assertEqual((v["form_ops_under_bar"], v["form_planar_over_bar"],
+                          v["beats_served_extra"]), (True, True, True))
+        self.assertTrue(v["program_pass"])
+        self.assertFalse(v["killed_flat"])
+
+    def test_a_terrace_is_killed_however_short_its_description(self):
+        """🔑 The trap the bar exists to catch, and it is not hypothetical: #127's plane head scored
+        3.0 ops with planar_fraction 0.00, and #6's own arm scored 1.0 ops with 0.00. A
+        single-number form metric calls both an improvement."""
+        v = verdict(self._form_arms(cand=(0.0400, 1.0, 0.00)), "carve")["cand"]
+        self.assertTrue(v["form_ops_under_bar"])          # the ops half looks like a win
+        self.assertFalse(v["form_planar_over_bar"])       # and the planar half is the truth
+        self.assertFalse(v["program_pass"])
+        self.assertTrue(v["killed_flat"])
+
+    def test_good_form_does_not_excuse_leaving_the_surplus(self):
+        v = verdict(self._form_arms(cand=(0.1236, 2.0, 0.50)), "carve")["cand"]
+        self.assertFalse(v["beats_served_extra"])
+        self.assertFalse(v["program_pass"])
+
+    def test_the_kill_boundary_is_the_served_arms_own_planar_fraction(self):
+        """`<=`, not `<`: matching the arm you replaced is not an improvement over it."""
+        self.assertTrue(verdict(self._form_arms(c=(0.04, 2.0, 0.20)), "carve")["c"]["killed_flat"])
+        self.assertFalse(verdict(self._form_arms(c=(0.04, 2.0, 0.21)), "carve")["c"]["killed_flat"])
+
+    def test_an_arm_scored_without_the_form_metric_gets_no_form_verdict(self):
+        """`--no_form` is a real run mode, and a missing measurement must read as absent rather
+        than as a pass."""
+        v = verdict(self._arms(cand=(0.0400, 0.0, 0.85)), "carve")["cand"]
+        for k in ("form_ops_under_bar", "form_planar_over_bar", "program_pass", "killed_flat"):
+            self.assertNotIn(k, v)
+
     def test_an_arm_that_sees_gt_is_a_ceiling_and_is_never_given_a_verdict(self):
         """⚠️ #6's compiled-label arm is the fitter's own program with the answer in hand. It scores
         better than anything a generator could and would collect a PASS mechanically, which would be

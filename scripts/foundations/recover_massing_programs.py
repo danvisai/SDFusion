@@ -350,6 +350,22 @@ K_OPS = 4
 SLOT_TYPES = ("Layer", "Ramp")
 
 
+def plane_surface(plane, eps: float = FLOOR_EPS, res: int = RES) -> np.ndarray:
+    """`height = floor(a + b*x + c*z + eps)` over the whole plan. One spelling, two epsilons.
+
+    ⚠️ The snap is a parameter because the right value depends on the PRECISION of the plane, not on
+    the geometry. `linprog` returns float64 and 1e-9 is the correct snap for it; #6 stores a slot's
+    plane in the label cache and predicts it in **float32**, where a value that is mathematically 30
+    arrives as 29.9999996 and `floor` reads 29 -- measured on 96 of 1,280 columns of a plain shed
+    roof. Both callers floor the same expression, so they are written once here and the epsilon is
+    the only thing that varies; `test_the_slots_replay_the_fitted_height_map_exactly` is what pins
+    that the two choices still agree on the same building.
+    """
+    zz, xx = np.mgrid[0:res, 0:res]
+    a, b, c = (float(v) for v in plane)
+    return np.floor(a + b * xx + c * zz + eps)
+
+
 def program_to_slots(fp, extent, ops, k_ops: int = K_OPS):
     """A fitted program -> (per-column slot assignment, per-slot type, per-slot plane).
 
@@ -392,7 +408,6 @@ def program_to_slots(fp, extent, ops, k_ops: int = K_OPS):
     e = int(extent)
     h = np.where(m, np.int16(e), 0).astype(np.int16)
     owner = np.full(m.shape, k_ops, np.uint8)
-    zz, xx = np.mgrid[0:RES, 0:RES]
     kinds, planes_vox = [], []
     for i, op in enumerate(ops[:k_ops]):
         kind = op["op"]
@@ -408,7 +423,7 @@ def program_to_slots(fp, extent, ops, k_ops: int = K_OPS):
             raise ValueError(
                 f"'{kind}' has no plane, so it cannot be a slot -- fit the labels with "
                 f"ops_allowed=('Layer', 'Ramp')")
-        surf = np.floor(plane[0] + plane[1] * xx + plane[2] * zz + FLOOR_EPS)
+        surf = plane_surface(plane)                # float64 from the fitter: the 1e-9 snap
         cand = np.where(region, np.minimum(h, surf), h)
         cand = np.where(m, np.maximum(cand, 1), 0).astype(np.int16)
         owner[m & (cand < h)] = i

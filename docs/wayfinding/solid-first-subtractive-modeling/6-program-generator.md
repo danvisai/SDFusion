@@ -10,10 +10,16 @@
 > canonicalization/equivalence-aware objectives, curriculum, rejection/repair, and baselines from
 > ArcPro, Building-Gym, ShapeAssembly/CSG, CoMa, and CityGenAgent.
 
-The ticket asks the question against the literature. It is answered here against this corpus,
-because four of the choices it lists turn out to be **settled by facts about our own data** rather
+The ticket asks the question against the literature. It is answered here against **this corpus**,
+because several of the choices it lists turn out to be settled by facts about our own data rather
 than by which paper is better — and measuring those facts took less time than reading the papers
 would have.
+
+⚠️ **That is a deliberate substitution and it leaves part of the ticket undone.** The named
+baselines (ArcPro, Building-Gym, ShapeAssembly/CSG, CoMa, CityGenAgent) are **not** engaged here,
+and two of the listed comparisons — graph/set *diffusion*, and *curriculum* — are not addressed
+either. The accounting is at the end of this page. Read this as answering the formulation-and-
+training-strategy half of #6 by experiment, not as closing the ticket.
 
 
 ## Why this was the next arm at all
@@ -48,7 +54,7 @@ plane at all still yields a footprint-exact height map with a voxel under every 
 A prediction can be wrong; it cannot be invalid.
 
 
-## The four choices #6 asks about, and what decided each
+## The choices #6 asks about, and what decided each
 
 **Program induction with pseudo-labels, or exact supervision?** → **Exact.** The literature reaches
 for pseudo-labels, RL and differentiable relaxations because exact programs are usually unavailable.
@@ -130,16 +136,17 @@ planes. This is the first representation on this map's record whose ceiling is t
 that reason — it would collect a mechanical PASS, which would be the scorecard reporting that the
 target was hit by looking at it.
 
-**Robustness — the answer to the obvious objection.** The loss is on the *program* and the scorecard
+**Robustness (`label_robustness`) — the answer to the obvious objection.** The loss is on the *program* and the scorecard
 is on the *surface*, so: how much parameter error does the surface absorb? Measured on the 411 by
 perturbing the labels, with no network involved:
 
 | perturbation of the label | `extra` | `missing` |
 |---|---|---|
 | none | 0.0035 | 0.0000 |
-| plane noise σ = 0.02 *of the building's own height* | 0.0127 | 0.0074 |
-| plane noise σ = 0.10 | **0.0379** | 0.0299 |
-| **a quarter of all column assignments randomised** | **0.0325** | 0.0514 |
+| plane noise σ = 0.02 *of the building's own height* | 0.0128 | 0.0069 |
+| plane noise σ = 0.05 | 0.0254 | 0.0153 |
+| plane noise σ = 0.10 | **0.0350** | 0.0301 |
+| **a quarter of all column assignments randomised** | **0.0326** | 0.0514 |
 
 Both extremes still score below the served per-column arm's 0.0603. **The output space degrades
 gracefully**, so the arm has to be roughly right, not exact — which is what makes supervising
@@ -168,14 +175,17 @@ the one trap this bar exists to catch.
 ## Result — the KILL clause fires, and the reason is a number
 
 40 epochs, 3.39M parameters, the same budget and trunk every #127 arm had.
-Artifact: `execution/artifacts/height_map_generator_program_714.json`.
+Artifacts: `execution/artifacts/height_map_generator_program_714.json` and `..._diagnostics.json`.
+**Every arm scored in that run is listed here**, not a chosen subset.
 
 | arm (411 carve-needing) | `missing` | `extra` | `vs_input` | collapse | carved cols | **form (ops)** | **planar** | *(3D IoU)* |
 |---|---|---|---|---|---|---|---|---|
 | the real building | — | — | — | — | 0.967 | **2.0** | **0.50** | — |
 | **program label (sees GT)** | 0.0000 | **0.0035** | 0.8226 | 0.0000 | 0.921 | **2.0** | **0.50** | *0.9965* |
 | blockout | 0.0000 | 0.2308 | 1.0000 | 0.0000 | 0.000 | 0.0 | 0.00 | *0.8125* |
+| mean_roof | 0.0135 | 0.1369 | 0.9070 | 0.0000 | 1.000 | 2.0 | 0.00 | *0.8640* |
 | 1-NN retrieval | 0.0257 | 0.1031 | 0.8743 | 0.1582 | 0.930 | 2.0 | 0.17 | *0.8355* |
+| CE at argmax *(#127's pre-registered decode)* | 0.0090 | **0.1178** | 0.9304 | 0.0316 | 0.565 | 3.0 | 0.00 | *0.8682* |
 | CE + median *(#127's served arm)* | 0.0385 | **0.0603** | 0.8432 | 0.0268 | 1.000 | 6.0 | 0.20 | *0.8948* |
 | **`heightmap_program`** | 0.0218 | **0.1236** | 0.8952 | **0.0073** | **0.953** | **1.0** | **0.00** | *0.8572* |
 
@@ -186,28 +196,46 @@ Artifact: `execution/artifacts/height_map_generator_program_714.json`.
            vs_input < 0.98      0.8952 ✔
     KILL   planar <= 0.20        0.00  → **FIRED**
 
-**Recorded as a kill on the arm as trained.** Not on the formulation — the two are separable here,
-and the rest of this section is why.
+Evaluated by `verdict()`, not by this table: the clauses are in the artifact's `verdict` block as
+`form_ops_under_bar` / `form_planar_over_bar` / `beats_served_extra` / `program_pass` /
+`killed_flat`, so the write-up cannot soften them.
+
+⚠️ **On surplus this is the worst acting arm in the table.** 0.1236 is worse than the served arm's
+0.0603 *and* worse than plain `heightmap_ce`'s 0.1178; only `mean_roof` and the envelope are worse.
+Nothing below softens that.
+
+⚠️⚠️ **And I am about to argue against my own pre-registration, which must be read as the post-hoc
+move it is.** The bar as written says the KILL "answers #6 'not this way'". I now read "this way"
+narrowly — as *regressed plane parameters* rather than as *the program route* — on the strength of
+three measurements that did not exist when the bar was written (the head-swap, the ramp-flatten
+control, and the slope symmetry). That may be right and it is still a reinterpretation of a bar I
+fixed in advance precisely so it could not be reinterpreted. The kill is recorded as **fired**; a
+reader who declines the narrowing should read this ticket as answering #6 "not the program route",
+and they are entitled to.
 
 ### What did work, and it is not nothing
 
 * **Best collapse rate of any acting arm**, 0.0073 against the served arm's 0.0268 and 1-NN's
   0.1582. The output space's validity guarantee is real.
-* **It acts almost everywhere GT does** — carves 0.953 of columns against GT's 0.967, where the
-  served CE arm at its own decode carves 0.565. The no-op that closed #69–#92 is nowhere near.
-* 🔑 **Every surface it produces is clean.** The montage
-  (`outputs/height_map_generator/representative.png`) shows it beside the CE arms: no mound, no
+* **It acts almost everywhere GT does** — carves 0.953 of columns against GT's 0.967. (For contrast,
+  `heightmap_ce` *at its own pre-registered argmax decode* carves 0.565; the served CE+median arm
+  carves 1.000, so this comparison is against the argmax arm and not the served one.) The no-op that
+  closed #69–#92 is nowhere near.
+* 🔑 **Every surface it produces is clean.** The montages
+  (`outputs/height_map_generator/{best,representative,worst}.png`, all three from this run) show it
+  beside the CE arms: no mound, no
   concentric contour banding, no ripple, no speckle anywhere. It draws crisp flat-topped blocks with
   sharp edges. That is a visibly different *class* of output from anything on #127's record, and it
   is what "the description length is 1 operation" looks like from the side.
 
 ### It draws a flat roof where GT has a pitched one, and that is the whole failure
 
-The arm uses **1.19 slots** per building where its label uses **3.06** (78% of buildings get exactly
+The arm (`slot_usage`) uses **1.19 slots** per building where its label uses **3.06** (78% of buildings get exactly
 one). Of the slots it does use, 46% are *typed* `Ramp` — the type head works — but the realised
 height range inside a used slot's own region has **median 0.00 voxels**, and 67% are dead flat.
 
-Which head is responsible, measured by replacing one predicted head at a time with its label:
+Which head is responsible, measured by replacing one predicted head at a time with its label
+(`head_ablation`, in the diagnostics artifact):
 
 | | `extra` | `missing` |
 |---|---|---|
@@ -219,7 +247,7 @@ Which head is responsible, measured by replacing one predicted head at a time wi
 
 🔑 **The planes carry the gap.** The types are free, the regions are worth 0.012, and the plane
 parameters are worth 0.052 — and they also carry *all* of the form failure. The clincher is to take
-the **perfect** program and flatten only its ramps:
+the **perfect** program and flatten only its ramps (`flatten_ramps`):
 
 | | `extra` | **ops** | **planar** |
 |---|---|---|---|
@@ -232,12 +260,12 @@ regions and types are good enough to score a real roof's description length; its
 
 ### 🔑🔑 Why an L1 on a slope must return flat, and it is not a training failure
 
-The signed slope of every `Ramp` in the corpus, in units of the building's own height across the
-plan (n = 11,876 components):
+The signed slope of every `Ramp` in the corpus (`slope_symmetry`), in units of the building's own
+height across the plan (n = 52,792 components — the whole corpus, not a sample):
 
 | mean | median | p25 | p75 | positive | negative | median &#124;slope&#124; |
 |---|---|---|---|---|---|---|
-| **−0.0003** | **+0.0000** | −0.644 | +0.651 | **0.500** | **0.496** | 0.646 |
+| **+0.0009** | **+0.0000** | −0.647 | +0.643 | **0.500** | **0.496** | 0.646 |
 
 **The distribution is exactly symmetric.** An L1 regression returns the conditional median, and the
 median of a symmetric-about-zero quantity is zero — so the objective's own Bayes act is a flat roof,
@@ -263,16 +291,34 @@ transfer to a categorical assignment, which has no ordering to take a median ove
 
 ## The answer to #6
 
-**The formulation is chosen and it is supported.** Predict the program: a set of typed slots plus a
-per-column assignment, supervised exactly, canonicalised by area, compiled hard.
+**The formulation is chosen and it is supported** — subject to the reinterpretation flagged above,
+which a reader may decline. Predict the program: a set of typed slots plus a per-column assignment,
+supervised exactly, canonicalised by area, compiled hard.
+
+Every number on this page is re-runnable from the repo, which on this project is the difference
+between a measurement and an anecdote:
+
+    P="env -u LD_PRELOAD ./sdfusion/bin/python scripts/foundations/train_height_map_generator.py"
+    $P --diagnose_program outputs/height_map_generator/heightmap_program.pt \
+       --out execution/artifacts/height_map_generator_program_714.json
 
 | what #6 asked to compare | decided by | answer |
 |---|---|---|
-| program induction with pseudo-labels / RL / relaxation | 0.2 s per building; corpus labels in 56 s | **not needed** — supervise exactly |
-| autoregressive vs set / graph diffusion | every op only lowers ⇒ the owner replays the cascade | **set head**, losslessly |
-| canonicalisation vs an equivalence-aware objective | matching buys 2.7% of the plane error | **canonicalise by area**; a matching loss is not worth it |
-| shared vs separate heads | head-swap ablation | **separate** — spatial assignment, pooled planes; the planes are the lever |
-| curriculum, rejection/repair | collapse 0.0073, `missing` 0.0218, fp-IoU 1.0 by construction | **not needed** — the compiler is total, there is nothing to repair |
+| program induction with pseudo-labels / RL / relaxation | **measured** — 0.2 s per building; corpus labels in 56 s | **not needed** — supervise exactly |
+| autoregressive constrained generation vs a set head | **proved + tested** — every op only lowers ⇒ the owner replays the cascade | **set head**, losslessly |
+| canonicalisation vs an equivalence-aware objective | **measured** — matching buys 2.7% of the plane error | **canonicalise by area**; a matching loss is not worth it |
+| shared vs separate task heads | **measured** — head-swap ablation | **separate** — spatial assignment, pooled planes; the planes are the lever |
+| rejection / repair | **measured** — collapse 0.0073, `missing` 0.0218, spill 0 and uncovered 0 by construction | **not needed** — the compiler is total, there is nothing to repair |
+| **graph / set *diffusion*** | — | ⚠️ **NOT addressed.** The row above settles *set vs sequence*, which is a different question from whether to **diffuse** over the set. Untested. |
+| **curriculum** | — | ⚠️ **NOT addressed.** One flat 40-epoch schedule was run; no ordering over building complexity or slot count was tried. |
+
+⚠️ **The named baselines are not delivered.** #6 asks for comparison against *"ArcPro, Building-Gym,
+ShapeAssembly/CSG, CoMa, and CityGenAgent"* and this ticket engages none of them. The vocabulary
+already credits ArcPro's `CreateLayer` (#10), and that is the extent of it. This half of the ticket
+is a literature task and remains **open**; nothing here should be read as having closed it.
+
+So the honest count is **five of #6's seven comparisons addressed, four of them by measurement** —
+not the "four of five settled" an earlier draft of this page claimed.
 
 **The training strategy is not.** Regressing the plane parameters is refuted, and by a mechanism
 rather than by a disappointing number: the target is symmetric, so every central statistic is flat.

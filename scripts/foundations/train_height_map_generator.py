@@ -138,7 +138,7 @@ Same 411 rows, same discipline. The reference numbers are #127's, re-read on tho
 
     $P --objective program --tag heightmap_program --epochs 40 --montage 0
 
-The first program run builds `outputs/height_map_generator/program_labels.npz` (~1 min, 48 cores).
+The first program run builds `outputs/height_map_generator/program_labels.npz` (56 s, 48 cores).
 """
 
 from __future__ import annotations
@@ -162,8 +162,8 @@ from scripts.foundations.measure_scoring_optimum import (        # noqa: E402
     compare_to_envelope, transplant_height,
 )
 from scripts.foundations.recover_massing_programs import (       # noqa: E402
-    CARVE_NEEDED, FLOOR_EPS, H5, K_OPS, SHIP714, SLOT_TYPES, fit_program_beam, height_field,
-    occupancy, program_to_slots, render_iso,
+    CARVE_NEEDED, H5, K_OPS, SHIP714, SLOT_TYPES, fit_program_beam, height_field,
+    occupancy, plane_surface, program_to_slots, render_iso,
 )
 
 LATENTS = REPO / "data/real_massing_v1/vecset_latents.h5"
@@ -503,7 +503,14 @@ OBJECTIVES = ("ce", "mse", "quantile", "planes", "program")
 
 
 def head_channels(objective: str) -> int:
-    """`ce` predicts a distribution over depths; the regressions predict one number per column."""
+    """`ce` predicts a distribution over depths; the regressions predict one number per column.
+
+    ⚠️ Only meaningful for the objectives with a per-column head. `planes` and `program` predict a
+    region plus parameters and never reach here -- `make_model` routes them first -- so they raise
+    rather than quietly returning 1, which would build a one-channel U-Net nothing would fit.
+    """
+    if objective in ("planes", "program"):
+        raise ValueError(f"'{objective}' has no per-column head; make_model builds it directly")
     return DEPTH_CLASSES if objective == "ce" else 1
 
 
@@ -846,7 +853,6 @@ def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
     a = np.asarray(assign)
     t = np.asarray(types, np.int32)
     p = np.asarray(planes, np.float64)
-    zz, xx = np.mgrid[0:RES, 0:RES]
     h = np.full(m.shape, float(e), np.float64)
     ramp = SLOT_TYPES.index("Ramp")
     for k in range(len(p)):
@@ -854,9 +860,8 @@ def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
         if not sel.any():
             continue
         # a slot that is inactive (-1) or typed `Layer` is flat: its slope is not read at all
-        surf = (p[k, 0] + p[k, 1] * xx + p[k, 2] * zz if t[k] == ramp
-                else np.full(m.shape, p[k, 0], np.float64))
-        h = np.where(sel, np.floor(surf + PLANE_FLOOR_EPS), h)
+        flat = (p[k, 0], 0.0, 0.0)
+        h = np.where(sel, plane_surface(p[k] if t[k] == ramp else flat, PLANE_FLOOR_EPS), h)
     return np.where(m, np.clip(h, 1, max(e, 1)), 0).astype(np.int16)
 
 
@@ -957,7 +962,7 @@ def build_program_model(k_ops: int, width: int = 64):
     return ProgramNet()
 
 
-def _d4_program(assign, types, planes, k: int, flip: bool, k_ops: int = K_OPS):
+def _d4_program(assign, types, planes, k: int, flip: bool):
     """One plan symmetry applied to a PROGRAM, so #6's arm keeps the 8x augmentation every other
     arm on this ticket trains with.
 
@@ -983,6 +988,8 @@ def _d4_program(assign, types, planes, k: int, flip: bool, k_ops: int = K_OPS):
     return np.ascontiguousarray(ass), types.copy(), out
 
 
+# beam=12, not `fit_program_beam`'s own default of 6: it is what the committed 714-building
+# recovery used, so the labels and the `program K=16 (sees GT)` row of REFERENCE are the same fit.
 def build_program_cache(cache: dict, path: Path = PROGRAM_CACHE, force: bool = False,
                         workers: int = 0, beam: int = 12, branch: int = 6) -> dict:
     """#10's fitter run over the whole corpus, decomposed into slots. #6's supervision.
@@ -990,8 +997,8 @@ def build_program_cache(cache: dict, path: Path = PROGRAM_CACHE, force: bool = F
     🔑 This is why #6 is a supervised-learning ticket and not a program-induction one. The literature
     #6 names reaches for pseudo-labels, RL or a differentiable relaxation precisely because exact
     programs are usually unavailable -- and here they are not: the fitter is deterministic, sees GT,
-    reaches a median `extra` of 0.003, and costs **0.2 s per building**, so the entire 35,776-row
-    corpus labels in under three minutes on this machine's 64 cores. Measured before the arm was
+    reaches a median `extra` of 0.003, and costs **0.2 s per building**, so the entire 35,623-row
+    corpus labels in **56 s** on 48 of this machine's 64 cores. Measured before the arm was
     designed, and it is the fact that chose the formulation.
 
     ⚠️ Fitted with `CutRoof` withheld, so every operation is a plane and `program_to_slots` is
@@ -1356,7 +1363,15 @@ def summarise(rows: list) -> dict:
                 fp_iou=med("fp_iou"), spill=med("spill"), vol_iou=med("vol_iou"))
 
 
-NOT_GENERATORS = ("blockout", "nn_retrieval", "program_label (sees GT)")
+# ⚠️ Load-bearing, not a label. `NOT_GENERATORS` keeps the ceiling out of the verdict by NAME, so
+# renaming the arm at its construction site and not here would silently hand it a mechanical PASS.
+PROGRAM_LABEL_ARM = "program_label (sees GT)"
+NOT_GENERATORS = ("blockout", "nn_retrieval", PROGRAM_LABEL_ARM)
+
+# #6's bar, pre-registered in the module docstring in `fccef61` before the first training step and
+# fixed here so it is evaluated mechanically rather than in prose. `max_extra` and `kill_planar` are
+# #127's served CE+median arm's own numbers on these same 411 rows, quoted rather than chosen.
+PROGRAM_BAR = dict(max_ops=3.0, min_planar=0.40, max_extra=0.0603, kill_planar=0.20)
 
 
 def verdict(arms: dict, pop: str) -> dict:
@@ -1366,6 +1381,13 @@ def verdict(arms: dict, pop: str) -> dict:
     label, which is the fitter's program built WITH GT IN HAND. It beats anything a generator can
     reach and would collect a mechanical PASS -- a scorecard reporting that the target was hit by
     looking at it. It is a ceiling the trained arms are read against, never a competitor.
+
+    🔑 #6's FORM clauses are added whenever the form metric was measured, and they are the reason
+    this function exists rather than a paragraph. Both halves must clear at once: #127's plane head
+    scored 3.0 ops at `planar_fraction` **0.00** and #6's own arm scored 1.0 at 0.00, so a
+    single-number form metric calls a terrace an improvement twice over. An arm scored with
+    `--no_form` gets no form verdict at all -- a missing measurement must read as absent, never as
+    a pass.
     """
     out = {}
     bo, nn = arms["blockout"][pop], arms["nn_retrieval"][pop]
@@ -1381,6 +1403,17 @@ def verdict(arms: dict, pop: str) -> dict:
         )
         out[name]["pass"] = bool(out[name]["beats_1nn_extra"] and
                                  out[name]["collapse_no_worse_than_1nn"] and out[name]["moved"])
+        if "dl_ops" in s:
+            out[name].update(
+                form_ops_under_bar=bool(s["dl_ops"] <= PROGRAM_BAR["max_ops"]),
+                form_planar_over_bar=bool(s["dl_planar_fraction"] >= PROGRAM_BAR["min_planar"]),
+                beats_served_extra=bool(s["extra"] < PROGRAM_BAR["max_extra"]),
+                # `<=`, not `<`: matching the arm you replaced is not an improvement over it
+                killed_flat=bool(s["dl_planar_fraction"] <= PROGRAM_BAR["kill_planar"]),
+            )
+            out[name]["program_pass"] = bool(
+                out[name]["form_ops_under_bar"] and out[name]["form_planar_over_bar"] and
+                out[name]["beats_served_extra"])
     return out
 
 
@@ -1421,6 +1454,271 @@ def reference_arms(carve_ids: set) -> dict:
                                                       for r in rows])),
                          vol_iou=med("vol_iou"), source=path)
     return out
+
+
+# ==================================================================================================
+# #6's diagnostics. The arm is one compile of three predictions, and `extra` cannot say which of
+# them is wrong -- so each of these replaces or perturbs exactly one thing and re-scores.
+# ==================================================================================================
+
+def program_predictions(ckpt: Path, held: dict, cpu: bool = False):
+    """(assignment, types, plane params) per pinned building, as the compiler would receive them."""
+    import torch
+
+    d = torch.load(ckpt, map_location="cpu", weights_only=False)
+    if d["objective"] != "program":
+        raise ValueError(f"{ckpt} is a '{d['objective']}' arm; the program diagnostics need one")
+    dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
+    model = make_model("program", d["width"], d.get("k_planes", 6)).to(dev)
+    model.load_state_dict(d["state"])
+    model.eval()
+    A, T, P = [], [], []
+    with torch.no_grad():
+        for s in range(0, len(held["fp"]), 64):
+            sel = range(s, min(s + 64, len(held["fp"])))
+            x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
+                                             float(held["height_m"][i]), int(held["region"][i]))
+                          for i in sel])
+            al, tl, pr = model(torch.from_numpy(x).to(dev))
+            A.append(al.argmax(1).cpu().numpy().astype(np.uint8))
+            T.append(tl.argmax(-1).cpu().numpy().astype(np.int8))
+            P.append(pr.cpu().numpy())
+    return np.concatenate(A), np.concatenate(T), np.concatenate(P)
+
+
+def _median_split(heights, held, rows):
+    sp = [height_split(heights[k], held["target"][i]) for k, i in enumerate(rows)]
+    return dict(extra=float(np.median([s["extra"] for s in sp])),
+                missing=float(np.median([s["missing"] for s in sp])))
+
+
+def head_ablation(pred, label, held, rows) -> dict:
+    """🔑 Replace ONE predicted head with its label at a time, and re-score.
+
+    The arm compiles an assignment, a set of types and a set of planes together, so a single
+    `extra` cannot say which of the three is costing what -- and guessing is how #127 spent two
+    runs on an initialisation that turned out not to be the cause. This is the measurement that
+    replaces the guess, and on #6's first arm it is decisive: the types are free, the regions cost
+    0.012, and the planes cost 0.052 of the 0.052 that is there to be had.
+    """
+    pa, pt, pp = pred
+    la, lt, lp = label
+    vox = lambda i, arr: np.stack([plane_to_voxel(arr[i][k], int(held["extent"][i]))
+                                   for k in range(len(arr[i]))])
+    variants = {
+        "all three predicted": lambda i: (pa[i], pt[i], vox(i, pp)),
+        "label types": lambda i: (pa[i], lt[i], vox(i, pp)),
+        "label assignment": lambda i: (la[i], pt[i], vox(i, pp)),
+        "label planes": lambda i: (pa[i], pt[i], lp[i]),
+        "all three from the label (the ceiling)": lambda i: (la[i], lt[i], lp[i]),
+    }
+    out = {}
+    for name, get in variants.items():
+        hs = [compile_program(*get(i), held["fp"][i], int(held["extent"][i])) for i in rows]
+        out[name] = _median_split(hs, held, rows)
+    return out
+
+
+def flatten_ramps(label, held, rows, y0=None) -> dict:
+    """Take the PERFECT program and flatten only its `Ramp`s. The form control.
+
+    ⚠️ This is the one that turns "the arm's slopes came out flat" from a description into a cause.
+    If flattening a program that is otherwise exactly right reproduces the trained arm's form
+    signature, then the regions and the types are not what failed.
+    """
+    la, lt, lp = label
+    out = {}
+    for name, flat in (("compiled as fitted", False), ("every Ramp flattened", True)):
+        hs, fm = [], []
+        for i in rows:
+            e = int(held["extent"][i])
+            p = lp[i].copy()
+            if flat:
+                for k in range(len(p)):
+                    if lt[i][k] == SLOT_TYPES.index("Ramp"):
+                        n = plane_to_normalised(lp[i][k], e)
+                        n[1] = n[2] = 0.0
+                        p[k] = plane_to_voxel(n, e)
+            h = compile_program(la[i], lt[i], p, held["fp"][i], e)
+            hs.append(h)
+            fm.append(roof_description_length(h, held["fp"][i], int(held["y0"][i]), e))
+        out[name] = dict(**_median_split(hs, held, rows),
+                         ops=float(np.median([f["ops"] for f in fm])),
+                         planar_fraction=float(np.median([f["planar_fraction"] for f in fm])))
+    return out
+
+
+def slope_symmetry(program: dict, extents: np.ndarray, ok: np.ndarray) -> dict:
+    """🔑🔑 Why an L1 on a slope must return flat, and it is a property of the corpus.
+
+    An L1 returns the conditional median. If the signed slope of a roof is symmetric about zero --
+    a roof may pitch either way, and #126 measured that footprint plus height does not determine
+    which -- then the median IS zero, and the objective's own Bayes act is a flat roof however long
+    it trains. A quantile loss does not escape it either, because the mean and the median coincide.
+
+    This is #127's classification-over-regression argument, arriving in the plane parameters.
+    """
+    ramp = SLOT_TYPES.index("Ramp")
+    v = []
+    for i in np.nonzero(ok)[0]:
+        e = int(extents[i])
+        for k in range(program["types"].shape[1]):
+            if program["types"][i, k] == ramp:
+                n = plane_to_normalised(program["planes"][i, k], e)
+                v.extend([float(n[1]), float(n[2])])
+    v = np.asarray(v)
+    if not len(v):
+        return {}
+    return dict(n=len(v), mean=float(v.mean()), median=float(np.median(v)),
+                p25=float(np.percentile(v, 25)), p75=float(np.percentile(v, 75)),
+                positive=float((v > 0).mean()), negative=float((v < 0).mean()),
+                median_abs=float(np.median(np.abs(v))))
+
+
+def canonicalisation_cost(pred, label, held, rows) -> dict:
+    """What an equivalence-aware objective would have bought, which #6 asks about directly.
+
+    Slots are canonicalised by owned area because a set head has no natural order. That is lossy
+    exactly when two regions have similar area: the model orders them one way and the label the
+    other, and slot 2's parameters are then scored against slot 3's label. The alternative is a
+    matching loss, and this measures its ceiling -- the error under the BEST permutation.
+    """
+    import itertools
+
+    _, _, pp = pred
+    _, lt, lp = label
+    fixed, matched = [], []
+    for i in rows:
+        act = np.nonzero(lt[i] >= 0)[0]
+        if not len(act):
+            continue
+        lab = np.stack([plane_to_normalised(lp[i][k], int(held["extent"][i])) for k in act])
+        pr = pp[i][:len(act)]
+        fixed.append(float(np.abs(pr - lab).mean()))
+        matched.append(min(float(np.abs(pr[list(q)] - lab).mean())
+                           for q in itertools.permutations(range(len(act)))))
+    fixed, matched = np.asarray(fixed), np.asarray(matched)
+    gap = float((fixed - matched).mean())
+    return dict(n=len(fixed), canonical_order=float(fixed.mean()),
+                best_permutation=float(matched.mean()), cost=gap,
+                cost_share=float(gap / fixed.mean()) if fixed.mean() else 0.0)
+
+
+def slot_usage(pred, label, held, rows) -> dict:
+    """How many of its K slots the arm actually uses, and whether they compile flat."""
+    pa, pt, pp = pred
+    la, lt, _ = label
+    k_ops = label[2].shape[1]
+    used_p, used_l, ramp_typed, rise = [], [], [], []
+    for i in rows:
+        m, e = held["fp"][i], int(held["extent"][i])
+        up = set(np.unique(pa[i][m])) - {k_ops}
+        used_p.append(len(up))
+        used_l.append(len(set(np.unique(la[i][m])) - {k_ops}))
+        ramp_typed += [int(pt[i][k] == SLOT_TYPES.index("Ramp")) for k in up]
+        h = compile_program(pa[i], pt[i],
+                            np.stack([plane_to_voxel(pp[i][k], e) for k in range(k_ops)]), m, e)
+        for k in up:
+            r = (pa[i] == k) & m
+            if int(r.sum()) > 20:
+                rise.append(float(h[r].max() - h[r].min()))
+    rise = np.asarray(rise)
+    return dict(slots_used_by_arm=float(np.mean(used_p)),
+                slots_used_by_label=float(np.mean(used_l)),
+                arm_uses_exactly_one=float(np.mean(np.asarray(used_p) == 1)),
+                used_slots_typed_ramp=float(np.mean(ramp_typed)) if ramp_typed else 0.0,
+                realised_rise_median_voxels=float(np.median(rise)) if len(rise) else 0.0,
+                used_slots_compiling_flat=float((rise < 1).mean()) if len(rise) else 0.0)
+
+
+def label_robustness(label, held, rows, seed: int = 0) -> dict:
+    """How much error this output space absorbs before the SURFACE metric moves.
+
+    The loss is on the program and the scorecard is on the surface, so the obvious objection is
+    that a small parameter error might be catastrophic. It is not, and this is the measurement
+    that says so -- with no network involved, so it is a property of the representation.
+    """
+    la, lt, lp = label
+    rng = np.random.default_rng(seed)
+    k_ops = lp.shape[1]
+    out = {"plane_noise": {}, "assignment_corrupted": {}}
+    for sigma in (0.0, 0.02, 0.05, 0.10):
+        hs = []
+        for i in rows:
+            e = int(held["extent"][i])
+            n = np.stack([plane_to_normalised(lp[i][k], e) for k in range(k_ops)])
+            n = n + rng.normal(0, sigma, n.shape)
+            hs.append(compile_program(la[i], lt[i],
+                                      np.stack([plane_to_voxel(n[k], e) for k in range(k_ops)]),
+                                      held["fp"][i], e))
+        out["plane_noise"][f"{sigma:.2f}"] = _median_split(hs, held, rows)
+    for frac in (0.0, 0.05, 0.25):
+        hs = []
+        for i in rows:
+            a = la[i].copy()
+            hit = (rng.random(a.shape) < frac) & held["fp"][i]
+            a[hit] = rng.integers(0, k_ops + 1, int(hit.sum())).astype(a.dtype)
+            hs.append(compile_program(a, lt[i], lp[i], held["fp"][i], int(held["extent"][i])))
+        out["assignment_corrupted"][f"{frac:.2f}"] = _median_split(hs, held, rows)
+    return out
+
+
+def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
+                     cpu: bool = False) -> dict:
+    """Every #6 diagnostic, run together so the write-up's argument is re-runnable from the repo.
+
+    ⚠️ These carry the whole "the slopes are flat because the target is symmetric, and that is not
+    a training failure" case. On this project a number that cannot be re-derived from a committed
+    code path is an anecdote, so they live here rather than in a notebook.
+    """
+    pred = program_predictions(ckpt, held, cpu)
+    k = np.array([{int(r): i for i, r in enumerate(program["row"])}[int(r)] for r in held["row"]])
+    label = (program["assign"][k], program["types"][k], program["planes"][k])
+    return dict(
+        n=len(rows), checkpoint=str(ckpt),
+        head_ablation=head_ablation(pred, label, held, rows),
+        flatten_ramps=flatten_ramps(label, held, rows),
+        slope_symmetry=slope_symmetry(program, cache["extent"], cache["ok"] > 0),
+        canonicalisation=canonicalisation_cost(pred, label, held, rows),
+        slot_usage=slot_usage(pred, label, held, rows),
+        robustness=label_robustness(label, held, rows),
+    )
+
+
+def report_program_diagnostics(d: dict) -> None:
+    print("\n" + "=" * 100)
+    print(f"#6 PROGRAM DIAGNOSTICS  n={d['n']}   {d['checkpoint']}")
+    print("\n  which head carries the surplus (one predicted head replaced by its label)")
+    for name, v in d["head_ablation"].items():
+        print(f"    {name:42s} extra {v['extra']:.4f}   missing {v['missing']:.4f}")
+    print("\n  the form control: the PERFECT program, with its ramps flattened")
+    for name, v in d["flatten_ramps"].items():
+        print(f"    {name:42s} extra {v['extra']:.4f}   ops {v['ops']:.1f}   "
+              f"planar {v['planar_fraction']:.2f}")
+    s = d["slope_symmetry"]
+    if s:
+        print(f"\n  signed slope of every Ramp in the corpus (n={s['n']})")
+        print(f"    mean {s['mean']:+.4f}   median {s['median']:+.4f}   "
+              f"p25 {s['p25']:+.3f}   p75 {s['p75']:+.3f}")
+        print(f"    positive {s['positive']:.3f}   negative {s['negative']:.3f}   "
+              f"median |slope| {s['median_abs']:.3f}")
+        print("    -> an L1 returns the conditional MEDIAN, so its Bayes act here is a FLAT roof")
+    c = d["canonicalisation"]
+    print(f"\n  canonicalisation by area vs the best permutation (what a matching loss would buy)")
+    print(f"    canonical {c['canonical_order']:.4f}   best permutation {c['best_permutation']:.4f}"
+          f"   cost {c['cost']:.4f} = {100*c['cost_share']:.1f}% of the error")
+    u = d["slot_usage"]
+    print(f"\n  slots used: arm {u['slots_used_by_arm']:.2f}   label {u['slots_used_by_label']:.2f}"
+          f"   arm uses exactly one on {u['arm_uses_exactly_one']:.3f}")
+    print(f"    of the slots the arm uses, typed Ramp {u['used_slots_typed_ramp']:.3f}; "
+          f"realised rise median {u['realised_rise_median_voxels']:.2f} voxels, "
+          f"{u['used_slots_compiling_flat']:.3f} compile flat")
+    print("\n  what the OUTPUT SPACE absorbs before the surface metric moves (no network)")
+    for kind, rowset in (("plane noise sigma", "plane_noise"),
+                         ("assignment randomised", "assignment_corrupted")):
+        for key, v in d["robustness"][rowset].items():
+            print(f"    {kind} {key:>5}  extra {v['extra']:.4f}   missing {v['missing']:.4f}")
+    print("=" * 100)
 
 
 def montage(cases, out: Path, cell: int = 5) -> Path:
@@ -1734,7 +2032,12 @@ def main() -> None:
     ap.add_argument("--cpu", action="store_true")
     ap.add_argument("--rebuild_cache", action="store_true")
     ap.add_argument("--rebuild_program_cache", action="store_true",
-                    help="re-fit #6's slot labels over the whole corpus (~1 min on 48 cores)")
+                    help="re-fit #6's slot labels over the whole corpus (56 s on 48 cores)")
+    ap.add_argument("--diagnose_program", default=None, metavar="CKPT",
+                    help="run #6's head-swap / ramp-flatten / slope-symmetry / canonicalisation "
+                         "diagnostics on a program checkpoint and exit. These carry the argument "
+                         "that the flat slopes are the objective's Bayes act rather than a "
+                         "training failure, so they are a code path and not a notebook")
     ap.add_argument("--ckpt", nargs="*", default=None,
                     help="score these checkpoints instead of training (name=path or path)")
     ap.add_argument("--no_form", action="store_true",
@@ -1761,6 +2064,29 @@ def main() -> None:
     args.tag = args.tag or f"heightmap_{args.objective}"
 
     cache = build_cache(force=args.rebuild_cache)
+
+    if args.diagnose_program:
+        ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]
+        r2i = {int(r): i for i, r in enumerate(cache["row"])}
+        sel = np.array([r2i[i] for i in ids if i in r2i and cache["ok"][r2i[i]]])
+        held = {k: cache[k][sel] for k in ("row", "fp", "target", "y0", "extent",
+                                           "region", "height_m")}
+        held["fp"] = held["fp"] > 0
+        held["target"] = held["target"].astype(np.int16)
+        # the same carve-needing split the bar is set on -- #126 point 4: a 42% no-op majority
+        # flatters every aggregate, and these diagnostics are about the buildings that need a carve
+        rows = [i for i in range(len(sel))
+                if height_split(apply_depth(held["fp"][i], int(held["extent"][i]),
+                                            envelope_depth(held["fp"][i])),
+                                held["target"][i])["extra"] >= CARVE_NEEDED]
+        d = diagnose_program(Path(args.diagnose_program), held,
+                             build_program_cache(cache), rows, cache, cpu=args.cpu)
+        report_program_diagnostics(d)
+        out = Path(args.out).with_name(Path(args.out).stem + "_diagnostics.json")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        json.dump(d, open(out, "w"), indent=1)
+        print(f"\n[artifact] {out}")
+        return
 
     ckpts = {}
     if args.ckpt:
@@ -1830,7 +2156,7 @@ def main() -> None:
         pl = np.load(PROGRAM_CACHE)
         pidx = {int(r): i for i, r in enumerate(pl["row"])}
         pk = np.array([pidx[int(r)] for r in held["row"]])
-        heights["program_label (sees GT)"] = np.stack([
+        heights[PROGRAM_LABEL_ARM] = np.stack([
             compile_program(pl["assign"][pk[i]], pl["types"][pk[i]], pl["planes"][pk[i]],
                             held["fp"][i], int(held["extent"][i])) for i in range(len(sel))])
 

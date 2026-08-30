@@ -1,6 +1,6 @@
 {
  "meta": {
-  "created": "2026-08-29T21:21:04",
+  "created": "2026-08-29T23:22:50",
   "question": "#127",
   "ids_from": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/execution/artifacts/massing_arms_eval_ship714.json",
   "gt_h5": "data/real_massing_v1/real.h5",
@@ -1882,28 +1882,48 @@
    "collapse_no_worse_than_1nn": true,
    "moved": true,
    "killed_identity": false,
-   "pass": false
+   "pass": false,
+   "form_ops_under_bar": true,
+   "form_planar_over_bar": false,
+   "beats_served_extra": false,
+   "killed_flat": true,
+   "program_pass": false
   },
   "heightmap_program": {
    "beats_1nn_extra": false,
    "collapse_no_worse_than_1nn": true,
    "moved": true,
    "killed_identity": false,
-   "pass": false
+   "pass": false,
+   "form_ops_under_bar": true,
+   "form_planar_over_bar": false,
+   "beats_served_extra": false,
+   "killed_flat": true,
+   "program_pass": false
   },
   "heightmap_ce": {
    "beats_1nn_extra": false,
    "collapse_no_worse_than_1nn": true,
    "moved": true,
    "killed_identity": false,
-   "pass": false
+   "pass": false,
+   "form_ops_under_bar": true,
+   "form_planar_over_bar": false,
+   "beats_served_extra": false,
+   "killed_flat": true,
+   "program_pass": false
   },
   "heightmap_ce_median": {
    "beats_1nn_extra": true,
    "collapse_no_worse_than_1nn": true,
    "moved": true,
    "killed_identity": false,
-   "pass": true
+   "pass": true,
+   "form_ops_under_bar": false,
+   "form_planar_over_bar": false,
+   "beats_served_extra": true,
+   "killed_flat": true,
+   "program_pass": false
   }
  },
  "reference": {
