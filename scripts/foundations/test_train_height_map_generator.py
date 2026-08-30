@@ -36,8 +36,9 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     condition_channels, decode_logits, decode_plane_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
     differentiable_depth, height_rgb, normal_rgb,
-    per_column_loss, decode_prediction, PLANE_DECODE, plane_to_bins, plane_to_normalised,
-    plane_to_voxel,
+    per_column_loss, decode_prediction, PLANE_DECODE, PLANE_QUANTITIES, plane_to_bins,
+    plane_to_normalised,
+    plane_to_voxel, rebin_planes,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict,
@@ -480,8 +481,8 @@ class TestVerdict(unittest.TestCase):
 
     def _form_arms(self, **arm_extra):
         """A scorecard carrying the form columns #6's bar is written on."""
-        def block(extra, ops, planar):
-            return {"carve": dict(extra=extra, collapse_rate=0.0, vs_input=0.85,
+        def block(extra, ops, planar, collapse=0.0, vs_input=0.85):
+            return {"carve": dict(extra=extra, collapse_rate=collapse, vs_input=vs_input,
                                   dl_ops=ops, dl_planar_fraction=planar)}
         arms = {"blockout": block(0.2308, 0.0, 0.00),
                 "nn_retrieval": block(0.1031, 2.0, 0.17)}
@@ -496,6 +497,22 @@ class TestVerdict(unittest.TestCase):
                           v["beats_served_extra"]), (True, True, True))
         self.assertTrue(v["program_pass"])
         self.assertFalse(v["killed_flat"])
+
+    def test_the_guards_are_part_of_the_composite_and_not_only_of_the_prose(self):
+        """🔑 #129's endpoint is why. It cleared BOTH form clauses while collapsing 37% of its
+        buildings -- more than double 1-NN's 15.8% -- and the composite, which ANDed only the three
+        PASS clauses, had nothing to say about it. The written bar always had the guards in it."""
+        v = verdict(self._form_arms(cand=(0.0400, 2.0, 0.50, 0.3747)), "carve")["cand"]
+        self.assertEqual((v["form_ops_under_bar"], v["form_planar_over_bar"],
+                          v["beats_served_extra"]), (True, True, True))
+        self.assertFalse(v["collapse_no_worse_than_1nn"])
+        self.assertFalse(v["program_pass"])
+
+    def test_an_arm_that_did_not_move_cannot_collect_a_program_pass_either(self):
+        """The other guard, and #75's rule: 0.99 vs-input has not been measured as a generator."""
+        v = verdict(self._form_arms(cand=(0.0400, 2.0, 0.50, 0.0, 0.9900)), "carve")["cand"]
+        self.assertFalse(v["moved"])
+        self.assertFalse(v["program_pass"])
 
     def test_a_terrace_is_killed_however_short_its_description(self):
         """🔑 The trap the bar exists to catch, and it is not hypothetical: #127's plane head scored
@@ -1173,6 +1190,21 @@ class TestProgramLoss(unittest.TestCase):
 # #129 -- the plane parameters CLASSIFIED, and the decode that is most of the ticket
 # ==================================================================================================
 
+def _shed_program(extent: int = 40):
+    """One fitted program over a real shed roof: `(fp, extent, (assign, types, planes))`.
+
+    Shared by the round-trip and the augmentation tests, which need the same non-trivial fit --
+    a plane at an arbitrary rotation, so a sign error in either has somewhere to show.
+    """
+    fp = np.zeros((RES, RES), bool)
+    fp[10:40, 18:56] = True
+    zz, xx = np.mgrid[0:RES, 0:RES]
+    target = np.where(fp, np.clip(np.rint(36 - 0.4 * (xx - 18) - 0.25 * (zz - 10)), 1, extent),
+                      0).astype(np.int16)
+    ops, _ = _fit(fp, target, extent)
+    return fp, extent, program_to_slots(fp, extent, ops)
+
+
 class TestSlotCentroids(unittest.TestCase):
     """The anchor the offset is measured at. It has to be a function of the ASSIGNMENT alone, so
     that training (label assignment) and inference (predicted assignment) compute it the same way
@@ -1266,23 +1298,12 @@ class TestPlaneBins(unittest.TestCase):
             self.assertLess(min(d, 2 * np.pi - d), 2 * np.pi / PLANE_BINS)
 
     def test_the_binned_label_compiles_to_the_fitted_surface(self):
-        """End to end, on a real fit: quantising the label must not change what it draws by more
-        than a voxel or two, or the ceiling of the classified space is the binning and not the
-        model."""
-        fp = np.zeros((RES, RES), bool)
-        fp[10:40, 18:56] = True
-        zz, xx = np.mgrid[0:RES, 0:RES]
-        e = 40
-        target = np.where(fp, np.clip(np.rint(36 - 0.4 * (xx - 18) - 0.25 * (zz - 10)), 1, e),
-                          0).astype(np.int16)
-        ops, _ = _fit(fp, target, e)
-        assign, types, planes = program_to_slots(fp, e, ops)
+        """End to end, on a real fit, and through the PRODUCTION round trip (`rebin_planes`) --
+        quantising the label must not change what it draws by more than a voxel or two, or the
+        ceiling of the classified space is the binning and not the model."""
+        fp, e, (assign, types, planes) = _shed_program()
         exact = compile_program(assign, types, planes, fp, e)
-        cen = slot_centroids(assign, K_OPS)
-        n = np.stack([plane_to_normalised(planes[k], e) for k in range(K_OPS)])
-        b = np.stack([plane_to_bins(n[k], cen[k]) for k in range(K_OPS)])
-        q = np.stack([plane_to_voxel(bins_to_plane(b[k], cen[k]), e) for k in range(K_OPS)])
-        got = compile_program(assign, types, q, fp, e)
+        got = compile_program(assign, types, rebin_planes(planes, assign, e), fp, e)
         self.assertLess(float(np.abs(got[fp].astype(float) - exact[fp]).mean()), 2.0)
 
 
@@ -1404,27 +1425,23 @@ class TestProgramLossClassifiesThePlanes(unittest.TestCase):
     has a Bayes act that is not flat."""
 
     def _case(self):
+        """The same two-region, two-slot program `TestProgramLoss` uses -- its labels, re-expressed
+        in bins, so the two arms' losses are exercised on one fixture and a change to it cannot
+        move one of them without moving the other."""
         import torch
-        assign = torch.full((2, RES, RES), K_OPS, dtype=torch.long)
-        assign[:, 16:48, 12:32] = 0
-        assign[:, 16:48, 32:52] = 1
-        types = torch.tensor([[1, 0, -1, -1], [1, 0, -1, -1]], dtype=torch.long)
-        cen = torch.from_numpy(np.stack([
-            slot_centroids(assign[i].numpy(), K_OPS) for i in range(2)])).float()
-        planes = torch.zeros(2, K_OPS, 3)
-        planes[:, 0] = torch.tensor([0.7, 0.0, -0.9])
-        planes[:, 1] = torch.tensor([0.5, 0.0, 0.0])
+        assign, types, planes = TestProgramLoss()._labels()
+        planes[:, 0] = torch.tensor([0.7, 0.0, -0.9])          # a steeper ramp, so a bin is chosen
+        cen = np.stack([slot_centroids(assign[i].numpy(), K_OPS) for i in range(2)])
         bins = torch.from_numpy(np.stack([
-            np.stack([plane_to_bins(planes[i, k].numpy(), cen[i, k].numpy())
-                      for k in range(K_OPS)]) for i in range(2)])).long()
+            np.stack([plane_to_bins(planes[i, k].numpy(), cen[i, k]) for k in range(K_OPS)])
+            for i in range(2)])).long()
         return assign, types, bins
 
     def _perfect(self, assign, types, bins):
         import torch
-        a = torch.zeros(2, K_OPS + 1, RES, RES).scatter_(1, assign[:, None], 20.0)
-        t = torch.zeros(2, K_OPS, len(PROGRAM_TYPES)).scatter_(
-            2, types.clamp(min=0)[..., None], 20.0)
-        p = torch.zeros(2, K_OPS, 3, PLANE_BINS).scatter_(3, bins[..., None], 20.0)
+        a, t, _ = TestProgramLoss()._perfect_output(assign, types, torch.zeros(2, K_OPS, 3))
+        p = torch.zeros(2, K_OPS, len(PLANE_QUANTITIES), PLANE_BINS).scatter_(
+            3, bins[..., None], 20.0)
         return a, t, p
 
     def test_an_exact_program_costs_nothing(self):
@@ -1477,24 +1494,11 @@ class TestClassPlaneAugmentation(unittest.TestCase):
     trains on roofs pitched the wrong way -- and the assignment would still line up perfectly, so
     only the compiled surface would show it."""
 
-    E = 40
-
     def test_the_binned_program_survives_every_plan_symmetry(self):
-        fp = np.zeros((RES, RES), bool)
-        fp[10:40, 18:56] = True
-        zz, xx = np.mgrid[0:RES, 0:RES]
-        target = np.where(fp, np.clip(np.rint(36 - 0.4 * (xx - 18) - 0.25 * (zz - 10)),
-                                      1, self.E), 0).astype(np.int16)
-        ops, _ = _fit(fp, target, self.E)
-        assign, types, planes = program_to_slots(fp, self.E, ops)
+        fp, e, (assign, types, planes) = _shed_program()
 
-        def binned_surface(a, t, p, plan):
-            cen = slot_centroids(a, K_OPS)
-            n = np.stack([plane_to_normalised(p[k], self.E) for k in range(K_OPS)])
-            b = np.stack([plane_to_bins(n[k], cen[k]) for k in range(K_OPS)])
-            v = np.stack([plane_to_voxel(bins_to_plane(b[k], cen[k]), self.E)
-                          for k in range(K_OPS)])
-            return compile_program(a, t, v, plan, self.E)
+        def binned_surface(a, t, pl, plan):
+            return compile_program(a, t, rebin_planes(pl, a, e), plan, e)
 
         base = binned_surface(assign, types, planes, fp)
         for k in range(4):

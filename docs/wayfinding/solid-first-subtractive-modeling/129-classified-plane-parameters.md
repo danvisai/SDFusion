@@ -10,14 +10,24 @@ disappointing number. Run and written 2026-08-30.*
 > is exactly symmetric. Does **classifying** those parameters — discretised, cross-entropy over
 > bins — recover the pitch that the regression provably cannot?
 
-**The mechanism answer is yes, and it is the first time on this map's record.** A trained arm draws
-planes: `dl_planar_fraction` **0.00 → 0.40**, and the realised rise inside a slot the arm types
-`Ramp` goes from #6's **0.00 voxels** to **20.00**. Nothing on #127's or #6's record did that.
+**The mechanism answer is yes.** The realised rise inside a slot the arm *types* `Ramp` goes from
+#6's **0.00 voxels** to **22.00** — and that holds **on the arm of record**, not only on the
+endpoint. #6 typed its ramps and drew terraces; this one draws the ramp it types.
 
-**The arm still does not pass, and the pre-registered checkpoint does not even show the finding.**
-The selection rule picked **epoch 2 of 40**, at which the arm barely carves and its planar fraction
-is 0.00, so the run of record repeats #6's KILL. The endpoint — a disclosed diagnostic, never the
-arm — is where the 0.40 is, and it fails the collapse guard at **37.5%**.
+⚠️ **Read the two halves of the form evidence separately, because they live on different
+checkpoints:**
+
+| | arm of record *(epoch 2, selected)* | endpoint *(diagnostic, never the arm)* |
+|---|---|---|
+| realised rise in a `Ramp`-typed slot | **22.0 vox** | 20.0 vox |
+| `dl_planar_fraction` | **0.00** | **0.40** |
+
+**The arm does not pass, and the pre-registered checkpoint shows only half the finding.** The
+selection rule picked **epoch 2 of 40**, at which the arm barely carves — and the form metric is not
+carve-aware by design, so a surface that is mostly uncarved envelope is described as one flat
+operation whatever the few carved slots look like. Its planar fraction is 0.00 and the run of record
+repeats #6's KILL. The 0.40 is the endpoint's, and the endpoint fails the collapse guard at
+**37.5%**.
 
 
 ## What changed, and it is one thing
@@ -151,13 +161,23 @@ the rate at which it types `Ramp`, not its accuracy, and the point survives eith
 | `heightmap_program_class` *(selected)* | 0.522 | **6.00 vox** | 0.481 |
 | `heightmap_program_class_last` | 0.504 | **4.00 vox** | 0.481 |
 
-and measured over `Ramp`-typed slots only, the classified arms realise **20–22 voxels** of rise.
+and measured over `Ramp`-typed slots **only** — which is the narrower reading, and the one that
+answers the question — the classified arms realise **22.0** voxels (selected) and **20.0**
+(endpoint) against #6's 0.00.
 🔑 **The regression typed a ramp and drew a terrace; the classifier draws the ramp it types.** That
-is #129's question answered at the mechanism, and it does not depend on which checkpoint is read.
+is #129's question answered at the mechanism, and it is the one claim here that does **not** depend
+on which checkpoint is read.
 
-**2. The form metric.** `dl_planar_fraction` 0.00 → **0.40** at the endpoint, against GT's 0.50 and
+⚠️ The two rise numbers are different measurements and the artifact now spells them apart:
+`slot_usage.realised_rise_median_voxels` pools **every used slot** (`Layer`s included, so flat slots
+drag it down: 6.0 and 4.0), and `decode_ablation.ramp_rise_median_voxels` pools **`Ramp`-typed slots
+only** (22.0 and 20.0). They shared one key in the first cut of this run and that is exactly how a
+reader compares 6.0 against 22.0 and concludes the arm got worse.
+
+**2. The form metric — endpoint only.** `dl_planar_fraction` 0.00 → **0.40**, against GT's 0.50 and
 the compiled label's 0.50. Every trained arm before it scored 0.00 (#6's program, #127's plane head,
-CE at argmax) or 0.20 (CE + median). **0.40 is the highest a trained arm has reached on this map.**
+CE at argmax) or 0.20 (CE + median), so **0.40 is the highest a trained arm has reached on this
+map** — but it is the *unselected* checkpoint's number, and the arm of record scores 0.00.
 
 **3. The picture, which is what caught the mound in the first place.**
 `outputs/height_map_generator/maps_class_{best,representative,worst}.png` and
@@ -194,57 +214,110 @@ trench to the floor.
 ## The decode ablation — the pre-registration holds, and by the predicted mechanism
 
 Same weights, same forward pass, eleven reads. ⚠️ Read after the fact; it reports, it does not
-choose. Endpoint checkpoint, on the 411:
+choose. `vs_input` and the collapse rate are beside every row, per #126 — **which is what makes this
+table readable at all**, and the first cut of this run did not have them. Endpoint checkpoint:
 
-| offset / pitch / azimuth | `extra` | `missing` | sym | ramp rise |
-|---|---|---|---|---|
-| **median / median / argmax  ← pre-registered** | 0.0902 | 0.1065 | **0.1967** | 20.0 |
-| median / median / **circmean** | 0.0748 | 0.1401 | 0.2149 | 22.0 |
-| median / argmax / argmax | 0.0940 | 0.1093 | 0.2033 | 22.0 |
-| argmax / median / argmax | 0.0967 | 0.0915 | 0.1882 | 19.0 |
-| argmax / argmax / argmax | 0.0975 | 0.0848 | 0.1823 | 21.0 |
-| argmax / argmax / circmean | 0.0859 | 0.1202 | 0.2061 | 23.0 |
-| median / **pitch q0.25** / argmax | 0.0916 | 0.0816 | **0.1732** | 15.0 |
-| median / pitch q0.35 / argmax | 0.0912 | 0.0924 | 0.1836 | 18.0 |
-| median / pitch q0.75 / argmax | 0.0859 | 0.1370 | 0.2229 | 23.0 |
+| offset / pitch / azimuth | `extra` | `missing` | sym | `vs_input` | collapse | ramp rise |
+|---|---|---|---|---|---|---|
+| **median / median / argmax  ← pre-registered** | 0.0902 | 0.1065 | 0.1967 | 0.8028 | 0.3747 | 20.0 |
+| median / median / **circmean** | 0.0748 | 0.1401 | 0.2149 | 0.7610 | **0.4647** | 22.0 |
+| median / argmax / argmax | 0.0940 | 0.1093 | 0.2033 | 0.7979 | 0.3820 | 22.0 |
+| median / argmax / **circmean** | 0.0811 | 0.1295 | 0.2107 | 0.7737 | **0.4404** | 24.0 |
+| argmax / median / argmax | 0.0967 | 0.0915 | 0.1882 | 0.8183 | 0.3431 | 19.0 |
+| argmax / argmax / argmax | 0.0975 | 0.0848 | **0.1822** | 0.8276 | 0.3601 | 21.0 |
+| argmax / argmax / **circmean** | 0.0859 | 0.1202 | 0.2061 | 0.8000 | **0.4258** | 23.0 |
+| median / **pitch q0.25** / argmax | 0.0916 | 0.0816 | **0.1731** | 0.8124 | **0.2409** | 15.0 |
+| median / pitch q0.35 / argmax | 0.0912 | 0.0924 | 0.1837 | 0.8094 | 0.3041 | 18.0 |
+| median / pitch q0.75 / argmax | 0.0859 | 0.1370 | 0.2230 | 0.7858 | 0.4501 | 23.0 |
 
 ✅ **The azimuth `argmax` beats `circmean` on the symmetric difference at every offset/pitch pair, on
-both checkpoints, and it beats it in the predicted way**: the circular mean has *lower* `extra` and
-much *higher* `missing` — it averages two opposite roofs into one direction that cuts across the
-building. The pre-registered read was right, and it was right for the stated reason.
+both checkpoints, and it beats it in the predicted way** — the circular mean has *lower* `extra` and
+much *higher* `missing`, because it averages two opposite roofs into a direction that cuts across the
+building. 🔑 **The collapse column says how badly**: on the arm of record `circmean` collapses
+**50.9%** of buildings against `argmax`'s 10.2%. Its better `extra` was bought by destroying half
+the population, and without #126's columns that was invisible — the surplus alone read as an
+improvement.
 
-❌ **The offset `median` is not.** `argmax` scores a better symmetric difference on both checkpoints
-(0.1882 vs 0.1967 here). #127's lever does not transfer to this quantity, and I predicted it would.
+🔑 **And the same column overturns a conclusion I drew before I had it.** On `extra + missing` alone,
+`argmax` on the *offset* scores better than the pre-registered `median`, and I wrote that up as the
+one half of the decode that did not hold. On the arm of record that row has **`vs_input` 1.0000 and
+`missing` 0.0000** — it is a **no-op**. Three of the four `offset argmax` / `pitch argmax` rows there
+do nothing at all, and #75's rule is that an arm at 0.99 vs-input has not been measured as a
+generator. ⚠️ On the endpoint the `argmax` offset does move (`vs_input` 0.8183) and is genuinely
+slightly better. So the honest reading is **mixed and guard-dependent, not a refutation**: the
+pre-registered `median` offset is the read that keeps the arm acting, and my earlier "it does not
+hold up" was itself an instance of the mistake #126 exists to prevent — ranking on surplus without
+looking at whether the arm moved.
 
-🔑 **The pitch is where the next arm should look.** `q0.25` buys `missing` 0.1065 → 0.0816 for
-`extra` +0.0014 — the best symmetric difference in the table, from the same weights. That is the
-geometric asymmetry above, showing up exactly where it was predicted to. ⚠️ **Not adopted**: it is a
-read chosen after seeing the answer, and the honest form of it is a pre-registered lower-quantile
-pitch on the next run.
+🔑 **The pitch is where the next arm should look, and now for a second reason.** `q0.25` buys
+`missing` 0.1065 → 0.0816 for `extra` +0.0014 — the best symmetric difference in the table from the
+same weights — **and takes the collapse rate 0.3747 → 0.2409**, the single largest move any read
+makes on the guard that sank this arm. That is the geometric asymmetry above showing up exactly
+where it was predicted. ⚠️ **Not adopted**: it is a read chosen after seeing the answer, and the
+honest form of it is a pre-registered lower-quantile pitch on the next run. It would still not pass
+— 0.2409 is above 1-NN's 0.1582.
+
+
+## How many slots it uses
+
+`slot_usage`, on the same 411: the arm of record uses **0.90** of its 4 slots against the label's
+**3.06**, and uses exactly one on **89.5%** of buildings; the endpoint uses 1.15. ⚠️ The formulation
+is *K typed slots*, and both arms are effectively **K = 1**. Every roof here is one plane over one
+region, which is why `dl_ops` reads 1.0 for both and why a gable — two opposing ramps, the commonest
+real roof in the corpus and 2.0 ops in the label — is not in reach yet. The output space is not the
+constraint (the compiled label uses 3.06 slots and scores 2.0 ops / 0.50 planar); the assignment head
+is not committing to a second region.
 
 
 ## What this ticket settles, and what it does not
 
 **Settles**, and it is the question #129 asked:
 * 🔑🔑 **Classifying the plane parameters recovers the pitch a regression on them provably cannot.**
-  0.00 → 0.40 planar, 0.00 → 20 voxels of realised rise, visible in the plan-view normals. #6's
-  refutation of the regression is confirmed to have been about the *loss*, not about the program
-  route: the same output space, the same supervision, one head swapped, and the roofs are pitched.
+  On the arm of record: **0.00 → 22 voxels** of realised rise inside a `Ramp`-typed slot, visible in
+  the plan-view normals as one uniform colour across a roof. On the endpoint, additionally
+  **0.00 → 0.40 planar**. #6's refutation of the regression is confirmed to have been about the
+  *loss*, not about the program route: the same output space, the same supervision, one head
+  swapped, and the roofs are pitched.
 * **The mirror decomposition is the enabling move**, not the cross-entropy on its own. Binning
   `(A, Bz, Cx)` would have put the symmetry in two variables at once and given the decode nothing
   to commit to.
 * **The pre-registered azimuth `argmax`** is confirmed against the averaging read it was chosen
-  over, on the mechanism it was chosen for.
+  over, on the mechanism it was chosen for — and the collapse column says the averaging read
+  destroys half the population to buy its surplus.
 
 **Does not settle:**
 * ⚠️ **The arm does not pass, and the run of record is a second KILL.** The selected checkpoint has
   planar 0.00 and `extra` 0.1507, worse than #6's.
+* ⚠️ **Both arms are effectively K = 1** — 0.90 and 1.15 slots used against the label's 3.06. A
+  gable is two opposing ramps and is not in reach until the assignment head commits to a second
+  region, so `dl_ops` 1.0 is a fact about the regions, not about the planes.
 * ⚠️ **The endpoint fails the collapse guard at 37.5%**, more than double 1-NN's 15.8%. A generator
   that destroys a third of its buildings is not servable whatever its roofs look like.
 * ⚠️ **The selection rule cannot see this arm's improvement.** Whether the fix is a different rule,
   a pitch read that stops the over-carve, or both, is unresolved — and any rule change must be
   pre-registered before the run that benefits from it, not chosen from this table.
 * The named baselines, set diffusion and curriculum remain [#130](https://github.com/danvisai/SDFusion/issues/130)'s, untouched here.
+
+
+## What the review pass changed
+
+Recorded because two of the corrections are findings, not tidying:
+
+1. 🔑 **`vs_input` and the collapse rate were missing from the diagnostic tables.** #126's rule is
+   about *every* number and #129 restates it, but `_median_split` published only `extra`/`missing`,
+   so the ablation could not be read. Adding them overturned the offset-median conclusion above and
+   showed `circmean` collapsing half the population.
+2. 🔑 **`realised_rise_median_voxels` named two different measurements in one artifact.** Renamed to
+   `ramp_rise_median_voxels` in `decode_ablation`.
+3. **`verdict()`'s composite `program_pass` ANDed only the three PASS clauses, not the guards**,
+   which the written bar always required — so the endpoint could report `form_planar_over_bar: true`
+   with nothing machine-checked saying the collapse guard sank it. Corrected. ⚠️ Safe to correct
+   after the fact only because it can turn a PASS into a FAIL and never the reverse, and it changes
+   **no arm's verdict** on #6's or #129's record — checked against both committed artifacts before
+   the change was made.
+4. `decode_plane_logits` computed the angular `circmean` for all three quantities and selected one,
+   so asking for it on the offset or the pitch would have averaged angular bin centres over a height
+   and returned a plausible index with no meaning. It now raises.
 
 
 ## Re-running any of it
@@ -270,6 +343,6 @@ pitch on the next run.
 
 The bins' ceiling, the head swap, the slot usage, the realised rise and the eleven-read decode table
 are all in `--diagnose_program`, so every number above is a committed code path rather than a
-notebook. `scripts/foundations/test_train_height_map_generator.py` — 126 tests, 23 of them #129's,
+notebook. `scripts/foundations/test_train_height_map_generator.py` — 128 tests, 23 of them #129's and 2 more pinning the bar's guards,
 and the load-bearing one is that equal mass on two opposite azimuths decodes to one of them rather
 than to their average.

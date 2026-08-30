@@ -4,35 +4,49 @@
  "head_ablation": {
   "all three predicted": {
    "extra": 0.09020076031292218,
-   "missing": 0.10647636039250669
+   "missing": 0.10647636039250669,
+   "vs_input": 0.8027979553403283,
+   "collapse_rate": 0.3746958637469586
   },
   "label types": {
    "extra": 0.09650639916983743,
-   "missing": 0.0991988756148981
+   "missing": 0.0991988756148981,
+   "vs_input": 0.807070707070707,
+   "collapse_rate": 0.34549878345498786
   },
   "label assignment": {
    "extra": 0.09253204629197156,
-   "missing": 0.11843872766442783
+   "missing": 0.11843872766442783,
+   "vs_input": 0.7955232909860859,
+   "collapse_rate": 0.41605839416058393
   },
   "label planes": {
    "extra": 0.08661811656198486,
-   "missing": 0.000589386827204412
+   "missing": 0.000589386827204412,
+   "vs_input": 0.8872093397227672,
+   "collapse_rate": 0.12408759124087591
   },
   "all three from the label (the ceiling)": {
    "extra": 0.003514423780934251,
-   "missing": 0.0
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0
   }
  },
  "flatten_ramps": {
   "compiled as fitted": {
    "extra": 0.003514423780934251,
    "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0,
    "ops": 2.0,
    "planar_fraction": 0.5
   },
   "every Ramp flattened": {
    "extra": 0.0527537847125476,
    "missing": 0.0,
+   "vs_input": 0.8846542346542347,
+   "collapse_rate": 0.0024330900243309003,
    "ops": 1.0,
    "planar_fraction": 0.0
   }
@@ -66,120 +80,164 @@
   "plane_noise": {
    "0.00": {
     "extra": 0.003514423780934251,
-    "missing": 0.0
+    "missing": 0.0,
+    "vs_input": 0.8225742574257425,
+    "collapse_rate": 0.0
    },
    "0.02": {
     "extra": 0.012789880534082924,
-    "missing": 0.006888826659199104
+    "missing": 0.006888826659199104,
+    "vs_input": 0.821288358304623,
+    "collapse_rate": 0.0
    },
    "0.05": {
     "extra": 0.02542899858433775,
-    "missing": 0.015318940791960335
+    "missing": 0.015318940791960335,
+    "vs_input": 0.8247788640595903,
+    "collapse_rate": 0.0
    },
    "0.10": {
     "extra": 0.035022301516503124,
-    "missing": 0.030119660629450568
+    "missing": 0.030119660629450568,
+    "vs_input": 0.8194909693683738,
+    "collapse_rate": 0.0267639902676399
    }
   },
   "assignment_corrupted": {
    "0.00": {
     "extra": 0.003514423780934251,
-    "missing": 0.0
+    "missing": 0.0,
+    "vs_input": 0.8225742574257425,
+    "collapse_rate": 0.0
    },
    "0.05": {
     "extra": 0.010127697049757816,
-    "missing": 0.010357276235528444
+    "missing": 0.010357276235528444,
+    "vs_input": 0.8186003683241252,
+    "collapse_rate": 0.0
    },
    "0.25": {
     "extra": 0.03264722528372702,
-    "missing": 0.05137684345150074
+    "missing": 0.05137684345150074,
+    "vs_input": 0.7967932621887425,
+    "collapse_rate": 0.0413625304136253
    }
   }
  },
  "quantisation_ceiling": {
   "exact (the continuous ceiling)": {
    "extra": 0.003514423780934251,
-   "missing": 0.0
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0
   },
   "binned at 32": {
    "extra": 0.01071881798404641,
-   "missing": 0.005151286520800271
+   "missing": 0.005151286520800271,
+   "vs_input": 0.8186410765497463,
+   "collapse_rate": 0.0
   },
   "binned at 64  <- PLANE_BINS": {
    "extra": 0.006340654786572731,
-   "missing": 0.0034770792534271214
+   "missing": 0.0034770792534271214,
+   "vs_input": 0.8185403621183438,
+   "collapse_rate": 0.0
   },
   "binned at 128": {
    "extra": 0.0038784645572725045,
-   "missing": 0.00258336314136958
+   "missing": 0.00258336314136958,
+   "vs_input": 0.8190359477124183,
+   "collapse_rate": 0.0
   }
  },
  "decode_ablation": {
   "offset median / pitch median / azimuth argmax   <- PRE-REGISTERED": {
    "extra": 0.09020076031292218,
    "missing": 0.10647636039250669,
+   "vs_input": 0.8027979553403283,
+   "collapse_rate": 0.3746958637469586,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 20.0
+   "ramp_rise_median_voxels": 20.0
   },
   "offset median / pitch median / azimuth circmean": {
    "extra": 0.07482710207477511,
    "missing": 0.1400937674174617,
+   "vs_input": 0.7610169491525424,
+   "collapse_rate": 0.46472019464720193,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 22.0
+   "ramp_rise_median_voxels": 22.0
   },
   "offset median / pitch argmax / azimuth argmax": {
    "extra": 0.09397090703446542,
    "missing": 0.10931644738641648,
+   "vs_input": 0.7979390223130642,
+   "collapse_rate": 0.3819951338199513,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 22.0
+   "ramp_rise_median_voxels": 22.0
   },
   "offset median / pitch argmax / azimuth circmean": {
    "extra": 0.08114979577093001,
    "missing": 0.12950206652233812,
+   "vs_input": 0.7736730451925343,
+   "collapse_rate": 0.44038929440389296,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 24.0
+   "ramp_rise_median_voxels": 24.0
   },
   "offset argmax / pitch median / azimuth argmax": {
    "extra": 0.09671033688453787,
    "missing": 0.09151686463825193,
+   "vs_input": 0.8182989033409844,
+   "collapse_rate": 0.34306569343065696,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 19.0
+   "ramp_rise_median_voxels": 19.0
   },
   "offset argmax / pitch median / azimuth circmean": {
    "extra": 0.0811150429695963,
    "missing": 0.13037871589520836,
+   "vs_input": 0.7757309184993532,
+   "collapse_rate": 0.45742092457420924,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 21.0
+   "ramp_rise_median_voxels": 21.0
   },
   "offset argmax / pitch argmax / azimuth argmax": {
    "extra": 0.09748045178105995,
    "missing": 0.08476517754868271,
+   "vs_input": 0.8276136325176837,
+   "collapse_rate": 0.36009732360097324,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 21.0
+   "ramp_rise_median_voxels": 21.0
   },
   "offset argmax / pitch argmax / azimuth circmean": {
    "extra": 0.08588567802964757,
    "missing": 0.12018318790309468,
+   "vs_input": 0.8000339789330615,
+   "collapse_rate": 0.4257907542579075,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 23.0
+   "ramp_rise_median_voxels": 23.0
   },
   "offset median / pitch q0.25 / azimuth argmax": {
    "extra": 0.09155682223013893,
    "missing": 0.0815754039497307,
+   "vs_input": 0.812392969806219,
+   "collapse_rate": 0.24087591240875914,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 15.0
+   "ramp_rise_median_voxels": 15.0
   },
   "offset median / pitch q0.35 / azimuth argmax": {
    "extra": 0.09123462556437802,
    "missing": 0.09242445537596627,
+   "vs_input": 0.8094191790154999,
+   "collapse_rate": 0.30413625304136255,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 18.0
+   "ramp_rise_median_voxels": 18.0
   },
   "offset median / pitch q0.75 / azimuth argmax": {
    "extra": 0.08594295877532872,
    "missing": 0.1370408015100915,
+   "vs_input": 0.7858353431979662,
+   "collapse_rate": 0.45012165450121655,
    "n_ramp_slots": 227,
-   "realised_rise_median_voxels": 23.0
+   "ramp_rise_median_voxels": 23.0
   }
  },
  "plane_decode": [

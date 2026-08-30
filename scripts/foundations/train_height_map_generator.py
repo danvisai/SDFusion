@@ -622,6 +622,10 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
 
 OBJECTIVES = ("ce", "mse", "quantile", "planes", "program")
 
+# How `--objective program` predicts a slot's plane. `regress` is #6 and stays the default,
+# so every checkpoint and command on that ticket's record is unaffected; `class` is #129.
+PLANE_HEADS = ("regress", "class")
+
 
 def head_channels(objective: str) -> int:
     """`ce` predicts a distribution over depths; the regressions predict one number per column.
@@ -952,26 +956,12 @@ def plane_to_voxel(params, extent) -> np.ndarray:
 # #129 -- the plane parameters as three CLASSES, and the anchor that makes their range sane
 # --------------------------------------------------------------------------------------------------
 
-def _plan_grid() -> tuple:
-    """The normalised plan coordinates `plane_to_normalised` is written against, cached once."""
-    global _PLAN_ZN, _PLAN_XN
-    try:
-        return _PLAN_ZN, _PLAN_XN
-    except NameError:
-        n = RES - 1
-        gz, gx = np.meshgrid(np.arange(RES), np.arange(RES), indexing="ij")
-        _PLAN_ZN, _PLAN_XN = (gz - n / 2.0) / n, (gx - n / 2.0) / n
-        return _PLAN_ZN, _PLAN_XN
-
-
-def _azimuth_centres() -> np.ndarray:
-    """The angle each azimuth bin represents, cached once. Only the circular reads need it."""
-    global _AZ_CENTRES
-    try:
-        return _AZ_CENTRES
-    except NameError:
-        _AZ_CENTRES = (np.arange(PLANE_BINS) + 0.5) * (2 * np.pi) / PLANE_BINS
-        return _AZ_CENTRES
+# The normalised plan coordinates `plane_to_normalised` is written against, and the angle each
+# azimuth bin represents. Two 64x64 grids and a 64-vector, built once at import: small enough that
+# a lazy cache would only add a way for them to go stale against `PLANE_BINS`.
+_PLAN_ZN, _PLAN_XN = ((np.meshgrid(np.arange(RES), np.arange(RES), indexing="ij")[i]
+                       - (RES - 1) / 2.0) / (RES - 1) for i in (0, 1))
+_AZIMUTH_CENTRES = (np.arange(PLANE_BINS) + 0.5) * (2 * np.pi) / PLANE_BINS
 
 
 def slot_centroids(assign, k_ops: int = K_OPS) -> np.ndarray:
@@ -985,17 +975,16 @@ def slot_centroids(assign, k_ops: int = K_OPS) -> np.ndarray:
     back to the plan centre, where the offset means exactly what #6's `A` meant. `compile_program`
     skips such a slot anyway, so the fallback only has to not raise.
     """
-    zn, xn = _plan_grid()
     a = np.asarray(assign)
     out = np.zeros((int(k_ops), 2), np.float64)
     for k in range(int(k_ops)):
         m = a == k
         if m.any():
-            out[k] = (zn[m].mean(), xn[m].mean())
+            out[k] = (_PLAN_ZN[m].mean(), _PLAN_XN[m].mean())
     return out
 
 
-def plane_to_bins(params, centroid, bins: int = 0) -> np.ndarray:
+def plane_to_bins(params, centroid, n_bins: int = 0) -> np.ndarray:
     """A slot's normalised plane `(A, Bz, Cx)` -> three class indices. #129's supervision.
 
     🔑 The three quantities are NOT the three parameters, and the re-parametrisation is the whole
@@ -1023,10 +1012,12 @@ def plane_to_bins(params, centroid, bins: int = 0) -> np.ndarray:
     ⚠️ Total, like every other function on this path: any plane at all, including the wildly
     out-of-range ones an untrained head emits, lands in a bin rather than raising.
 
-    `bins` overrides `PLANE_BINS`, and exists only so `plane_quantisation_ceiling` can price the
-    resolutions that were not chosen.
+    `n_bins` overrides `PLANE_BINS`, and exists only so `plane_quantisation_ceiling` can price the
+    resolutions that were not chosen. ⚠️ It is `n_bins` in both directions on purpose: `bins` is the
+    name of this function's *result*, and a parameter spelled the same would put a count and a
+    triple of indices under one word on the same line of the round trip.
     """
-    nb = int(bins) or PLANE_BINS
+    nb = int(n_bins) or PLANE_BINS
     A, Bz, Cx = (float(v) for v in np.asarray(params, np.float64))
     zc, xc = (float(v) for v in np.asarray(centroid, np.float64))
     h = A + Bz * zc + Cx * xc
@@ -1106,14 +1097,29 @@ def decode_plane_logits(logits, centroids, reads=None) -> np.ndarray:
             if PLANE_QUANTITIES[q] != "azimuth":
                 raise ValueError(f"'circmean' is an angular read; PLANE_QUANTITIES[{q}] is "
                                  f"'{PLANE_QUANTITIES[q]}'")
-            th = _azimuth_centres()
+            th = _AZIMUTH_CENTRES
             return np.floor((np.arctan2((p[:, q] * np.sin(th)).sum(-1),
                                         (p[:, q] * np.cos(th)).sum(-1)) % (2 * np.pi))
                             / (2 * np.pi) * PLANE_BINS).astype(np.int64) % PLANE_BINS
         raise ValueError(f"unknown read '{r}'; expected median, argmax, circmean or q<float>")
 
-    bins = np.stack([read(q) for q in range(3)], axis=-1)
+    bins = np.stack([read(q) for q in range(len(PLANE_QUANTITIES))], axis=-1)
     return np.stack([bins_to_plane(bins[k], cen[k]) for k in range(len(bins))])
+
+
+def rebin_planes(planes, assign, extent, n_bins: int = 0) -> np.ndarray:
+    """A whole slot set's planes through the bins and back, in the fitter's voxel convention.
+
+    🔑 The round trip in one place. `plane_quantisation_ceiling` prices the bins with it and the
+    tests check it against a fitted surface and under the 8 plan symmetries -- so a test cannot pass
+    on its own private copy of a path the production code has since changed, which is the only way
+    a discretisation quietly drifts away from the ceiling it was chosen on.
+    """
+    cen = slot_centroids(assign, len(planes))
+    return np.stack([
+        plane_to_voxel(bins_to_plane(plane_to_bins(plane_to_normalised(planes[k], extent),
+                                                   cen[k], n_bins), cen[k], n_bins), extent)
+        for k in range(len(planes))])
 
 
 def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
@@ -1211,6 +1217,11 @@ def program_loss(out, labels, mask, plane_head: str = "regress"):
     w = torch.stack([active.float(), is_ramp.float(), is_ramp.float()], dim=-1)
     if plane_head == "class":
         # (B, K, 3, PLANE_BINS) logits against (B, K, 3) bins
+        # ⚠️ the clamp is unreachable for labels this repo builds -- `plane_to_bins` already
+        # clips -- and it stays because the failure it prevents is not debuggable: an out-of-range
+        # class index into `cross_entropy` on CUDA is a device-side assert with no line number,
+        # from anywhere in the epoch. A wrong label would be caught by the tests; a wrong *caller*
+        # would not, and this makes that a wrong number rather than an opaque crash.
         flat = F.cross_entropy(params.reshape(-1, params.shape[-1]),
                                planes.reshape(-1).clamp(0, params.shape[-1] - 1),
                                reduction="none").view(w.shape)
@@ -1246,7 +1257,8 @@ def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"
 
     trunk = build_model(width, width)             # the tested U-Net; its head becomes features
     n_type = len(SLOT_TYPES)
-    n_plane = 3 * PLANE_BINS if plane_head == "class" else 3
+    n_quant = len(PLANE_QUANTITIES)
+    n_plane = n_quant * PLANE_BINS if plane_head == "class" else n_quant
 
     class ProgramNet(nn.Module):
         def __init__(self):
@@ -1273,7 +1285,7 @@ def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"
                     # the same spread, expressed in the classified parametrisation: nudge slot k's
                     # offset and azimuth towards the bin its regressed counterpart started at. A
                     # nudge and not a one-hot -- a saturated init would take epochs to unlearn.
-                    pl = bias[:, n_type:].view(k_ops, 3, PLANE_BINS)
+                    pl = bias[:, n_type:].view(k_ops, n_quant, PLANE_BINS)
                     for k in range(k_ops):
                         p = np.array([float(heights[k]), 0.25 * float(torch.cos(ang[k])),
                                       0.25 * float(torch.sin(ang[k]))])
@@ -1290,7 +1302,7 @@ def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"
             s = self.slots(f.mean(dim=(2, 3))).view(-1, self.k, n_type + n_plane)
             planes = s[..., n_type:]
             if self.plane_head == "class":
-                planes = planes.view(-1, self.k, 3, PLANE_BINS)
+                planes = planes.view(-1, self.k, n_quant, PLANE_BINS)
             return self.assign(f), s[..., :n_type], planes
 
     return ProgramNet()
@@ -1780,9 +1792,15 @@ def verdict(arms: dict, pop: str) -> dict:
                 # `<=`, not `<`: matching the arm you replaced is not an improvement over it
                 killed_flat=bool(s["dl_planar_fraction"] <= PROGRAM_BAR["kill_planar"]),
             )
+            # ⚠️ the GUARDS are ANDed in, which the written bar always said and this composite
+            # did not do. Corrected after #6's run, and it is safe to correct after the fact only
+            # because it can make a PASS into a FAIL and never the reverse: it changes no arm's
+            # verdict on #6's or #129's record (checked), and it stops an arm reporting
+            # `form_planar_over_bar: true` with nothing machine-checked saying the collapse guard
+            # sank it -- which is exactly what #129's endpoint did.
             out[name]["program_pass"] = bool(
                 out[name]["form_ops_under_bar"] and out[name]["form_planar_over_bar"] and
-                out[name]["beats_served_extra"])
+                out[name]["beats_served_extra"] and out[name]["pass"])
     return out
 
 
@@ -1870,9 +1888,28 @@ def program_predictions(ckpt: Path, held: dict, cpu: bool = False, raw: bool = F
 
 
 def _median_split(heights, held, rows):
+    """The medians every diagnostic table reports, in #126's order.
+
+    🔑 `vs_input` and the collapse rate are here rather than only on the scorecard because #126's
+    rule is about *every* number, and the diagnostics are where it bites hardest: an ablation row
+    can buy `extra` by declining to act (#75) or by eating the building, and neither shows in
+    `extra`/`missing` medians alone. The `circmean` rows are exactly that case.
+
+    ⚠️ `vs_input` needs occupancy against the blockout the arm started from, so this is ~30x the
+    cost of the two medians on their own. The tables it feeds run once per checkpoint, off a
+    finished model, so that is affordable where it would not be inside the epoch loop
+    (`height_split`, which is what `_validate` uses, exists precisely for that).
+    """
     sp = [height_split(heights[k], held["target"][i]) for k, i in enumerate(rows)]
+    vsi = []
+    for k, i in enumerate(rows):
+        fp, y0, e = held["fp"][i], int(held["y0"][i]), int(held["extent"][i])
+        vsi.append(vs_input(occupancy(fp, y0, heights[k]),
+                            occupancy(fp, y0, apply_depth(fp, e, envelope_depth(fp)))))
     return dict(extra=float(np.median([s["extra"] for s in sp])),
-                missing=float(np.median([s["missing"] for s in sp])))
+                missing=float(np.median([s["missing"] for s in sp])),
+                vs_input=float(np.median(vsi)),
+                collapse_rate=float(np.mean([s["missing"] >= COLLAPSE_MISSING for s in sp])))
 
 
 def head_ablation(pred, label, held, rows) -> dict:
@@ -2070,13 +2107,8 @@ def plane_quantisation_ceiling(label, held, rows) -> dict:
         hs = []
         for i in rows:
             e = int(held["extent"][i])
-            cen = slot_centroids(la[i], lp.shape[1])
-            q = []
-            for k in range(lp.shape[1]):
-                n = plane_to_normalised(lp[i][k], e)
-                q.append(plane_to_voxel(
-                    bins_to_plane(plane_to_bins(n, cen[k], bins), cen[k], bins), e))
-            hs.append(compile_program(la[i], lt[i], np.stack(q), held["fp"][i], e))
+            hs.append(compile_program(la[i], lt[i], rebin_planes(lp[i], la[i], e, bins),
+                                      held["fp"][i], e))
         out[f"binned at {bins}" + ("  <- PLANE_BINS" if bins == PLANE_BINS else "")] = \
             _median_split(hs, held, rows)
     return out
@@ -2085,7 +2117,7 @@ def plane_quantisation_ceiling(label, held, rows) -> dict:
 def decode_ablation(ckpt: Path, held: dict, rows, cpu: bool = False) -> dict:
     """🔑🔑 #129's own question, measured: how much of the arm is the DECODE?
 
-    Same weights, same forward pass, eight reads of the posterior. #127's record is that this is
+    Same weights, same forward pass, eleven reads of the posterior. #127's record is that this is
     where the leverage on such a head is -- argmax -> posterior median moved `extra` 0.1178 ->
     0.0603 with no retraining at all -- and #129's warning is that the read has to be chosen per
     quantity rather than copied.
@@ -2121,9 +2153,13 @@ def decode_ablation(ckpt: Path, held: dict, rows, cpu: bool = False) -> dict:
                                       held["fp"][i], e))
             rise += _realised_rise(hs[-1], a[i], t[i], held["fp"][i])
         name = " / ".join(f"{q} {r}" for q, r in zip(PLANE_QUANTITIES, reads))
-        out[name + ("   <- PRE-REGISTERED" if reads == tuple(PLANE_DECODE) else "")] = \
-            dict(**_median_split(hs, held, rows), n_ramp_slots=len(rise),
-                 realised_rise_median_voxels=float(np.median(rise)) if rise else 0.0)
+        # ⚠️ `ramp_rise_*`, NOT `realised_rise_*`: `slot_usage` already publishes that name for a
+        # different measurement (every used slot, `Layer`s included), and one key meaning two
+        # things in one artifact is how a reader compares 6.0 against 22.0 and concludes the arm
+        # got worse.
+        row = dict(**_median_split(hs, held, rows), n_ramp_slots=len(rise),
+                   ramp_rise_median_voxels=float(np.median(rise)) if rise else 0.0)
+        out[name + ("   <- PRE-REGISTERED" if reads == tuple(PLANE_DECODE) else "")] = row
     return out
 
 
@@ -2213,11 +2249,11 @@ def report_program_diagnostics(d: dict) -> None:
         for name, v in d["quantisation_ceiling"].items():
             print(f"    {name:42s} extra {v['extra']:.4f}   missing {v['missing']:.4f}")
     if d.get("decode_ablation"):
-        print(f"\n  #129: the same weights, eight reads of the posterior. Pre-registered: "
+        print(f"\n  #129: the same weights, eleven reads of the posterior. Pre-registered: "
               f"{' / '.join(f'{q} {r}' for q, r in zip(PLANE_QUANTITIES, d['plane_decode']))}")
         for name, v in d["decode_ablation"].items():
             print(f"    {name:52s} extra {v['extra']:.4f}   missing {v['missing']:.4f}   "
-                  f"ramp rise {v['realised_rise_median_voxels']:5.2f} vox")
+                  f"ramp rise {v['ramp_rise_median_voxels']:5.2f} vox")
     print("=" * 100)
 
 
@@ -2509,7 +2545,7 @@ def main() -> None:
     ap.add_argument("--objective", default="ce", choices=OBJECTIVES,
                     help="which statistic of the per-column posterior to target: ce -> the mode, "
                          "mse -> the mean, quantile -> --quantile (0.5 = the median)")
-    ap.add_argument("--plane_head", default="regress", choices=("regress", "class"),
+    ap.add_argument("--plane_head", default="regress", choices=PLANE_HEADS,
                     help="#129. How --objective program predicts a slot's plane: `regress` is #6's "
                          "L1 on (A, Bz, Cx), which must return flat because the corpus's signed "
                          "slope is exactly symmetric; `class` is cross-entropy over binned "
