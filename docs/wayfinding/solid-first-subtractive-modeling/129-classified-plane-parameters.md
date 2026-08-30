@@ -270,6 +270,6 @@ pitch on the next run.
 
 The bins' ceiling, the head swap, the slot usage, the realised rise and the eleven-read decode table
 are all in `--diagnose_program`, so every number above is a committed code path rather than a
-notebook. `scripts/foundations/test_train_height_map_generator.py` — 124 tests, 21 of them #129's,
+notebook. `scripts/foundations/test_train_height_map_generator.py` — 126 tests, 23 of them #129's,
 and the load-bearing one is that equal mass on two opposite azimuths decodes to one of them rather
 than to their average.

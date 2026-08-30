@@ -1376,6 +1376,20 @@ class TestPlaneDecode(unittest.TestCase):
             decode_plane_logits(lg, cen, ("median", "median", "argmax")),
             decode_plane_logits(lg, cen, ("q0.5", "q0.5", "argmax")))
 
+    def test_an_angular_read_is_refused_on_a_quantity_that_is_not_an_angle(self):
+        """`circmean` averages ANGLES. Applied to an offset or a pitch it would return a
+        plausible-looking bin index with no meaning, so it raises instead."""
+        lg, cen = self._logits(), np.zeros((1, 2))
+        for q in (0, 1):
+            reads = ["median", "median", "argmax"]
+            reads[q] = "circmean"
+            with self.subTest(quantity=q), self.assertRaises(ValueError):
+                decode_plane_logits(lg, cen, tuple(reads))
+
+    def test_an_unknown_read_is_loud(self):
+        with self.assertRaises(ValueError):
+            decode_plane_logits(self._logits(), np.zeros((1, 2)), ("mean", "median", "argmax"))
+
     def test_it_is_total_for_an_untrained_head(self):
         rng = np.random.default_rng(3)
         p = decode_plane_logits(rng.normal(0, 5, (K_OPS, 3, PLANE_BINS)),

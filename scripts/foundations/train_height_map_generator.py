@@ -187,7 +187,7 @@ is zero. So the read is chosen per quantity and fixed in `PLANE_DECODE` before t
                    by a third route. `argmax` commits to one of the two, which is what #126 says the
                    task is: the conditioning does not determine which roof, so pick one.
 
-The other seven reads are measured after the fact (`decode_ablation`) and reported. They do not
+The other ten reads are measured after the fact (`decode_ablation`) and reported. They do not
 choose; a row that beats the pre-registered one is a finding, not a decode to adopt retroactively.
 
 MEASURED BEFORE THE RUN
@@ -212,9 +212,9 @@ bar that moved with it. Restated for the reader:
          representation, and it would answer #129 "no".
 
   reported beside every number, never as a gate:
-    the REALISED RISE inside each `Ramp`-typed slot's own region. #6's arm typed 46% of its slots
-    `Ramp` correctly and drew them with a median **0.00-voxel** range, so "it predicted a ramp" is
-    not evidence that it drew one, and only the surface says which.
+    the REALISED RISE inside each `Ramp`-typed slot's own region. 46.4% of the slots #6's arm used
+    were typed `Ramp` and it drew them with a median **0.00-voxel** range, so "it predicted a ramp"
+    is not evidence that it drew one, and only the surface says which.
     `vs_input` and the collapse rate (#126), and a montage -- three amplitude statistics failed to
     separate a mound from a roof, and the picture is what caught it.
 
@@ -227,9 +227,13 @@ bar that moved with it. Restated for the reader:
 ⚠️ The checkpoint is chosen on **validation geometry, not loss** -- #6's best was epoch 13 of 40
 with the remaining 27 flat, and this map has three near-misses from reading a curve as a trend.
 
-    $P --objective program --plane_head class --tag heightmap_program_class --epochs 40 --montage 0
+    $P --objective program --plane_head class --tag heightmap_program_class --epochs 40 \\
+       --montage 0 --no_form --out execution/artifacts/height_map_generator_class_train.json
     $P --diagnose_program outputs/height_map_generator/heightmap_program_class.pt \\
-       --out execution/artifacts/height_map_generator_class.json
+       --out execution/artifacts/height_map_generator_class_714.json
+
+The result is written up in `docs/wayfinding/solid-first-subtractive-modeling/
+129-classified-plane-parameters.md`, with the full scoring command.
 """
 
 from __future__ import annotations
@@ -1086,20 +1090,29 @@ def decode_plane_logits(logits, centroids, reads=None) -> np.ndarray:
     p = np.exp(lg - lg.max(axis=-1, keepdims=True))
     p /= p.sum(axis=-1, keepdims=True)
     cdf = np.cumsum(p, axis=-1)
-    stat = dict(
-        argmax=p.argmax(axis=-1),
-        # the natural averaging statistic on a circle, and the one #129 warns against: over two
-        # antipodal modes its resultant cancels and the angle it returns is held by neither
-        circmean=np.floor(
-            (np.arctan2((p * np.sin(_azimuth_centres())).sum(-1),
-                        (p * np.cos(_azimuth_centres())).sum(-1)) % (2 * np.pi))
-            / (2 * np.pi) * PLANE_BINS).astype(np.int64) % PLANE_BINS)
-    bins = np.stack([
-        # "median" is q0.50, spelled out so the pre-registered read and an ablation quantile go
-        # through the same line and cannot drift apart
-        (cdf[:, q] >= (0.5 if rd[q] == "median" else float(rd[q][1:]))).argmax(axis=-1)
-        if rd[q] == "median" or rd[q].startswith("q") else stat[rd[q]][:, q]
-        for q in range(3)], axis=-1)
+
+    def read(q: int) -> np.ndarray:
+        r = rd[q]
+        if r == "median" or r.startswith("q"):
+            # "median" is q0.50, spelled out so the pre-registered read and an ablation quantile go
+            # through the same line and cannot drift apart
+            return (cdf[:, q] >= (0.5 if r == "median" else float(r[1:]))).argmax(axis=-1)
+        if r == "argmax":
+            return p[:, q].argmax(axis=-1)
+        if r == "circmean":
+            # ⚠️ azimuth only, and it raises rather than returning a number for the other two: the
+            # bin centres it averages are ANGLES, so applied to an offset or a pitch it would
+            # silently produce a plausible-looking index with no meaning at all
+            if PLANE_QUANTITIES[q] != "azimuth":
+                raise ValueError(f"'circmean' is an angular read; PLANE_QUANTITIES[{q}] is "
+                                 f"'{PLANE_QUANTITIES[q]}'")
+            th = _azimuth_centres()
+            return np.floor((np.arctan2((p[:, q] * np.sin(th)).sum(-1),
+                                        (p[:, q] * np.cos(th)).sum(-1)) % (2 * np.pi))
+                            / (2 * np.pi) * PLANE_BINS).astype(np.int64) % PLANE_BINS
+        raise ValueError(f"unknown read '{r}'; expected median, argmax, circmean or q<float>")
+
+    bins = np.stack([read(q) for q in range(3)], axis=-1)
     return np.stack([bins_to_plane(bins[k], cen[k]) for k in range(len(bins))])
 
 
