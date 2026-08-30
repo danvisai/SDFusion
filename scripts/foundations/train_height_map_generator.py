@@ -77,6 +77,68 @@ unaffected. Its pre-registered weight is 1.0 (`docs/wayfinding/solid-first-subtr
 
 The first invocation builds `outputs/height_map_generator/height_fields.npz` from the corpus, which
 takes ~12 minutes and is then reused by everything else.
+
+
+#6 -- THE PROGRAM ARM, AND WHY IT IS AN ARM OF THIS SCRIPT AND NOT A NEW ONE
+============================================================================
+#127 closed with the open problem moved from *amount* to *form*: every trained arm removes about the
+right volume and none produces planes and ridges. It measured the cause from both directions --
+supervision could not put planes in (the slope term bought description length and reversed
+planarity) and decoding could not take a roof out (an oracle quantile chosen per building with the
+answer in hand buys 12% of the symmetric difference and **exactly zero shape**). What neither can
+supply is a **joint commitment**: one hypothesis chosen across a run of columns rather than 4,096
+independent summaries, whose pointwise median is a mound that is none of them.
+
+#6 asks which learned formulation makes that commitment. The answer here is chosen by measurement:
+
+  * **Predict the program, not the surface.** K=4 typed slots -- each a `Layer` (flat) or a `Ramp`
+    (a plane) -- plus one assignment per column over the slots and an UNCARVED class. Every column
+    in a region gets its height from the slot the region shares, so a ridge line is one decision.
+  * **Supervise it with #10's fitter, exactly.** Measured before the arm was designed: the fitter is
+    deterministic, sees GT, and costs 0.2 s per building, so the whole 35,623-row corpus labels in
+    **56 s** on 48 cores. The literature #6 names reaches for pseudo-labels, RL or a differentiable
+    relaxation because exact programs are usually unavailable. Here they are not, so none of that
+    machinery is bought, and the surface loss whose flat optimum sank the plane head is not used at
+    all.
+  * **Canonicalise by area, not by matching.** A set head has no natural slot order, so slots are
+    sorted by owned area. That removes the permutation problem outright rather than paying for a
+    Hungarian loss to tolerate it.
+  * **`CutRoof` is withheld from the label vocabulary**, because its surface is a distance transform
+    and no (type, plane) slot can carry it. Measured, not assumed: it was 13 of 1,246 operations,
+    and dropping it moves the fit's median `extra` on the 411 from **0.0030 to 0.0035**.
+
+Three facts measured before the run, which are what make the formulation worth a run at all:
+
+    compiled label ceiling, on the 411   extra 0.0035   missing 0.0000   3D IoU 0.9965
+    its form                             2.0 ops, planar_fraction 0.50 -- EQUAL to the real building
+    robustness                           param noise of 0.10 *of the building's own height* still
+                                         scores extra 0.0379, and randomising a QUARTER of the
+                                         column assignments still scores 0.0325 -- both below the
+                                         served per-column arm's 0.0603
+
+That last one is the answer to the obvious objection to supervising parameters while scoring a
+surface: this output space degrades gracefully, so the arm has to be roughly right, not exact.
+
+THE BAR FOR #6, PRE-REGISTERED BEFORE THE FIRST RUN
+---------------------------------------------------
+Same 411 rows, same discipline. The reference numbers are #127's, re-read on those rows.
+
+  PASS   BOTH halves of form at once -- median `dl_ops` <= 3.0 AND median `dl_planar_fraction`
+         >= 0.40 -- AND median `extra` strictly below the served CE+median arm's **0.0603**.
+         ⚠️ Both halves, because #127's plane head reached 3.0 ops with planar_fraction **0.00**:
+         it swapped a mound for a terrace, and a single-number form metric would have shipped it.
+  GUARD  collapse rate no worse than 1-NN's, and `vs_input` < 0.98 (#75).
+  KILL   median `dl_planar_fraction` <= 0.20, the served per-column arm's own value. That is the
+         terrace failure repeating in a third representation, and it answers #6 "not this way".
+
+  for reference, on those same rows:  GT 2.0 ops / 0.50 planar
+                                      CE+median (served) extra 0.0603 / 6.0 / 0.20
+                                      planes K=6         extra 0.0772 / 3.0 / 0.00
+                                      1-NN retrieval     extra 0.1031 / 2.0 / 0.17
+
+    $P --objective program --tag heightmap_program --epochs 40 --montage 0
+
+The first program run builds `outputs/height_map_generator/program_labels.npz` (~1 min, 48 cores).
 """
 
 from __future__ import annotations
@@ -100,12 +162,14 @@ from scripts.foundations.measure_scoring_optimum import (        # noqa: E402
     compare_to_envelope, transplant_height,
 )
 from scripts.foundations.recover_massing_programs import (       # noqa: E402
-    CARVE_NEEDED, H5, SHIP714, height_field, occupancy, render_iso,
+    CARVE_NEEDED, FLOOR_EPS, H5, K_OPS, SHIP714, SLOT_TYPES, fit_program_beam, height_field,
+    occupancy, program_to_slots, render_iso,
 )
 
 LATENTS = REPO / "data/real_massing_v1/vecset_latents.h5"
 WORK = REPO / "outputs/height_map_generator"
 CACHE = WORK / "height_fields.npz"
+PROGRAM_CACHE = WORK / "program_labels.npz"
 
 # One class per voxel of carve depth. Measured over all 35,623 corpus rows: the deepest carve is
 # 59 voxels of a 60-voxel extent, and no column is ever cut below 1, so depth lies in [0, 63] and 64
@@ -120,6 +184,27 @@ SLOPE_DECODE_QUANTILE = 0.5
 # Buildings held back from training to select the checkpoint. Drawn from the TRAINING rows -- the
 # pinned 714 are never seen, not even for early stopping.
 VAL_BUILDINGS = 1000
+
+# #6's slot vocabulary, re-exported under this module's name so the arm's own tests and the demo
+# read one spelling. `Layer` is flat and `Ramp` is tilted, and which of the two a slot is is a
+# DISCRETE prediction -- that is the single mechanical difference from the plane head below, whose
+# slopes were free to decay to zero under L1 and did, from two separate initialisations.
+PROGRAM_TYPES = SLOT_TYPES
+
+# The three program-supervision terms are summed at equal weight. Fixed a priori and NOT swept:
+# every term is already in commensurate units (two cross-entropies in nats, one L1 in units of the
+# building's own height), and this ticket's record has two near-misses from reading a curve as a
+# trend. A sweep here would be selecting on the answer.
+PROGRAM_TERM_WEIGHTS = dict(assign=1.0, type=1.0, param=1.0)
+
+# ⚠️ `recover_massing_programs.FLOOR_EPS` is 1e-9, which is the right snap for the float64 plane
+# `linprog` returns. A slot's plane is stored in the label cache and predicted by the network in
+# **float32**, where a value that is mathematically 30 arrives as 29.9999996 -- and `floor` then
+# reads it as 29. Measured: 96 of 1,280 columns of a plain shed roof, every one of them a plane
+# touching an integral target exactly, which is precisely the case the fitter's own snap exists to
+# protect. float32 resolution at the top of a 64-grid is ~4e-6, so this is ~25x the noise and still
+# four thousand times smaller than the half-voxel that would change a genuine geometric decision.
+PLANE_FLOOR_EPS = 1e-4
 
 N_REGIONS = 3          # source corpora: 0 NL / 1 DE / 2 JP, the `region` column of the latent cache
 # footprint mask, conditioned extent, log height in metres, distance-to-edge, region one-hot.
@@ -414,7 +499,7 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
 # the model
 # ==================================================================================================
 
-OBJECTIVES = ("ce", "mse", "quantile", "planes")
+OBJECTIVES = ("ce", "mse", "quantile", "planes", "program")
 
 
 def head_channels(objective: str) -> int:
@@ -424,6 +509,8 @@ def head_channels(objective: str) -> int:
 
 def make_model(objective: str, width: int, k_planes: int):
     """The one place an objective chooses an architecture."""
+    if objective == "program":
+        return build_program_model(K_OPS, width)
     if objective == "planes":
         return build_plane_model(k_planes, width)
     return build_model(head_channels(objective), width)
@@ -554,6 +641,15 @@ def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective:
     """
     if objective == "ce":
         return decode_logits(out_k, fp, extent, quantile)
+    if objective == "program":
+        # ⚠️ argmax on both discrete heads, never a blend: a softmax mixture of two slots is a
+        # surface belonging to neither, which is #127's mound arriving by a third route. The one
+        # place the network's scale-free plane is converted back to the fitter's voxel convention.
+        a, t, p = out_k
+        return compile_program(np.argmax(a, axis=0).astype(np.uint8),
+                               np.argmax(t, axis=-1).astype(np.int8),
+                               np.stack([plane_to_voxel(p[k], extent) for k in range(len(p))]),
+                               fp, extent)
     if objective == "planes":
         return apply_depth(fp, extent, extent - np.rint(out_k))     # out_k is a height map
     return apply_depth(fp, extent, np.rint(out_k[0] * extent))
@@ -689,6 +785,260 @@ def build_plane_model(k_planes: int, width: int = 64):
     return PlaneNet()
 
 
+# ==================================================================================================
+# #6 -- the program arm. The form gap attacked in the OUTPUT VOCABULARY, not the loss and not a
+# soft composition of planes.
+# ==================================================================================================
+
+def plane_to_normalised(plane, extent) -> np.ndarray:
+    """The fitter's voxel plane `a + b*x + c*z` -> the network's scale-free `(A, Bz, Cx)`.
+
+    The network predicts a roof in units of the building's own height, on plan coordinates running
+    -0.5..0.5 -- the convention `compose_planes` already uses, so the two heads stay readable
+    against each other. It matters for the same reason `mean_relative_depth` is relative: a 6-voxel
+    and a 60-voxel building must not be asked to regress the same number, or the parameter loss
+    measures the corpus's height distribution instead of its roofs.
+
+        height_voxels(z, x) = (A + Bz*zn + Cx*xn) * extent,   zn, xn = (i - (RES-1)/2) / (RES-1)
+    """
+    a, b, c = (float(v) for v in np.asarray(plane, np.float64))
+    e = max(float(extent), 1.0)
+    return np.array([(a + 0.5 * (RES - 1) * (b + c)) / e,
+                     c * (RES - 1) / e,
+                     b * (RES - 1) / e], np.float64)
+
+
+def plane_to_voxel(params, extent) -> np.ndarray:
+    """The inverse of `plane_to_normalised`, so the compiler only ever speaks one convention."""
+    A, Bz, Cx = (float(v) for v in np.asarray(params, np.float64))
+    e = float(extent)
+    b, c = Cx * e / (RES - 1), Bz * e / (RES - 1)
+    return np.array([A * e - 0.5 * (RES - 1) * (b + c), b, c], np.float64)
+
+
+def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
+    """A predicted program -> one height map. The output space of #6's arm.
+
+    🔑 **What this makes free, and it is a different thing from what #127's two representations
+    made free.** The clamped height map made *validity* free; the plane head was meant to make
+    *planarity* free and did, and it still terraced, because a plane whose slope may drift to zero
+    is a flat region wearing a plane's name. Here the slot's **type** is a discrete prediction the
+    compiler obeys: `Layer` ignores the slope it was handed and `Ramp` compiles the plane it was
+    given, so "flat" and "pitched" are different answers rather than the same answer at different
+    magnitudes. A slot cannot quietly become a terrace.
+
+    And it is **joint** by construction, which is the property #127 measured to be missing from both
+    ends: the ridge line falls out of one shared plane across a whole region, rather than out of
+    4,096 columns that each summarised their own posterior and averaged a family of roofs into a
+    mound.
+
+    ⚠️ Total, exactly like `apply_depth`, and for the same reason. It accepts any assignment, any
+    type and any plane at all -- including the wildly out-of-range params an untrained head emits --
+    and still returns a footprint-exact height map with at least one voxel under every footprint
+    column and nothing above the blockout. A run may then fail for a bad answer, never for an
+    unrepresentable one.
+
+    `planes` is in the fitter's voxel convention, so a program straight out of `program_to_slots`
+    compiles without conversion and a *predicted* one is converted once, in `decode_prediction`.
+    """
+    m = np.asarray(fp, bool)
+    e = int(extent)
+    a = np.asarray(assign)
+    t = np.asarray(types, np.int32)
+    p = np.asarray(planes, np.float64)
+    zz, xx = np.mgrid[0:RES, 0:RES]
+    h = np.full(m.shape, float(e), np.float64)
+    ramp = SLOT_TYPES.index("Ramp")
+    for k in range(len(p)):
+        sel = a == k
+        if not sel.any():
+            continue
+        # a slot that is inactive (-1) or typed `Layer` is flat: its slope is not read at all
+        surf = (p[k, 0] + p[k, 1] * xx + p[k, 2] * zz if t[k] == ramp
+                else np.full(m.shape, p[k, 0], np.float64))
+        h = np.where(sel, np.floor(surf + PLANE_FLOOR_EPS), h)
+    return np.where(m, np.clip(h, 1, max(e, 1)), 0).astype(np.int16)
+
+
+def program_loss(out, labels, mask):
+    """🔑 #6's training strategy, in one function: supervise the **program**, never the surface.
+
+    #127 established the trap this avoids, twice and from both directions. Supervision on the
+    surface could not put planes in -- an L1 has a flat region as a strong local optimum, so the
+    plane head's slopes collapsed to 0.25 voxels across a 40-voxel building from two different
+    initialisations -- and no decode could take a roof out of a per-column posterior. So no term
+    here reads the compiled height map at all. Each term sees a piece of the program:
+
+        assign  cross-entropy per footprint column over the K slots plus the UNCARVED class. This
+                is where the *regions* are learned, and it is a segmentation, not a height.
+        type    cross-entropy per ACTIVE slot over (Layer, Ramp). The discrete flat-or-pitched
+                decision that a straight-through slope could never make.
+        param   L1 on the plane, in units of the building's own height, per active slot -- and on
+                the OFFSET ONLY for a slot typed `Layer`, because a flat roof's slope is not a
+                quantity the label has an opinion about and regressing it towards zero would spend
+                capacity teaching the model something the compiler already ignores.
+
+    ⚠️ Inactive slots contribute nothing to any term. A building the fitter explained in two
+    operations must not be pushed to invent four; #10 measured a median of 4 and a mode of 4 at the
+    budget, but 59 of the 411 carve-needing buildings need exactly one.
+    """
+    import torch
+    import torch.nn.functional as F
+
+    assign_logits, type_logits, params = out
+    assign, types, planes = labels
+    m = mask.bool()
+
+    ce = F.cross_entropy(assign_logits, assign, reduction="none")
+    l_assign = (ce * m).sum() / m.sum().clamp(min=1)
+
+    active = types >= 0
+    n_active = active.sum().clamp(min=1)
+    l_type = (F.cross_entropy(type_logits[active], types[active], reduction="sum") / n_active
+              if bool(active.any()) else assign_logits.sum() * 0.0)
+
+    # a Layer's slope is not in the label, so it is not in the loss: weight the offset everywhere
+    # and the two slope components only where the slot is a Ramp
+    is_ramp = (types == SLOT_TYPES.index("Ramp")) & active
+    w = torch.stack([active.float(), is_ramp.float(), is_ramp.float()], dim=-1)
+    l_param = ((params - planes).abs() * w).sum() / w.sum().clamp(min=1)
+
+    return (PROGRAM_TERM_WEIGHTS["assign"] * l_assign +
+            PROGRAM_TERM_WEIGHTS["type"] * l_type +
+            PROGRAM_TERM_WEIGHTS["param"] * l_param)
+
+
+def build_program_model(k_ops: int, width: int = 64):
+    """The same U-Net trunk, with an assignment head and a slot head. ~3.6M parameters.
+
+    The split is the vocabulary's own: an operation is **one plane over one region**, so the plane
+    is pooled to a property of the whole building and the region stays spatial. That is what keeps a
+    ridge line straight across the plan instead of drifting -- the per-column independence #127
+    diagnosed as the cause of the mound is exactly what pooling removes.
+
+    The slot head emits type logits and plane parameters together, from the same pooled feature, so
+    a slot's "am I flat" decision and its slope are read off one representation rather than two.
+    """
+    import torch
+    import torch.nn as nn
+
+    trunk = build_model(width, width)             # the tested U-Net; its head becomes features
+    n_type = len(SLOT_TYPES)
+
+    class ProgramNet(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.trunk = trunk
+            self.k = k_ops
+            self.assign = nn.Conv2d(width, k_ops + 1, 1)
+            self.slots = nn.Sequential(nn.Linear(width, 4 * width), nn.SiLU(),
+                                       nn.Linear(4 * width, k_ops * (n_type + 3)))
+            # ⚠️ #127's plane head recorded that this initialisation is load-bearing: starting every
+            # plane flat left them flat after 40 epochs. The labels here supervise the slope
+            # directly, so the failure cannot repeat for that reason -- but the slots are still
+            # canonicalised by AREA, so slot 0 sees mostly large flat setbacks and the later slots
+            # the small pitched pieces, and starting them identical wastes the early epochs
+            # separating them. Heights spread over the top of the building, slopes spread around
+            # the circle because buildings sit at arbitrary grid rotations (#10).
+            with torch.no_grad():
+                self.slots[-1].weight.mul_(0.1)
+                bias = torch.zeros(k_ops, n_type + 3)
+                bias[:, n_type] = torch.linspace(0.9, 0.5, k_ops)
+                ang = torch.linspace(0, float(np.pi), k_ops + 1)[:k_ops]
+                bias[:, n_type + 1] = 0.25 * torch.cos(ang)
+                bias[:, n_type + 2] = 0.25 * torch.sin(ang)
+                self.slots[-1].bias.copy_(bias.reshape(-1))
+
+        def forward(self, x):
+            f = self.trunk(x)
+            s = self.slots(f.mean(dim=(2, 3))).view(-1, self.k, n_type + 3)
+            return self.assign(f), s[..., :n_type], s[..., n_type:]
+
+    return ProgramNet()
+
+
+def _d4_program(assign, types, planes, k: int, flip: bool, k_ops: int = K_OPS):
+    """One plan symmetry applied to a PROGRAM, so #6's arm keeps the 8x augmentation every other
+    arm on this ticket trains with.
+
+    The assignment is an image and rotates with the footprint. A plane is not: `height = a + b*x +
+    c*z` has to be re-expressed in the rotated frame, and getting that wrong would silently train
+    the arm on roofs tilted the wrong way -- an error no shape test on the footprint would catch,
+    which is why `test_the_augmented_program_compiles_to_the_augmented_surface` compares the
+    compiled surfaces rather than the parameters.
+
+    `np.rot90(a)[z, x] = a[x, n-1-z]`, so height'(z, x) = a + b*(n-1-z) + c*x, and the flip
+    `a[:, ::-1]` sends x -> n-1-x. Both are applied in the same order as `_d4`.
+    """
+    n = RES - 1
+    a, b, c = planes[:, 0].copy(), planes[:, 1].copy(), planes[:, 2].copy()
+    for _ in range(k % 4):
+        a, b, c = a + b * n, c.copy(), -b
+    if flip:
+        a, b = a + b * n, -b
+    out = np.stack([a, b, c], axis=1).astype(np.float32)
+    ass = np.rot90(assign, k)
+    if flip:
+        ass = ass[:, ::-1]
+    return np.ascontiguousarray(ass), types.copy(), out
+
+
+def build_program_cache(cache: dict, path: Path = PROGRAM_CACHE, force: bool = False,
+                        workers: int = 0, beam: int = 12, branch: int = 6) -> dict:
+    """#10's fitter run over the whole corpus, decomposed into slots. #6's supervision.
+
+    🔑 This is why #6 is a supervised-learning ticket and not a program-induction one. The literature
+    #6 names reaches for pseudo-labels, RL or a differentiable relaxation precisely because exact
+    programs are usually unavailable -- and here they are not: the fitter is deterministic, sees GT,
+    reaches a median `extra` of 0.003, and costs **0.2 s per building**, so the entire 35,776-row
+    corpus labels in under three minutes on this machine's 64 cores. Measured before the arm was
+    designed, and it is the fact that chose the formulation.
+
+    ⚠️ Fitted with `CutRoof` withheld, so every operation is a plane and `program_to_slots` is
+    lossless. `CutRoof` was 13 of 1,246 operations (1.0%) in the committed 714-building recovery,
+    and `--ops_allowed` on the recovery script measures what withholding it costs rather than
+    assuming it away.
+    """
+    import multiprocessing as mp
+
+    if path.exists() and not force:
+        d = np.load(path)
+        return {k: d[k] for k in d.files}
+    idx = np.nonzero(cache["ok"] > 0)[0]
+    jobs = [(cache["fp"][i] > 0, int(cache["extent"][i]),
+             cache["target"][i].astype(np.int16), beam, branch) for i in idx]
+    n = len(cache["ok"])
+    assign = np.full((n, RES, RES), K_OPS, np.uint8)
+    types = np.full((n, K_OPS), -1, np.int8)
+    planes = np.zeros((n, K_OPS, 3), np.float32)
+    residual = np.zeros(n, np.float32)
+    t0 = time.time()
+    workers = workers or min(mp.cpu_count(), 48)
+    with mp.Pool(workers) as pool:
+        for done, (i, out) in enumerate(zip(idx, pool.imap(_fit_one_slots, jobs, chunksize=8))):
+            assign[i], types[i], planes[i], residual[i] = out
+            if (done + 1) % 5000 == 0:
+                print(f"  [program] {done+1}/{len(idx)}  {time.time()-t0:.0f}s", flush=True)
+    out = dict(assign=assign, types=types, planes=planes, residual=residual,
+               ok=cache["ok"], row=cache["row"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(path, **out)
+    print(f"[program] {path}  n={len(idx)}  median fitted extra "
+          f"{float(np.median(residual[idx])):.4f}  {time.time()-t0:.0f}s", flush=True)
+    return out
+
+
+def _fit_one_slots(job):
+    """One building's program labels. Module level so `multiprocessing` can pickle it."""
+    fp, extent, target, beam, branch = job
+    ops, fitted = fit_program_beam(fp, 0, extent - 1, target, max_ops=K_OPS,
+                                   beam=beam, branch=branch, ops_allowed=SLOT_TYPES)
+    assign, types, planes = program_to_slots(fp, extent, ops)
+    vox = int(target[fp].sum())
+    residual = float((fitted[fp] - target[fp]).sum() / vox) if vox else 0.0
+    return assign, types, planes, residual
+
+
 def _d4(fp, target, k: int, flip: bool):
     """One of the 8 plan symmetries, applied to footprint and label together.
 
@@ -703,30 +1053,53 @@ def _d4(fp, target, k: int, flip: bool):
 
 
 class HeightFieldSet:
-    """Conditioning + label for one split, materialised on demand so augmentation stays honest."""
+    """Conditioning + label for one split, materialised on demand so augmentation stays honest.
 
-    def __init__(self, cache: dict, idx: np.ndarray, augment: bool, seed: int = 0):
+    `program` adds #6's slot labels alongside the per-column depth rather than in place of it: the
+    depth label is still what the validation geometry is measured against, so the program arm is
+    selected by exactly the rule every other arm on this ticket was.
+    """
+
+    def __init__(self, cache: dict, idx: np.ndarray, augment: bool, seed: int = 0,
+                 program: dict | None = None):
         self.fp = cache["fp"][idx] > 0
         self.target = cache["target"][idx].astype(np.int16)
         self.extent = cache["extent"][idx].astype(np.int32)
         self.height_m = cache["height_m"][idx]
         self.region = cache["region"][idx].astype(np.int32)
         self.augment, self.rng = augment, np.random.default_rng(seed)
+        self.program = None
+        if program is not None:
+            self.program = dict(assign=program["assign"][idx], types=program["types"][idx],
+                                planes=program["planes"][idx])
 
     def __len__(self):
         return len(self.fp)
 
     def batch(self, sel: np.ndarray):
-        xs, ys = [], []
+        xs, ys, pa, pt, pp = [], [], [], [], []
         for i in sel:
             fp, target = self.fp[i], self.target[i]
+            k, flip = (int(self.rng.integers(4)), bool(self.rng.integers(2))) if self.augment \
+                else (0, False)
             if self.augment:
-                fp, target = _d4(fp, target, int(self.rng.integers(4)), bool(self.rng.integers(2)))
+                fp, target = _d4(fp, target, k, flip)
             xs.append(condition_channels(fp, int(self.extent[i]), float(self.height_m[i]),
                                          int(self.region[i])))
             ys.append(carve_depth(target, fp, int(self.extent[i])))
+            if self.program is not None:
+                # ⚠️ the SAME symmetry as the footprint above, drawn once: a program augmented
+                # independently of its own plan would supervise a roof on the wrong building
+                a, t, p = _d4_program(self.program["assign"][i], self.program["types"][i],
+                                      self.program["planes"][i], k, flip)
+                pa.append(a)
+                pt.append(t)
+                pp.append(np.stack([plane_to_normalised(p[j], int(self.extent[i]))
+                                    for j in range(len(p))]))
+        prog = (np.stack(pa).astype(np.int64), np.stack(pt).astype(np.int64),
+                np.stack(pp).astype(np.float32)) if self.program is not None else None
         return (np.stack(xs), np.stack(ys).astype(np.int64),
-                self.extent[sel].astype(np.float32))
+                self.extent[sel].astype(np.float32), prog)
 
 
 def train(cache: dict, args) -> Path:
@@ -760,8 +1133,10 @@ def train(cache: dict, args) -> Path:
     pool = np.nonzero((cache["ok"] > 0) & (cache["held"] == 0))[0]
     perm = np.random.default_rng(args.seed).permutation(len(pool))
     val_idx, tr_idx = pool[perm[:VAL_BUILDINGS]], pool[perm[VAL_BUILDINGS:]]
-    tr = HeightFieldSet(cache, tr_idx, augment=not args.no_aug, seed=args.seed)
-    va = HeightFieldSet(cache, val_idx, augment=False)
+    prog = (build_program_cache(cache, force=args.rebuild_program_cache)
+            if args.objective == "program" else None)
+    tr = HeightFieldSet(cache, tr_idx, augment=not args.no_aug, seed=args.seed, program=prog)
+    va = HeightFieldSet(cache, val_idx, augment=False, program=prog)
     print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}, "
           f"device={dev}", flush=True)
 
@@ -772,8 +1147,13 @@ def train(cache: dict, args) -> Path:
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=steps)
     print(f"[train] {n_par/1e6:.2f}M parameters, {steps} steps", flush=True)
 
-    def loss_of(x, y, ext):
+    def loss_of(x, y, ext, prog_labels=None):
         m = x[:, 0] > 0                                   # footprint columns only
+        if args.objective == "program":
+            # 🔑 the program arm never sees its own compiled surface during training. No `slope_
+            # weight` either: the joint structure is in the output space now, and #127 measured
+            # that adding it to the loss buys description length without buying planes.
+            return program_loss(model(x), prog_labels, m)
         out = (forward_heights(model, x, ext, args.objective) if args.objective == "planes"
                else model(x))
         per = per_column_loss(out, y, ext, args.objective, args.quantile)
@@ -784,9 +1164,10 @@ def train(cache: dict, args) -> Path:
         return loss
 
     def to_dev(b):
-        x, y, e = b
+        x, y, e, p = b
         return (torch.from_numpy(x).to(dev), torch.from_numpy(y).to(dev),
-                torch.from_numpy(e).to(dev))
+                torch.from_numpy(e).to(dev),
+                tuple(torch.from_numpy(t).to(dev) for t in p) if p is not None else None)
 
     curve, best, best_path = [], (float("inf"), float("inf")), WORK / f"{args.tag}.pt"
     best_path.parent.mkdir(parents=True, exist_ok=True)
@@ -802,8 +1183,8 @@ def train(cache: dict, args) -> Path:
         order = rng.permutation(len(tr))
         run = 0.0
         for s in range(0, len(order) - args.batch + 1, args.batch):
-            x, y, e = to_dev(tr.batch(order[s:s + args.batch]))
-            loss = loss_of(x, y, e)
+            x, y, e, p = to_dev(tr.batch(order[s:s + args.batch]))
+            loss = loss_of(x, y, e, p)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -845,15 +1226,21 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev) -> tu
     with torch.no_grad():
         for s in range(0, len(va), 128):
             sel = np.arange(s, min(s + 128, len(va)))
-            x, y, e = va.batch(sel)
+            x, y, e, p = va.batch(sel)
             xt, yt = torch.from_numpy(x).to(dev), torch.from_numpy(y).to(dev)
             et = torch.from_numpy(e).to(dev)
-            out = (forward_heights(model, xt, et, objective) if objective == "planes"
-                   else model(xt))
             m = xt[:, 0] > 0
-            per = per_column_loss(out, yt, et, objective, quantile)
-            losses.append(float(((per * m).sum() / m.sum().clamp(min=1)).detach()))
-            o = out.cpu().numpy()
+            if objective == "program":
+                out = model(xt)
+                losses.append(float(program_loss(
+                    out, tuple(torch.from_numpy(t).to(dev) for t in p), m).detach()))
+                o = [tuple(t[k].cpu().numpy() for t in out) for k in range(len(sel))]
+            else:
+                out = (forward_heights(model, xt, et, objective) if objective == "planes"
+                       else model(xt))
+                per = per_column_loss(out, yt, et, objective, quantile)
+                losses.append(float(((per * m).sum() / m.sum().clamp(min=1)).detach()))
+                o = out.cpu().numpy()
             for k, i in enumerate(sel):
                 ext, fp = int(va.extent[i]), va.fp[i]
                 splits.append(height_split(
@@ -890,6 +1277,9 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
             if d["objective"] == "planes":
                 et = torch.tensor([float(held["extent"][i]) for i in sel], device=dev)
                 y = forward_heights(model, xt, et, "planes").cpu().numpy()
+            elif d["objective"] == "program":
+                heads = model(xt)
+                y = [tuple(t[k].cpu().numpy() for t in heads) for k in range(len(list(sel)))]
             else:
                 y = model(xt).cpu().numpy()
             for k, i in enumerate(sel):
@@ -902,6 +1292,8 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"],
                      decode=("argmax" if d["objective"] == "ce" and quantile is None else
                              f"posterior q={quantile}" if d["objective"] == "ce" else
+                             "compiled program (argmax slot, argmax type)"
+                             if d["objective"] == "program" else
                              f"regression (trained at q={d.get('quantile')})"
                              if d["objective"] == "quantile" else "regression"),
                      trained_quantile=d.get("quantile"),
@@ -1332,6 +1724,8 @@ def main() -> None:
     ap.add_argument("--no_aug", action="store_true", help="disable the 8 plan symmetries")
     ap.add_argument("--cpu", action="store_true")
     ap.add_argument("--rebuild_cache", action="store_true")
+    ap.add_argument("--rebuild_program_cache", action="store_true",
+                    help="re-fit #6's slot labels over the whole corpus (~1 min on 48 cores)")
     ap.add_argument("--ckpt", nargs="*", default=None,
                     help="score these checkpoints instead of training (name=path or path)")
     ap.add_argument("--no_form", action="store_true",

@@ -27,12 +27,17 @@ from scipy import ndimage
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E402
-from scripts.foundations.recover_massing_programs import occupancy  # noqa: E402
+from scripts.foundations.recover_massing_programs import (  # noqa: E402
+    K_OPS, fit_program, occupancy, program_to_slots,
+)
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
-    COND_CHANNELS, DEPTH_CLASSES, apply_depth, carve_depth, condition_channels, decode_logits,
+    COND_CHANNELS, DEPTH_CLASSES, PROGRAM_TYPES, _d4, _d4_program,
+    apply_depth, carve_depth, compile_program,
+    condition_channels, decode_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
     differentiable_depth, height_rgb, normal_rgb,
-    per_column_loss, decode_prediction, retrieve_nn, roof_description_length, sheet_picks,
+    per_column_loss, decode_prediction, plane_to_normalised, plane_to_voxel, program_loss,
+    retrieve_nn, roof_description_length, sheet_picks,
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict,
 )
@@ -721,6 +726,328 @@ class TestTrainTimeDecodeMatchesTheServedDecode(unittest.TestCase):
 
     def test_the_pre_registered_decode_is_the_median(self):
         self.assertEqual(SLOPE_DECODE_QUANTILE, 0.5)
+
+
+# ==================================================================================================
+# #6 -- the program arm: the label decomposition, and the compiler that is its inverse
+# ==================================================================================================
+
+def _fit(fp, target, extent, ops_allowed=("Layer", "Ramp")):
+    """Fit a program to a synthetic surface with the vocabulary #6's labels are drawn from."""
+    return fit_program(fp, 0, extent - 1, target, max_ops=K_OPS, ops_allowed=ops_allowed)
+
+
+class TestProgramToSlots(unittest.TestCase):
+    """🔑 #6's supervision. A fitted program is a *sequence* of region operations; the generator
+    predicts a *fixed set* of typed slots plus one assignment per column. This decomposition is the
+    bridge, and it is only supervision at all if it is **lossless**: whatever the fitter found must
+    come back out of the slots exactly, or the arm is being trained towards a building the fitter
+    never fitted.
+
+    The lossless-ness is not an accident of the vocabulary, it is a property of it. Every operation
+    only ever *lowers* the height map, so the final height of a column is the value written by
+    whichever operation last touched it -- and recording that owner per column is enough to replay
+    the whole cascade in one pass. That is why the generator can predict a set where the fitter
+    searched a sequence.
+    """
+
+    E = 40
+
+    def _plan(self):
+        fp = np.zeros((RES, RES), bool)
+        fp[16:48, 12:52] = True
+        return fp
+
+    def _surface(self, h):
+        fp = self._plan()
+        return fp, np.where(fp, np.clip(np.rint(h), 1, self.E), 0).astype(np.int16)
+
+    def test_a_single_flat_roof_is_one_layer_slot_owning_its_columns(self):
+        fp, target = self._surface(np.full((RES, RES), 30.0))
+        ops, fitted = _fit(fp, target, self.E)
+        assign, types, planes = program_to_slots(fp, self.E, ops)
+        self.assertEqual(int((types >= 0).sum()), 1)
+        self.assertEqual(int(types[0]), PROGRAM_TYPES.index("Layer"))
+        np.testing.assert_allclose(planes[0], [30.0, 0.0, 0.0], atol=1e-6)
+        self.assertTrue((assign[fp] == 0).all())
+
+    def test_a_shed_roof_is_one_ramp_slot_and_it_keeps_its_slope(self):
+        """⚠️ The failure this whole arm exists to avoid: #127's plane head learned six horizontal
+        terraces because slope had to survive a straight-through gradient. Here the slope is a
+        **label**, so it has to be in the decomposition before any network sees it."""
+        _, xx = np.mgrid[0:RES, 0:RES]
+        fp, target = self._surface(34 - 0.45 * (xx - 12))
+        ops, fitted = _fit(fp, target, self.E)
+        assign, types, planes = program_to_slots(fp, self.E, ops)
+        self.assertEqual(int(types[0]), PROGRAM_TYPES.index("Ramp"))
+        self.assertGreater(abs(float(planes[0][1])), 0.2, "the fall line must survive as a number")
+
+    def test_the_slots_replay_the_fitted_height_map_exactly(self):
+        """The contract. Anything less and the arm is trained on a target the fitter did not find."""
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        for name, h in (("gable", 34 - 0.55 * np.abs(xx - 32)),
+                        ("shed", 34 - 0.45 * (xx - 12)),
+                        ("setback", np.where(xx < 32, 30.0, 20.0)),
+                        ("dome", 36 - 0.020 * ((xx - 32) ** 2 + (zz - 32) ** 2))):
+            with self.subTest(name):
+                fp, target = self._surface(h)
+                ops, fitted = _fit(fp, target, self.E)
+                assign, types, planes = program_to_slots(fp, self.E, ops)
+                np.testing.assert_array_equal(
+                    compile_program(assign, types, planes, fp, self.E), fitted)
+
+    def test_slots_are_ordered_by_descending_area_so_the_labels_cannot_permute(self):
+        """🔑 #6 asks about canonicalisation. A set head has no natural slot order, so two runs that
+        find the same program in a different order would supervise contradictory labels. Sorting by
+        owned area is the cheapest canonical form that always exists, and it removes the need for a
+        matching loss entirely."""
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        fp, target = self._surface(np.where(xx < 40, 30.0, 14.0))
+        ops, _ = _fit(fp, target, self.E)
+        assign, types, planes = program_to_slots(fp, self.E, ops)
+        areas = [int((assign == k).sum()) for k in range(K_OPS) if types[k] >= 0]
+        self.assertGreater(len(areas), 1, "this plan needs at least two operations")
+        self.assertEqual(areas, sorted(areas, reverse=True))
+
+    def test_columns_no_operation_touched_are_the_uncarved_class(self):
+        """A program that only carves half the plan leaves the rest at the blockout, and that has to
+        be a *class* rather than a slot -- otherwise every building spends an operation on doing
+        nothing, which is exactly the no-op #127 spent three tickets ruling out."""
+        _, xx = np.mgrid[0:RES, 0:RES]
+        fp, target = self._surface(np.where(xx < 32, 24.0, float(self.E)))
+        ops, _ = _fit(fp, target, self.E)
+        assign, types, planes = program_to_slots(fp, self.E, ops)
+        untouched = fp & (xx >= 32)
+        self.assertTrue((assign[untouched] == K_OPS).all())
+
+    def test_an_empty_program_assigns_every_column_to_the_uncarved_class(self):
+        fp = self._plan()
+        assign, types, planes = program_to_slots(fp, self.E, [])
+        self.assertTrue((assign[fp] == K_OPS).all())
+        self.assertTrue((types < 0).all())
+
+    def test_off_the_footprint_is_never_assigned_to_an_operation(self):
+        _, xx = np.mgrid[0:RES, 0:RES]
+        fp, target = self._surface(34 - 0.45 * (xx - 12))
+        ops, _ = _fit(fp, target, self.E)
+        assign, _, _ = program_to_slots(fp, self.E, ops)
+        self.assertTrue((assign[~fp] == K_OPS).all())
+
+
+class TestCompileProgram(unittest.TestCase):
+    """The output space itself. #127's case rested on `apply_depth` making validity free; #6's rests
+    on the compiler making **planarity and jointness** free on top of it. Both claims are properties
+    of this function and neither is a property of the corpus, so they are pinned here."""
+
+    E = 40
+
+    def _plan(self):
+        fp = np.zeros((RES, RES), bool)
+        fp[16:48, 12:52] = True
+        return fp
+
+    def test_a_layer_slot_compiles_flat_however_tilted_its_parameters(self):
+        """🔑 The typing gate, and the single mechanical difference from #127's plane head. There, a
+        plane's slope was free to decay to zero under L1 and it did, from two initialisations. Here
+        `Layer` and `Ramp` are a **discrete decision**: a slot typed flat is flat because the
+        compiler ignores its slope, and a slot typed `Ramp` cannot quietly become a terrace."""
+        fp = self._plan()
+        types = np.array([PROGRAM_TYPES.index("Layer"), -1, -1, -1], np.int8)
+        planes = np.zeros((K_OPS, 3), np.float32)
+        planes[0] = [26.0, 0.9, -0.4]                    # a slope a Layer must not be allowed
+        assign = np.where(fp, 0, K_OPS).astype(np.uint8)
+        h = compile_program(assign, types, planes, fp, self.E)
+        self.assertEqual(len(np.unique(h[fp])), 1)
+        self.assertEqual(int(h[fp][0]), 26)
+
+    def test_a_ramp_slot_compiles_the_plane_it_was_given(self):
+        fp = self._plan()
+        types = np.array([PROGRAM_TYPES.index("Ramp"), -1, -1, -1], np.int8)
+        planes = np.zeros((K_OPS, 3), np.float32)
+        planes[0] = [30.0, -0.25, 0.0]                   # height = 30 - 0.25*x
+        assign = np.where(fp, 0, K_OPS).astype(np.uint8)
+        h = compile_program(assign, types, planes, fp, self.E)
+        _, xx = np.mgrid[0:RES, 0:RES]
+        want = np.clip(np.floor(30.0 - 0.25 * xx), 1, self.E)
+        np.testing.assert_array_equal(h[fp], want[fp].astype(np.int16))
+
+    def test_the_uncarved_class_keeps_the_blockout(self):
+        fp = self._plan()
+        types = np.full(K_OPS, -1, np.int8)
+        h = compile_program(np.full((RES, RES), K_OPS, np.uint8), types,
+                            np.zeros((K_OPS, 3), np.float32), fp, self.E)
+        self.assertTrue((h[fp] == self.E).all())
+
+    def test_it_is_footprint_exact_and_valid_whatever_the_prediction(self):
+        """The same total clamp `apply_depth` gives the per-column arm, kept for the program arm:
+        a prediction may be wrong but never invalid, so no run can fail for an unrepresentable
+        output rather than for a bad one."""
+        rng = np.random.default_rng(0)
+        fp = self._plan()
+        for _ in range(20):
+            assign = rng.integers(0, K_OPS + 1, (RES, RES)).astype(np.uint8)
+            types = rng.integers(0, len(PROGRAM_TYPES), K_OPS).astype(np.int8)
+            planes = rng.normal(0, 400, (K_OPS, 3)).astype(np.float32)   # wildly out of range
+            h = compile_program(assign, types, planes, fp, self.E)
+            self.assertTrue((h[~fp] == 0).all())
+            self.assertTrue((h[fp] >= 1).all())
+            self.assertTrue((h[fp] <= self.E).all())
+
+    def test_a_compiled_two_slot_gable_reads_as_two_operations(self):
+        """The form metric, run on the compiler's own output: what #127 could not get out of a
+        per-column head must be free here, or the representation has bought nothing."""
+        fp = self._plan()
+        types = np.array([PROGRAM_TYPES.index("Ramp"), PROGRAM_TYPES.index("Ramp"), -1, -1], np.int8)
+        planes = np.array([[18.0, 0.5, 0.0], [50.0, -0.5, 0.0], [0, 0, 0], [0, 0, 0]], np.float32)
+        _, xx = np.mgrid[0:RES, 0:RES]
+        assign = np.where(fp, np.where(xx < 32, 0, 1), K_OPS).astype(np.uint8)
+        h = compile_program(assign, types, planes, fp, self.E)
+        r = roof_description_length(h, fp, 0, self.E)
+        self.assertLessEqual(r["ops"], 2)
+        self.assertEqual(r["planar_fraction"], 1.0)
+
+
+class TestPlaneConventions(unittest.TestCase):
+    """The fitter measures a plane in voxels of the 64-grid; the network predicts one in units of
+    the building's own height, because a 6-voxel and a 60-voxel building must not be asked to
+    regress the same number (`mean_relative_depth` makes the same argument for the same reason).
+    The conversion between them is where a silent factor would hide."""
+
+    def test_the_conversion_round_trips(self):
+        rng = np.random.default_rng(1)
+        for extent in (6, 23, 60):
+            for _ in range(20):
+                vox = rng.normal(0, 30, 3).astype(np.float64)
+                vox[0] = abs(vox[0])
+                back = plane_to_voxel(plane_to_normalised(vox, extent), extent)
+                np.testing.assert_allclose(back, vox, atol=1e-4)
+
+    def test_a_flat_plane_is_flat_in_both_conventions(self):
+        n = plane_to_normalised(np.array([30.0, 0.0, 0.0]), 40)
+        self.assertAlmostEqual(float(n[1]), 0.0, places=6)
+        self.assertAlmostEqual(float(n[2]), 0.0, places=6)
+        self.assertAlmostEqual(float(n[0]), 30.0 / 40, places=6)
+
+    def test_the_normalised_height_is_scale_free(self):
+        """The same roof on a tall and a short building is the same label."""
+        a = plane_to_normalised(np.array([20.0, 0.0, 0.0]), 40)
+        b = plane_to_normalised(np.array([10.0, 0.0, 0.0]), 20)
+        np.testing.assert_allclose(a, b, atol=1e-6)
+
+
+class TestProgramAugmentation(unittest.TestCase):
+    """The 8 plan symmetries applied to a PROGRAM. Every other arm on #127 trains with them, so this
+    one has to as well or its result is confounded by 8x less data.
+
+    ⚠️ The assignment is an image and rotates with the footprint; a plane is not. `height = a + b*x
+    + c*z` has to be re-expressed in the rotated frame, and a sign error there would train the arm
+    on roofs tilted the wrong way -- silently, because the footprint and the assignment would still
+    line up perfectly. So what is compared here is the compiled SURFACE, which is the only thing
+    that would show it."""
+
+    E = 40
+
+    def _case(self):
+        fp = np.zeros((RES, RES), bool)
+        fp[10:40, 18:56] = True
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        target = np.where(fp, np.clip(np.rint(36 - 0.4 * (xx - 18) - 0.25 * (zz - 10)),
+                                      1, self.E), 0).astype(np.int16)
+        ops, fitted = _fit(fp, target, self.E)
+        return fp, program_to_slots(fp, self.E, ops)
+
+    def test_the_augmented_program_compiles_to_the_augmented_surface(self):
+        fp, (assign, types, planes) = self._case()
+        base = compile_program(assign, types, planes, fp, self.E)
+        for k in range(4):
+            for flip in (False, True):
+                with self.subTest(k=k, flip=flip):
+                    fp2, t2 = _d4(fp, base, k, flip)
+                    a2, ty2, p2 = _d4_program(assign, types, planes, k, flip)
+                    np.testing.assert_array_equal(
+                        compile_program(a2, ty2, p2, fp2, self.E), t2)
+
+    def test_the_identity_symmetry_changes_nothing(self):
+        fp, (assign, types, planes) = self._case()
+        a2, t2, p2 = _d4_program(assign, types, planes, 0, False)
+        np.testing.assert_array_equal(a2, assign)
+        np.testing.assert_allclose(p2, planes, atol=1e-6)
+
+    def test_a_flat_slot_stays_flat_under_every_symmetry(self):
+        """A `Layer`'s offset is invariant: rotating a flat roof cannot tilt it."""
+        types = np.array([PROGRAM_TYPES.index("Layer"), -1, -1, -1], np.int8)
+        planes = np.array([[27.0, 0.0, 0.0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], np.float32)
+        assign = np.zeros((RES, RES), np.uint8)
+        for k in range(4):
+            for flip in (False, True):
+                _, _, p = _d4_program(assign, types, planes, k, flip)
+                np.testing.assert_allclose(p[0], [27.0, 0.0, 0.0], atol=1e-6)
+
+
+class TestProgramLoss(unittest.TestCase):
+    """🔑 #6's training strategy in one function. The arm is supervised on the **program**, never on
+    the surface it compiles to -- #127 measured that an L1 on the surface has a flat region as a
+    strong optimum and that the plane head fell into it from two initialisations. Only the terms
+    that see the labels can put a slope in."""
+
+    def _labels(self, k=K_OPS):
+        import torch
+        assign = torch.full((2, RES, RES), k, dtype=torch.long)
+        assign[:, 16:48, 12:32] = 0
+        assign[:, 16:48, 32:52] = 1
+        types = torch.tensor([[1, 0, -1, -1], [1, 0, -1, -1]], dtype=torch.long)
+        planes = torch.zeros(2, k, 3)
+        planes[:, 0] = torch.tensor([0.7, 0.0, -0.3])
+        planes[:, 1] = torch.tensor([0.5, 0.0, 0.0])
+        return assign, types, planes
+
+    def _perfect_output(self, assign, types, planes, k=K_OPS):
+        import torch
+        a = torch.zeros(2, k + 1, RES, RES).scatter_(1, assign[:, None], 20.0)
+        t = torch.zeros(2, k, len(PROGRAM_TYPES)).scatter_(
+            2, types.clamp(min=0)[..., None], 20.0)
+        return a, t, planes.clone()
+
+    def test_an_exact_program_costs_nothing(self):
+        assign, types, planes = self._labels()
+        out = self._perfect_output(assign, types, planes)
+        fp = np.zeros((RES, RES), bool)
+        fp[16:48, 12:52] = True
+        import torch
+        m = torch.from_numpy(fp)[None].expand(2, -1, -1)
+        loss = program_loss(out, (assign, types, planes), m)
+        self.assertLess(float(loss), 1e-3)
+
+    def test_a_wrong_slope_costs_and_the_cost_scales_with_how_flat_it_is(self):
+        """🔑 The whole point of the arm. A terraced answer gets every column assigned correctly and
+        the slope wrong -- which is exactly #127's plane head, whose failure the form metric only
+        caught after 40 epochs had been spent. Here it has to cost *during* training, and cost more
+        the flatter it gets, or nothing in the objective prefers a pitch to a step."""
+        import torch
+        assign, types, planes = self._labels()
+        out = self._perfect_output(assign, types, planes)
+        m = torch.ones(2, RES, RES, dtype=torch.bool)
+        exact = float(program_loss(out, (assign, types, planes), m))
+
+        def cost(frac):
+            p = planes.clone()
+            p[:, 0, 2] *= frac                               # the ramp flattened towards a terrace
+            return float(program_loss((out[0], out[1], p), (assign, types, planes), m)) - exact
+
+        self.assertGreater(cost(0.0), 0.0)
+        self.assertGreater(cost(0.0), cost(0.5))
+        self.assertAlmostEqual(cost(0.0), 2 * cost(0.5), places=5)
+
+    def test_inactive_slots_do_not_contribute(self):
+        """A building needing two operations must not be pushed to invent four."""
+        import torch
+        assign, types, planes = self._labels()
+        out = self._perfect_output(assign, types, planes)
+        noise = planes.clone()
+        noise[:, 2:] = 7.0                                   # garbage in the unused slots
+        loss = program_loss((out[0], out[1], noise), (assign, types, planes),
+                            torch.ones(2, RES, RES, dtype=torch.bool))
+        self.assertLess(float(loss), 1e-3)
 
 
 if __name__ == "__main__":

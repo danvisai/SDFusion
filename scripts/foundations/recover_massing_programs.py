@@ -232,11 +232,25 @@ def _ramp_candidates(fp, target, h, max_regions: int = 3):
                                    plane=[float(a), float(b), float(cz)], _region=piece)
 
 
-def _all_candidates(fp, dists, target, h):
-    """Every operation the vocabulary can offer against the current height map."""
-    yield from _roof_candidates(fp, dists, target, h)
-    yield from _layer_candidates(fp, target, h)
-    yield from _ramp_candidates(fp, target, h)
+VOCABULARY = ("Layer", "CutRoof", "Ramp")
+
+
+def _all_candidates(fp, dists, target, h, ops_allowed=VOCABULARY):
+    """Every operation the vocabulary can offer against the current height map.
+
+    `ops_allowed` restricts it. The default is the whole vocabulary and is what every recovery
+    number on this project's record was measured with; #6 fits its training labels with `CutRoof`
+    withheld, because a `CutRoof` surface is a distance transform rather than a plane and so cannot
+    be carried by the (type, plane) slot the generator predicts. That exclusion is a decision with a
+    price, and the price is measured rather than assumed -- `--ops_allowed Layer Ramp` re-runs the
+    recovery so the two residuals can be read side by side.
+    """
+    if "CutRoof" in ops_allowed:
+        yield from _roof_candidates(fp, dists, target, h)
+    if "Layer" in ops_allowed:
+        yield from _layer_candidates(fp, target, h)
+    if "Ramp" in ops_allowed:
+        yield from _ramp_candidates(fp, target, h)
 
 
 def _dists_for(fp):
@@ -244,7 +258,8 @@ def _dists_for(fp):
                 gable_x=_dist_axis(fp, 1), gable_z=_dist_axis(fp, 0))
 
 
-def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED):
+def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
+                ops_allowed=VOCABULARY):
     """Greedy: repeatedly take the operation that removes the most surplus without cutting GT."""
     full = np.int16(y1 - y0 + 1)
     h = np.where(fp, full, 0).astype(np.int16)
@@ -255,7 +270,8 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED):
         surplus = int((h[fp] - target[fp]).sum())
         if gt_vox and surplus / gt_vox <= allowance:
             break
-        best = max(_all_candidates(fp, dists, target, h), key=lambda t: t[0], default=None)
+        best = max(_all_candidates(fp, dists, target, h, ops_allowed),
+                   key=lambda t: t[0], default=None)
         if best is None or best[0] <= 0:
             break
         gain, h, meta = best
@@ -268,7 +284,7 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED):
 
 
 def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
-                     beam=6, branch=6):
+                     beam=6, branch=6, ops_allowed=VOCABULARY):
     """Beam search over programs, because greedy is provably myopic on gable roofs.
 
     The worst-residual trace after `Ramp` landed was entirely **symmetric double ramps**: a gable
@@ -296,7 +312,7 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
             if gt_vox and sur / gt_vox <= allowance:
                 nxt.append((sur, h, ops))                  # already good enough: carry it forward
                 continue
-            top = heapq.nlargest(branch, _all_candidates(fp, dists, target, h),
+            top = heapq.nlargest(branch, _all_candidates(fp, dists, target, h, ops_allowed),
                                  key=lambda t: t[0])
             for gain, hh, meta in top:
                 if gain <= 0:
@@ -320,10 +336,97 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
     # intermediate step by siblings that look better then and end worse. Measured -- id 16764 went
     # 0.152 greedy -> 0.159 beam. Greedy is cheap, so run it too and keep whichever program is
     # actually better. This makes the beam a monotone improvement by construction.
-    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance)
+    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance, ops_allowed)
     if surplus(g_h) < best[0]:
         return g_ops, g_h
     return best[2], best[1]
+
+
+# ----------------------------------------------------------------------------------------------
+# #6 -- a fitted program as a fixed set of typed slots, which is what a network can predict
+# ----------------------------------------------------------------------------------------------
+
+K_OPS = 4
+SLOT_TYPES = ("Layer", "Ramp")
+
+
+def program_to_slots(fp, extent, ops, k_ops: int = K_OPS):
+    """A fitted program -> (per-column slot assignment, per-slot type, per-slot plane).
+
+    🔑 **The bridge #6 turns on.** The fitter *searches a sequence*: each operation is applied to the
+    result of the last, so op 3 only means anything given ops 1 and 2. A network cannot easily emit
+    that -- and it does not have to, because of one property of this vocabulary:
+
+        every operation only ever LOWERS the height map.
+
+    So the final height of a column is simply the value written by whichever operation last touched
+    it, and recording that **owner** per column replays the entire cascade in a single pass. The
+    sequence collapses into a set of typed slots plus one assignment per column, with no loss --
+    which `test_the_slots_replay_the_fitted_height_map_exactly` pins on four surface families.
+
+    That is the whole reason a program is the right answer to #127's mound. Each column's height
+    comes from a slot the whole region shares, so a ridge line is one decision instead of 4,096
+    independent ones, and the *joint commitment* #127 found neither supervision nor decoding could
+    supply is made by the representation instead.
+
+    Returned in the fitter's own voxel convention -- `height = a + b*x + c*z` above `y0` -- because
+    that is what `plane` already means everywhere else in this module. The network's scale-free
+    convention is `train_height_map_generator.plane_to_normalised`, converted at exactly one place.
+
+      assign  [RES, RES] uint8, in 0..k_ops. `k_ops` is the UNCARVED class: no operation touched
+              this column and it keeps the blockout. Off the footprint is always `k_ops`.
+      types   [k_ops] int8, an index into `SLOT_TYPES`, or -1 for a slot the program does not use.
+      planes  [k_ops, 3] float32.
+
+    Slots come back sorted by **descending owned area**. #6 asks how to canonicalise, and this is the
+    cheapest form that always exists: a set head has no natural slot order, so without it two fits
+    that found the same program in a different order would supervise contradictory labels and the
+    arm would need a matching loss to paper over a problem it need not have.
+
+    ⚠️ `CutRoof` is refused rather than approximated. Its surface is a distance transform, not a
+    plane, so no (type, plane) slot can carry it; fit the labels with `ops_allowed=("Layer", "Ramp")`
+    and the case cannot arise. Silently least-squares-fitting a plane through it would put a target
+    in the cache that the compiler provably cannot reproduce.
+    """
+    m = np.asarray(fp, bool)
+    e = int(extent)
+    h = np.where(m, np.int16(e), 0).astype(np.int16)
+    owner = np.full(m.shape, k_ops, np.uint8)
+    zz, xx = np.mgrid[0:RES, 0:RES]
+    kinds, planes_vox = [], []
+    for i, op in enumerate(ops[:k_ops]):
+        kind = op["op"]
+        region = op.get("_region")
+        if region is None:
+            region = _rings_to_mask(op["region"])
+        region = np.asarray(region, bool) & m
+        if kind == "Layer":
+            plane = (float(op["height"]), 0.0, 0.0)
+        elif kind == "Ramp":
+            plane = tuple(float(v) for v in op["plane"])
+        else:
+            raise ValueError(
+                f"'{kind}' has no plane, so it cannot be a slot -- fit the labels with "
+                f"ops_allowed=('Layer', 'Ramp')")
+        surf = np.floor(plane[0] + plane[1] * xx + plane[2] * zz + FLOOR_EPS)
+        cand = np.where(region, np.minimum(h, surf), h)
+        cand = np.where(m, np.maximum(cand, 1), 0).astype(np.int16)
+        owner[m & (cand < h)] = i
+        h = cand
+        kinds.append(SLOT_TYPES.index(kind))
+        planes_vox.append(plane)
+
+    # canonical order: descending owned area, unused slots last and typed -1
+    areas = [int((owner == i).sum()) for i in range(len(kinds))]
+    keep = sorted((i for i in range(len(kinds)) if areas[i] > 0), key=lambda i: -areas[i])
+    types = np.full(k_ops, -1, np.int8)
+    planes = np.zeros((k_ops, 3), np.float32)
+    remap = np.full(k_ops + 1, k_ops, np.uint8)
+    for new, old in enumerate(keep):
+        types[new] = kinds[old]
+        planes[new] = planes_vox[old]
+        remap[old] = new
+    return remap[owner], types, planes
 
 
 # ----------------------------------------------------------------------------------------------
