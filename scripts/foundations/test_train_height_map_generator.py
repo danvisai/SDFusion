@@ -39,6 +39,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     per_column_loss, decode_prediction, PLANE_DECODE, PLANE_QUANTITIES, plane_to_bins,
     plane_to_normalised,
     plane_to_voxel, rebin_planes,
+    ASSIGN_DECODE, ASSIGN_TEMPERATURE, assignment_prior, assignment_stats, decode_assignment,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict,
@@ -1360,11 +1361,23 @@ class TestPlaneDecode(unittest.TestCase):
         p = decode_plane_logits(lg, np.zeros((1, 2)))[0]
         self.assertGreater(float(p[0]), 0.5)
 
-    def test_the_pitch_takes_the_posterior_median_not_the_mode(self):
+    def test_the_pitch_takes_a_LOWER_quantile_than_the_mode(self):
+        """#132 changed this read, and the reason is geometric rather than statistical.
+
+        `extra` and `missing` are not symmetric in a pitch -- too steep dives below GT over the far
+        end of a region and is charged the whole trench, too shallow only leaves surplus -- so the
+        pre-registered read sits BELOW the median. On a posterior whose mass is high but whose lower
+        quartile is not, that is the difference between a roof and a trench.
+        """
         lg = self._logits(offset={PLANE_BINS // 2: 1.0}, pitch={0: 0.4, 40: 0.35, 44: 0.25},
                           azimuth={0: 1.0})
         p = decode_plane_logits(lg, np.zeros((1, 2)))[0]
-        self.assertGreater(float(np.hypot(p[1], p[2])), 0.5)
+        med = decode_plane_logits(lg, np.zeros((1, 2)), ("median", "median", "argmax"))[0]
+        self.assertLess(float(np.hypot(p[1], p[2])), float(np.hypot(med[1], med[2])),
+                        "the pre-registered pitch must read below the median")
+
+    def test_the_pre_registered_pitch_is_the_lower_quartile(self):
+        self.assertEqual(PLANE_DECODE, ("median", "q0.25", "argmax"))
 
     def test_the_decode_of_a_one_hot_posterior_is_the_bin_it_encodes(self):
         """The decode and the encoder are inverses on a confident head, so a perfect classifier
@@ -1385,10 +1398,12 @@ class TestPlaneDecode(unittest.TestCase):
                           pitch={4: 0.3, 30: 0.3, 50: 0.4}, azimuth={0: 1.0})
         cen = np.zeros((1, 2))
         lo = np.hypot(*decode_plane_logits(lg, cen, ("median", "q0.25", "argmax"))[0, 1:])
-        mid = np.hypot(*decode_plane_logits(lg, cen, PLANE_DECODE)[0, 1:])
+        mid = np.hypot(*decode_plane_logits(lg, cen, ("median", "median", "argmax"))[0, 1:])
         hi = np.hypot(*decode_plane_logits(lg, cen, ("median", "q0.75", "argmax"))[0, 1:])
         self.assertLess(lo, mid)
         self.assertLess(mid, hi)
+        # and the pre-registered read IS the low one, which is #132's whole change to this line
+        self.assertEqual(np.hypot(*decode_plane_logits(lg, cen, PLANE_DECODE)[0, 1:]), lo)
 
     def test_median_and_q_half_are_the_same_read(self):
         rng = np.random.default_rng(11)
@@ -1487,6 +1502,217 @@ class TestProgramLossClassifiesThePlanes(unittest.TestCase):
         p2[:, 2:, :, 11] = 20.0
         m = torch.ones(2, RES, RES, dtype=torch.bool)
         self.assertLess(float(program_loss((a, t, p2), (assign, types, bins), m, "class")), 1e-3)
+
+
+class TestAssignmentStats(unittest.TestCase):
+    """#132's first question, and it is free: is the assignment head DIFFUSE, or confidently wrong?
+
+    Both #6 and #129 use one slot where the label uses 3.06, and `dl_ops` reads 1.0 because of it.
+    This map has turned a decode into the answer twice (#127 argmax -> posterior median, #129
+    azimuth argmax over circmean), so the read is checked before the head is blamed. These pin what
+    separates the two cases on posteriors whose answer is known by construction.
+    """
+
+    K = 4
+
+    def _fp(self, res=16):
+        m = np.zeros((res, res), bool)
+        m[2:14, 2:14] = True
+        return m
+
+    def _label(self, fp):
+        """Slot 0 over most of the footprint, slot 1 over a small corner: the area canonicalisation."""
+        a = np.full(fp.shape, self.K, np.uint8)
+        a[fp] = 0
+        a[3:6, 3:6] = 1
+        return a
+
+    def _logits(self, fp, label, p_true, p_zero):
+        """`p_zero` on slot 0 everywhere, `p_true` on the label's own slot, the rest shared out."""
+        z, x = fp.shape
+        p = np.zeros((self.K + 1, z, x))
+        fixed = np.zeros((self.K + 1, z, x), bool)
+        p[0], fixed[0] = p_zero, True
+        for k in range(1, self.K + 1):
+            sel = label == k
+            p[k][sel], fixed[k][sel] = p_true, True
+        left = np.clip(1.0 - (p * fixed).sum(0), 1e-9, None)
+        free = np.maximum((~fixed).sum(0), 1)
+        for k in range(self.K + 1):
+            p[k] = np.where(fixed[k], p[k], left / free)
+        p /= p.sum(0, keepdims=True)
+        return np.log(p)
+
+    def test_a_confident_head_that_is_simply_wrong(self):
+        fp = self._fp()
+        lab = self._label(fp)
+        s = assignment_stats(self._logits(fp, lab, p_true=0.001, p_zero=0.99), lab, fp, self.K)
+        self.assertGreater(s["confidence"], 0.9, "the head is sure")
+        self.assertLess(s["entropy_norm"], 0.15)
+        self.assertLess(s["p_true_minor"], 0.05, "and sure of the WRONG slot")
+        self.assertEqual(s["recall_minor"], 0.0)
+        self.assertEqual(s["slots_argmax"], 1)
+        self.assertEqual(s["slots_label"], 2)
+
+    def test_a_diffuse_head_that_narrowly_loses(self):
+        fp = self._fp()
+        lab = self._label(fp)
+        s = assignment_stats(self._logits(fp, lab, p_true=0.30, p_zero=0.34), lab, fp, self.K)
+        self.assertLess(s["confidence"], 0.6, "no class is winning by much")
+        self.assertGreater(s["entropy_norm"], 0.5)
+        self.assertGreater(s["p_true_minor"], 0.2, "the head DOES know, it just loses")
+        self.assertLess(s["p_won_minor"] - s["p_true_minor"], 0.15, "and loses narrowly")
+        self.assertEqual(s["slots_argmax"], 1, "argmax still collapses it to one slot")
+
+    def test_the_balanced_read_recovers_a_slot_the_argmax_loses(self):
+        """🔑 The mechanism: slots are canonicalised by AREA, so slot 0 owns most columns.
+
+        Dividing the posterior by the slot's own prior is the standard correction for exactly that
+        imbalance, and it is the difference between "the head cannot see slot 1" and "the argmax
+        cannot hear it".
+        """
+        fp = self._fp()
+        lab = self._label(fp)
+        s = assignment_stats(self._logits(fp, lab, p_true=0.30, p_zero=0.34), lab, fp, self.K)
+        self.assertEqual(s["slots_argmax"], 1)
+        self.assertEqual(s["slots_balanced"], 2, "the prior correction hears slot 1")
+        self.assertGreater(s["recall_minor_balanced"], s["recall_minor"])
+
+    def test_it_reads_only_inside_the_footprint(self):
+        fp = self._fp()
+        lab = self._label(fp)
+        lg = self._logits(fp, lab, p_true=0.001, p_zero=0.99)
+        noise = lg.copy()
+        rng = np.random.default_rng(0)
+        noise[:, ~fp] = rng.normal(size=(self.K + 1, int((~fp).sum())))
+        a, b = assignment_stats(lg, lab, fp, self.K), assignment_stats(noise, lab, fp, self.K)
+        for k in ("confidence", "p_true_minor", "recall_minor", "slots_argmax"):
+            self.assertAlmostEqual(a[k], b[k], places=9, msg=k)
+
+
+class TestAssignmentDecode(unittest.TestCase):
+    """#132's assignment read, and the post-hoc correction this ticket REFUTED before running.
+
+    The diagnosis (`assignment_collapse` on both #129 checkpoints) says the head is DIFFUSE rather
+    than confidently wrong -- confidence 0.43, normalised entropy 0.80 -- so a decode looked like
+    the fix. It is not: dividing by the model's own marginal buys minor-slot recall 0.0000 -> 0.2829
+    and pays for it with per-column accuracy 0.4245 -> 0.2203 and the DOMINANT slot 0.8251 ->
+    0.1275. It mostly relabels the building. So the served read stays the plain argmax and the
+    correction moves into the LOSS, where it can change what is learned instead of reshuffling what
+    was not. `balanced` stays reachable because a refutation that cannot be re-run is an anecdote.
+    """
+
+    K = 4
+
+    def _fp(self, res=16):
+        m = np.zeros((res, res), bool)
+        m[2:14, 2:14] = True
+        return m
+
+    def _posterior(self):
+        p = np.full((self.K + 1, 16, 16), 0.02)
+        p[0] = 0.55                                   # slot 0 owns the plan: the area canonicalisation
+        p[1, 3:6, 3:6] = 0.40                         # slot 1 is known, and still loses everywhere
+        p /= p.sum(0, keepdims=True)
+        return np.log(p)
+
+    def test_the_pre_registered_read_is_the_plain_argmax(self):
+        self.assertEqual(ASSIGN_DECODE, "argmax")
+
+    def test_the_balanced_read_does_hear_the_slot_the_argmax_never_wins(self):
+        """The half of the refuted correction that WORKED, pinned so the refutation is specific."""
+        fp, lg = self._fp(), self._posterior()
+        arg = decode_assignment(lg, fp, read="argmax")
+        bal = decode_assignment(lg, fp, read="balanced")
+        self.assertEqual(set(np.unique(arg[fp]).tolist()), {0}, "the argmax hears one slot")
+        np.testing.assert_array_equal(bal[3:6, 3:6], 1, "the balanced read hears slot 1")
+        self.assertGreater(len(set(np.unique(bal[fp]).tolist())), 1)
+
+    def test_and_the_half_that_did_not_it_neutralises_a_flat_class(self):
+        """⚠️ Why it fails on the corpus: a class that is FLAT over the plan has p/prior == 1 by
+        construction, so the dominant slot lands in a tie with every other flat class and the
+        argmax between them is decided by noise. That is the 0.8251 -> 0.1275 on real weights."""
+        fp = self._fp()
+        flat = np.log(np.full((self.K + 1, 16, 16), 1.0 / (self.K + 1)))
+        p = np.exp(flat)
+        ratio = p[:, fp] / p[:, fp].mean(axis=1)[:, None]
+        np.testing.assert_allclose(ratio, 1.0, atol=1e-12)
+
+    def test_the_marginal_is_taken_over_the_footprint_only(self):
+        fp, lg = self._fp(), self._posterior()
+        loud = lg.copy()
+        loud[2, ~fp] = 20.0                           # a class that only ever fires OUTSIDE
+        np.testing.assert_array_equal(decode_assignment(lg, fp, read="balanced")[fp],
+                                      decode_assignment(loud, fp, read="balanced")[fp])
+
+    def test_it_returns_the_dtype_the_compiler_expects(self):
+        a = decode_assignment(np.zeros((self.K + 1, 16, 16)), self._fp())
+        self.assertEqual(a.dtype, np.uint8)
+        self.assertEqual(a.shape, (16, 16))
+
+    def test_an_empty_footprint_falls_back_to_the_argmax(self):
+        lg = np.random.default_rng(1).normal(size=(self.K + 1, 16, 16))
+        np.testing.assert_array_equal(decode_assignment(lg, np.zeros((16, 16), bool),
+                                                        read="balanced"),
+                                      lg.argmax(0).astype(np.uint8))
+
+
+class TestLogitAdjustedAssignmentLoss(unittest.TestCase):
+    """#132's ONE training change: the assignment cross-entropy is logit-adjusted by the label prior.
+
+    Slots are canonicalised by AREA (#6), so slot 0 owns most columns and the per-column
+    cross-entropy is imbalanced **by construction of the label**. Adding `tau * log(prior)` to the
+    logits during training is the standard adjustment for that, and unlike the post-hoc division it
+    changes what the model learns rather than rescaling what it did not. Inference stays a plain
+    argmax, which is the pairing that makes the trained scores the balanced ones.
+    """
+
+    def _out(self, logits, k=2):
+        import torch
+        b = logits.shape[0]
+        return (logits, torch.zeros(b, k, len(PROGRAM_TYPES)), torch.zeros(b, k, 3))
+
+    def _labels(self, assign, k=2):
+        import torch
+        return (assign, torch.full((assign.shape[0], k), -1, dtype=torch.long),
+                torch.zeros(assign.shape[0], k, 3))
+
+    def test_a_uniform_prior_changes_nothing(self):
+        import torch
+        rng = np.random.default_rng(0)
+        lg = torch.tensor(rng.normal(size=(2, 3, 8, 8)), dtype=torch.float32)
+        a = torch.tensor(rng.integers(0, 3, (2, 8, 8)))
+        m = torch.ones(2, 8, 8, dtype=torch.bool)
+        plain = float(program_loss(self._out(lg), self._labels(a), m))
+        flat = torch.full((3,), 1.0 / 3.0)
+        adj = float(program_loss(self._out(lg), self._labels(a), m, assign_prior=flat))
+        self.assertAlmostEqual(plain, adj, places=5)
+
+    def test_a_skewed_prior_penalises_predicting_the_majority(self):
+        """The whole point: the same logits cost MORE when they just reproduce the prior."""
+        import torch
+        lg = torch.zeros(1, 3, 8, 8)
+        lg[:, 0] = 4.0                                   # confidently predict the majority slot
+        a = torch.zeros(1, 8, 8, dtype=torch.long)
+        a[:, :2] = 1                                     # a sixth of the columns are the rare slot
+        m = torch.ones(1, 8, 8, dtype=torch.bool)
+        prior = torch.tensor([0.75, 0.25, 1e-6])
+        plain = float(program_loss(self._out(lg), self._labels(a), m))
+        adj = float(program_loss(self._out(lg), self._labels(a), m, assign_prior=prior))
+        self.assertGreater(adj, plain)
+
+    def test_the_adjustment_is_pre_registered_at_one(self):
+        self.assertEqual(ASSIGN_TEMPERATURE, 1.0)
+
+    def test_the_prior_is_the_label_frequency_over_footprint_columns(self):
+        fp = np.zeros((2, 8, 8), bool)
+        fp[:, 2:6, 2:6] = True
+        assign = np.full((2, 8, 8), 2, np.int64)
+        assign[:, 2:6, 2:4] = 0                          # half the footprint is slot 0
+        assign[:, 2:6, 4:6] = 1                          # half is slot 1
+        pr = assignment_prior(assign, fp, k_ops=2)
+        np.testing.assert_allclose(pr, [0.5, 0.5, 0.0], atol=1e-9)
+        self.assertAlmostEqual(float(pr.sum()), 1.0, places=9)
 
 
 class TestClassPlaneAugmentation(unittest.TestCase):

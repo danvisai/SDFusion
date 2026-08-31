@@ -234,6 +234,63 @@ with the remaining 27 flat, and this map has three near-misses from reading a cu
 
 The result is written up in `docs/wayfinding/solid-first-subtractive-modeling/
 129-classified-plane-parameters.md`, with the full scoring command.
+
+
+#132 -- THE OVER-CARVE AND THE ONE SLOT, PRE-REGISTERED BEFORE THE FIRST TRAINING STEP
+=======================================================================================
+#129 answered its mechanism question YES and failed its bar anyway. Its two failures sit on
+DIFFERENT heads, and #132 changes one thing on each:
+
+  SURPLUS is a PLANE problem.  Swapping in label planes takes `missing` 0.1065 -> 0.0006 while
+  barely moving `extra`: the head that put the pitch in is the head that cuts through the building.
+  🔑 `extra` and `missing` are NOT symmetric in a pitch. A plane a little too STEEP dives below GT
+  over the far end of its region and is charged the whole trench; one a little too SHALLOW only
+  leaves surplus above it. So the loss-minimising *parameter* estimate is a biased *geometry*
+  estimate, and the correction is to read the pitch BELOW the median.
+     -> `PLANE_DECODE` pitch: median -> **q0.25**, the canonical lower quartile.
+
+  FORM is an ASSIGNMENT problem.  `dl_ops` reads 1.0 on both arms because both use ONE region --
+  #6 1.19 slots, #129 0.90 -- not because their planes are flat. The output space is not the
+  constraint: the compiled label uses 3.06 slots at 2.0 ops / 0.50 planar.
+     -> the assignment cross-entropy is **logit-adjusted by the label prior** (`ASSIGN_PRIOR`,
+        tau = `ASSIGN_TEMPERATURE` = 1.0), training-side only.
+
+🔑🔑 THE DIAGNOSIS CAME FIRST, AND IT KILLED THE OBVIOUS FIX. `assignment_collapse` on both of
+#129's checkpoints says the assignment posterior is DIFFUSE, not confidently wrong -- confidence
+0.43, normalised entropy 0.80, argmax recall on non-dominant-slot columns **0.0000**. That looks
+like a decode problem, and this map has twice found the decode WAS the answer. It is not this time:
+
+    read            slots seen   minor recall   per-column acc   DOMINANT slot acc
+    argmax             0.90         0.0000          0.4245            0.8251
+    prior-balanced     3.70         0.2829          0.2203            0.1275   <- REFUTED
+
+The post-hoc correction mostly relabels the building -- `circmean`'s failure from #129 in a second
+place -- because a class that is flat over the plan has p/prior == 1 by construction, so the
+dominant slot ties with every other flat class. ⚠️ Measured BEFORE the run rather than after it,
+which is the whole point of asking the free question first. The adjustment therefore goes into the
+LOSS, where it changes what is learned, with inference left as the plain argmax.
+
+⚠️ THE SELECTION RULE IS UNCHANGED, and that is a choice with a falsifiable prediction attached.
+#129's rule picked epoch 2 of 40 because the classified head trades `missing` for `extra` as it
+trains, so the symmetric difference plateaued while `extra` kept falling. The prediction: the q0.25
+pitch is what stops that trade, so the symmetric difference should now improve with training and
+the rule should select a late epoch. If it selects epoch 2 again, the pitch read did not work and
+that is the finding -- not a licence to change the rule afterwards.
+
+⚠️ PRE-REGISTERED PREDICTION, so the arm is falsifiable in parts: on #129's weights `q0.25` alone
+leaves collapse at 0.2409, still above 1-NN's 0.1582. The pitch read is NOT expected to pass on its
+own; the assignment change has to do the rest. If the arm passes with only one of the two working,
+that is a result about the other.
+
+THE BAR: `PROGRAM_BAR`, unchanged again, on the same 411 rows through the same `verdict()`. Beside
+every number, and on EVERY table including the diagnostics: `vs_input`, the collapse rate (#126),
+`slot_usage` beside `dl_ops` -- 1.0 ops at 0.90 slots and 1.0 ops at 3.0 slots are different
+results -- the realised rise inside `Ramp`-typed slots, and a montage.
+
+    $P --objective program --plane_head class --tag heightmap_program_adj --epochs 40 \\
+       --montage 0 --no_form --out execution/artifacts/height_map_generator_adj_train.json
+    $P --diagnose_program outputs/height_map_generator/heightmap_program_adj.pt \\
+       --out execution/artifacts/height_map_generator_adj_714.json
 """
 
 from __future__ import annotations
@@ -311,12 +368,55 @@ PLANE_QUANTITIES = ("offset", "pitch", "azimuth")
 # offset and a flat roof would come back a fraction of a bin off for no reason at all.
 PITCH_FLAT_BIN = 0
 
+# 🔑🔑 #132's ASSIGNMENT correction, pre-registered here before the first training step -- and it
+# is in the LOSS rather than in the decode, because the decode version was measured and REFUTED
+# first. #6 and #129 both used ONE slot where the label uses 3.06, and `assignment_collapse` on
+# both of #129's checkpoints says the posterior is DIFFUSE rather than confidently wrong:
+# confidence 0.43, normalised entropy 0.80, and on the 201,777 columns whose label is a
+# non-dominant slot the per-column argmax recall is **0.0000**.
+#
+# The MECHANISM, and it is why this is a correction rather than a knob: slots are canonicalised by
+# AREA (#6), so slot 0 owns most columns of most buildings and the per-column cross-entropy is
+# imbalanced **by construction of the label**, not by anything geometric.
+#
+# ⚠️ THE POST-HOC VERSION IS REFUTED, measured before this run rather than after it. Dividing the
+# posterior by the model's own marginal buys minor-slot recall 0.0000 -> 0.2829 and pays with
+# per-column accuracy 0.4245 -> 0.2203 and the DOMINANT slot 0.8251 -> 0.1275: it mostly relabels
+# the building, which is `circmean`'s failure from #129 in a second place. The reason is structural
+# and `test_and_the_half_that_did_not_it_neutralises_a_flat_class` pins it -- a class that is flat
+# over the plan has p/prior == 1 by construction, so the dominant slot ties with every other flat
+# class and noise breaks the tie.
+#
+# 🔑 So the adjustment goes where it can change what is LEARNED instead of rescaling what was not:
+# `tau * log(prior)` added to the assignment logits during training, with inference left as the
+# plain argmax. That pairing is what makes the trained scores the balanced ones. The prior is the
+# LABEL's class frequency over training footprint columns -- a fixed quantity computed once from
+# the labels, never from the model and never from the pinned 714.
+#
+# ⚠️ TEMPERATURE 1.0 is the full adjustment and is deliberately NOT swept: sweeping it trades slot
+# count against surplus directly, which is selecting on the answer, and this map has three
+# near-misses from exactly that.
+ASSIGN_DECODE = "argmax"
+ASSIGN_TEMPERATURE = 1.0
+
 # 🔑🔑 #129's DECODE, pre-registered here before the first training step and read by
 # `decode_plane_logits`, in the order of `PLANE_QUANTITIES`. The reasons are in that docstring and
 # they are per-quantity, because this map's biggest lever and its loudest warning are both about
 # this line: argmax -> median was worth `extra` 0.1178 -> 0.0603 on #127's ordinal depth head, and
 # copying that read onto a symmetric bimodal slope would land straight back on flat.
-PLANE_DECODE = ("median", "median", "argmax")
+# 🔑 #132 changes ONE of these three -- the pitch, median -> q0.25. The reason is geometric and was
+# written down in #129 before this run: `extra` and `missing` are NOT symmetric in a pitch. A plane
+# a little too STEEP dives below GT over the far end of its region and is charged the whole trench;
+# one a little too SHALLOW only leaves surplus above it. So the loss-minimising *parameter* estimate
+# is a biased *geometry* estimate, and the correction is to read the pitch below the median.
+# ⚠️ Disclosed, not relied upon: q0.25 is also the best row of #129's after-the-fact decode table.
+# The mechanism predicts "below the median" and 0.25 is the canonical lower quartile rather than the
+# argmax of a sweep -- and #6's `PROGRAM_BAR` is unchanged, so no choice of read can lower the bar.
+# ⚠️ Pre-registered PREDICTION, so this is falsifiable: on #129's weights q0.25 alone leaves collapse
+# at 0.2409, still above 1-NN's 0.1582, so the pitch read is NOT expected to pass on its own. The
+# assignment read has to do the rest, and if the arm passes with only one of the two working, that
+# is a result about the other.
+PLANE_DECODE = ("median", "q0.25", "argmax")
 
 # ⚠️ `recover_massing_programs.FLOOR_EPS` is 1e-9, which is the right snap for the float64 plane
 # `linprog` returns. A slot's plane is stored in the label cache and predicted by the network in
@@ -778,7 +878,7 @@ def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective:
         # surface belonging to neither, which is #127's mound arriving by a third route. The one
         # place the network's scale-free plane is converted back to the fitter's voxel convention.
         a, t, p = out_k
-        assign = np.argmax(a, axis=0).astype(np.uint8)
+        assign = decode_assignment(a, fp)
         # 🔑 the assignment is decoded FIRST, because #129's offset is anchored at each slot's own
         # region and the region is what the assignment says it is
         if plane_head == "class":
@@ -1107,6 +1207,49 @@ def decode_plane_logits(logits, centroids, reads=None) -> np.ndarray:
     return np.stack([bins_to_plane(bins[k], cen[k]) for k in range(len(bins))])
 
 
+def assignment_prior(assign, fp, k_ops: int) -> np.ndarray:
+    """The label's slot frequency over footprint columns: `(K+1,)`, summing to 1.
+
+    🔑 The imbalance #132 corrects, measured from the LABEL rather than from the model. Slots are
+    canonicalised by area, so this is steeply skewed by construction and that is the whole point.
+
+    ⚠️ Footprint columns only, and computed on the TRAINING split only. Off-footprint columns are
+    compiled away, and a prior that had seen the pinned 714 would be a leak.
+    """
+    a = np.asarray(assign)
+    m = np.asarray(fp, bool)
+    counts = np.bincount(a[m].ravel().astype(np.int64), minlength=k_ops + 1)[:k_ops + 1]
+    return (counts / max(counts.sum(), 1)).astype(np.float64)
+
+
+def decode_assignment(logits, fp, read: str = "", temperature: float = 0.0) -> np.ndarray:
+    """`(K+1, Z, X)` assignment logits -> the per-column slot the compiler receives.
+
+    🔑 The ONE place the assignment is decoded, so the served path, the training-time validation
+    that selects the checkpoint, and the diagnostics all read it the same way. Two argmaxes in two
+    files is how a decode quietly stops being the one that is served.
+
+    `balanced` divides each column's posterior by the model's own per-building marginal before the
+    argmax -- the standard logit adjustment, and here it corrects an imbalance the LABEL creates:
+    slots are canonicalised by area, so slot 0 owns most columns and a per-column cross-entropy is
+    imbalanced by construction. See `ASSIGN_DECODE` for the measurement that chose it and the
+    over-fragmentation risk it carries.
+
+    ⚠️ The marginal is taken over the FOOTPRINT only. Off-footprint columns are compiled away, and
+    letting them into the prior would let a class that never fires on the building set the scale.
+    An empty footprint falls back to the plain argmax rather than dividing by nothing.
+    """
+    lg = np.asarray(logits, np.float64)
+    p = np.exp(lg - lg.max(axis=0, keepdims=True))
+    p /= p.sum(axis=0, keepdims=True)
+    m = np.asarray(fp, bool)
+    if (read or ASSIGN_DECODE) == "argmax" or not m.any():
+        return p.argmax(axis=0).astype(np.uint8)
+    tau = temperature or ASSIGN_TEMPERATURE
+    prior = np.clip(p[:, m].mean(axis=1), 1e-12, None)
+    return (p / (prior ** tau)[:, None, None]).argmax(axis=0).astype(np.uint8)
+
+
 def rebin_planes(planes, assign, extent, n_bins: int = 0) -> np.ndarray:
     """A whole slot set's planes through the bins and back, in the fitter's voxel convention.
 
@@ -1164,7 +1307,7 @@ def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
     return np.where(m, np.clip(h, 1, max(e, 1)), 0).astype(np.int16)
 
 
-def program_loss(out, labels, mask, plane_head: str = "regress"):
+def program_loss(out, labels, mask, plane_head: str = "regress", assign_prior=None):
     """🔑 #6's training strategy, in one function: supervise the **program**, never the surface.
 
     #127 established the trap this avoids, twice and from both directions. Supervision on the
@@ -1203,6 +1346,14 @@ def program_loss(out, labels, mask, plane_head: str = "regress"):
     assign, types, planes = labels
     m = mask.bool()
 
+    if assign_prior is not None:
+        # 🔑 #132's logit adjustment, training-side only. Adding `tau * log(prior)` to class k's
+        # logit makes the model earn the majority slot instead of being handed it, so the plain
+        # argmax at inference reads the BALANCED posterior. See `ASSIGN_DECODE` for the measurement
+        # that put this here rather than in the decode.
+        pri = torch.as_tensor(assign_prior, dtype=assign_logits.dtype,
+                              device=assign_logits.device).clamp_min(1e-12)
+        assign_logits = assign_logits + ASSIGN_TEMPERATURE * torch.log(pri).view(1, -1, 1, 1)
     ce = F.cross_entropy(assign_logits, assign, reduction="none")
     l_assign = (ce * m).sum() / m.sum().clamp(min=1)
 
@@ -1514,6 +1665,15 @@ def train(cache: dict, args) -> Path:
           + (f", plane_head={args.plane_head}" if args.objective == "program" else "")
           + f", device={dev}", flush=True)
 
+    # 🔑 #132's logit adjustment, from the TRAINING split's labels only and computed once. It is a
+    # property of the label's area canonicalisation, not of the model, so it never updates.
+    a_prior = (assignment_prior(tr.program["assign"], tr.fp, args.k_planes)
+               if args.objective == "program" and tr.program is not None else None)
+    if a_prior is not None:
+        print(f"[train] #132 assignment prior over {len(tr)} training buildings: "
+              + "  ".join(f"slot{k} {v:.4f}" for k, v in enumerate(a_prior))
+              + f"   (tau={ASSIGN_TEMPERATURE})", flush=True)
+
     model = make_model(args.objective, args.width, args.k_planes, args.plane_head).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
@@ -1527,7 +1687,7 @@ def train(cache: dict, args) -> Path:
             # 🔑 the program arm never sees its own compiled surface during training. No `slope_
             # weight` either: the joint structure is in the output space now, and #127 measured
             # that adding it to the loss buys description length without buying planes.
-            return program_loss(model(x), prog_labels, m, args.plane_head)
+            return program_loss(model(x), prog_labels, m, args.plane_head, a_prior)
         out = (forward_heights(model, x, ext, args.objective) if args.objective == "planes"
                else model(x))
         per = per_column_loss(out, y, ext, args.objective, args.quantile)
@@ -1569,7 +1729,7 @@ def train(cache: dict, args) -> Path:
         run /= max(len(order) // args.batch, 1)
         model.eval()
         vl, ve, vm = _validate(model, va, val_carve, args.objective, args.quantile, dev,
-                               args.plane_head)
+                               args.plane_head, a_prior)
         curve.append(dict(epoch=ep + 1, train=run, val=vl, val_extra=ve, val_missing=vm,
                           val_symmetric=ve + vm))
         mark = ""
@@ -1577,6 +1737,13 @@ def train(cache: dict, args) -> Path:
                     quantile=args.quantile, k_planes=args.k_planes,
                     plane_head=args.plane_head, slope_weight=args.slope_weight,
                     slope_decode_quantile=SLOPE_DECODE_QUANTILE,
+                    # ⚠️ the decode travels WITH the weights. #129's checkpoints were trained and
+                    # scored under ("median","median","argmax"); #132 changes the pitch and adds
+                    # the loss-side prior, and a re-scored old checkpoint must not be able to
+                    # present itself as the arm that produced #129's numbers.
+                    plane_decode=list(PLANE_DECODE), assign_decode=ASSIGN_DECODE,
+                    assign_prior=(None if a_prior is None else a_prior.tolist()),
+                    assign_temperature=ASSIGN_TEMPERATURE,
                     epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
                     val_symmetric=ve + vm, params=n_par)
         if (ve + vm, vl) < best:
@@ -1596,7 +1763,7 @@ def train(cache: dict, args) -> Path:
 
 
 def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
-              plane_head: str = "regress") -> tuple:
+              plane_head: str = "regress", assign_prior=None) -> tuple:
     """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings."""
     import torch
 
@@ -1615,7 +1782,8 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
             if objective == "program":
                 out = model(xt)
                 losses.append(float(program_loss(
-                    out, tuple(torch.from_numpy(t).to(dev) for t in p), m, plane_head).detach()))
+                    out, tuple(torch.from_numpy(t).to(dev) for t in p), m, plane_head,
+                    assign_prior).detach()))
                 o = [tuple(t[k].cpu().numpy() for t in out) for k in range(len(sel))]
             else:
                 out = (forward_heights(model, xt, et, objective) if objective == "planes"
@@ -1858,6 +2026,23 @@ def program_predictions(ckpt: Path, held: dict, cpu: bool = False, raw: bool = F
     `raw=True` returns the classified head's logits instead, which is what `decode_ablation` needs
     to re-read the same weights at a different statistic without a second forward pass.
     """
+    al, tl, pr, head = _program_forward(ckpt, held, cpu)
+    a = np.stack([decode_assignment(al[i], held["fp"][i]) for i in range(len(al))])
+    p = pr
+    if head == "class" and not raw:
+        p = np.stack([decode_plane_logits(pr[k], slot_centroids(a[k], pr.shape[1]))
+                      for k in range(len(a))])
+    return a, tl.argmax(-1).astype(np.int8), p
+
+
+def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
+    """One forward pass over the pinned set, returning every head RAW: `(assign, type, plane, head)`.
+
+    🔑 Extracted so the served decode (`program_predictions`) and the diagnostics that have to look
+    at a posterior *before* it is collapsed (`assignment_collapse`, `decode_ablation`) read the same
+    weights through the same path. A diagnostic with its own private forward pass is how a decode
+    quietly stops being the one that is served.
+    """
     import torch
 
     d = torch.load(ckpt, map_location="cpu", weights_only=False)
@@ -1876,15 +2061,10 @@ def program_predictions(ckpt: Path, held: dict, cpu: bool = False, raw: bool = F
                                              float(held["height_m"][i]), int(held["region"][i]))
                           for i in sel])
             al, tl, pr = model(torch.from_numpy(x).to(dev))
-            a = al.argmax(1).cpu().numpy().astype(np.uint8)
-            p = pr.cpu().numpy()
-            if head == "class" and not raw:
-                p = np.stack([decode_plane_logits(p[k], slot_centroids(a[k], p.shape[1]))
-                              for k in range(len(a))])
-            A.append(a)
-            T.append(tl.argmax(-1).cpu().numpy().astype(np.int8))
-            P.append(p)
-    return np.concatenate(A), np.concatenate(T), np.concatenate(P)
+            A.append(al.cpu().numpy())
+            T.append(tl.cpu().numpy())
+            P.append(pr.cpu().numpy())
+    return np.concatenate(A), np.concatenate(T), np.concatenate(P), head
 
 
 def _median_split(heights, held, rows):
@@ -2051,6 +2231,103 @@ def slot_usage(pred, label, held, rows) -> dict:
                 used_slots_compiling_flat=float((rise < 1).mean()) if len(rise) else 0.0)
 
 
+def assignment_stats(logits, label_assign, fp, k_ops: int) -> dict:
+    """🔑 #132's free question, asked before the head is blamed: **diffuse, or confidently wrong?**
+
+    Both trained arms use one slot where the label uses 3.06 (#6 1.19, #129 0.90), and `dl_ops`
+    reads 1.0 because of that and not because their planes are flat. Two very different faults
+    produce that one number, and they want opposite fixes:
+
+      * a **diffuse** posterior that knows about a second region and loses the per-column `argmax`
+        to slot 0 -- a DECODE problem, and this map has twice found the decode was the answer
+        (#127 argmax -> posterior median, `extra` 0.1178 -> 0.0603; #129 azimuth argmax over
+        circmean);
+      * a **confident** posterior that has never heard of the second region -- a loss or curriculum
+        problem, which is [#130]'s third item.
+
+    `p_true_minor` is what separates them: the mass the head puts on the CORRECT slot, on exactly
+    the columns whose label is not that building's dominant slot. Near `p_won_minor` means the head
+    knows and narrowly loses; near zero means it does not know.
+
+    🔑 The **balanced** read is the mechanism-matched candidate, not a fished one. Slots are
+    canonicalised by AREA (#6), so slot 0 owns most columns of most buildings and a per-column
+    cross-entropy is imbalanced by construction. Dividing the posterior by the model's OWN marginal
+    -- computed from the prediction, using no label -- is the standard correction for that, and it
+    is reported here as a diagnosis. ⚠️ Adopting it would need pre-registering before the run that
+    benefits from it, with the imbalance as the reason and not this table.
+    """
+    p = np.asarray(logits, np.float64)
+    p = np.exp(p - p.max(axis=0, keepdims=True))
+    p /= p.sum(axis=0, keepdims=True)
+    m = np.asarray(fp, bool)
+    lab = np.asarray(label_assign)
+    if not m.any():
+        return {}
+    inside = p[:, m]                                             # (K+1, n_columns)
+    won = inside.max(axis=0)
+    arg = inside.argmax(axis=0)
+    lab_in = lab[m]
+    # the model's own marginal over the footprint: a decode, so it may not look at the label
+    prior = np.clip(inside.mean(axis=1), 1e-12, None)
+    bal = (inside / prior[:, None]).argmax(axis=0)
+
+    acc = lambda v, sel: float((v[sel] == lab_in[sel]).mean()) if sel.any() else 0.0
+    slots = lambda v: int(len(set(np.unique(v).tolist()) - {k_ops}))
+    used = [k for k in np.unique(lab_in) if k != k_ops]
+    dominant = max(used, key=lambda k: int((lab_in == k).sum())) if len(used) else k_ops
+    minor = (lab_in != dominant) & (lab_in != k_ops)
+    n = int(minor.sum())
+    take = lambda v: float(v.mean()) if n else 0.0
+    every = np.ones(len(lab_in), bool)
+    dom = (lab_in == dominant)
+    return dict(
+        accuracy_argmax=acc(arg, every), accuracy_balanced=acc(bal, every),
+        # ⚠️ the correction is only worth having if it buys minor slots WITHOUT losing the dominant
+        # one: a read that fragments the largest region has traded surplus for slot count
+        dominant_argmax=acc(arg, dom), dominant_balanced=acc(bal, dom),
+        confidence=float(np.median(won)),
+        entropy_norm=float(np.mean(-(inside * np.log(np.clip(inside, 1e-12, None))).sum(axis=0))
+                           / np.log(len(inside))),
+        slots_argmax=slots(arg), slots_label=slots(lab_in), slots_balanced=slots(bal),
+        n_minor_columns=n,
+        p_true_minor=take(inside[lab_in[minor], np.flatnonzero(minor)]) if n else 0.0,
+        p_won_minor=take(won[minor]),
+        recall_minor=take(arg[minor] == lab_in[minor]),
+        recall_minor_balanced=take(bal[minor] == lab_in[minor]),
+    )
+
+
+def assignment_collapse(ckpt: Path, label, held, rows, cpu: bool = False) -> dict:
+    """`assignment_stats` over the pinned rows: the K = 1 collapse, diagnosed rather than named.
+
+    Reported beside `slot_usage`, which counts the slots the argmax ends up using. This says WHY
+    that count is 1, and the two rows are meant to be read together.
+    """
+    al, _, _, _ = _program_forward(ckpt, held, cpu)
+    la = label[0]
+    k_ops = al.shape[1] - 1
+    per = [assignment_stats(al[i], la[i], held["fp"][i], k_ops) for i in rows]
+    per = [s for s in per if s]
+    if not per:
+        return {}
+    med = lambda k: float(np.median([s[k] for s in per]))
+    avg = lambda k: float(np.mean([s[k] for s in per]))
+    wt = lambda k: float(np.average([s[k] for s in per],
+                                    weights=[max(s["n_minor_columns"], 0) for s in per])) \
+        if sum(s["n_minor_columns"] for s in per) else 0.0
+    return dict(n=len(per), confidence_median=med("confidence"),
+                accuracy_argmax=avg("accuracy_argmax"), accuracy_balanced=avg("accuracy_balanced"),
+                dominant_argmax=avg("dominant_argmax"), dominant_balanced=avg("dominant_balanced"),
+                entropy_norm_mean=avg("entropy_norm"),
+                slots_argmax_mean=avg("slots_argmax"), slots_label_mean=avg("slots_label"),
+                slots_balanced_mean=avg("slots_balanced"),
+                minor_columns_total=int(sum(s["n_minor_columns"] for s in per)),
+                buildings_with_a_minor_slot=float(np.mean([s["n_minor_columns"] > 0 for s in per])),
+                p_true_minor=wt("p_true_minor"), p_won_minor=wt("p_won_minor"),
+                recall_minor=wt("recall_minor"),
+                recall_minor_balanced=wt("recall_minor_balanced"))
+
+
 def label_robustness(label, held, rows, seed: int = 0) -> dict:
     """How much error this output space absorbs before the SURFACE metric moves.
 
@@ -2202,6 +2479,8 @@ def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
         slope_symmetry=slope_symmetry(program, cache["extent"], cache["ok"] > 0),
         canonicalisation=canonicalisation_cost(pred, label, held, rows),
         slot_usage=slot_usage(pred, label, held, rows),
+        # #132: WHY slot_usage reads 1. Free, and it decides which fix the next arm pre-registers.
+        assignment_collapse=assignment_collapse(ckpt, label, held, rows, cpu),
         robustness=label_robustness(label, held, rows),
         # #129's two. Both are empty for a `regress` checkpoint, which has no bins and no posterior.
         quantisation_ceiling=plane_quantisation_ceiling(label, held, rows),
@@ -2238,6 +2517,23 @@ def report_program_diagnostics(d: dict) -> None:
     print(f"    of the slots the arm uses, typed Ramp {u['used_slots_typed_ramp']:.3f}; "
           f"realised rise median {u['realised_rise_median_voxels']:.2f} voxels, "
           f"{u['used_slots_compiling_flat']:.3f} compile flat")
+    if d.get("assignment_collapse"):
+        a = d["assignment_collapse"]
+        print(f"\n  #132: WHY that reads 1 -- is the assignment head DIFFUSE or confidently wrong?")
+        print(f"    posterior: confidence (median max p) {a['confidence_median']:.3f}   "
+              f"normalised entropy {a['entropy_norm_mean']:.3f}")
+        print(f"    per-column accuracy: argmax {a['accuracy_argmax']:.4f} -> balanced "
+              f"{a['accuracy_balanced']:.4f}   on the DOMINANT slot "
+              f"{a['dominant_argmax']:.4f} -> {a['dominant_balanced']:.4f}")
+        print(f"    slots seen: argmax {a['slots_argmax_mean']:.2f}   "
+              f"prior-balanced {a['slots_balanced_mean']:.2f}   label {a['slots_label_mean']:.2f}")
+        print(f"    on the {a['minor_columns_total']} columns whose label is a NON-dominant slot "
+              f"({a['buildings_with_a_minor_slot']:.3f} of buildings have one):")
+        print(f"      p(correct slot) {a['p_true_minor']:.4f}   vs p(winner) "
+              f"{a['p_won_minor']:.4f}   recall {a['recall_minor']:.4f}"
+              f"   balanced {a['recall_minor_balanced']:.4f}")
+        print(f"    -> near p(winner) means it KNOWS and loses the argmax (a decode); near zero "
+              f"means it does not know (a loss or a curriculum)")
     print("\n  what the OUTPUT SPACE absorbs before the surface metric moves (no network)")
     for kind, rowset in (("plane noise sigma", "plane_noise"),
                          ("assignment randomised", "assignment_corrupted")):
