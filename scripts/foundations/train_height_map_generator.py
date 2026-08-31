@@ -1667,11 +1667,16 @@ def train(cache: dict, args) -> Path:
 
     # 🔑 #132's logit adjustment, from the TRAINING split's labels only and computed once. It is a
     # property of the label's area canonicalisation, not of the model, so it never updates.
-    a_prior = (assignment_prior(tr.program["assign"], tr.fp, args.k_planes)
+    # ⚠️ K_OPS, not `args.k_planes`: `make_model` ignores that flag for the program objective and
+    # builds the assignment head with K_OPS + 1 channels. Passing the flag produced a 7-entry prior
+    # against a 5-class head, which `test_the_prior_matches_the_models_assignment_head` now pins.
+    a_prior = (assignment_prior(tr.program["assign"], tr.fp, K_OPS)
                if args.objective == "program" and tr.program is not None else None)
     if a_prior is not None:
+        # the LAST class is "uncarved", not a slot -- naming it slot K would misread the majority
+        names = [f"slot{k}" for k in range(K_OPS)] + ["uncarved"]
         print(f"[train] #132 assignment prior over {len(tr)} training buildings: "
-              + "  ".join(f"slot{k} {v:.4f}" for k, v in enumerate(a_prior))
+              + "  ".join(f"{n} {v:.4f}" for n, v in zip(names, a_prior))
               + f"   (tau={ASSIGN_TEMPERATURE})", flush=True)
 
     model = make_model(args.objective, args.width, args.k_planes, args.plane_head).to(dev)

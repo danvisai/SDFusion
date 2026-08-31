@@ -40,6 +40,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     plane_to_normalised,
     plane_to_voxel, rebin_planes,
     ASSIGN_DECODE, ASSIGN_TEMPERATURE, assignment_prior, assignment_stats, decode_assignment,
+    make_model,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict,
@@ -1703,6 +1704,18 @@ class TestLogitAdjustedAssignmentLoss(unittest.TestCase):
 
     def test_the_adjustment_is_pre_registered_at_one(self):
         self.assertEqual(ASSIGN_TEMPERATURE, 1.0)
+
+    def test_the_prior_matches_the_models_assignment_head(self):
+        """⚠️ The bug this caught on the first batch: `make_model` IGNORES `--k_planes` for the
+        program objective and builds K_OPS + 1 channels, so a prior sized from the flag was 7 long
+        against a 5-class head. The two must be derived from the same constant."""
+        import torch
+        model = make_model("program", 16, 6, "class")
+        with torch.no_grad():
+            assign_logits, _, _ = model(torch.zeros(1, COND_CHANNELS, 32, 32))
+        pr = assignment_prior(np.zeros((1, 8, 8), np.int64), np.ones((1, 8, 8), bool), K_OPS)
+        self.assertEqual(len(pr), assign_logits.shape[1],
+                         "the prior must be one entry per assignment channel")
 
     def test_the_prior_is_the_label_frequency_over_footprint_columns(self):
         fp = np.zeros((2, 8, 8), bool)
