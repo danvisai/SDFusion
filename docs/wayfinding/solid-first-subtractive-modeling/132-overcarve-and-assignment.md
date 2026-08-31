@@ -229,6 +229,31 @@ entropy 0.799 → 0.885, overall per-column accuracy 0.4245 → 0.2739. The adju
 of the rare classes by spreading the posterior, which is the known cost of logit adjustment and is
 the mechanism behind the dominant-slot loss above.
 
+### 🔑🔑 What the collapse actually looks like, and why no earlier sheet showed it
+
+`--montage_rank missing` (new) ranks the sheet by the volume the arm **ate** rather than by the
+surplus it left. `outputs/height_map_generator/worst_by_missing.png`:
+
+| id | `heightmap_program_adj` | `class129_at_q025` |
+|---|---|---|
+| 10553 | extra **0.000** / missing **0.848** | extra 0.271 / missing 0.025 |
+| 5241 | extra **0.000** / missing **0.961** | extra 0.325 / missing 0.000 |
+| 8821 | extra **0.000** / missing **0.961** | extra 0.231 / missing 0.002 |
+
+The arm has flattened these buildings to a **thin slab** — 85–96% of the volume gone. It is not
+over-carving a roof; it is deleting the building.
+
+⚠️ **And every one of them scores `extra` 0.000.** The standing montage ranks best/representative/
+worst by `extra`, so these buildings appear at the very TOP of that sheet as flawless. A sheet
+ranked on surplus is structurally incapable of showing destruction, because a building an arm has
+eaten has no surplus left on it. Both numbers are now on every caption and the rank is selectable.
+
+✅ **The destruction is a tail, not the norm.** At the median of the `missing` ranking the arm draws
+a clean pitched roof closely tracking the compiled label, at missing 0.066 — well inside the 0.15
+collapse threshold. So the arm is not uniformly bad: it is *good on most buildings and catastrophic
+on about a quarter*, which is exactly what a 0.2579 collapse rate beside a 0.0832 median `extra`
+means and why #126 insists the rate is published beside the median.
+
 ### Traps
 
 ⚠️ **I walked into the `pgrep` self-match this ticket lists.** `until ! kill -0 $(pgrep -f "tag

@@ -2608,8 +2608,12 @@ def montage(cases, out: Path, cell: int = 5) -> Path:
         for j, t in enumerate(row):
             sheet.paste(t, (pad + j * (tw + pad) + (tw - t.width) // 2, y + (th - t.height) // 2))
         c = cases[i]
+        # ⚠️ both numbers on every caption. `extra` is surplus left behind and `missing` is GT the
+        # arm CUT INTO -- opposite failures that look nothing alike, and a sheet captioned with only
+        # one of them invites the reader to diagnose the other from a picture of the first.
         d.text((pad, y + th + 4), f"id {c['id']}   " + "   ".join(
-            f"{n} extra {c['extra'][n]:.3f}" for n in names), fill=(40, 40, 40))
+            f"{n} extra {c['extra'][n]:.3f} / missing {c['missing'][n]:.3f}" for n in names),
+            fill=(40, 40, 40))
         d.line([(0, y + th + lab - 2), (sheet.width, y + th + lab - 2)], fill=(225, 225, 228))
     out.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(out)
@@ -2917,6 +2921,11 @@ def main() -> None:
                          "than the mode. A decode ablation reported beside the pre-registered arm, "
                          "never in place of it")
     ap.add_argument("--montage", type=int, default=6, help="buildings per sheet; 0 disables")
+    ap.add_argument("--montage_rank", default="extra", choices=("extra", "missing"),
+                    help="which failure the sheet's best/representative/worst rank by. `extra` is "
+                         "surplus the arm left behind; `missing` is GT it CUT INTO -- the "
+                         "destruction `collapse_rate` counts, which an extra-ranked sheet cannot "
+                         "show because a building an arm ate has little surplus left on it")
     ap.add_argument("--maps", type=int, default=0,
                     help="buildings per height/normal MAP sheet -- the plan-view pair that shows "
                          "where the volume went and whether what is left is made of planes")
@@ -3094,13 +3103,19 @@ def main() -> None:
                          rank_by=key if key in arms else next(iter(arms)))
 
     if args.montage:
-        picks = sheet_picks([r["extra"] for r in rows[key]], pops["carve"].tolist(), args.montage)
+        # 🔑 rank on the failure being investigated. `extra` is surplus; `missing` is the volume the
+        # arm ATE, which is what `collapse_rate` counts -- and an extra-ranked sheet cannot show it,
+        # because the buildings an arm destroys are often the ones it leaves least surplus on.
+        picks = sheet_picks([r[args.montage_rank] for r in rows[key]],
+                            pops["carve"].tolist(), args.montage)
+        suffix = "" if args.montage_rank == "extra" else f"_by_{args.montage_rank}"
         for tag, sub in picks.items():
             cases = [dict(id=int(held["row"][i]), fp=held["fp"][i], target=held["target"][i],
                           arms={n: heights[n][i] for n in heights},
-                          extra={n: rows[n][i]["extra"] for n in heights}) for i in sub]
+                          extra={n: rows[n][i]["extra"] for n in heights},
+                          missing={n: rows[n][i]["missing"] for n in heights}) for i in sub]
             if cases:
-                print(f"[montage] {montage(cases, WORK / f'{tag}.png')}")
+                print(f"[montage] {montage(cases, WORK / f'{tag}{suffix}.png')}")
 
 
 if __name__ == "__main__":
