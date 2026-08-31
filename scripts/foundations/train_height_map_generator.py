@@ -291,6 +291,44 @@ results -- the realised rise inside `Ramp`-typed slots, and a montage.
        --montage 0 --no_form --out execution/artifacts/height_map_generator_adj_train.json
     $P --diagnose_program outputs/height_map_generator/heightmap_program_adj.pt \\
        --out execution/artifacts/height_map_generator_adj_714.json
+
+
+#130 -- IS THE FAILURE GRADED BY COMPLEXITY? NO TRAINING RUN, ONE FREE MEASUREMENT
+==================================================================================
+#132's own report line says a minor-slot recall near zero means "a loss OR A CURRICULUM", and #132
+turned only the loss dial. `complexity_strata` prices the other one, off saved weights and the
+label cache, and the answer is **no** -- with a mechanism rather than a shrug.
+
+  THE FAILURE IS STEEPLY GRADED. Bucketing the 411 by the LABEL's slot count, #132's arm runs
+  `extra` 0.0257 -> 0.1360, collapse 0.094 -> 0.343, and `planar` 1.00 -> 0.00 from 1-slot
+  buildings to 4-slot ones. Everything that is wrong with the arm is in the >= 3-slot buildings.
+
+  🔑🔑 BUT ITS SLOT COUNT IS A CONSTANT, SO EXPOSURE IS NOT THE SCARCE THING. The label runs
+  1.00 / 2.00 / 3.00 / 4.00 across those buckets and the arm answers 1.56 / 1.97 / 2.15 / **2.16**
+  -- it over-fragments the simplest buildings and saturates by the third bucket. And 4-slot
+  buildings are already **52.6%** of the carve-needing training rows, so it is not starved of them.
+  A curriculum reweights exposure; this arm has not learned a function of the building at all.
+
+  🔑 AND AN EASY-FIRST SCHEDULE IS BACKWARDS, DEFINITIONALLY. Slots are canonicalised by owned
+  area, so a building whose label uses two slots cannot supervise slots 2 or 3 AT ALL -- their
+  prior in the <= 2 bucket is exactly 0.0000, and 62% of training rows are in it. The hard bucket
+  is the LESS imbalanced of the two (slot0:slot3 4.7x on 4-slot rows against 11.9x corpus-wide).
+  Pinned in `test_a_low_slot_bucket_gives_the_high_slots_ZERO_support`.
+
+  ⚠️ The binding imbalance is INSIDE each building and no ordering over buildings can reach it.
+  #132's logit-adjusted loss flattens it to 1x by construction and already did.
+
+⚠️⚠️ EVERY STRATUM IS A POST-HOC SUBGROUP AND NONE OF THEM PASSES ANYTHING. `PROGRAM_BAR` is
+pre-registered on the whole carve-needing population and stays there. #6 already carries one
+narrowing-after-the-fact; "but it passes on the easy half" would be the same error with a
+population instead of a clause. `label_slots` is written into the scorecard artifact so the same
+axis can be applied to the comparison arms without a second run, under the same warning.
+
+    $P --diagnose_program outputs/height_map_generator/heightmap_program_adj.pt \\
+       --out execution/artifacts/height_map_generator_strata_714.json
+
+The baselines #6 named, the set-diffusion position and this one are written up in
+`docs/wayfinding/solid-first-subtractive-modeling/130-baselines-diffusion-curriculum.md`.
 """
 
 from __future__ import annotations
@@ -2356,6 +2394,120 @@ def assignment_collapse(ckpt: Path, label, held, rows, cpu: bool = False) -> dic
                 recall_minor_balanced=wt("recall_minor_balanced"))
 
 
+def label_complexity(program: dict, cache: dict) -> tuple:
+    """Every corpus row's LABEL slot count, and its assignment class counts. One pass over both.
+
+    ⚠️ From the LABEL, never from a prediction. Bucketing a population by what the model did would
+    let the model pick the populations it is then scored on, which is the shape of every
+    selecting-on-the-answer near-miss on this map's record.
+    """
+    a, fp = program["assign"], cache["fp"] > 0
+    k_ops = program["types"].shape[1]
+    used = np.zeros(len(a), np.int16)
+    counts = np.zeros((len(a), k_ops + 1), np.int64)
+    for i in range(len(a)):
+        m = fp[i]
+        if not m.any():
+            continue
+        counts[i] = np.bincount(a[i][m].ravel().astype(np.int64), minlength=k_ops + 1)[:k_ops + 1]
+        used[i] = int((counts[i][:k_ops] > 0).sum())
+    return used, counts
+
+
+def complexity_strata(pred, label, held, rows, cache: dict, program: dict) -> dict:
+    """🔑 #130's free question: is the failure GRADED by complexity, and which way must a
+    curriculum run?
+
+    `report_program_diagnostics` has said since #132 that a minor-slot recall near zero means "a
+    loss **or a curriculum**", and #132 turned the loss dial (`tau*log(prior)` on the assignment
+    logits) without ever pricing the other one. This is that price, and it is free -- off the label
+    cache and the forward pass `diagnose_program` already makes. #132's own lesson was that asking
+    the cheap question BEFORE pre-registering a fix is what stopped it shipping a decode correction
+    that relabels the building; #130 asks it before anyone proposes a schedule.
+
+    Two tables, answering different halves:
+
+    * **the training population**, bucketed by how many slots its LABEL uses, with the assignment
+      class prior recomputed INSIDE each bucket. A curriculum reorders examples, so this is what an
+      ordering would actually feed the head. No model appears in it -- it is a property of the
+      corpus and of #6's canonicalisation by owned area.
+    * **the pinned carve-needing rows**, the same buckets, scored the way every table on this
+      ticket is scored: #126's rule that `vs_input` and the collapse rate sit beside every median,
+      because a row can buy `extra` by declining to act or by eating the building and neither of
+      those shows up in `extra` alone.
+
+    ⚠️⚠️ **A stratum's row is a POST-HOC SUBGROUP and it cannot pass anything.** `PROGRAM_BAR` is
+    pre-registered on the whole carve-needing population and stays there. #6's write-up already
+    carries one narrowing-after-the-fact and flags it as the post-hoc move it was; "but it passes
+    on the easy half" would be the same error committed with a population instead of a clause.
+    These rows say WHERE the residual sits (#131: price where it sits, not only how big it is).
+    They do not say that any part of the arm passed.
+    """
+    used_all, counts_all = label_complexity(program, cache)
+    k_ops = program["types"].shape[1]
+
+    # -- the corpus half: what an ordering over complexity would actually feed the head ---------
+    tr = np.nonzero((cache["ok"] > 0) & (cache["held"] == 0))[0]
+    population = {}
+
+    def bucket(name, keep):
+        idx = tr[keep]
+        c = counts_all[idx].sum(axis=0)
+        population[name] = dict(
+            n=int(len(idx)), share=float(len(idx) / max(len(tr), 1)),
+            prior=[float(x) for x in (c / max(c.sum(), 1))],
+            # the imbalance #132 corrected in the loss, as one number: the widest slot ratio
+            skew=(float(c[0] / c[k_ops - 1]) if c[k_ops - 1] else None))
+
+    for k in range(k_ops + 1):
+        bucket(f"{k} slots", used_all[tr] == k)
+    # ⚠️ aggregations of the rows above, not separate measurements. They exist because a curriculum
+    # schedules a FRONT and a BACK, never one slot count at a time.
+    bucket("<=2  (an easy-first schedule's first phase)", used_all[tr] <= 2)
+    bucket(">=3  (its last phase)", used_all[tr] >= 3)
+    # 🔑 the population every score on this ticket is reported on. Read it against ALL: the gap
+    # between the two rows is the 0-slot majority, and #132's prior was computed across BOTH, so a
+    # large part of the `uncarved` mass the assignment head is corrected against comes from
+    # buildings that need no program at all.
+    bucket(">=1  (carve-needing -- the population the bar is set on)", used_all[tr] >= 1)
+    bucket("ALL  (what #132's prior was computed on)", used_all[tr] >= 0)
+
+    # -- the arm half: is its residual graded by that same axis? --------------------------------
+    pa, pt, pp = pred
+    r2i = {int(r): j for j, r in enumerate(program["row"])}
+    lab_used = np.array([used_all[r2i[int(held["row"][i])]] for i in rows])
+    heights, form, slots = [], [], []
+    for i in rows:
+        m, e = held["fp"][i], int(held["extent"][i])
+        h = compile_program(pa[i], pt[i],
+                            np.stack([plane_to_voxel(pp[i][k], e) for k in range(k_ops)]), m, e)
+        heights.append(h)
+        form.append(roof_description_length(h, m, int(held["y0"][i]), e))
+        slots.append(len(set(np.unique(pa[i][m])) - {k_ops}))
+
+    arm = {}
+
+    def arm_bucket(name, keep):
+        sel = np.nonzero(keep)[0]
+        if not len(sel):
+            return
+        arm[name] = dict(
+            n=int(len(sel)),
+            **_median_split([heights[j] for j in sel], held, [rows[j] for j in sel]),
+            ops=float(np.median([form[j]["ops"] for j in sel])),
+            planar_fraction=float(np.median([form[j]["planar_fraction"] for j in sel])),
+            slots_used_by_arm=float(np.mean([slots[j] for j in sel])),
+            slots_used_by_label=float(np.mean([lab_used[j] for j in sel])))
+
+    for k in range(1, k_ops + 1):
+        arm_bucket(f"{k} slots", lab_used == k)
+    arm_bucket("<=2  (an easy-first schedule's first phase)", lab_used <= 2)
+    arm_bucket(">=3  (its last phase)", lab_used >= 3)
+    arm_bucket("ALL  (the pre-registered population)", lab_used >= 0)
+    return dict(n=len(rows), k_ops=k_ops, n_train=int(len(tr)),
+                population=population, arm=arm)
+
+
 def label_robustness(label, held, rows, seed: int = 0) -> dict:
     """How much error this output space absorbs before the SURFACE metric moves.
 
@@ -2509,6 +2661,9 @@ def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
         slot_usage=slot_usage(pred, label, held, rows),
         # #132: WHY slot_usage reads 1. Free, and it decides which fix the next arm pre-registers.
         assignment_collapse=assignment_collapse(ckpt, label, held, rows, cpu),
+        # #130: the OTHER dial that row's report line names -- "a loss or a curriculum". #132 turned
+        # the loss one; this prices the schedule one, on the label rather than on an argument.
+        complexity_strata=complexity_strata(pred, label, held, rows, cache, program),
         robustness=label_robustness(label, held, rows),
         # #129's two. Both are empty for a `regress` checkpoint, which has no bins and no posterior.
         quantisation_ceiling=plane_quantisation_ceiling(label, held, rows),
@@ -2564,6 +2719,28 @@ def report_program_diagnostics(d: dict) -> None:
               f"   balanced {a['recall_minor_balanced']:.4f}")
         print(f"    -> near p(winner) means it KNOWS and loses the argmax (a decode); near zero "
               f"means it does not know (a loss or a curriculum)")
+    if d.get("complexity_strata"):
+        s = d["complexity_strata"]
+        k = s["k_ops"]
+        print(f"\n  #130: the OTHER dial -- bucketed by the LABEL's slot count. "
+              f"⚠️ POST-HOC SUBGROUPS: they say where the residual sits, they cannot pass.")
+        print(f"    what an ordering over complexity would feed the head "
+              f"(n={s['n_train']} training rows, no model in this table)")
+        head = " ".join(f"{f'slot{j}':>8}" for j in range(k))
+        print(f"      {'bucket':<44}{'n':>7}{'share':>8} {head}{'uncarved':>10}{'skew':>8}")
+        for name, v in s["population"].items():
+            sk = "  inf" if v["skew"] is None else f"{v['skew']:.1f}"
+            print(f"      {name:<44}{v['n']:>7}{v['share']:>8.4f} "
+                  + " ".join(f"{x:8.4f}" for x in v["prior"][:k])
+                  + f"{v['prior'][k]:10.4f}{sk:>8}")
+        print(f"    the arm on the same buckets (n={s['n']} carve-needing)")
+        print(f"      {'bucket':<44}{'n':>6}{'extra':>9}{'missing':>9}{'vs_input':>10}"
+              f"{'collapse':>10}{'ops':>6}{'planar':>8}{'slots':>7}{'label':>7}")
+        for name, v in s["arm"].items():
+            print(f"      {name:<44}{v['n']:>6}{v['extra']:>9.4f}{v['missing']:>9.4f}"
+                  f"{v['vs_input']:>10.4f}{v['collapse_rate']:>10.4f}{v['ops']:>6.1f}"
+                  f"{v['planar_fraction']:>8.2f}{v['slots_used_by_arm']:>7.2f}"
+                  f"{v['slots_used_by_label']:>7.2f}")
     print("\n  what the OUTPUT SPACE absorbs before the surface metric moves (no network)")
     for kind, rowset in (("plane noise sigma", "plane_noise"),
                          ("assignment randomised", "assignment_corrupted")):
@@ -3031,6 +3208,7 @@ def main() -> None:
     # competes -- it is the answer to "how good could a program arm be if it predicted perfectly",
     # and #127's record is that a ceiling nobody measured is how a representation gets adopted on a
     # promise. Included whenever the label cache exists, so it costs nothing to have it.
+    label_slots = {}
     if PROGRAM_CACHE.exists():
         pl = np.load(PROGRAM_CACHE)
         pidx = {int(r): i for i, r in enumerate(pl["row"])}
@@ -3038,6 +3216,14 @@ def main() -> None:
         heights[PROGRAM_LABEL_ARM] = np.stack([
             compile_program(pl["assign"][pk[i]], pl["types"][pk[i]], pl["planes"][pk[i]],
                             held["fp"][i], int(held["extent"][i])) for i in range(len(sel))])
+        # #130: the LABEL's slot count per pinned building, so ANY arm's `per_building` rows can be
+        # stratified by complexity without a second run. `complexity_strata` does this inside
+        # --diagnose_program for the one checkpoint under diagnosis; this makes the same axis
+        # available for the comparison arms it never sees (`class129_at_q025`, 1-NN, the served CE
+        # arm). Same function, so the two cannot drift apart. ⚠️ Post-hoc subgroups either way --
+        # see that docstring: the bar is on the whole carve-needing population and stays there.
+        label_slots = {int(r): int(k) for r, k in
+                       zip(held["row"], label_complexity(pl, cache)[0][sel])}
 
     ckpt_meta = {}
     for name, path in ckpts.items():
@@ -3085,6 +3271,7 @@ def main() -> None:
             float((held["fp"][i] & bank_fp[j]).sum()) / max(float((held["fp"][i] | bank_fp[j]).sum()), 1)
             for i, j in enumerate(nn)])),
         per_building={name: rr for name, rr in rows.items()},
+        label_slots=label_slots,
     )
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

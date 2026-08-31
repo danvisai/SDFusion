@@ -40,6 +40,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     plane_to_normalised,
     plane_to_voxel, rebin_planes,
     ASSIGN_DECODE, ASSIGN_TEMPERATURE, assignment_prior, assignment_stats, decode_assignment,
+    label_complexity,
     make_model,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
@@ -1770,6 +1771,72 @@ class TestClassPlaneAugmentation(unittest.TestCase):
                     got = binned_surface(a2, t2, p2, fp2)
                     self.assertLess(float(np.abs(got[fp2].astype(float)
                                                  - want[fp2].astype(float)).max()), 1.5)
+
+
+class TestLabelComplexity(unittest.TestCase):
+    """#130's bucketing axis. It must come from the LABEL and be blind to anything a model does.
+
+    🔑 The load-bearing property is the second test: the assignment prior recomputed inside a
+    low-slot bucket is DEGENERATE -- the high slots have zero support there. That is what makes an
+    easy-first schedule the wrong direction on this corpus, and it is a fact about #6's
+    canonicalisation by owned area rather than about any building, so it is pinned here rather
+    than only observed in an artifact.
+    """
+
+    K = K_OPS
+
+    def _corpus(self, slot_counts):
+        """One synthetic row per entry: a footprint split into `k` vertical bands, one per slot."""
+        n = len(slot_counts)
+        fp = np.zeros((n, 16, 16), np.uint8)
+        assign = np.full((n, 16, 16), self.K, np.uint8)
+        for i, k in enumerate(slot_counts):
+            fp[i, 2:14, 2:14] = 1
+            if k == 0:
+                continue
+            # slot 0 keeps the largest band, so the bucket's prior is skewed the way #6's
+            # canonicalisation by owned area makes it
+            edges = np.linspace(2, 14, k + 1).astype(int)
+            for j in range(k):
+                assign[i, 2:14, edges[j]:edges[j + 1]] = j
+        program = dict(assign=assign, types=np.zeros((n, self.K), np.int8),
+                       row=np.arange(n, dtype=np.int32))
+        cache = dict(fp=fp, ok=np.ones(n, np.uint8), held=np.zeros(n, np.uint8),
+                     row=np.arange(n, dtype=np.int32))
+        return program, cache
+
+    def test_the_slot_count_is_the_number_of_distinct_slots_under_the_footprint(self):
+        program, cache = self._corpus([0, 1, 2, 3, 4])
+        used, counts = label_complexity(program, cache)
+        self.assertEqual(list(used), [0, 1, 2, 3, 4])
+        for i in range(5):
+            self.assertEqual(int(counts[i].sum()), int((cache["fp"][i] > 0).sum()),
+                             "every footprint column is counted exactly once")
+
+    def test_a_low_slot_bucket_gives_the_high_slots_ZERO_support(self):
+        """🔑 #130's curriculum answer in one assertion, and it is definitional, not empirical.
+
+        A building whose label uses two slots cannot supervise slots 2 or 3 at all. So the first
+        phase of an easy-first schedule trains the assignment head on a population where the
+        classes it is already failing on do not occur -- which deepens the imbalance #132 had to
+        correct in the loss rather than relieving it.
+        """
+        program, cache = self._corpus([1] * 5 + [2] * 5 + [4] * 5)
+        used, counts = label_complexity(program, cache)
+        easy = counts[used <= 2].sum(axis=0) / counts[used <= 2].sum()
+        hard = counts[used >= 3].sum(axis=0) / counts[used >= 3].sum()
+        self.assertEqual(float(easy[2]), 0.0, "slot 2 never occurs in the easy bucket")
+        self.assertEqual(float(easy[3]), 0.0, "nor does slot 3")
+        self.assertGreater(float(hard[3]), 0.0, "and it only occurs in the hard one")
+        self.assertLess(hard[0] / hard[self.K - 1], easy[0] / max(easy[self.K - 1], 1e-12),
+                        "so the hard bucket is the LESS imbalanced of the two")
+
+    def test_it_ignores_columns_outside_the_footprint(self):
+        program, cache = self._corpus([2, 2])
+        program["assign"][1][:2, :] = 3          # a slot that only ever appears off-footprint
+        used, _ = label_complexity(program, cache)
+        self.assertEqual(list(used), [2, 2], "the compiler never sees those columns, nor does this")
+
 
 
 if __name__ == "__main__":
