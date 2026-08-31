@@ -1629,15 +1629,37 @@ class TestAssignmentDecode(unittest.TestCase):
         np.testing.assert_array_equal(bal[3:6, 3:6], 1, "the balanced read hears slot 1")
         self.assertGreater(len(set(np.unique(bal[fp]).tolist())), 1)
 
-    def test_and_the_half_that_did_not_it_neutralises_a_flat_class(self):
-        """⚠️ Why it fails on the corpus: a class that is FLAT over the plan has p/prior == 1 by
-        construction, so the dominant slot lands in a tie with every other flat class and the
-        argmax between them is decided by noise. That is the 0.8251 -> 0.1275 on real weights."""
+    def test_and_the_half_that_did_not_it_loses_the_dominant_slot(self):
+        """⚠️ Why it fails on the corpus, exercised through `decode_assignment` itself.
+
+        A class that is FLAT over the plan has `p / prior == 1` by construction, so a dominant slot
+        that is *also* nearly flat lands in a tie with every other flat class and the argmax between
+        them is decided by second-order structure. That is the 0.8251 -> 0.1275 dominant-slot
+        accuracy on real weights, and it is why the correction moved into the loss.
+        """
         fp = self._fp()
-        flat = np.log(np.full((self.K + 1, 16, 16), 1.0 / (self.K + 1)))
-        p = np.exp(flat)
-        ratio = p[:, fp] / p[:, fp].mean(axis=1)[:, None]
-        np.testing.assert_allclose(ratio, 1.0, atol=1e-12)
+        rng = np.random.default_rng(3)
+        p = np.full((self.K + 1, 16, 16), 0.02)
+        p[0] = 0.92                                   # dominant AND nearly flat over the plan
+        p[1, 3:6, 3:6] = 0.40
+        p += rng.normal(0, 1e-3, p.shape)             # the second-order structure that breaks ties
+        p = np.clip(p, 1e-9, None)
+        p /= p.sum(0, keepdims=True)
+        lg = np.log(p)
+        dominant = fp.copy()
+        dominant[3:6, 3:6] = False                    # where slot 0 is genuinely the right answer
+        kept_arg = float((decode_assignment(lg, fp, "argmax")[dominant] == 0).mean())
+        kept_bal = float((decode_assignment(lg, fp, "balanced")[dominant] == 0).mean())
+        self.assertEqual(kept_arg, 1.0, "the plain argmax keeps the dominant slot")
+        self.assertLess(kept_bal, 0.5, "the balanced read hands most of it away")
+
+    def test_the_temperature_is_honoured_including_zero(self):
+        """⚠️ tau = 0 is the IDENTITY adjustment, and a falsy-sentinel default used to swallow it."""
+        fp, lg = self._fp(), self._posterior()
+        np.testing.assert_array_equal(decode_assignment(lg, fp, "balanced", 0.0),
+                                      decode_assignment(lg, fp, "argmax"))
+        self.assertFalse(np.array_equal(decode_assignment(lg, fp, "balanced", 1.0),
+                                        decode_assignment(lg, fp, "argmax")))
 
     def test_the_marginal_is_taken_over_the_footprint_only(self):
         fp, lg = self._fp(), self._posterior()

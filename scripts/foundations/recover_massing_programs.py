@@ -764,7 +764,7 @@ def _triangle_cells(a, v, b, res: int = RES, eps: float = -1e-9) -> np.ndarray:
     return p[keep].astype(int)
 
 
-def simplify_region(rings, budget: int, exact_mask=None, res: int = RES, rule: str = "contained"):
+def simplify_region(rings, budget: int, exact_mask, res: int = RES, rule: str = "contained"):
     """One region's rings -> the same region under a vertex budget, cheapest corner first.
 
     Greedy least-area vertex deletion (Visvalingam) run over **every ring of the region at once**,
@@ -785,6 +785,8 @@ def simplify_region(rings, budget: int, exact_mask=None, res: int = RES, rule: s
     Three rules, and they differ in that one test alone:
 
       * `contained` -- admit a deletion only if every cell it ADDS is already in the exact region.
+        ⚠️ The sweep's artifact keys and table column call this arm `inner`; same rule, older name,
+        kept so a published table and the artifact behind it do not disagree.
         Needs `exact_mask`. The region can only shrink, so the whole cost lands on `extra`.
       * `lossless`  -- admit a deletion only if its triangle holds NO cell centre at all, so the
         rasterized region does not change by one cell. Run to `budget=0` this answers the question
@@ -972,6 +974,8 @@ def measure_vertex_budget(rows, budgets=VERTEX_BUDGETS, workers: int = 0) -> dic
     with 303 rows that are identical in every column.
     """
     import multiprocessing as mp
+    # imported HERE, before the pool forks, so 62 workers share one copy of it and of torch through
+    # copy-on-write instead of each paying the import. Unused in this frame by design.
     from scripts.foundations.train_height_map_generator import roof_description_length  # noqa: F401
 
     carve = [(int(b), r["program"], tuple(budgets)) for b, r in rows.items()
@@ -1052,9 +1056,10 @@ def build_budget_sheet(cases, out: Path, budget: int, cell: int = 6) -> Path:
     from PIL import Image, ImageDraw
 
     cols = ["REAL BUILDING", "EXACT RING (median 94 verts)",
+            "CHOSEN: LOSSLESS FLOOR (median 58)",
             f"BUDGET {budget}, CONTAINED", f"BUDGET {budget}, FREE"]
     tiles = [(c, [render_iso(h, c["fp"], cell) for h in
-                  (c["target"], c["exact"], c["inner"], c["free"])]) for c in cases]
+                  (c["target"], c["exact"], c["lossless"], c["inner"], c["free"])]) for c in cases]
     tw = max(max(t.width for t in ts) for _, ts in tiles)
     th = max(max(t.height for t in ts) for _, ts in tiles)
     head, pad, lab = 26, 10, 44
@@ -1069,11 +1074,13 @@ def build_budget_sheet(cases, out: Path, budget: int, cell: int = 6) -> Path:
             sheet.paste(t, (pad + j * (tw + pad) + (tw - t.width) // 2, y + (th - t.height) // 2))
         d.text((pad, y + th + 4),
                f"id {c['id']}   {' > '.join(c['ops']) or 'empty'}   "
-               f"{c['verts_exact']} verts -> {c['verts_inner']} contained / {c['verts_free']} free",
+               f"{c['verts_exact']} verts -> {c['verts_lossless']} lossless (CHOSEN) / "
+               f"{c['verts_inner']} contained / {c['verts_free']} free",
                fill=(40, 40, 40))
         d.text((pad, y + th + 20),
-               f"surplus  exact {c['extra_exact']:.4f}   contained {c['extra_inner']:.4f}   "
-               f"free {c['extra_free']:.4f}  (free cuts into GT: missing {c['missing_free']:.4f})",
+               f"surplus  exact {c['extra_exact']:.4f}   lossless {c['extra_lossless']:.4f}   "
+               f"contained {c['extra_inner']:.4f}   free {c['extra_free']:.4f}  "
+               f"(free cuts into GT: missing {c['missing_free']:.4f})",
                fill=(120, 40, 40))
         d.line([(0, y + th + lab - 2), (W, y + th + lab - 2)], fill=(225, 225, 228))
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -1095,11 +1102,16 @@ def budget_montage(rows, art: dict, budget: int, out: Path, n: int = 6) -> Path:
             y0, y1, target = height_field(gt, fp)
             prog = rows[b]["program"]
             hs = {"exact": replay_program(fp, y0, y1, prog)}
-            for arm, rule in (("inner", "contained"), ("free", "free")):
-                p, _ = simplify_program(prog, budget, rule)
+            # the CHOSEN answer is the lossless floor, so it gets a column of its own; the budget
+            # columns beside it are what was rejected and why
+            for arm, rule, v in (("lossless", "lossless", 0), ("inner", "contained", budget),
+                                 ("free", "free", budget)):
+                p, _ = simplify_program(prog, v, rule)
                 hs[arm] = replay_program(fp, y0, y1, p)
             cases.append(dict(id=int(b), fp=fp, target=target, ops=rows[b]["ops"], **hs,
                               verts_exact=pb[b]["exact"]["verts"],
+                              verts_lossless=pb[b]["lossless"]["verts"],
+                              extra_lossless=pb[b]["lossless"]["extra"],
                               verts_inner=pb[b][f"inner{budget}"]["verts"],
                               verts_free=pb[b][f"free{budget}"]["verts"],
                               extra_exact=pb[b]["exact"]["extra"],

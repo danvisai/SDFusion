@@ -22,7 +22,9 @@ buys does not spread out over the roof. It stands up as spikes.
 
 ## The measurement
 
-`recover_massing_programs.py --vertex_budget [--budget_montage V]`. It reads the **existing**
+`recover_massing_programs.py --vertex_budget [--budget_montage V]`. The montage renders the
+**chosen** answer — the lossless floor — beside the exact ring and beside the rejected budget `V`,
+so the sheet shows what was adopted rather than only what was priced. It reads the **existing**
 `execution/artifacts/program_recovery_714.json`, re-runs no fit and never rewrites it, and takes
 57 s on 62 cores. Artifact: `..._vertex_budget.json`; montage
 `outputs/program_recovery/vertex_budget.png`.

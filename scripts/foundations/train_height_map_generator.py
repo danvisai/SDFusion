@@ -383,9 +383,9 @@ PITCH_FLAT_BIN = 0
 # posterior by the model's own marginal buys minor-slot recall 0.0000 -> 0.2829 and pays with
 # per-column accuracy 0.4245 -> 0.2203 and the DOMINANT slot 0.8251 -> 0.1275: it mostly relabels
 # the building, which is `circmean`'s failure from #129 in a second place. The reason is structural
-# and `test_and_the_half_that_did_not_it_neutralises_a_flat_class` pins it -- a class that is flat
-# over the plan has p/prior == 1 by construction, so the dominant slot ties with every other flat
-# class and noise breaks the tie.
+# and `test_and_the_half_that_did_not_it_loses_the_dominant_slot` pins it THROUGH `decode_assignment`
+# itself -- a class flat over the plan has p/prior == 1 by construction, so a dominant slot that is
+# also nearly flat ties with every other flat class and second-order structure breaks the tie.
 #
 # 🔑 So the adjustment goes where it can change what is LEARNED instead of rescaling what was not:
 # `tau * log(prior)` added to the assignment logits during training, with inference left as the
@@ -1222,7 +1222,8 @@ def assignment_prior(assign, fp, k_ops: int) -> np.ndarray:
     return (counts / max(counts.sum(), 1)).astype(np.float64)
 
 
-def decode_assignment(logits, fp, read: str = "", temperature: float = 0.0) -> np.ndarray:
+def decode_assignment(logits, fp, read: str | None = None,
+                      temperature: float | None = None) -> np.ndarray:
     """`(K+1, Z, X)` assignment logits -> the per-column slot the compiler receives.
 
     🔑 The ONE place the assignment is decoded, so the served path, the training-time validation
@@ -1243,9 +1244,11 @@ def decode_assignment(logits, fp, read: str = "", temperature: float = 0.0) -> n
     p = np.exp(lg - lg.max(axis=0, keepdims=True))
     p /= p.sum(axis=0, keepdims=True)
     m = np.asarray(fp, bool)
-    if (read or ASSIGN_DECODE) == "argmax" or not m.any():
+    if (ASSIGN_DECODE if read is None else read) == "argmax" or not m.any():
         return p.argmax(axis=0).astype(np.uint8)
-    tau = temperature or ASSIGN_TEMPERATURE
+    # ⚠️ `is None`, not `or`: tau = 0.0 is the identity adjustment and a caller asking for it must
+    # get it rather than the pre-registered 1.0
+    tau = ASSIGN_TEMPERATURE if temperature is None else temperature
     prior = np.clip(p[:, m].mean(axis=1), 1e-12, None)
     return (p / (prior ** tau)[:, None, None]).argmax(axis=0).astype(np.uint8)
 
@@ -1850,8 +1853,13 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"],
                      decode=("argmax" if d["objective"] == "ce" and quantile is None else
                              f"posterior q={quantile}" if d["objective"] == "ce" else
-                             "compiled program (argmax slot, argmax type, "
-                             + ("median offset, median pitch, argmax azimuth)"
+                             # ⚠️ read from PLANE_DECODE / ASSIGN_DECODE, never spelled out: this
+                             # string said "median pitch" for two committed #132 artifacts after
+                             # the pre-registered read had become q0.25, which defeats the very
+                             # guard the same commit added by storing the decode with the weights
+                             f"compiled program ({ASSIGN_DECODE} slot, argmax type, "
+                             + (" ".join(f"{r} {q}" for q, r in
+                                         zip(PLANE_QUANTITIES, PLANE_DECODE)) + ")"
                                 if head == "class" else "regressed plane)")
                              if d["objective"] == "program" else
                              f"regression (trained at q={d.get('quantile')})"
@@ -2214,7 +2222,7 @@ def slot_usage(pred, label, held, rows) -> dict:
     pa, pt, pp = pred
     la, lt, _ = label
     k_ops = label[2].shape[1]
-    used_p, used_l, ramp_typed, rise = [], [], [], []
+    used_p, used_l, ramp_typed, rise, ramp_rise = [], [], [], [], []
     for i in rows:
         m, e = held["fp"][i], int(held["extent"][i])
         up = set(np.unique(pa[i][m])) - {k_ops}
@@ -2227,12 +2235,25 @@ def slot_usage(pred, label, held, rows) -> dict:
             r = (pa[i] == k) & m
             if int(r.sum()) > 20:
                 rise.append(float(h[r].max() - h[r].min()))
+                if int(pt[i][k]) == SLOT_TYPES.index("Ramp"):
+                    ramp_rise.append(rise[-1])
     rise = np.asarray(rise)
+    ramp_rise = np.asarray(ramp_rise)
+    # ⚠️ TWO keys, because one name for both measurements has now misled a reader twice: #129
+    # renamed `decode_ablation`'s copy after the first time, and in #132 the all-slots figure read
+    # 0.00 while the `Ramp`-typed one was 12.00 and I called the pitch gone. A `Layer` is flat by
+    # definition, so the all-slots number falls as soon as an arm uses more slots -- it says
+    # something about the TYPE mix, not about whether a pitch was drawn.
+    med = lambda a: float(np.median(a)) if len(a) else 0.0
     return dict(slots_used_by_arm=float(np.mean(used_p)),
                 slots_used_by_label=float(np.mean(used_l)),
                 arm_uses_exactly_one=float(np.mean(np.asarray(used_p) == 1)),
                 used_slots_typed_ramp=float(np.mean(ramp_typed)) if ramp_typed else 0.0,
-                realised_rise_median_voxels=float(np.median(rise)) if len(rise) else 0.0,
+                realised_rise_all_slots_voxels=med(rise),
+                realised_rise_ramp_typed_voxels=med(ramp_rise),
+                n_ramp_typed_slots=int(len(ramp_rise)),
+                # ⚠️ over every used slot, so a `Layer` counts as flat BY DEFINITION. Read it with
+                # `used_slots_typed_ramp`, never as evidence on its own that planes were lost.
                 used_slots_compiling_flat=float((rise < 1).mean()) if len(rise) else 0.0)
 
 
@@ -2270,11 +2291,13 @@ def assignment_stats(logits, label_assign, fp, k_ops: int) -> dict:
         return {}
     inside = p[:, m]                                             # (K+1, n_columns)
     won = inside.max(axis=0)
-    arg = inside.argmax(axis=0)
     lab_in = lab[m]
-    # the model's own marginal over the footprint: a decode, so it may not look at the label
-    prior = np.clip(inside.mean(axis=1), 1e-12, None)
-    bal = (inside / prior[:, None]).argmax(axis=0)
+    # ⚠️ both reads go through `decode_assignment`, never a local argmax. A private copy here is
+    # exactly what that function's docstring forbids, and the copy this replaces had silently
+    # dropped its `** tau`, so raising ASSIGN_TEMPERATURE would have left this table describing a
+    # read the model is not served by.
+    arg = decode_assignment(logits, m, "argmax")[m]
+    bal = decode_assignment(logits, m, "balanced")[m]
 
     acc = lambda v, sel: float((v[sel] == lab_in[sel]).mean()) if sel.any() else 0.0
     slots = lambda v: int(len(set(np.unique(v).tolist()) - {k_ops}))
@@ -2520,8 +2543,10 @@ def report_program_diagnostics(d: dict) -> None:
     print(f"\n  slots used: arm {u['slots_used_by_arm']:.2f}   label {u['slots_used_by_label']:.2f}"
           f"   arm uses exactly one on {u['arm_uses_exactly_one']:.3f}")
     print(f"    of the slots the arm uses, typed Ramp {u['used_slots_typed_ramp']:.3f}; "
-          f"realised rise median {u['realised_rise_median_voxels']:.2f} voxels, "
-          f"{u['used_slots_compiling_flat']:.3f} compile flat")
+          f"{u['used_slots_compiling_flat']:.3f} compile flat (a Layer is flat BY DEFINITION)")
+    print(f"    realised rise: over every used slot {u['realised_rise_all_slots_voxels']:.2f} vox; "
+          f"over the {u['n_ramp_typed_slots']} Ramp-TYPED slots "
+          f"{u['realised_rise_ramp_typed_voxels']:.2f} vox  <- the one that says a pitch was drawn")
     if d.get("assignment_collapse"):
         a = d["assignment_collapse"]
         print(f"\n  #132: WHY that reads 1 -- is the assignment head DIFFUSE or confidently wrong?")

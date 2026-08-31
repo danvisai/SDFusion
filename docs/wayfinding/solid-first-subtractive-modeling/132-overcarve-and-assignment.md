@@ -139,12 +139,24 @@ Evaluated by `verdict()`, not by this table.
 
 ### ✅ The assignment change worked, and it is the first arm here to use a second region
 
-| | #6 | #129 | **#132** | label |
-|---|---|---|---|---|
-| slots used | 1.19 | 0.90 | **2.03** | 3.06 |
-| uses exactly one slot | — | 0.895 | **0.324** | — |
-| recall on non-dominant-slot columns | — | 0.0000 | **0.2801** | — |
-| p(correct slot) on those columns | — | 0.1654 | **0.2545** | — |
+`slot_usage` is now published for **every** arm in the run, not only the selected one:
+
+| | #6 | #129 | `class129_at_q025` | **#132 arm** | #132 endpoint | label |
+|---|---|---|---|---|---|---|
+| slots used | 1.19 | 0.90 | 0.90 | **2.03** | 2.12 | 3.06 |
+| uses exactly one slot | — | 0.895 | 0.895 | **0.324** | 0.260 | — |
+| `Ramp`-typed share of used slots | — | 0.522 | 0.522 | 0.390 | 0.421 | — |
+| **`Ramp`-typed slots, absolute** | — | — | 190 | **308** | 333 | — |
+| realised rise, `Ramp`-typed | — | 22.0 | 16.0 | **12.0** | 14.0 | — |
+| realised rise, every used slot | — | 6.0 | 4.0 | 0.00 | 0.00 | — |
+| recall on non-dominant-slot columns | — | 0.0000 | 0.0000 | **0.2801** | — | — |
+| p(correct slot) on those columns | — | 0.1654 | 0.1654 | **0.2545** | — | — |
+
+🔑 **The absolute row corrects a reading the share invites.** The `Ramp`-typed *share* falls
+0.522 → 0.390, which sounds like fewer ramps; the *count* goes **190 → 308**, +62%. The arm draws
+more ramps AND more layers — the share fell because the layers grew faster. So "more slots did not
+become more planes" is about the ratio the `planar` metric reads, not about the arm drawing fewer
+pitched regions than #129. It draws more.
 
 🔑 **And that recall is under the PLAIN argmax**, which is the whole point: the logit-adjusted loss
 *taught* what the refuted post-hoc read could only relabel. It reaches the same 0.28 the balanced
@@ -170,10 +182,16 @@ own weights the same trade appears in the decode table: `q0.25` against `median`
 0.0909 → 0.0832 and `missing` 0.0832 → 0.0659, bought with realised `Ramp` rise 16 → **12 voxels**.
 
 ⚠️ **A correction to my own reading, and it is #129's naming hazard repeating.** `slot_usage`
-publishes `realised_rise_median_voxels` over **every used slot**, `Layer`s included, and it reads
+published `realised_rise_median_voxels` over **every used slot**, `Layer`s included, and it read
 **0.00** for this arm. That is not "the pitch is gone" — the `Ramp`-typed rise is **12.00 voxels**.
 The arm now uses 2.03 slots of which only 39% are typed `Ramp`, so the flat majority drags the
 all-slots median to zero. One name, two measurements, and I misread it once before checking.
+
+🔑 **Fixed in code this time, not in prose.** #129 hit the same hazard and renamed only
+`decode_ablation`'s copy; `slot_usage` kept the ambiguous key and it misled the next reader, who was
+me. It now publishes **both** — `realised_rise_all_slots_voxels` and
+`realised_rise_ramp_typed_voxels`, with the slot count behind the second — so the two measurements
+cannot be confused by name again.
 
 ### ⚠️ Both predictions, and one imprecision in how I wrote one of them
 
@@ -195,10 +213,16 @@ Each change is right on its own axis and they pull opposite ways on the populati
 * the pitch change reduces the over-carve, and on #129's single-region weights it is enough
   (collapse 0.0438). Against 2.03 regions it is not.
 
-🔑 **And the extra slots are mostly flat.** `Ramp`-typed share of used slots falls 0.522 → **0.390**,
-and 59.2% of used slots compile flat, so `planar` reaches only 0.12. The prior adjustment was applied
-to the **assignment** head; the **type** head was left alone, and it answers `Layer` for most of the
-small new regions. More slots did not become more planes.
+🔑 **And the extra slots are mostly flat.** The `Ramp`-typed share of used slots falls 0.522 →
+**0.390**, so `planar` reaches only 0.12. The prior adjustment was applied to the **assignment**
+head; the **type** head was left alone, and it answers `Layer` for most of the small new regions.
+More slots did not become more planes.
+
+⚠️ **`used_slots_compiling_flat` (0.592) is NOT evidence for that**, and quoting it as such was
+wrong: a `Layer` is flat *by definition*, so that figure falls out of the type mix rather than
+testing it, and it rises automatically whenever an arm uses more slots. The load-bearing number is
+the `Ramp`-typed share above. It is now reported with that warning attached to it in
+`report_program_diagnostics`.
 
 ⚠️ The head is also **more diffuse than #129's**, not less: confidence 0.431 → 0.341, normalised
 entropy 0.799 → 0.885, overall per-column accuracy 0.4245 → 0.2739. The adjustment bought coverage
