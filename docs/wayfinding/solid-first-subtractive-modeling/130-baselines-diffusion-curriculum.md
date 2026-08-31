@@ -28,7 +28,7 @@ two places where they disagree are in §4.
 | | representation | supervision | output space | the claim of ours it touches |
 |---|---|---|---|---|
 | **[ArcPro](https://arxiv.org/abs/2503.02745)** (CVPR 2025) | a **tree** of `CreateLayer(parent, h, contour)` under one `SetGround`, BFS-serialised to tokens | **100% synthetic.** Forward procedural generation; root contours drawn from 872,487 cleaned Bing Maps footprints, children sampled and validated | stacked flat prisms → mesh, via a learning-free interpreter | ✅ #10's `Layer`; ✅ #6's total compiler; ⚠️ adds a supervision option #6's table has no row for; 🔑 names `Ramp` as its own missing statement |
-| **[Building-Gym](https://arxiv.org/abs/2309.02583)** (2023) | ordered actions over a 10×10×10 voxel grid, 2 channels (size, room type), 7 **interior** room types | **synthetic**, from a heuristic agent on randomly generated site conditions | a voxel design state; a ψ layer forbids deleting an existing room | ✅ #6's set head — same structural fact, opposite conclusion; and the only baseline that engages #126's scoring problem |
+| **[Building-Gym](https://arxiv.org/abs/2309.02583)** (2023) | ordered actions over a 10×10×10 voxel grid, 2 channels (size, room type), 7 **interior** room types | **synthetic**, from a heuristic agent on randomly generated site conditions | a voxel design state; a ψ layer forbids deleting an existing room | ✅ #6's set head — same structural fact, opposite conclusion; and a *trained* preference model, which is a second answer to #126's scoring problem |
 | **[ShapeAssembly](https://arxiv.org/abs/2009.08026)** / **[CSGNet](https://arxiv.org/abs/1712.08290)** / **[PLAD](https://arxiv.org/abs/2011.13045)** | cuboid proxies + attachments (SA); recursive ∪ ∩ − over primitives (CSGNet) | PartNet extraction (SA); policy gradient (CSGNet) or pseudo-labels / approximate distributions (PLAD) | an executable program → shape, via a differentiable or plain interpreter | ✅ PLAD *is* the citation #6's supervision row argues against; ⚠️ SA's hierarchical sequence VAE is the closest published thing to "generate over the program" |
 | **[CoMa](https://arxiv.org/abs/2601.08464)** (Jan 2026) | per building, a list of horizontal extrusions — polygon + `bottom_elevation` + `top_elevation` in metres — emitted as **JSON text** | fine-tune Qwen3-VL 2B/4B/8B on CoMa-20K (City of Melbourne open data); also zero-shot Qwen3-VL-235B | tokenised JSON that must parse, then extrude | ✅ #6's totality, with a number; ✅ #126's scorecard, hard; 🔑 its output space fires our **KILL** by construction; ✅ independent support for §3 |
 | **[CityGenAgent](https://arxiv.org/abs/2602.05362)** (Feb 2026) | Block Program (`id`, `type`, `polygon` in metres, `floor_count`, `facade` **string**) + Building Program (facade/window/door/**roof** as text descriptors) | SFT for schema validity, then PPO with GPT-4o and VLM-as-judge rewards | footprint × floor count → base mesh, then **asset retrieval** by semantic matching | 🔑 its whole per-building massing is our `blockout` arm; it does not contest this question, it concedes it |
@@ -67,10 +67,14 @@ And the price of not having it is already on our record. #6's `flatten_ramps` co
 **perfect** program and flattens only its `Ramp`s, which leaves exactly ArcPro's (and CoMa's)
 representation with perfect parameters:
 
-| on the 411 carve-needing | `extra` | **ops** | **planar** |
-|---|---|---|---|
-| the compiled label as fitted | 0.0035 | 2.0 | 0.50 |
-| **the same program, every `Ramp` flattened — a stacked-flat-layer output space at its ceiling** | 0.0528 | **1.0** | **0.00** |
+| on the 411 carve-needing | `extra` | `missing` | `vs_input` | collapse | **ops** | **planar** |
+|---|---|---|---|---|---|---|
+| the compiled label as fitted | 0.0035 | 0.0000 | 0.8226 | 0.0000 | 2.0 | 0.50 |
+| **the same program, every `Ramp` flattened — a stacked-flat-layer output space at its ceiling** | 0.0528 | 0.0000 | 0.8847 | 0.0024 | **1.0** | **0.00** |
+
+*(`vs_input` and collapse are on this table because #126's rule is about every table, and here they
+carry their own point: flattening does not make the arm stop acting — `vs_input` 0.8226 → 0.8847 is
+a representation that still carves, just never at an angle.)*
 
 🔑🔑 **A stacked-flat-layer representation, given parameters that are exactly right, fires #6's
 pre-registered KILL clause** (`planar ≤ 0.20`) — while passing its `extra` clause at 0.0528 < 0.0603.
@@ -112,8 +116,9 @@ belongs in a specification as a contribution rather than an aside.
 sequence representations, ~90% accurate against random sequences. [#126](126-massing-scoring.md)
 spent a whole ticket on the same problem — how do you score a design when the target does not
 determine it — and landed on `extra`/`missing` + `vs_input` + collapse rate. A learned preference
-model is a different answer to that question, and Building-Gym is the only one of the five that
-engages the question at all.
+model is a different answer to that question. ⚠️ It is not the only one of the five to engage it —
+CoMa's "Contextual Relevance" prompts a general VLM as a judge — but Building-Gym's is *trained on
+the design distribution itself* rather than borrowed, which is the version that could transfer.
 
 ### ShapeAssembly and CSG induction — PLAD is the paper #6's supervision row argues against
 
@@ -237,7 +242,9 @@ disease in a new place:
 | #132 | the assignment head is **diffuse, not wrong** — measured on #129's weights at confidence 0.431, normalised entropy 0.799 | fixed by reweighting the classes in the loss |
 
 🔑 **#129's fix is a hand-built, one-variable sampler.** It works, and it is the only thing on this
-map that has ever put a real pitch in a trained arm (realised rise 0.00 → 20 voxels). A set
+map that has ever put a real pitch in a trained arm (realised rise inside a `Ramp`-typed slot
+0.00 → **22 voxels** on #129's arm of record, 20 on its endpoint — this ticket's own naming hazard,
+so the checkpoint is named). A set
 diffusion is the general form of that move, over the joint `(assignment, types, planes)`, without
 needing someone to find the right re-parametrisation one variable at a time. Four tickets have now
 hit the same disease in four places, and each was fixed by hand.
@@ -256,11 +263,14 @@ supervision settles the supervision question and is silent on this one.
 *plausible* roof which is not the real one is scored as a failure. We already know what that costs,
 from two independent directions:
 
-| a correct one-sample draw, scored at the point metric | `extra` | collapse |
-|---|---|---|
-| a **real matched building**, offered footprint-exact (#126, carve-needing pairs, n=72) | **0.0974** | 0.1667 |
-| 1-NN retrieval — a nonparametric draw from roofs on near-identical footprints (fp IoU 0.952) | **0.1031** | 0.1582 |
-| **the bar's `extra` clause** | **< 0.0603** | — |
+| a correct one-sample draw, scored at the point metric | `extra` | `vs_input` | collapse |
+|---|---|---|---|
+| a **real matched building**, offered footprint-exact (#126, carve-needing pairs, n=72) | **0.0974** | 0.8446 | 0.1667 |
+| 1-NN retrieval — a nonparametric draw from roofs on near-identical footprints (fp IoU 0.952) | **0.1031** | 0.8743 | 0.1582 |
+| **the bar's `extra` clause** | **< 0.0603** | — | — |
+
+Both act (`vs_input` well under the 0.98 guard), so neither is buying its `extra` by declining to
+carve — the 0.10 is what a *committed, plausible, wrong* roof costs.
 
 **A correct one-sample generative model of this task scores about 0.10 and fails the bar.** Every arm
 on this record that commits to a shape lands at 0.08–0.15 (#6 0.1236, #129 0.1507, #132 0.0832); the
@@ -374,6 +384,23 @@ The last two columns are the load-bearing ones. **The label goes 1.00 → 2.00 �
 goes 1.56 → 1.97 → 2.15 → 2.16.** It over-fragments the simplest buildings and saturates at ~2.16 by
 the three-slot bucket, then does not move at all for the four-slot bucket.
 
+🔑 **And it is not one arm's quirk. #6's arm — a different plane head, from before the classified
+parameters and before the assignment adjustment — is flatter still:**
+
+| label slots | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| the label | 1.00 | 2.00 | 3.00 | 4.00 |
+| **#6 (`regress`)** | 0.98 | 1.02 | 1.19 | **1.31** |
+| **#132 (`class` + logit-adjusted assignment)** | 1.56 | 1.97 | 2.15 | **2.16** |
+
+#132's fix moved the whole curve up, which is the K = 1 ceiling breaking — and it did **not** make
+the curve respond to the building. Two arms, two plane heads, two assignment losses, and both emit a
+near-constant program size.
+*(`--diagnose_program outputs/height_map_generator/heightmap_program.pt --out
+execution/artifacts/height_map_generator_program_strata_714.json`, which writes
+`..._strata_714_diagnostics.json`; that arm's ALL row reproduces #6's record exactly at `extra`
+0.1236 / `vs_input` 0.8952 / collapse 0.0073 / 1.19 slots, so the table is the same arm #6 scored.)*
+
 **The arm has learned a constant, not a function of the building.** That separates the two
 hypotheses cleanly:
 
@@ -412,21 +439,31 @@ Two things, and neither is a schedule:
    *(`complexity_strata` stratifies the one checkpoint under diagnosis, so this cross-arm row is
    derived from the scorecard's committed `per_building` rows joined against `label_slots`, both in
    `height_map_generator_strata_714.json` and both written by the same `label_complexity`.)*
-2. ⚠️ **A tempting one-line change is refuted by the same table, and I had written it down before
-   reading the row that kills it.** #132's prior is computed across a population that is 44.6% empty
-   programs, so `uncarved` reads **0.5627** corpus-wide; restricting it to the carve-needing rows the
-   bar is actually set on takes that to **0.1316**. That looks like a free, better-targeted
-   adjustment. It is not. **The slot 0 : slot 3 ratio is 11.9× on both rows** — excluding the
-   empty-program buildings changes *how hard `uncarved` is penalised relative to every slot* and
-   leaves the imbalance among the slots exactly as it was. So the only thing it would buy is more
-   pressure to carve, on an arm that already eats a quarter of its buildings (collapse 0.2579, and
-   0.3425 on the 4-slot bucket). **Not a recommendation — a caution**, and the `≥1` row exists in
-   the artifact so the next reader does not have to rediscover it.
+2. 🔑 **There IS one example-selection lever this table does not refute, and it is not an
+   ordering — it is the 44.6% of rows that need no program at all.** `train()` draws its pool from
+   every row (`ok & not held`), so **15,562 of 34,909 training buildings supervise "predict
+   nothing"**, and `uncarved` reads **0.5627** corpus-wide against **0.1316** on the carve-needing
+   rows the bar is actually set on. Dropping or downweighting them — in the sampler, or in
+   `assignment_prior` — is the one member of the curriculum family that is untested here, and it is
+   a one-line change rather than a schedule.
+   ⚠️ **But it is a caution, not a recommendation, and the same row says why.** The slot 0 : slot 3
+   ratio is **11.9× on both** the `≥1` and the `ALL` rows: excluding the empty-program buildings
+   changes only how hard `uncarved` is penalised *relative to every slot* and leaves the imbalance
+   *among* the slots exactly where it was. So all it can buy is more pressure to carve — on an arm
+   that already eats a quarter of its buildings (collapse 0.2579, and 0.3425 on the 4-slot bucket).
+   ⚠️ **And it is a proposed run, so #130's own rule binds it**: before anyone trains it, it needs a
+   pre-registered bar in #6's form — *both* halves of form together (`dl_ops` **and**
+   `dl_planar_fraction`), the `extra` clause, and the collapse guard, all machine-checked in
+   `verdict()` rather than argued in prose. Nothing here lowers that requirement; if anything the
+   collapse direction raises it.
+   *(I had written this down as a clean win before reading the `≥1` row, which is why that row is in
+   the artifact.)*
 
-**⚠️ One caveat I will not paper over.** This says a curriculum will not fix the *slot count*. It
-does not rule out an ordering helping the **type** head, which is the binding constraint now and
-which this table does not stratify. If someone proposes a curriculum for that, it needs its own free
-measurement first — the same question, asked of the type head's prior.
+**⚠️ Two caveats I will not paper over.** This refutes an ordering over *complexity*; it says nothing
+about the lever in point 2 above, which is example selection of a different kind. And it is measured
+on the **assignment** head — the **type** head is the binding constraint now and this table does not
+stratify it. If someone proposes a curriculum for the type head, it needs its own free measurement
+first: the same question, asked of the type head's prior.
 
 
 ## 4. Corrections `NOVELTY_SURVEY.md` needs
@@ -437,7 +474,7 @@ silently overwritten.
 
 | the survey says | the paper says |
 |---|---|
-| CoMa "conditions on site contours and context and **emits separate polygonal extrusion sequences**", scored **P** on "learned executable program" and **Y** on "deterministic realization" and "coordinated multiple buildings" | It is a **dataset (CoMa-20K) plus a VLM benchmark**. The extrusion list is the *dataset schema*, not a learned executable program, and there is no interpreter — the model emits JSON that is extruded. Its fine-tuned models **lose to zero-shot Qwen3-VL-235B on all seven metrics**, and 21% of the best fine-tuned outputs do not parse. |
+| CoMa "conditions on site contours and context and **emits separate polygonal extrusion sequences**", scored **P** on "learned executable program" and **Y** on "deterministic realization" | It is a **dataset (CoMa-20K) plus a VLM benchmark**. The extrusion list is the *dataset schema*, not a learned executable program, and there is no interpreter — the model emits JSON that is extruded. Its fine-tuned models **lose to zero-shot Qwen3-VL-235B on all seven metrics**, and 21% of the best fine-tuned outputs do not parse. → two cells move, **P → N** and **Y → P**; "coordinated multiple buildings" stays **Y**, because the schema really does carry several identified buildings per site. |
 | CityGenAgent is "the strongest whole-system novelty risk", scored **P** on architectural typed +/− | Correct for **editing and block coordination**; wrong for massing. A building's massing is `polygon` + `floor_count` — one prism, i.e. our `blockout` arm at `extra` 0.2308 — and the roof is a **text descriptor** consumed by asset retrieval. |
 
 And one addition rather than a correction: the survey's data strategy says "follow ArcPro's
@@ -470,7 +507,9 @@ says why we should prefer it.
   runs 1.00 → 4.00, and 4-slot buildings are already **52.6%** of the carve-needing training rows.
   Exposure is not scarce. The binding imbalance is **inside** each building (slot 3 at 0.0840 even in
   the most favourable bucket), which no ordering over buildings can reach and which #132's
-  logit-adjusted loss already flattens.
+  logit-adjusted loss already flattens. 🔑 **And the constant is not one arm's quirk** — #6's
+  `regress` arm is flatter still, 0.98 → 1.31 across the same buckets. ⚠️ Scoped to an ordering over *complexity*, and to the
+  *assignment* head — see the two caveats and the one untested example-selection lever in §3.
 * ✅ **Set diffusion is the right general answer to the disease this map has hit four times**, and it
   is second in line rather than dead — with a precondition that is not about diffusion at all.
 

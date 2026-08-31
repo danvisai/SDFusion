@@ -2394,23 +2394,59 @@ def assignment_collapse(ckpt: Path, label, held, rows, cpu: bool = False) -> dic
                 recall_minor_balanced=wt("recall_minor_balanced"))
 
 
+# #130's buckets, named ONCE. They are simultaneously JSON keys, print labels and prose in the
+# write-up, so a literal repeated per loop is a silent artifact rename waiting to happen -- the
+# same hazard `slot_usage`'s two rise keys were renamed for in #132, one level up.
+# ⚠️ The two aggregate rows are sums of the exact rows above them, not separate measurements. They
+# exist because a curriculum schedules a FRONT and a BACK, never one slot count at a time.
+COMPLEXITY_BUCKETS = (
+    ("<=2  (an easy-first schedule's first phase)", 0, 2),
+    (">=3  (its last phase)", 3, K_OPS),
+    (">=1  (carve-needing -- the population the bar is set on)", 1, K_OPS),
+    ("ALL  (what #132's prior was computed on)", 0, K_OPS),
+)
+
+
+def slot_counts_of(assign, fp, k_ops: int) -> tuple:
+    """ONE building's LABEL slot count and its assignment class counts, over footprint columns.
+
+    🔑 The single implementation, because #130 needs this number in three places -- the corpus
+    table, the pinned table, and the scorecard's `label_slots` -- and this map's record already has
+    one metric that meant two things because it was computed twice (#129/#132's `realised_rise`).
+
+    ⚠️ Footprint columns only. Off-footprint columns are compiled away, so a slot that fires only
+    outside the footprint is a slot the compiler never sees and this must not count it.
+    """
+    m = np.asarray(fp, bool)
+    counts = np.zeros(k_ops + 1, np.int64)
+    if not m.any():
+        return 0, counts
+    counts = np.bincount(np.asarray(assign)[m].ravel().astype(np.int64),
+                         minlength=k_ops + 1)[:k_ops + 1]
+    return int((counts[:k_ops] > 0).sum()), counts
+
+
 def label_complexity(program: dict, cache: dict) -> tuple:
-    """Every corpus row's LABEL slot count, and its assignment class counts. One pass over both.
+    """`slot_counts_of` over every corpus row, positionally. `(used[n], counts[n, K+1])`.
 
     ⚠️ From the LABEL, never from a prediction. Bucketing a population by what the model did would
     let the model pick the populations it is then scored on, which is the shape of every
     selecting-on-the-answer near-miss on this map's record.
+
+    ⚠️ Positional: `program["assign"][i]` is paired with `cache["fp"][i]`, which holds because
+    `build_program_cache` allocates `n = len(cache["ok"])` rows and stores `row=cache["row"]`. The
+    pairing is checked here rather than assumed, because compacting that 146 MB `assign` array to
+    the `ok` rows is a natural future optimisation and it would silently mis-pair every building.
     """
+    if not np.array_equal(np.asarray(program["row"]), np.asarray(cache["row"])):
+        raise ValueError("the program cache is no longer row-aligned with the height cache; "
+                         "join on `row` rather than by position")
     a, fp = program["assign"], cache["fp"] > 0
     k_ops = program["types"].shape[1]
     used = np.zeros(len(a), np.int16)
     counts = np.zeros((len(a), k_ops + 1), np.int64)
     for i in range(len(a)):
-        m = fp[i]
-        if not m.any():
-            continue
-        counts[i] = np.bincount(a[i][m].ravel().astype(np.int64), minlength=k_ops + 1)[:k_ops + 1]
-        used[i] = int((counts[i][:k_ops] > 0).sum())
+        used[i], counts[i] = slot_counts_of(a[i], fp[i], k_ops)
     return used, counts
 
 
@@ -2443,8 +2479,8 @@ def complexity_strata(pred, label, held, rows, cache: dict, program: dict) -> di
     These rows say WHERE the residual sits (#131: price where it sits, not only how big it is).
     They do not say that any part of the arm passed.
     """
-    used_all, counts_all = label_complexity(program, cache)
     k_ops = program["types"].shape[1]
+    used_all, counts_all = label_complexity(program, cache)
 
     # -- the corpus half: what an ordering over complexity would actually feed the head ---------
     tr = np.nonzero((cache["ok"] > 0) & (cache["held"] == 0))[0]
@@ -2456,26 +2492,22 @@ def complexity_strata(pred, label, held, rows, cache: dict, program: dict) -> di
         population[name] = dict(
             n=int(len(idx)), share=float(len(idx) / max(len(tr), 1)),
             prior=[float(x) for x in (c / max(c.sum(), 1))],
-            # the imbalance #132 corrected in the loss, as one number: the widest slot ratio
+            # The widest slot ratio -- slot 0 against the LAST slot -- which is the imbalance #132
+            # corrected in the loss, as one number. ⚠️ `None` means the last slot has no support at
+            # all in this bucket, i.e. the ratio is infinite; JSON has no infinity to write.
             skew=(float(c[0] / c[k_ops - 1]) if c[k_ops - 1] else None))
 
     for k in range(k_ops + 1):
         bucket(f"{k} slots", used_all[tr] == k)
-    # ⚠️ aggregations of the rows above, not separate measurements. They exist because a curriculum
-    # schedules a FRONT and a BACK, never one slot count at a time.
-    bucket("<=2  (an easy-first schedule's first phase)", used_all[tr] <= 2)
-    bucket(">=3  (its last phase)", used_all[tr] >= 3)
-    # 🔑 the population every score on this ticket is reported on. Read it against ALL: the gap
-    # between the two rows is the 0-slot majority, and #132's prior was computed across BOTH, so a
-    # large part of the `uncarved` mass the assignment head is corrected against comes from
-    # buildings that need no program at all.
-    bucket(">=1  (carve-needing -- the population the bar is set on)", used_all[tr] >= 1)
-    bucket("ALL  (what #132's prior was computed on)", used_all[tr] >= 0)
+    for name, lo, hi in COMPLEXITY_BUCKETS:
+        bucket(name, (used_all[tr] >= lo) & (used_all[tr] <= hi))
 
     # -- the arm half: is its residual graded by that same axis? --------------------------------
+    # 🔑 The label slot count here comes from `label`, the ALIGNED label every other diagnostic in
+    # this module reads, through the same `slot_counts_of` as the corpus table above -- so the two
+    # halves cannot drift and no row-id join is needed.
     pa, pt, pp = pred
-    r2i = {int(r): j for j, r in enumerate(program["row"])}
-    lab_used = np.array([used_all[r2i[int(held["row"][i])]] for i in rows])
+    lab_used = np.array([slot_counts_of(label[0][i], held["fp"][i], k_ops)[0] for i in rows])
     heights, form, slots = [], [], []
     for i in rows:
         m, e = held["fp"][i], int(held["extent"][i])
@@ -2499,10 +2531,15 @@ def complexity_strata(pred, label, held, rows, cache: dict, program: dict) -> di
             slots_used_by_arm=float(np.mean([slots[j] for j in sel])),
             slots_used_by_label=float(np.mean([lab_used[j] for j in sel])))
 
-    for k in range(1, k_ops + 1):
+    # ⚠️ from 0, not from 1. No pinned carve-needing row has a 0-slot label today, but a row that
+    # did would otherwise appear only inside the aggregates and silently leave the exact rows.
+    for k in range(k_ops + 1):
         arm_bucket(f"{k} slots", lab_used == k)
-    arm_bucket("<=2  (an easy-first schedule's first phase)", lab_used <= 2)
-    arm_bucket(">=3  (its last phase)", lab_used >= 3)
+    # ⚠️ only the two SCHEDULE buckets here. `>=1` is a statement about the training pool's
+    # empty-program majority and is identical to ALL on a carve-needing population, so printing it
+    # beside ALL would be a redundant row in a table that has to be read carefully.
+    for name, lo, hi in COMPLEXITY_BUCKETS[:2]:
+        arm_bucket(name, (lab_used >= lo) & (lab_used <= hi))
     arm_bucket("ALL  (the pre-registered population)", lab_used >= 0)
     return dict(n=len(rows), k_ops=k_ops, n_train=int(len(tr)),
                 population=population, arm=arm)
@@ -2724,20 +2761,25 @@ def report_program_diagnostics(d: dict) -> None:
         k = s["k_ops"]
         print(f"\n  #130: the OTHER dial -- bucketed by the LABEL's slot count. "
               f"⚠️ POST-HOC SUBGROUPS: they say where the residual sits, they cannot pass.")
+        # ⚠️ The column is sized from the longest bucket name rather than fixed. `COMPLEXITY_BUCKETS`
+        # carries prose, so a name will get longer, and a header that no longer sits over its column
+        # is a table nobody can read -- which on this ticket is how the wrong number gets quoted.
+        w = max(len(n) for n in list(s["population"]) + list(s["arm"])) + 2
         print(f"    what an ordering over complexity would feed the head "
               f"(n={s['n_train']} training rows, no model in this table)")
         head = " ".join(f"{f'slot{j}':>8}" for j in range(k))
-        print(f"      {'bucket':<44}{'n':>7}{'share':>8} {head}{'uncarved':>10}{'skew':>8}")
+        print(f"      {'bucket':<{w}}{'n':>7}{'share':>8} {head}{'uncarved':>10}"
+              f"{'slot0:last':>11}")
         for name, v in s["population"].items():
-            sk = "  inf" if v["skew"] is None else f"{v['skew']:.1f}"
-            print(f"      {name:<44}{v['n']:>7}{v['share']:>8.4f} "
+            sk = "inf" if v["skew"] is None else f"{v['skew']:.1f}"
+            print(f"      {name:<{w}}{v['n']:>7}{v['share']:>8.4f} "
                   + " ".join(f"{x:8.4f}" for x in v["prior"][:k])
-                  + f"{v['prior'][k]:10.4f}{sk:>8}")
+                  + f"{v['prior'][k]:10.4f}{sk:>11}")
         print(f"    the arm on the same buckets (n={s['n']} carve-needing)")
-        print(f"      {'bucket':<44}{'n':>6}{'extra':>9}{'missing':>9}{'vs_input':>10}"
+        print(f"      {'bucket':<{w}}{'n':>6}{'extra':>9}{'missing':>9}{'vs_input':>10}"
               f"{'collapse':>10}{'ops':>6}{'planar':>8}{'slots':>7}{'label':>7}")
         for name, v in s["arm"].items():
-            print(f"      {name:<44}{v['n']:>6}{v['extra']:>9.4f}{v['missing']:>9.4f}"
+            print(f"      {name:<{w}}{v['n']:>6}{v['extra']:>9.4f}{v['missing']:>9.4f}"
                   f"{v['vs_input']:>10.4f}{v['collapse_rate']:>10.4f}{v['ops']:>6.1f}"
                   f"{v['planar_fraction']:>8.2f}{v['slots_used_by_arm']:>7.2f}"
                   f"{v['slots_used_by_label']:>7.2f}")
@@ -3220,10 +3262,13 @@ def main() -> None:
         # stratified by complexity without a second run. `complexity_strata` does this inside
         # --diagnose_program for the one checkpoint under diagnosis; this makes the same axis
         # available for the comparison arms it never sees (`class129_at_q025`, 1-NN, the served CE
-        # arm). Same function, so the two cannot drift apart. ⚠️ Post-hoc subgroups either way --
-        # see that docstring: the bar is on the whole carve-needing population and stays there.
-        label_slots = {int(r): int(k) for r, k in
-                       zip(held["row"], label_complexity(pl, cache)[0][sel])}
+        # arm). Same `slot_counts_of`, so the two cannot drift apart. ⚠️ Post-hoc subgroups either
+        # way -- see that docstring: the bar is on the whole carve-needing population and stays
+        # there. Joined through `pk` (by row id) rather than by position, and over the 714 rather
+        # than the corpus, so it neither assumes the caches stay aligned nor pays for 35k rows.
+        label_slots = {int(held["row"][i]):
+                       slot_counts_of(pl["assign"][pk[i]], held["fp"][i], pl["types"].shape[1])[0]
+                       for i in range(len(sel))}
 
     ckpt_meta = {}
     for name, path in ckpts.items():

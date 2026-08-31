@@ -1,0 +1,374 @@
+{
+ "n": 411,
+ "checkpoint": "outputs/height_map_generator/heightmap_program.pt",
+ "head_ablation": {
+  "all three predicted": {
+   "extra": 0.12358832967272614,
+   "missing": 0.021820275582734385,
+   "vs_input": 0.8951670220326937,
+   "collapse_rate": 0.0072992700729927005
+  },
+  "label types": {
+   "extra": 0.12445976048588238,
+   "missing": 0.022111081863648328,
+   "vs_input": 0.896495913247552,
+   "collapse_rate": 0.0072992700729927005
+  },
+  "label assignment": {
+   "extra": 0.11187949715821598,
+   "missing": 0.015347894868307847,
+   "vs_input": 0.9028208447481711,
+   "collapse_rate": 0.0072992700729927005
+  },
+  "label planes": {
+   "extra": 0.0715575730951335,
+   "missing": 0.0025084541254544587,
+   "vs_input": 0.875,
+   "collapse_rate": 0.1386861313868613
+  },
+  "all three from the label (the ceiling)": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0
+  }
+ },
+ "flatten_ramps": {
+  "compiled as fitted": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0,
+   "ops": 2.0,
+   "planar_fraction": 0.5
+  },
+  "every Ramp flattened": {
+   "extra": 0.0527537847125476,
+   "missing": 0.0,
+   "vs_input": 0.8846542346542347,
+   "collapse_rate": 0.0024330900243309003,
+   "ops": 1.0,
+   "planar_fraction": 0.0
+  }
+ },
+ "slope_symmetry": {
+  "n": 52792,
+  "mean": 0.0008517440489446268,
+  "median": 5.385612548233488e-16,
+  "p25": -0.6474373117089272,
+  "p75": 0.6431724419719295,
+  "positive": 0.5003788452795879,
+  "negative": 0.4960600090922867,
+  "median_abs": 0.6460239998996258
+ },
+ "canonicalisation": {
+  "n": 411,
+  "canonical_order": 0.2646216641163269,
+  "best_permutation": 0.25749446581258995,
+  "cost": 0.007127198303737025,
+  "cost_share": 0.026933540485195983
+ },
+ "slot_usage": {
+  "slots_used_by_arm": 1.194647201946472,
+  "slots_used_by_label": 3.0608272506082725,
+  "arm_uses_exactly_one": 0.7785888077858881,
+  "used_slots_typed_ramp": 0.46435845213849286,
+  "realised_rise_all_slots_voxels": 0.0,
+  "realised_rise_ramp_typed_voxels": 1.0,
+  "n_ramp_typed_slots": 228,
+  "used_slots_compiling_flat": 0.6702586206896551
+ },
+ "assignment_collapse": {
+  "n": 411,
+  "confidence_median": 0.3990436724959807,
+  "accuracy_argmax": 0.4740125309101435,
+  "accuracy_balanced": 0.2138082671407925,
+  "dominant_argmax": 0.8953418100385581,
+  "dominant_balanced": 0.10299917076262988,
+  "entropy_norm_mean": 0.8143152311411498,
+  "slots_argmax_mean": 1.194647201946472,
+  "slots_label_mean": 3.0608272506082725,
+  "slots_balanced_mean": 3.763990267639903,
+  "minor_columns_total": 201777,
+  "buildings_with_a_minor_slot": 0.8442822384428224,
+  "p_true_minor": 0.19017714569523847,
+  "p_won_minor": 0.43259558737335385,
+  "recall_minor": 0.0109080816941475,
+  "recall_minor_balanced": 0.26686887008925697
+ },
+ "complexity_strata": {
+  "n": 411,
+  "k_ops": 4,
+  "n_train": 34909,
+  "population": {
+   "0 slots": {
+    "n": 15562,
+    "share": 0.4457876192385918,
+    "prior": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "skew": null
+   },
+   "1 slots": {
+    "n": 2568,
+    "share": 0.0735626915695093,
+    "prior": [
+     0.8181542201911519,
+     0.0,
+     0.0,
+     0.0,
+     0.18184577980884808
+    ],
+    "skew": null
+   },
+   "2 slots": {
+    "n": 3556,
+    "share": 0.10186484860637658,
+    "prior": [
+     0.5348846535061579,
+     0.3279924163085852,
+     0.0,
+     0.0,
+     0.13712293018525692
+    ],
+    "skew": null
+   },
+   "3 slots": {
+    "n": 3051,
+    "share": 0.08739866510069037,
+    "prior": [
+     0.47091538453191484,
+     0.26564369172822644,
+     0.09641637258247117,
+     0.0,
+     0.1670245511573876
+    ],
+    "skew": null
+   },
+   "4 slots": {
+    "n": 10172,
+    "share": 0.291386175484832,
+    "prior": [
+     0.3957965332908962,
+     0.24471141052220757,
+     0.17116033114491094,
+     0.08404810091576359,
+     0.1042836241262217
+    ],
+    "skew": 4.709166881564397
+   },
+   "<=2  (an easy-first schedule's first phase)": {
+    "n": 21686,
+    "share": 0.6212151594144777,
+    "prior": [
+     0.17012041390693675,
+     0.05202788791217131,
+     0.0,
+     0.0,
+     0.777851698180892
+    ],
+    "skew": null
+   },
+   ">=3  (its last phase)": {
+    "n": 13223,
+    "share": 0.37878484058552236,
+    "prior": [
+     0.4133393866449357,
+     0.2495998231309748,
+     0.15370502821496818,
+     0.06441995851619457,
+     0.11893580349292673
+    ],
+    "skew": 6.416324942851773
+   },
+   ">=1  (carve-needing -- the population the bar is set on)": {
+    "n": 19347,
+    "share": 0.5542123807614082,
+    "prior": [
+     0.4955613167444298,
+     0.2314360103873751,
+     0.09966644559213,
+     0.041771621690358814,
+     0.13156460558570626
+    ],
+    "skew": 11.863588165618403
+   },
+   "ALL  (what #132's prior was computed on)": {
+    "n": 34909,
+    "share": 1.0,
+    "prior": [
+     0.24953289155220038,
+     0.11653632947111164,
+     0.05018562894036422,
+     0.021033509261166535,
+     0.5627116407751572
+    ],
+    "skew": 11.863588165618403
+   }
+  },
+  "arm": {
+   "1 slots": {
+    "n": 64,
+    "extra": 0.024414440906482017,
+    "missing": 0.033687655412735246,
+    "vs_input": 0.9073743926796958,
+    "collapse_rate": 0.015625,
+    "ops": 1.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 0.984375,
+    "slots_used_by_label": 1.0
+   },
+   "2 slots": {
+    "n": 66,
+    "extra": 0.08519643968753132,
+    "missing": 0.015923151036922684,
+    "vs_input": 0.9264887395740218,
+    "collapse_rate": 0.0,
+    "ops": 1.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 1.0151515151515151,
+    "slots_used_by_label": 2.0
+   },
+   "3 slots": {
+    "n": 62,
+    "extra": 0.08425279502870671,
+    "missing": 0.025990945032571586,
+    "vs_input": 0.8938652194799737,
+    "collapse_rate": 0.0,
+    "ops": 1.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 1.1935483870967742,
+    "slots_used_by_label": 3.0
+   },
+   "4 slots": {
+    "n": 219,
+    "extra": 0.18839154872099279,
+    "missing": 0.018848167539267015,
+    "vs_input": 0.8808154645873945,
+    "collapse_rate": 0.0091324200913242,
+    "ops": 1.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 1.3105022831050228,
+    "slots_used_by_label": 4.0
+   },
+   "<=2  (an easy-first schedule's first phase)": {
+    "n": 130,
+    "extra": 0.047556985315910336,
+    "missing": 0.023725396996849703,
+    "vs_input": 0.9168295861844249,
+    "collapse_rate": 0.007692307692307693,
+    "ops": 1.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 1.0,
+    "slots_used_by_label": 1.5076923076923077
+   },
+   ">=3  (its last phase)": {
+    "n": 281,
+    "extra": 0.17167727586471354,
+    "missing": 0.020653568463686447,
+    "vs_input": 0.885030549898167,
+    "collapse_rate": 0.0071174377224199285,
+    "ops": 1.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 1.2846975088967971,
+    "slots_used_by_label": 3.7793594306049823
+   },
+   "ALL  (the pre-registered population)": {
+    "n": 411,
+    "extra": 0.12358832967272614,
+    "missing": 0.021820275582734385,
+    "vs_input": 0.8951670220326937,
+    "collapse_rate": 0.0072992700729927005,
+    "ops": 1.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 1.194647201946472,
+    "slots_used_by_label": 3.0608272506082725
+   }
+  }
+ },
+ "robustness": {
+  "plane_noise": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0,
+    "vs_input": 0.8225742574257425,
+    "collapse_rate": 0.0
+   },
+   "0.02": {
+    "extra": 0.012789880534082924,
+    "missing": 0.006888826659199104,
+    "vs_input": 0.821288358304623,
+    "collapse_rate": 0.0
+   },
+   "0.05": {
+    "extra": 0.02542899858433775,
+    "missing": 0.015318940791960335,
+    "vs_input": 0.8247788640595903,
+    "collapse_rate": 0.0
+   },
+   "0.10": {
+    "extra": 0.035022301516503124,
+    "missing": 0.030119660629450568,
+    "vs_input": 0.8194909693683738,
+    "collapse_rate": 0.0267639902676399
+   }
+  },
+  "assignment_corrupted": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0,
+    "vs_input": 0.8225742574257425,
+    "collapse_rate": 0.0
+   },
+   "0.05": {
+    "extra": 0.010127697049757816,
+    "missing": 0.010357276235528444,
+    "vs_input": 0.8186003683241252,
+    "collapse_rate": 0.0
+   },
+   "0.25": {
+    "extra": 0.03264722528372702,
+    "missing": 0.05137684345150074,
+    "vs_input": 0.7967932621887425,
+    "collapse_rate": 0.0413625304136253
+   }
+  }
+ },
+ "quantisation_ceiling": {
+  "exact (the continuous ceiling)": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0
+  },
+  "binned at 32": {
+   "extra": 0.01071881798404641,
+   "missing": 0.005151286520800271,
+   "vs_input": 0.8186410765497463,
+   "collapse_rate": 0.0
+  },
+  "binned at 64  <- PLANE_BINS": {
+   "extra": 0.006340654786572731,
+   "missing": 0.0034770792534271214,
+   "vs_input": 0.8185403621183438,
+   "collapse_rate": 0.0
+  },
+  "binned at 128": {
+   "extra": 0.0038784645572725045,
+   "missing": 0.00258336314136958,
+   "vs_input": 0.8190359477124183,
+   "collapse_rate": 0.0
+  }
+ },
+ "decode_ablation": {},
+ "plane_decode": [
+  "median",
+  "q0.25",
+  "argmax"
+ ],
+ "plane_bins": 64
+}

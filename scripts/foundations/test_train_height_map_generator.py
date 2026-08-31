@@ -40,7 +40,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     plane_to_normalised,
     plane_to_voxel, rebin_planes,
     ASSIGN_DECODE, ASSIGN_TEMPERATURE, assignment_prior, assignment_stats, decode_assignment,
-    label_complexity,
+    COMPLEXITY_BUCKETS, complexity_strata, label_complexity, slot_counts_of,
     make_model,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
@@ -1837,6 +1837,99 @@ class TestLabelComplexity(unittest.TestCase):
         used, _ = label_complexity(program, cache)
         self.assertEqual(list(used), [2, 2], "the compiler never sees those columns, nor does this")
 
+    def test_a_program_cache_that_is_no_longer_row_aligned_is_LOUD(self):
+        """⚠️ The pairing is positional, and compacting the 146 MB `assign` array would break it.
+
+        Silently mis-pairing every building is the worst failure this function has available, and
+        it would land in the one table whose whole point is that the label was not confused with
+        anything -- so it raises rather than trusting a comment.
+        """
+        program, cache = self._corpus([1, 2, 3])
+        program["row"] = np.array([0, 2, 4], np.int32)     # the cache was compacted; ours was not
+        with self.assertRaises(ValueError):
+            label_complexity(program, cache)
+
+    def test_the_buckets_are_named_once_so_a_key_cannot_drift(self):
+        """The names are JSON keys, print labels and prose at the same time."""
+        names = [n for n, _, _ in COMPLEXITY_BUCKETS]
+        self.assertEqual(len(set(names)), len(names))
+        for _, lo, hi in COMPLEXITY_BUCKETS:
+            self.assertLessEqual(lo, hi)
+            self.assertLessEqual(hi, K_OPS)
+
+
+class TestComplexityStrata(unittest.TestCase):
+    """#130's table itself: the bucketing, and the warning it must not be readable without."""
+
+    K = K_OPS
+
+    def _fixture(self, arm_slots):
+        """Two pinned buildings whose LABELS use 1 and 4 slots; the arm predicts `arm_slots` each.
+
+        ⚠️ At `RES`, not a small grid: `compile_program` goes through `plane_surface`, which builds
+        the full plan, so a 16x16 fixture would exercise a different code path than the one served.
+        """
+        labels, n, lo, hi = [1, 4], 2, 10, 54
+        fp = np.zeros((n, RES, RES), np.uint8)
+        la = np.full((n, RES, RES), self.K, np.uint8)
+        pa = np.full((n, RES, RES), self.K, np.uint8)
+
+        def bands(dst, i, k):
+            edges = np.linspace(lo, hi, k + 1).astype(int)
+            for j in range(k):
+                dst[i, lo:hi, edges[j]:edges[j + 1]] = j
+
+        for i, k in enumerate(labels):
+            fp[i, lo:hi, lo:hi] = 1
+            bands(la, i, k)
+            bands(pa, i, arm_slots)
+        planes = np.zeros((n, self.K, 3), np.float32)
+        types = np.zeros((n, self.K), np.int8)
+        program = dict(assign=la, types=types, row=np.arange(n, dtype=np.int32))
+        cache = dict(fp=fp, ok=np.ones(n, np.uint8), held=np.zeros(n, np.uint8),
+                     row=np.arange(n, dtype=np.int32))
+        held = dict(row=np.arange(n, dtype=np.int32), fp=fp > 0,
+                    target=np.full((n, RES, RES), 8, np.int16),
+                    y0=np.zeros(n, np.int16), extent=np.full(n, 16, np.int16))
+        return (pa, types, planes), (la, types, planes), held, [0, 1], cache, program
+
+    def test_it_buckets_by_the_LABEL_and_not_by_what_the_arm_did(self):
+        """🔑 The whole guard against selecting on the answer: the arm predicts the SAME program on
+        both buildings, so any bucketing that read the prediction would put them together."""
+        pred, label, held, rows, cache, program = self._fixture(arm_slots=2)
+        d = complexity_strata(pred, label, held, rows, cache, program)
+        self.assertIn("1 slots", d["arm"])
+        self.assertIn("4 slots", d["arm"])
+        self.assertEqual(d["arm"]["1 slots"]["n"], 1)
+        self.assertEqual(d["arm"]["4 slots"]["n"], 1)
+        for k in ("1 slots", "4 slots"):
+            self.assertEqual(d["arm"][k]["slots_used_by_arm"], 2.0, "the arm did the same thing")
+        self.assertEqual(d["arm"]["1 slots"]["slots_used_by_label"], 1.0)
+        self.assertEqual(d["arm"]["4 slots"]["slots_used_by_label"], 4.0)
+
+    def test_every_arm_row_carries_vs_input_and_the_collapse_rate(self):
+        """#126's rule, and #129's process lesson: a table without them ranked an arm that no-oped."""
+        pred, label, held, rows, cache, program = self._fixture(arm_slots=2)
+        d = complexity_strata(pred, label, held, rows, cache, program)
+        self.assertTrue(d["arm"])
+        for name, row in d["arm"].items():
+            for key in ("extra", "missing", "vs_input", "collapse_rate", "ops", "planar_fraction"):
+                self.assertIn(key, row, f"{name} is missing {key}")
+
+    def test_the_aggregate_rows_are_the_exact_rows_summed(self):
+        pred, label, held, rows, cache, program = self._fixture(arm_slots=1)
+        d = complexity_strata(pred, label, held, rows, cache, program)
+        pop = d["population"]
+        exact = sum(pop[f"{k} slots"]["n"] for k in range(K_OPS + 1))
+        self.assertEqual(pop["ALL  (what #132's prior was computed on)"]["n"], exact)
+        self.assertEqual(pop["ALL  (what #132's prior was computed on)"]["n"], d["n_train"])
+
+    def test_the_skew_is_None_rather_than_infinity_when_the_last_slot_has_no_support(self):
+        """JSON has no infinity, and a bucket where the last slot never occurs is the norm here."""
+        pred, label, held, rows, cache, program = self._fixture(arm_slots=1)
+        d = complexity_strata(pred, label, held, rows, cache, program)
+        self.assertIsNone(d["population"]["1 slots"]["skew"])
+        self.assertIsNotNone(d["population"]["4 slots"]["skew"])
 
 
 if __name__ == "__main__":
