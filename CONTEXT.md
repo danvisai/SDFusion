@@ -102,6 +102,14 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
   (p=0.0044). Cross-entropy learns the whole posterior; a quantile head learns one scalar and throws
   it away. CE + post-hoc median stands as the best arm.
 
+## Integration state
+
+⚠️ **`docs/INTEGRATION_STATE.md`** maps how the massing pieces wire together and which ones have
+never met. Read it before opening [#2](https://github.com/danvisai/SDFusion/issues/2): most of what
+that ticket imagines needs defining is already built and running, and the real gap is one function
+call wide — **the generator predicts a program, compiles it to a height map, and throws the program
+away**, so the editable representation and the generated geometry have never met.
+
 ## Reading the numbers
 
 Every massing result on this project is quoted in the same handful of measures. This is what each
