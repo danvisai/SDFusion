@@ -102,6 +102,70 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
   (p=0.0044). Cross-entropy learns the whole posterior; a quantile head learns one scalar and throws
   it away. CE + post-hoc median stands as the best arm.
 
+## Reading the numbers
+
+Every massing result on this project is quoted in the same handful of measures. This is what each
+one means, which direction is good, and what to compare it against. ⚠️ **No number here is
+meaningful alone** — #126 exists because a single figure hid the fact that an arm had done nothing,
+and #127 exists because three scalars could not tell a mound from a roof.
+
+**The surplus pair — `missing` and `extra`.** Both are fractions of the real building's volume.
+`missing` is GT the arm failed to fill: it **cut into the building**. `extra` is volume the arm
+added outside GT: **surplus it failed to carve away**. Lower is better for both. ⚠️ They are **not
+symmetric in consequence** — surplus is a building that looks unfinished, `missing` is a building
+with a trench through it, and a plane slightly too steep is charged the whole trench while one
+slightly too shallow only leaves surplus.
+
+**`vs_input`** — IoU against the blockout the arm started from. **1.0 means it did nothing.** An arm
+at 0.99 has not been measured as a generator however good its other numbers look (#75: a model
+scored 3D IoU 0.857 while being 99.9% its own input). Lower means it acted. The guard is < 0.98.
+
+**`collapse_rate`** — the fraction of buildings whose `missing` ≥ 0.15, i.e. that were eaten rather
+than carved. Lower is better, and the bar is **1-NN retrieval's 0.1582**: a generator that destroys
+more buildings than naive retrieval is not servable whatever else it scores.
+
+**`dl_ops` and `dl_planar_fraction` — the FORM pair.** #10's `Layer`/`Ramp`/`CutRoof` fitter is run
+on the arm's *own* surface and asked how many operations explain it. `dl_ops` is that count (lower =
+simpler); `dl_planar_fraction` is the share of them that are **planes** rather than flat terraces
+(higher = more roof-like). 🔑 **Read them together or not at all.** A real building is 2.0 ops at
+0.50 planar; a mound is many `Layer`s at 0.00 planar; an arm reaching 3.0 ops at 0.00 planar has
+simplified without becoming architecture. ⚠️ The pair is **not carve-aware by design** — a bare
+envelope scores 1 op, correctly — so it is always read beside `extra`.
+
+**3D IoU** — demoted to a diagnostic by #126 and printed to the right of the bar. A blockout that
+over-fills by 22% and a generator that ate 22% of the building land on the same IoU while wanting
+opposite responses.
+
+**Programme-arm numbers.** `slots_used` is how many of its K typed regions the arm actually uses
+(the label uses 3.06); an arm at 1.0 is drawing one region and cannot express a gable whatever its
+planes do. `used_slots_typed_ramp` is the share of those typed as pitched. ⚠️ **`realised_rise` has
+two meanings and both are published**: `..._all_slots_voxels` covers every used slot, so a `Layer` —
+flat *by definition* — drags it down as soon as an arm uses more slots; `..._ramp_typed_voxels` is
+the one that says a pitch was actually drawn. #6 typed 46% of its slots `Ramp` and drew them with a
+median 0.00-voxel rise, which is why "it predicted a ramp" is never evidence that it drew one.
+
+**Vertex-budget numbers (#131).** `verts` and `tokens` are the DSL cost of a program — 98.5% of it
+is polygons, not operations. `contained` is the fraction of regions that gained no cell, so #10's
+containment guarantee still holds. `spike` is the worst column's surplus in voxels and `spiked` the
+fraction of buildings with one over `s*` = 3 — ⚠️ that pair is where the median `extra` lies to you:
+a budget can sit inside the allowance while 90% of buildings grow a visible fin.
+
+**The bar itself** is machine-checked in `verdict()`, never in prose, and has three parts. **PASS**
+is what the arm must achieve. **GUARD** is what it may not break on the way (collapse and
+`vs_input`). **KILL** is a pre-registered clause that answers the ticket "no" — it exists so a
+disappointing result cannot be re-narrated as partial success.
+
+**Reference values on the pinned 411 carve-needing buildings**, quote new results against these:
+
+| | `extra` | collapse | ops | planar |
+|---|---|---|---|---|
+| the real building | — | — | **2.0** | **0.50** |
+| compiled label *(sees GT — the ceiling)* | 0.0035 | 0.0000 | 2.0 | 0.50 |
+| blockout *(doing nothing)* | 0.2308 | 0.0000 | 0.0 | 0.00 |
+| 1-NN retrieval *(the guard)* | 0.1031 | **0.1582** | 2.0 | 0.17 |
+| #127 CE+median *(served today)* | **0.0603** | 0.0268 | 6.0 | 0.20 |
+
+
 ## Language
 
 **Symbolic recipe**:
