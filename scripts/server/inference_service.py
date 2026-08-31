@@ -57,6 +57,15 @@ def sculpt_page():
     return FileResponse(WEB / "sculpt.html", headers={"Cache-Control": "no-store"})
 
 
+@app.get("/town.html")
+def town_page():
+    """Draw-a-town editor (map #97): footprint polygons -> A2-generated town. Standalone from
+    the index/sculpt demo, and served here only as a convenience -- the page calls
+    town_generate_service.py (and footprint_extract_service.py), not this service, and that one
+    serves the same page itself without booting this engine."""
+    return FileResponse(WEB / "town.html", headers={"Cache-Control": "no-store"})
+
+
 if (WEB / "samples").exists():
     app.mount("/samples", StaticFiles(directory=str(WEB / "samples")), name="samples")
 

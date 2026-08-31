@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bounded voxel editor — feasibility prototype</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101211;
+      --panel: #191d1b;
+      --edge: #343b36;
+      --text: #edf2ed;
+      --muted: #a6b1a8;
+      --green: #61d18b;
+      --red: #f17373;
+      --amber: #e9bd61;
+      --blue: #73a9ef;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #1d2822, var(--bg) 42rem);
+      color: var(--text);
+      font: 15px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 34px 22px 70px; }
+    h1 { max-width: 900px; margin: 0 0 8px; font: 650 32px/1.16 system-ui, sans-serif; }
+    h2 { margin: 0 0 12px; font: 650 18px/1.2 system-ui, sans-serif; }
+    p { color: var(--muted); max-width: 920px; }
+    .question { color: var(--green); font-size: 17px; }
+    .grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; margin-top: 22px; }
+    .panel { background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--edge); border-radius: 10px; padding: 18px; }
+    .phase { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 20px; }
+    .phase div { border: 1px solid var(--edge); border-radius: 7px; padding: 10px; color: var(--muted); }
+    .phase .done { border-color: #356347; color: var(--green); background: #17271d; }
+    .phase .current { border-color: var(--blue); color: #b9d5f9; }
+    button { border: 1px solid var(--edge); border-radius: 6px; padding: 9px 11px; background: #242a26; color: var(--text); cursor: pointer; font: inherit; }
+    button:hover { border-color: var(--green); }
+    button.primary { background: #214d32; border-color: #397852; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .scenarios { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 18px; }
+    .scenario.active { border-color: var(--blue); background: #1e334c; }
+    .inputs { display: grid; grid-template-columns: 1fr 110px; gap: 8px 14px; align-items: center; }
+    label { color: var(--muted); }
+    input { width: 100%; border: 1px solid var(--edge); border-radius: 5px; background: #111512; color: var(--text); padding: 7px; font: inherit; }
+    .gates { list-style: none; padding: 0; margin: 12px 0; }
+    .gates li { display: grid; grid-template-columns: 22px 1fr; gap: 7px; padding: 6px 0; border-bottom: 1px solid #292f2b; }
+    .pass { color: var(--green); }
+    .fail { color: var(--red); }
+    .pending { color: var(--amber); }
+    .verdict { border-radius: 8px; padding: 15px; margin-top: 14px; font-weight: 700; }
+    .verdict.pass { background: #173521; border: 1px solid #397852; }
+    .verdict.fail { background: #3a1b1b; border: 1px solid #773838; }
+    .verdict.pending { background: #3a301b; border: 1px solid #75633a; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #bfd1c3; background: #101310; padding: 12px; border-radius: 7px; max-height: 430px; overflow: auto; }
+    code { color: #bed7f7; }
+    .small { font-size: 12px; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } .phase { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Bounded voxel editor feasibility</h1>
+  <p class="question">Can a learned occupancy edit improve authentic A2 outputs without collapse, no-op behaviour, or hidden global replacement?</p>
+  <p>This is the experiment contract, not a model demo. Use the guided cases to test how a result will be interpreted, or enter measurements from <code>prototype_voxel_editor.py</code>.</p>
+
+  <div class="phase" id="phases"></div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Free play</h2>
+      <p class="small">The first three actions expose the required evidence chain. They do not pretend that a browser can run A2 or train the editor.</p>
+      <div class="buttons">
+        <button data-action="CACHE">1 · authentic cache</button>
+        <button data-action="TRAIN">2 · bounded training</button>
+        <button data-action="EVALUATE">3 · evaluate</button>
+        <button data-action="RESET">reset</button>
+      </div>
+
+      <h2 style="margin-top:24px">Guided outcomes</h2>
+      <div class="scenarios" id="scenarios"></div>
+      <p id="scenarioNote"></p>
+
+      <h2 style="margin-top:24px">Measured held-out values</h2>
+      <div class="inputs">
+        <label for="n">held-out n</label><input id="n" type="number" min="0" step="1">
+        <label for="sourceIou">sanitized A2 baseline median 3D IoU</label><input id="sourceIou" type="number" min="0" max="1" step="0.001">
+        <label for="editorIou">editor median 3D IoU</label><input id="editorIou" type="number" min="0" max="1" step="0.001">
+        <label for="opportunityWin">paired win rate, opportunity rows</label><input id="opportunityWin" type="number" min="0" max="1" step="0.01">
+        <label for="collapseSource">sanitized A2 collapse rate</label><input id="collapseSource" type="number" min="0" max="1" step="0.01">
+        <label for="collapseEditor">editor collapse rate</label><input id="collapseEditor" type="number" min="0" max="1" step="0.01">
+        <label for="vsSource">median IoU versus sanitized A2</label><input id="vsSource" type="number" min="0" max="1" step="0.001">
+        <label for="beatsEnvelope">strict beats-envelope rate</label><input id="beatsEnvelope" type="number" min="0" max="1" step="0.01">
+        <label for="violations">changed voxels outside mask</label><input id="violations" type="number" min="0" step="1">
+        <label for="coverage">representable target-delta coverage</label><input id="coverage" type="number" min="0" max="1" step="0.01">
+        <label for="identityDelta">median IoU delta on envelope=GT rows</label><input id="identityDelta" type="number" min="-1" max="1" step="0.001">
+      </div>
+      <button class="primary" id="apply" style="margin-top:12px">apply measurements</button>
+    </section>
+
+    <section class="panel">
+      <h2>Decision</h2>
+      <ul class="gates" id="gates"></ul>
+      <div class="verdict pending" id="verdict"></div>
+      <p class="small">Small gate: n≥96, median ΔIoU≥+0.01, opportunity wins≥55%, collapse increase≤2 points, vs-source&lt;0.99, and zero locality violations. A positive small gate only authorizes the full n=714 run. The full run additionally needs &gt;5% strict beats-envelope plus SNE and montage review.</p>
+
+      <h2 style="margin-top:24px">Current state</h2>
+      <pre id="state"></pre>
+    </section>
+  </div>
+</main>
+
+<script>
+const initial = Object.freeze({
+  phase: "empty",
+  authenticCache: false,
+  trainedWithMaskClamp: false,
+  scenario: "blank",
+  measurements: {
+    n: 0, sourceIou: 0.8756, editorIou: 0, opportunityWin: 0,
+    collapseSource: 0, collapseEditor: 0, vsSource: 1,
+    beatsEnvelope: 0, violations: 0, coverage: 0, identityDelta: 0
+  }
+});
+
+const scenarios = {
+  blank: { label: "blank", note: "Start from no evidence and walk the phases.", measurements: initial.measurements },
+  positive: { label: "bounded win", note: "Useful local edits pass the small gate. This authorizes n=714; it does not yet authorize diffusion.", measurements: { n:96, sourceIou:.876, editorIou:.894, opportunityWin:.61, collapseSource:.08, collapseEditor:.07, vsSource:.972, beatsEnvelope:.08, violations:0, coverage:.82, identityDelta:.004 } },
+  noop: { label: "no-op", note: "Aggregate quality looks stable, but vs-source proves the model returned its input.", measurements: { n:96, sourceIou:.876, editorIou:.877, opportunityWin:.15, collapseSource:.08, collapseEditor:.08, vsSource:.997, beatsEnvelope:.01, violations:0, coverage:.82, identityDelta:0 } },
+  collapse: { label: "collapse", note: "Some paired wins cannot compensate for a large rise in missing volume.", measurements: { n:96, sourceIou:.876, editorIou:.889, opportunityWin:.57, collapseSource:.08, collapseEditor:.19, vsSource:.91, beatsEnvelope:.06, violations:0, coverage:.82, identityDelta:-.02 } },
+  biased: { label: "biased sample", note: "A tiny identity-heavy result cannot answer the question; collect the preregistered stratified set.", measurements: { n:24, sourceIou:.94, editorIou:.953, opportunityWin:.70, collapseSource:.02, collapseEditor:.02, vsSource:.975, beatsEnvelope:.12, violations:0, coverage:.44, identityDelta:.01 } },
+  leaked: { label: "global edit", note: "Good IoU with any outside-mask edits fails the core locality claim.", measurements: { n:96, sourceIou:.876, editorIou:.91, opportunityWin:.68, collapseSource:.08, collapseEditor:.07, vsSource:.94, beatsEnvelope:.12, violations:381, coverage:.85, identityDelta:.005 } }
+};
+
+function reduce(state, action) {
+  switch (action.type) {
+    case "RESET": return structuredClone(initial);
+    case "CACHE": return { ...state, phase:"cached", authenticCache:true };
+    case "TRAIN": return state.authenticCache ? { ...state, phase:"trained", trainedWithMaskClamp:true } : state;
+    case "EVALUATE": return state.trainedWithMaskClamp ? { ...state, phase:"evaluated" } : state;
+    case "SCENARIO": return { ...state, phase:"evaluated", authenticCache:true, trainedWithMaskClamp:true, scenario:action.name, measurements:{...scenarios[action.name].measurements} };
+    case "MEASURE": return { ...state, phase:"evaluated", measurements:{...action.measurements}, scenario:"custom" };
+    default: return state;
+  }
+}
+
+function gates(state) {
+  const m = state.measurements;
+  return [
+    ["authentic A2 outputs, not synthetic corruption", state.authenticCache],
+    ["bounded KEEP/ADD/REMOVE model with hard clamp", state.trainedWithMaskClamp],
+    ["preregistered small held-out set: n ≥ 96", m.n >= 96],
+    ["median 3D IoU gain over sanitized A2 ≥ +0.01", m.editorIou - m.sourceIou >= .01],
+    ["paired wins on opportunity rows ≥ 55%", m.opportunityWin >= .55],
+    ["collapse increase ≤ 2 percentage points", m.collapseEditor <= m.collapseSource + .02],
+    ["not a no-op: median vs-sanitized-A2 < 0.99", m.vsSource < .99],
+    ["exact locality: zero outside-mask changes", m.violations === 0],
+    ["mask can express ≥ 70% of desired deltas", m.coverage >= .70],
+    ["identity rows lose no more than 0.005 IoU", m.identityDelta >= -.005]
+  ];
+}
+
+let state = structuredClone(initial);
+const fields = ["n","sourceIou","editorIou","opportunityWin","collapseSource","collapseEditor","vsSource","beatsEnvelope","violations","coverage","identityDelta"];
+
+function render() {
+  const order = ["empty","cached","trained","evaluated"];
+  const labels = ["0 · no evidence","1 · authentic pairs","2 · bounded editor","3 · fixed evaluation"];
+  const at = order.indexOf(state.phase);
+  document.querySelector("#phases").innerHTML = labels.map((label, i) => `<div class="${i < at ? "done" : i === at ? "current" : ""}">${label}</div>`).join("");
+  fields.forEach(name => document.querySelector(`#${name}`).value = state.measurements[name]);
+  document.querySelector("#scenarios").innerHTML = Object.entries(scenarios).map(([name, value]) => `<button class="scenario ${state.scenario === name ? "active" : ""}" data-scenario="${name}">${value.label}</button>`).join("");
+  document.querySelector("#scenarioNote").textContent = scenarios[state.scenario]?.note || "Custom measurements.";
+  const checks = gates(state);
+  document.querySelector("#gates").innerHTML = checks.map(([label, pass]) => `<li><span class="${pass ? "pass" : "fail"}">${pass ? "✓" : "×"}</span><span>${label}</span></li>`).join("");
+  const ready = state.phase === "evaluated" && checks.every(([, pass]) => pass);
+  const verdict = document.querySelector("#verdict");
+  verdict.className = `verdict ${state.phase !== "evaluated" ? "pending" : ready ? "pass" : "fail"}`;
+  verdict.textContent = state.phase !== "evaluated"
+    ? "PENDING — complete the evidence chain."
+    : ready
+      ? "SMALL GATE PASSES — run the fixed n=714 gate. Do not jump to diffusion yet."
+      : "STOP OR REVISE — this result does not establish bounded useful editing.";
+  document.querySelector("#state").textContent = JSON.stringify({ ...state, derived: { deltaIou: +(state.measurements.editorIou - state.measurements.sourceIou).toFixed(4), smallGatePass: ready } }, null, 2);
+  bindScenarioButtons();
+}
+
+function dispatch(action) { state = reduce(state, action); render(); }
+document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => dispatch({type:button.dataset.action})));
+document.querySelector("#apply").addEventListener("click", () => dispatch({ type:"MEASURE", measurements:Object.fromEntries(fields.map(name => [name, Number(document.querySelector(`#${name}`).value)])) }));
+function bindScenarioButtons() { document.querySelectorAll("[data-scenario]").forEach(button => button.addEventListener("click", () => dispatch({type:"SCENARIO", name:button.dataset.scenario}))); }
+render();
+</script>
+</body>
+</html>

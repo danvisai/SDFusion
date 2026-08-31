@@ -1,0 +1,10 @@
+{
+  "real": "/tmp/claude-1002/-home-dsimhadr-projects-SDFusion/56f16c9b-f658-45b3-a401-cad560b131a7/scratchpad/probe_real.h5",
+  "blockout": "/tmp/claude-1002/-home-dsimhadr-projects-SDFusion/56f16c9b-f658-45b3-a401-cad560b131a7/scratchpad/probe_block.h5",
+  "k_sweep": {
+    "16": 0.5116385814605975,
+    "64": 0.5417756075952568,
+    "256": 0.5553304234556123,
+    "2048": 0.5589620766102099
+  }
+}

@@ -1,0 +1,5961 @@
+{
+ "meta": {
+  "created": "2026-08-28T12:13:09",
+  "ids_from": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/execution/artifacts/massing_arms_eval_ship714.json",
+  "gt_h5": "data/real_massing_v1/real.h5",
+  "fp_match": 0.9,
+  "h_tol": 0.05,
+  "n_buildings": 714,
+  "n_pairs": 64,
+  "question": "#126"
+ },
+ "all_pairs": {
+  "n": 128,
+  "blockout": {
+   "missing": 0.0,
+   "extra": 0.06438685022749774,
+   "vs_input": 1.0,
+   "collapse_rate": 0.0,
+   "fp_iou": 1.0,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 0,
+    "losses": 0,
+    "ties": 128,
+    "rate": 0.0,
+    "rate_ex_ties": NaN
+   },
+   "vol_iou": 0.9395431886971188,
+   "p25": 0.819290067107908,
+   "p75": 1.0,
+   "beats_envelope_iou": {
+    "wins": 0,
+    "losses": 0,
+    "ties": 128,
+    "rate": 0.0,
+    "rate_ex_ties": NaN
+   }
+  },
+  "alt_raw": {
+   "missing": 0.07394421089374059,
+   "extra": 0.06812697958088332,
+   "vs_input": 0.8567085523603672,
+   "collapse_rate": 0.2734375,
+   "fp_iou": 0.9230172211428269,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 52,
+    "losses": 75,
+    "ties": 1,
+    "rate": 0.40625,
+    "rate_ex_ties": 0.4094488188976378
+   },
+   "vol_iou": 0.8101058217404088,
+   "p25": 0.7469660327912618,
+   "p75": 0.890773928709367,
+   "beats_envelope_iou": {
+    "wins": 14,
+    "losses": 114,
+    "ties": 0,
+    "rate": 0.109375,
+    "rate_ex_ties": 0.109375
+   }
+  },
+  "alt_aligned": {
+   "missing": 0.07165169245197059,
+   "extra": 0.065956686024596,
+   "vs_input": 0.8660199183535979,
+   "collapse_rate": 0.2578125,
+   "fp_iou": 0.9230172211428269,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 54,
+    "losses": 73,
+    "ties": 1,
+    "rate": 0.421875,
+    "rate_ex_ties": 0.4251968503937008
+   },
+   "vol_iou": 0.8149429630347109,
+   "p25": 0.7620334488523066,
+   "p75": 0.8908609373918104,
+   "beats_envelope_iou": {
+    "wins": 19,
+    "losses": 109,
+    "ties": 0,
+    "rate": 0.1484375,
+    "rate_ex_ties": 0.1484375
+   }
+  },
+  "alt_exact": {
+   "missing": 0.010387480936477242,
+   "extra": 0.009454116757644333,
+   "vs_input": 0.9393297434126289,
+   "collapse_rate": 0.1796875,
+   "fp_iou": 1.0,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 58,
+    "losses": 0,
+    "ties": 70,
+    "rate": 0.453125,
+    "rate_ex_ties": 1.0
+   },
+   "vol_iou": 0.8857906793459289,
+   "p25": 0.808628795256913,
+   "p75": 1.0,
+   "beats_envelope_iou": {
+    "wins": 33,
+    "losses": 43,
+    "ties": 52,
+    "rate": 0.2578125,
+    "rate_ex_ties": 0.4342105263157895
+   }
+  }
+ },
+ "carve_pairs": {
+  "n": 72,
+  "blockout": {
+   "missing": 0.0,
+   "extra": 0.20553790285973672,
+   "vs_input": 1.0,
+   "collapse_rate": 0.0,
+   "fp_iou": 1.0,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 0,
+    "losses": 0,
+    "ties": 72,
+    "rate": 0.0,
+    "rate_ex_ties": NaN
+   },
+   "vol_iou": 0.8295052338278485,
+   "p25": 0.771929971463698,
+   "p75": 0.8913863742296677,
+   "beats_envelope_iou": {
+    "wins": 0,
+    "losses": 0,
+    "ties": 72,
+    "rate": 0.0,
+    "rate_ex_ties": NaN
+   }
+  },
+  "alt_raw": {
+   "missing": 0.07665567294577531,
+   "extra": 0.14607774075414845,
+   "vs_input": 0.8044320413180017,
+   "collapse_rate": 0.2916666666666667,
+   "fp_iou": 0.9212128404704112,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 51,
+    "losses": 21,
+    "ties": 0,
+    "rate": 0.7083333333333334,
+    "rate_ex_ties": 0.7083333333333334
+   },
+   "vol_iou": 0.7737995564557949,
+   "p25": 0.7322231265260126,
+   "p75": 0.8202188357648418,
+   "beats_envelope_iou": {
+    "wins": 14,
+    "losses": 58,
+    "ties": 0,
+    "rate": 0.19444444444444445,
+    "rate_ex_ties": 0.19444444444444445
+   }
+  },
+  "alt_aligned": {
+   "missing": 0.07513452706934515,
+   "extra": 0.1417361903155639,
+   "vs_input": 0.8179460402892049,
+   "collapse_rate": 0.2638888888888889,
+   "fp_iou": 0.9212128404704112,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 53,
+    "losses": 19,
+    "ties": 0,
+    "rate": 0.7361111111111112,
+    "rate_ex_ties": 0.7361111111111112
+   },
+   "vol_iou": 0.7806651292632601,
+   "p25": 0.7477645254494912,
+   "p75": 0.8265714285714286,
+   "beats_envelope_iou": {
+    "wins": 19,
+    "losses": 53,
+    "ties": 0,
+    "rate": 0.2638888888888889,
+    "rate_ex_ties": 0.2638888888888889
+   }
+  },
+  "alt_exact": {
+   "missing": 0.040042079870247854,
+   "extra": 0.09739748827356634,
+   "vs_input": 0.8446351466021911,
+   "collapse_rate": 0.16666666666666666,
+   "fp_iou": 1.0,
+   "spill": 0.0,
+   "beats_envelope_extra": {
+    "wins": 55,
+    "losses": 0,
+    "ties": 17,
+    "rate": 0.7638888888888888,
+    "rate_ex_ties": 1.0
+   },
+   "vol_iou": 0.8294790800182499,
+   "p25": 0.791904808247824,
+   "p75": 0.8918952400628551,
+   "beats_envelope_iou": {
+    "wins": 33,
+    "losses": 22,
+    "ties": 17,
+    "rate": 0.4583333333333333,
+    "rate_ex_ties": 0.6
+   }
+  }
+ },
+ "corpus": {
+  "n": 714,
+  "n_carve": 411,
+  "blockout_iou_all": 0.9333980063271667,
+  "blockout_iou_carve": 0.8125084791751458,
+  "n_paired": 96,
+  "height_field_residual": 71,
+  "y0_levels": [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29
+  ],
+  "pairs_same_y0": "58/128",
+  "threshold_sweep": {
+   "0.80": {
+    "n_pairs": 518,
+    "all_pairs": {
+     "n": 1036,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.03834473246355837,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 1036,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 0.9630713127032062,
+      "p25": 0.8126374397604454,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 1036,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.12556544905530012,
+      "extra": 0.12345834205674483,
+      "vs_input": 0.7851492146709872,
+      "collapse_rate": 0.3841698841698842,
+      "fp_iou": 0.8363001461965156,
+      "spill": 0.004468207348778605,
+      "beats_envelope_extra": {
+       "wins": 312,
+       "losses": 718,
+       "ties": 6,
+       "rate": 0.30115830115830117,
+       "rate_ex_ties": 0.3029126213592233
+      },
+      "vol_iou": 0.7555526577830245,
+      "p25": 0.6871401748944513,
+      "p75": 0.8062741599762118,
+      "beats_envelope_iou": {
+       "wins": 48,
+       "losses": 988,
+       "ties": 0,
+       "rate": 0.04633204633204633,
+       "rate_ex_ties": 0.04633204633204633
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.12182168242005642,
+      "extra": 0.1206893342006988,
+      "vs_input": 0.7866931895709841,
+      "collapse_rate": 0.36486486486486486,
+      "fp_iou": 0.8363001461965156,
+      "spill": 0.004468207348778605,
+      "beats_envelope_extra": {
+       "wins": 321,
+       "losses": 709,
+       "ties": 6,
+       "rate": 0.30984555984555984,
+       "rate_ex_ties": 0.3116504854368932
+      },
+      "vol_iou": 0.7634342512712349,
+      "p25": 0.6928179026141623,
+      "p75": 0.8087449736448002,
+      "beats_envelope_iou": {
+       "wins": 59,
+       "losses": 977,
+       "ties": 0,
+       "rate": 0.05694980694980695,
+       "rate_ex_ties": 0.05694980694980695
+      }
+     },
+     "alt_exact": {
+      "missing": 0.006403875919947774,
+      "extra": 0.005745429577755777,
+      "vs_input": 0.9632194851770008,
+      "collapse_rate": 0.18725868725868725,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 417,
+       "losses": 0,
+       "ties": 619,
+       "rate": 0.4025096525096525,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.8775021805942562,
+      "p25": 0.8036292491932171,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 252,
+       "losses": 331,
+       "ties": 453,
+       "rate": 0.24324324324324326,
+       "rate_ex_ties": 0.4322469982847341
+      }
+     }
+    },
+    "carve_pairs": {
+     "n": 561,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.21814221848611057,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 561,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 0.820922208281054,
+      "p25": 0.7638092393468737,
+      "p75": 0.8800488237905015,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 561,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.1266053720127888,
+      "extra": 0.19091042321408216,
+      "vs_input": 0.7465107865724785,
+      "collapse_rate": 0.38324420677361853,
+      "fp_iou": 0.8352779684282773,
+      "spill": 0.0051813471502590676,
+      "beats_envelope_extra": {
+       "wins": 311,
+       "losses": 250,
+       "ties": 0,
+       "rate": 0.5543672014260249,
+       "rate_ex_ties": 0.5543672014260249
+      },
+      "vol_iou": 0.7124267567683161,
+      "p25": 0.6647992675243253,
+      "p75": 0.763947232662687,
+      "beats_envelope_iou": {
+       "wins": 48,
+       "losses": 513,
+       "ties": 0,
+       "rate": 0.0855614973262032,
+       "rate_ex_ties": 0.0855614973262032
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.12017485233286972,
+      "extra": 0.18754242435068416,
+      "vs_input": 0.7551889950696938,
+      "collapse_rate": 0.3511586452762923,
+      "fp_iou": 0.8352779684282773,
+      "spill": 0.0051813471502590676,
+      "beats_envelope_extra": {
+       "wins": 320,
+       "losses": 241,
+       "ties": 0,
+       "rate": 0.5704099821746881,
+       "rate_ex_ties": 0.5704099821746881
+      },
+      "vol_iou": 0.7209665315923758,
+      "p25": 0.6755675322554303,
+      "p75": 0.7719441185416939,
+      "beats_envelope_iou": {
+       "wins": 59,
+       "losses": 502,
+       "ties": 0,
+       "rate": 0.1051693404634581,
+       "rate_ex_ties": 0.1051693404634581
+      }
+     },
+     "alt_exact": {
+      "missing": 0.03015740353809723,
+      "extra": 0.1031050819728007,
+      "vs_input": 0.8626957113682777,
+      "collapse_rate": 0.1711229946524064,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 399,
+       "losses": 0,
+       "ties": 162,
+       "rate": 0.7112299465240641,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.8295052338278485,
+      "p25": 0.7790788345073169,
+      "p75": 0.8898586757393353,
+      "beats_envelope_iou": {
+       "wins": 252,
+       "losses": 147,
+       "ties": 162,
+       "rate": 0.44919786096256686,
+       "rate_ex_ties": 0.631578947368421
+      }
+     }
+    }
+   },
+   "0.85": {
+    "n_pairs": 190,
+    "all_pairs": {
+     "n": 380,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.03203880166850153,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 380,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 0.9689563895055695,
+      "p25": 0.818853878590042,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 380,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.09827476843460113,
+      "extra": 0.09308895223959068,
+      "vs_input": 0.8210836782265354,
+      "collapse_rate": 0.2868421052631579,
+      "fp_iou": 0.8801192389064847,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 126,
+       "losses": 251,
+       "ties": 3,
+       "rate": 0.33157894736842103,
+       "rate_ex_ties": 0.33421750663129973
+      },
+      "vol_iou": 0.7871131253561637,
+      "p25": 0.7231662358574515,
+      "p75": 0.8478806907378336,
+      "beats_envelope_iou": {
+       "wins": 30,
+       "losses": 350,
+       "ties": 0,
+       "rate": 0.07894736842105263,
+       "rate_ex_ties": 0.07894736842105263
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.09352056296438405,
+      "extra": 0.0899776100273333,
+      "vs_input": 0.8249487746615338,
+      "collapse_rate": 0.2657894736842105,
+      "fp_iou": 0.8801192389064847,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 130,
+       "losses": 247,
+       "ties": 3,
+       "rate": 0.34210526315789475,
+       "rate_ex_ties": 0.3448275862068966
+      },
+      "vol_iou": 0.7941932769200253,
+      "p25": 0.7235669509233636,
+      "p75": 0.8522571819425444,
+      "beats_envelope_iou": {
+       "wins": 37,
+       "losses": 343,
+       "ties": 0,
+       "rate": 0.09736842105263158,
+       "rate_ex_ties": 0.09736842105263158
+      }
+     },
+     "alt_exact": {
+      "missing": 0.0028359274967946196,
+      "extra": 0.0022982436688635116,
+      "vs_input": 0.9701696629172618,
+      "collapse_rate": 0.18421052631578946,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 148,
+       "losses": 0,
+       "ties": 232,
+       "rate": 0.3894736842105263,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.8863323834805833,
+      "p25": 0.8043140412398732,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 90,
+       "losses": 119,
+       "ties": 171,
+       "rate": 0.23684210526315788,
+       "rate_ex_ties": 0.430622009569378
+      }
+     }
+    },
+    "carve_pairs": {
+     "n": 203,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.21099649883032673,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 203,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 0.8257662189493337,
+      "p25": 0.7658305753706889,
+      "p75": 0.886303570574013,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 203,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.09742861913508098,
+      "extra": 0.1634182908545727,
+      "vs_input": 0.7758297285916625,
+      "collapse_rate": 0.2955665024630542,
+      "fp_iou": 0.8800631246712257,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 125,
+       "losses": 78,
+       "ties": 0,
+       "rate": 0.6157635467980296,
+       "rate_ex_ties": 0.6157635467980296
+      },
+      "vol_iou": 0.7478038320536764,
+      "p25": 0.6962671355439027,
+      "p75": 0.7941932769200253,
+      "beats_envelope_iou": {
+       "wins": 30,
+       "losses": 173,
+       "ties": 0,
+       "rate": 0.1477832512315271,
+       "rate_ex_ties": 0.1477832512315271
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.09326921075094206,
+      "extra": 0.1543968724977627,
+      "vs_input": 0.7898354992406765,
+      "collapse_rate": 0.26108374384236455,
+      "fp_iou": 0.8800631246712257,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 129,
+       "losses": 74,
+       "ties": 0,
+       "rate": 0.6354679802955665,
+       "rate_ex_ties": 0.6354679802955665
+      },
+      "vol_iou": 0.7611852452214857,
+      "p25": 0.6982788575279275,
+      "p75": 0.7950056631249663,
+      "beats_envelope_iou": {
+       "wins": 37,
+       "losses": 166,
+       "ties": 0,
+       "rate": 0.18226600985221675,
+       "rate_ex_ties": 0.18226600985221675
+      }
+     },
+     "alt_exact": {
+      "missing": 0.029962853709166393,
+      "extra": 0.10709054551475551,
+      "vs_input": 0.8669082840236686,
+      "collapse_rate": 0.1625615763546798,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 144,
+       "losses": 0,
+       "ties": 59,
+       "rate": 0.7093596059113301,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.8294529262086514,
+      "p25": 0.7802120102685626,
+      "p75": 0.8908761016070503,
+      "beats_envelope_iou": {
+       "wins": 90,
+       "losses": 54,
+       "ties": 59,
+       "rate": 0.4433497536945813,
+       "rate_ex_ties": 0.625
+      }
+     }
+    }
+   },
+   "0.90": {
+    "n_pairs": 64,
+    "all_pairs": {
+     "n": 128,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.06438685022749774,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 128,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 0.9395431886971188,
+      "p25": 0.819290067107908,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 128,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.07394421089374059,
+      "extra": 0.06812697958088332,
+      "vs_input": 0.8567085523603672,
+      "collapse_rate": 0.2734375,
+      "fp_iou": 0.9230172211428269,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 52,
+       "losses": 75,
+       "ties": 1,
+       "rate": 0.40625,
+       "rate_ex_ties": 0.4094488188976378
+      },
+      "vol_iou": 0.8101058217404088,
+      "p25": 0.7469660327912618,
+      "p75": 0.890773928709367,
+      "beats_envelope_iou": {
+       "wins": 14,
+       "losses": 114,
+       "ties": 0,
+       "rate": 0.109375,
+       "rate_ex_ties": 0.109375
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.07165169245197059,
+      "extra": 0.065956686024596,
+      "vs_input": 0.8660199183535979,
+      "collapse_rate": 0.2578125,
+      "fp_iou": 0.9230172211428269,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 54,
+       "losses": 73,
+       "ties": 1,
+       "rate": 0.421875,
+       "rate_ex_ties": 0.4251968503937008
+      },
+      "vol_iou": 0.8149429630347109,
+      "p25": 0.7620334488523066,
+      "p75": 0.8908609373918104,
+      "beats_envelope_iou": {
+       "wins": 19,
+       "losses": 109,
+       "ties": 0,
+       "rate": 0.1484375,
+       "rate_ex_ties": 0.1484375
+      }
+     },
+     "alt_exact": {
+      "missing": 0.010387480936477242,
+      "extra": 0.009454116757644333,
+      "vs_input": 0.9393297434126289,
+      "collapse_rate": 0.1796875,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 58,
+       "losses": 0,
+       "ties": 70,
+       "rate": 0.453125,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.8857906793459289,
+      "p25": 0.808628795256913,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 33,
+       "losses": 43,
+       "ties": 52,
+       "rate": 0.2578125,
+       "rate_ex_ties": 0.4342105263157895
+      }
+     }
+    },
+    "carve_pairs": {
+     "n": 72,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.20553790285973672,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 72,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 0.8295052338278485,
+      "p25": 0.771929971463698,
+      "p75": 0.8913863742296677,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 72,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.07665567294577531,
+      "extra": 0.14607774075414845,
+      "vs_input": 0.8044320413180017,
+      "collapse_rate": 0.2916666666666667,
+      "fp_iou": 0.9212128404704112,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 51,
+       "losses": 21,
+       "ties": 0,
+       "rate": 0.7083333333333334,
+       "rate_ex_ties": 0.7083333333333334
+      },
+      "vol_iou": 0.7737995564557949,
+      "p25": 0.7322231265260126,
+      "p75": 0.8202188357648418,
+      "beats_envelope_iou": {
+       "wins": 14,
+       "losses": 58,
+       "ties": 0,
+       "rate": 0.19444444444444445,
+       "rate_ex_ties": 0.19444444444444445
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.07513452706934515,
+      "extra": 0.1417361903155639,
+      "vs_input": 0.8179460402892049,
+      "collapse_rate": 0.2638888888888889,
+      "fp_iou": 0.9212128404704112,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 53,
+       "losses": 19,
+       "ties": 0,
+       "rate": 0.7361111111111112,
+       "rate_ex_ties": 0.7361111111111112
+      },
+      "vol_iou": 0.7806651292632601,
+      "p25": 0.7477645254494912,
+      "p75": 0.8265714285714286,
+      "beats_envelope_iou": {
+       "wins": 19,
+       "losses": 53,
+       "ties": 0,
+       "rate": 0.2638888888888889,
+       "rate_ex_ties": 0.2638888888888889
+      }
+     },
+     "alt_exact": {
+      "missing": 0.040042079870247854,
+      "extra": 0.09739748827356634,
+      "vs_input": 0.8446351466021911,
+      "collapse_rate": 0.16666666666666666,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 55,
+       "losses": 0,
+       "ties": 17,
+       "rate": 0.7638888888888888,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.8294790800182499,
+      "p25": 0.791904808247824,
+      "p75": 0.8918952400628551,
+      "beats_envelope_iou": {
+       "wins": 33,
+       "losses": 22,
+       "ties": 17,
+       "rate": 0.4583333333333333,
+       "rate_ex_ties": 0.6
+      }
+     }
+    }
+   },
+   "0.95": {
+    "n_pairs": 12,
+    "all_pairs": {
+     "n": 24,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.0,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 24,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 1.0,
+      "p25": 0.7638092393468737,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 24,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.03758060521323314,
+      "extra": 0.03577290650811889,
+      "vs_input": 0.9076669065661911,
+      "collapse_rate": 0.20833333333333334,
+      "fp_iou": 0.9689975589077108,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 8,
+       "losses": 16,
+       "ties": 0,
+       "rate": 0.3333333333333333,
+       "rate_ex_ties": 0.3333333333333333
+      },
+      "vol_iou": 0.8941221260160732,
+      "p25": 0.7431106866121497,
+      "p75": 0.9444071892507959,
+      "beats_envelope_iou": {
+       "wins": 6,
+       "losses": 18,
+       "ties": 0,
+       "rate": 0.25,
+       "rate_ex_ties": 0.25
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.035947129107622725,
+      "extra": 0.03577290650811889,
+      "vs_input": 0.9076669065661911,
+      "collapse_rate": 0.20833333333333334,
+      "fp_iou": 0.9689975589077108,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 8,
+       "losses": 16,
+       "ties": 0,
+       "rate": 0.3333333333333333,
+       "rate_ex_ties": 0.3333333333333333
+      },
+      "vol_iou": 0.8941221260160732,
+      "p25": 0.7502220538788714,
+      "p75": 0.9444071892507959,
+      "beats_envelope_iou": {
+       "wins": 6,
+       "losses": 18,
+       "ties": 0,
+       "rate": 0.25,
+       "rate_ex_ties": 0.25
+      }
+     },
+     "alt_exact": {
+      "missing": 0.0,
+      "extra": 0.0,
+      "vs_input": 1.0,
+      "collapse_rate": 0.20833333333333334,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 8,
+       "losses": 0,
+       "ties": 16,
+       "rate": 0.3333333333333333,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.9421182650505916,
+      "p25": 0.7774425117141885,
+      "p75": 1.0,
+      "beats_envelope_iou": {
+       "wins": 6,
+       "losses": 5,
+       "ties": 13,
+       "rate": 0.25,
+       "rate_ex_ties": 0.5454545454545454
+      }
+     }
+    },
+    "carve_pairs": {
+     "n": 11,
+     "blockout": {
+      "missing": 0.0,
+      "extra": 0.3092274202588735,
+      "vs_input": 1.0,
+      "collapse_rate": 0.0,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 11,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      },
+      "vol_iou": 0.7638092393468737,
+      "p25": 0.737930119482453,
+      "p75": 0.838884298810215,
+      "beats_envelope_iou": {
+       "wins": 0,
+       "losses": 0,
+       "ties": 11,
+       "rate": 0.0,
+       "rate_ex_ties": NaN
+      }
+     },
+     "alt_raw": {
+      "missing": 0.042830608304616664,
+      "extra": 0.08967696052955497,
+      "vs_input": 0.8175466849814681,
+      "collapse_rate": 0.18181818181818182,
+      "fp_iou": 0.9777901166018879,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 8,
+       "losses": 3,
+       "ties": 0,
+       "rate": 0.7272727272727273,
+       "rate_ex_ties": 0.7272727272727273
+      },
+      "vol_iou": 0.7650658301670054,
+      "p25": 0.7345179510251093,
+      "p75": 0.8805773454659555,
+      "beats_envelope_iou": {
+       "wins": 6,
+       "losses": 5,
+       "ties": 0,
+       "rate": 0.5454545454545454,
+       "rate_ex_ties": 0.5454545454545454
+      }
+     },
+     "alt_aligned": {
+      "missing": 0.04045515468147378,
+      "extra": 0.08967696052955497,
+      "vs_input": 0.8532291754705819,
+      "collapse_rate": 0.18181818181818182,
+      "fp_iou": 0.9777901166018879,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 8,
+       "losses": 3,
+       "ties": 0,
+       "rate": 0.7272727272727273,
+       "rate_ex_ties": 0.7272727272727273
+      },
+      "vol_iou": 0.7650658301670054,
+      "p25": 0.739258862536257,
+      "p75": 0.8805773454659555,
+      "beats_envelope_iou": {
+       "wins": 6,
+       "losses": 5,
+       "ties": 0,
+       "rate": 0.5454545454545454,
+       "rate_ex_ties": 0.5454545454545454
+      }
+     },
+     "alt_exact": {
+      "missing": 0.013456500758306908,
+      "extra": 0.07028365108454826,
+      "vs_input": 0.8402027143695825,
+      "collapse_rate": 0.18181818181818182,
+      "fp_iou": 1.0,
+      "spill": 0.0,
+      "beats_envelope_extra": {
+       "wins": 8,
+       "losses": 0,
+       "ties": 3,
+       "rate": 0.7272727272727273,
+       "rate_ex_ties": 1.0
+      },
+      "vol_iou": 0.7923446494130445,
+      "p25": 0.7726635544599367,
+      "p75": 0.8965989176652607,
+      "beats_envelope_iou": {
+       "wins": 6,
+       "losses": 2,
+       "ties": 3,
+       "rate": 0.5454545454545454,
+       "rate_ex_ties": 0.75
+      }
+     }
+    }
+   }
+  }
+ },
+ "per_pair": [
+  {
+   "target": 383,
+   "alternative": 17863,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8357667995052906,
+    "missing": 0.0,
+    "extra": 0.19650601171513718,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8202188357648418,
+    "missing": 0.06634467166786559,
+    "extra": 0.13830027746377557,
+    "fp_iou": 0.9327521793275217,
+    "vs_input": 0.7846551863529793,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8402884264330047,
+    "missing": 0.053930736820470664,
+    "extra": 0.12588634261638063,
+    "fp_iou": 0.9327521793275217,
+    "vs_input": 0.8228542172455366,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8983535308052233,
+    "missing": 0.0568903504264721,
+    "extra": 0.049820162367690886,
+    "fp_iou": 1.0,
+    "vs_input": 0.8298577710595025,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 17863,
+   "alternative": 383,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8294529262086514,
+    "missing": 0.0,
+    "extra": 0.20561392744842397,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8202188357648418,
+    "missing": 0.1290167957665465,
+    "extra": 0.06189124932893627,
+    "fp_iou": 0.9327521793275217,
+    "vs_input": 0.7419994689740266,
+    "spill": 0.0006361323155216285
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8402884264330047,
+    "missing": 0.11743615307922387,
+    "extra": 0.050310606641613624,
+    "fp_iou": 0.9327521793275217,
+    "vs_input": 0.7419994689740266,
+    "spill": 0.0006361323155216285
+   },
+   "alt_exact": {
+    "vol_iou": 0.8973845237450587,
+    "missing": 0.04678272873686633,
+    "extra": 0.06221719457013575,
+    "fp_iou": 1.0,
+    "vs_input": 0.8422550890585242,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 383,
+   "alternative": 35177,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8357667995052906,
+    "missing": 0.0,
+    "extra": 0.19650601171513718,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7160473329912156,
+    "missing": 0.02495118692837324,
+    "extra": 0.3617099989723564,
+    "fp_iou": 0.9001203369434416,
+    "vs_input": 0.8560414407902662,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7160473329912156,
+    "missing": 0.02495118692837324,
+    "extra": 0.3617099989723564,
+    "fp_iou": 0.9001203369434416,
+    "vs_input": 0.8560414407902662,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8357667995052906,
+    "missing": 0.0,
+    "extra": 0.19650601171513718,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 35177,
+   "alternative": 383,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7160473329912156,
+    "missing": 0.2705873308733087,
+    "extra": 0.018665436654366544,
+    "fp_iou": 0.9001203369434416,
+    "vs_input": 0.7160473329912156,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7160473329912156,
+    "missing": 0.2705873308733087,
+    "extra": 0.018665436654366544,
+    "fp_iou": 0.9001203369434416,
+    "vs_input": 0.7160473329912156,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8421432964329644,
+    "missing": 0.15785670356703568,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.8421432964329644,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 23942,
+   "alternative": 2715,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7837957729347624,
+    "missing": 0.1596244131455399,
+    "extra": 0.07218693424161526,
+    "fp_iou": 0.9021406727828746,
+    "vs_input": 0.7837957729347624,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7837957729347624,
+    "missing": 0.1596244131455399,
+    "extra": 0.07218693424161526,
+    "fp_iou": 0.9021406727828746,
+    "vs_input": 0.7837957729347624,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8878455920709442,
+    "missing": 0.11215440792905582,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.8878455920709442,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 2715,
+   "alternative": 23942,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.89291719209752,
+    "missing": 0.0,
+    "extra": 0.11992467929857596,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7837957729347624,
+    "missing": 0.07910354915180147,
+    "extra": 0.17491887893206007,
+    "fp_iou": 0.9021406727828746,
+    "vs_input": 0.871219650717024,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7837957729347624,
+    "missing": 0.07910354915180147,
+    "extra": 0.17491887893206007,
+    "fp_iou": 0.9021406727828746,
+    "vs_input": 0.871219650717024,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.89291719209752,
+    "missing": 0.0,
+    "extra": 0.11992467929857596,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 407,
+   "alternative": 12939,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.7563842090457288,
+    "missing": 0.0,
+    "extra": 0.3220794247696186,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6244321731935086,
+    "missing": 0.23598082565395265,
+    "extra": 0.22354229513616264,
+    "fp_iou": 0.9376750700280112,
+    "vs_input": 0.7136593591905565,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6381254044480774,
+    "missing": 0.22575313029464028,
+    "extra": 0.21331459977685027,
+    "fp_iou": 0.9376750700280112,
+    "vs_input": 0.7136593591905565,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.6911990710699771,
+    "missing": 0.1636431257489979,
+    "extra": 0.2100086780445473,
+    "fp_iou": 1.0,
+    "vs_input": 0.7914543806457662,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 12939,
+   "alternative": 407,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.7894423890063424,
+    "missing": 0.0,
+    "extra": 0.26671688007364636,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6244321731935086,
+    "missing": 0.22635785421374174,
+    "extra": 0.23895305046447401,
+    "fp_iou": 0.9376750700280112,
+    "vs_input": 0.69017624425965,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6381254044480774,
+    "missing": 0.2160013390241861,
+    "extra": 0.2285965352749184,
+    "fp_iou": 0.9376750700280112,
+    "vs_input": 0.703256672034521,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.679467817331895,
+    "missing": 0.2093062180935643,
+    "extra": 0.16369570675370324,
+    "fp_iou": 1.0,
+    "vs_input": 0.7534355179704016,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 24021,
+   "alternative": 24369,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9289700659563673,
+    "missing": 0.061987704918032786,
+    "extra": 0.00973360655737705,
+    "fp_iou": 0.9289700659563673,
+    "vs_input": 0.9289700659563673,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9289700659563673,
+    "missing": 0.061987704918032786,
+    "extra": 0.00973360655737705,
+    "fp_iou": 0.9289700659563673,
+    "vs_input": 0.9289700659563673,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 24369,
+   "alternative": 24021,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9289700659563673,
+    "missing": 0.01027027027027027,
+    "extra": 0.0654054054054054,
+    "fp_iou": 0.9289700659563673,
+    "vs_input": 0.9289700659563673,
+    "spill": 0.004864864864864865
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9289700659563673,
+    "missing": 0.01027027027027027,
+    "extra": 0.0654054054054054,
+    "fp_iou": 0.9289700659563673,
+    "vs_input": 0.9289700659563673,
+    "spill": 0.004864864864864865
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 418,
+   "alternative": 14294,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9697013487475915,
+    "missing": 0.0,
+    "extra": 0.0312453430033282,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7838160976211019,
+    "missing": 0.21028513238289206,
+    "extra": 0.007525706621628335,
+    "fp_iou": 0.9497430039977156,
+    "vs_input": 0.7602395810917438,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7838160976211019,
+    "missing": 0.21028513238289206,
+    "extra": 0.007525706621628335,
+    "fp_iou": 0.9497430039977156,
+    "vs_input": 0.7602395810917438,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8222964084489562,
+    "missing": 0.17715215339526105,
+    "extra": 0.0006706075207391585,
+    "fp_iou": 1.0,
+    "vs_input": 0.7985669556840077,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 14294,
+   "alternative": 418,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7942027909738717,
+    "missing": 0.0,
+    "extra": 0.25912425814290385,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7838160976211019,
+    "missing": 0.009439693443618861,
+    "extra": 0.2637662196052775,
+    "fp_iou": 0.9497430039977156,
+    "vs_input": 0.9253973557348097,
+    "spill": 0.004750593824228029
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7838160976211019,
+    "missing": 0.009439693443618861,
+    "extra": 0.2637662196052775,
+    "fp_iou": 0.9497430039977156,
+    "vs_input": 0.9253973557348097,
+    "spill": 0.004750593824228029
+   },
+   "alt_exact": {
+    "vol_iou": 0.8181713907014682,
+    "missing": 0.0,
+    "extra": 0.2222377992741094,
+    "fp_iou": 1.0,
+    "vs_input": 0.9707046714172605,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 12224,
+   "alternative": 18980,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.79655131826742,
+    "missing": 0.0,
+    "extra": 0.25541189508681195,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7162266945965026,
+    "missing": 0.08552641300332471,
+    "extra": 0.27679349833764316,
+    "fp_iou": 0.9057835820895522,
+    "vs_input": 0.8753780113488351,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7162266945965026,
+    "missing": 0.08552641300332471,
+    "extra": 0.27679349833764316,
+    "fp_iou": 0.9057835820895522,
+    "vs_input": 0.883741567025791,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8131489971001937,
+    "missing": 0.0014037680088659031,
+    "extra": 0.22806058367196158,
+    "fp_iou": 1.0,
+    "vs_input": 0.9770951035781544,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 18980,
+   "alternative": 12224,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.9783384301732926,
+    "missing": 0.0,
+    "extra": 0.022141182599635323,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7162266945965026,
+    "missing": 0.23235217504558478,
+    "extra": 0.07179449013259902,
+    "fp_iou": 0.9057835820895522,
+    "vs_input": 0.7017303156748912,
+    "spill": 0.0005096839959225281
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7162266945965026,
+    "missing": 0.23235217504558478,
+    "extra": 0.07179449013259902,
+    "fp_iou": 0.9057835820895522,
+    "vs_input": 0.7017303156748912,
+    "spill": 0.0005096839959225281
+   },
+   "alt_exact": {
+    "vol_iou": 0.8131462150702933,
+    "missing": 0.18642007467222366,
+    "extra": 0.0005333730262097024,
+    "fp_iou": 1.0,
+    "vs_input": 0.79647832629484,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 24179,
+   "alternative": 25781,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9094766619519095,
+    "missing": 0.08099094807050977,
+    "extra": 0.010481181515007145,
+    "fp_iou": 0.9094766619519095,
+    "vs_input": 0.9094766619519095,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9094766619519095,
+    "missing": 0.08099094807050977,
+    "extra": 0.010481181515007145,
+    "fp_iou": 0.9094766619519095,
+    "vs_input": 0.9094766619519095,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 25781,
+   "alternative": 24179,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9094766619519095,
+    "missing": 0.011276268580215274,
+    "extra": 0.08713480266529984,
+    "fp_iou": 0.9094766619519095,
+    "vs_input": 0.9094766619519095,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9094766619519095,
+    "missing": 0.011276268580215274,
+    "extra": 0.08713480266529984,
+    "fp_iou": 0.9094766619519095,
+    "vs_input": 0.9094766619519095,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 619,
+   "alternative": 20544,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6935183502906976,
+    "missing": 0.2862629914143696,
+    "extra": 0.02915374666936753,
+    "fp_iou": 0.9218071242397915,
+    "vs_input": 0.6935183502906976,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6935183502906976,
+    "missing": 0.2862629914143696,
+    "extra": 0.02915374666936753,
+    "fp_iou": 0.9218071242397915,
+    "vs_input": 0.6935183502906976,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7622123190551132,
+    "missing": 0.2377876809448868,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.7622123190551132,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 20544,
+   "alternative": 619,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.7701185630290108,
+    "missing": 0.0,
+    "extra": 0.2985013581114386,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6935183502906976,
+    "missing": 0.039243652533218674,
+    "extra": 0.3853365914024729,
+    "fp_iou": 0.9218071242397915,
+    "vs_input": 0.8912088076917308,
+    "spill": 0.004522840343735866
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6935183502906976,
+    "missing": 0.039243652533218674,
+    "extra": 0.3853365914024729,
+    "fp_iou": 0.9218071242397915,
+    "vs_input": 0.8912088076917308,
+    "spill": 0.004522840343735866
+   },
+   "alt_exact": {
+    "vol_iou": 0.7701185630290108,
+    "missing": 0.0,
+    "extra": 0.2985013581114386,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 12451,
+   "alternative": 17131,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.7762774132032083,
+    "missing": 0.0,
+    "extra": 0.28819927385704736,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7406259205745788,
+    "missing": 0.04631419230143964,
+    "extra": 0.28767543938873935,
+    "fp_iou": 0.9482660602615123,
+    "vs_input": 0.9030916627029966,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7791606326082905,
+    "missing": 0.018424522678419826,
+    "extra": 0.25978576976571954,
+    "fp_iou": 0.9482660602615123,
+    "vs_input": 0.9030916627029966,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7789061509641253,
+    "missing": 0.001101858709199617,
+    "extra": 0.2824370947056592,
+    "fp_iou": 1.0,
+    "vs_input": 0.994671602445454,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 17131,
+   "alternative": 12451,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.9936813186813187,
+    "missing": 0.0,
+    "extra": 0.006358860934476085,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7406259205745788,
+    "missing": 0.23174192046330921,
+    "extra": 0.03730919779404275,
+    "fp_iou": 0.9482660602615123,
+    "vs_input": 0.737106426907356,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7791606326082905,
+    "missing": 0.2092749152394395,
+    "extra": 0.014842192570173014,
+    "fp_iou": 0.9482660602615123,
+    "vs_input": 0.7757005347593583,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7749909123954926,
+    "missing": 0.22442268236252783,
+    "extra": 0.0007566607976950948,
+    "fp_iou": 1.0,
+    "vs_input": 0.7714285714285715,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 12810,
+   "alternative": 16764,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9097499003587086,
+    "missing": 0.0,
+    "extra": 0.09920319815996276,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.5097744360902255,
+    "missing": 0.48947181073902685,
+    "extra": 0.0014786013526464227,
+    "fp_iou": 0.915374677002584,
+    "vs_input": 0.463829046221205,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.5097744360902255,
+    "missing": 0.48947181073902685,
+    "extra": 0.0014786013526464227,
+    "fp_iou": 0.915374677002584,
+    "vs_input": 0.463829046221205,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.5510528189260974,
+    "missing": 0.4489471810739027,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.5013202471104026,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 16764,
+   "alternative": 12810,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.5061170356736859,
+    "missing": 0.0,
+    "extra": 0.9758275843628001,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.5097744360902255,
+    "missing": 0.0028878549655061768,
+    "extra": 0.9559869511738596,
+    "fp_iou": 0.915374677002584,
+    "vs_input": 0.8412320493220722,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.5097744360902255,
+    "missing": 0.0028878549655061768,
+    "extra": 0.9559869511738596,
+    "fp_iou": 0.915374677002584,
+    "vs_input": 0.8412320493220722,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.5555258467023173,
+    "missing": 0.0,
+    "extra": 0.8000962618321835,
+    "fp_iou": 1.0,
+    "vs_input": 0.9110593839657879,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 12911,
+   "alternative": 30857,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.723202343799758,
+    "missing": 0.0,
+    "extra": 0.382738881549978,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6871401748944513,
+    "missing": 0.027726405401438427,
+    "extra": 0.41495670042565685,
+    "fp_iou": 0.955902004454343,
+    "vs_input": 0.9142474590712677,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6871401748944513,
+    "missing": 0.027726405401438427,
+    "extra": 0.41495670042565685,
+    "fp_iou": 0.955902004454343,
+    "vs_input": 0.9142474590712677,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.723202343799758,
+    "missing": 0.0,
+    "extra": 0.382738881549978,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 30857,
+   "alternative": 12911,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6871401748944513,
+    "missing": 0.2991260369053665,
+    "extra": 0.019986879972913492,
+    "fp_iou": 0.955902004454343,
+    "vs_input": 0.6871401748944513,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6871401748944513,
+    "missing": 0.2991260369053665,
+    "extra": 0.019986879972913492,
+    "fp_iou": 0.955902004454343,
+    "vs_input": 0.6871401748944513,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7349013881835111,
+    "missing": 0.2650986118164889,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.7349013881835111,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 24726,
+   "alternative": 35137,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9772727272727273,
+    "missing": 0.010895883777239709,
+    "extra": 0.012106537530266344,
+    "fp_iou": 0.9772727272727273,
+    "vs_input": 0.9772727272727273,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9772727272727273,
+    "missing": 0.010895883777239709,
+    "extra": 0.012106537530266344,
+    "fp_iou": 0.9772727272727273,
+    "vs_input": 0.9772727272727273,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 35137,
+   "alternative": 24726,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9772727272727273,
+    "missing": 0.012091898428053204,
+    "extra": 0.010882708585247884,
+    "fp_iou": 0.9772727272727273,
+    "vs_input": 0.9772727272727273,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9772727272727273,
+    "missing": 0.012091898428053204,
+    "extra": 0.010882708585247884,
+    "fp_iou": 0.9772727272727273,
+    "vs_input": 0.9772727272727273,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 1204,
+   "alternative": 2257,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8690259381898455,
+    "missing": 0.0,
+    "extra": 0.15071363932239987,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7669339836483297,
+    "missing": 0.22110911775445727,
+    "extra": 0.01559051867845746,
+    "fp_iou": 0.9200652528548124,
+    "vs_input": 0.6758812184546362,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7669339836483297,
+    "missing": 0.22110911775445727,
+    "extra": 0.01559051867845746,
+    "fp_iou": 0.9200652528548124,
+    "vs_input": 0.6758812184546362,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8195690212336649,
+    "missing": 0.17457570609808373,
+    "extra": 0.007144331369965231,
+    "fp_iou": 1.0,
+    "vs_input": 0.7235237306843267,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 2257,
+   "alternative": 1204,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7277777777777777,
+    "missing": 0.0,
+    "extra": 0.37404580152671757,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7669339836483297,
+    "missing": 0.019623516246353064,
+    "extra": 0.2783062227728708,
+    "fp_iou": 0.9200652528548124,
+    "vs_input": 0.8210178581301487,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7669339836483297,
+    "missing": 0.019623516246353064,
+    "extra": 0.2783062227728708,
+    "fp_iou": 0.9200652528548124,
+    "vs_input": 0.8210178581301487,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.817845151096188,
+    "missing": 0.007054074577355022,
+    "extra": 0.21410015586906997,
+    "fp_iou": 1.0,
+    "vs_input": 0.8784613147178593,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 13009,
+   "alternative": 14304,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7262047970932659,
+    "missing": 0.0,
+    "extra": 0.3770220246446139,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7477645254494912,
+    "missing": 0.07697638647081692,
+    "extra": 0.2343773769882186,
+    "fp_iou": 0.9244975556762629,
+    "vs_input": 0.7834594157388904,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7477645254494912,
+    "missing": 0.07697638647081692,
+    "extra": 0.2343773769882186,
+    "fp_iou": 0.9244975556762629,
+    "vs_input": 0.7834594157388904,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7977732879325204,
+    "missing": 0.04558746471493044,
+    "extra": 0.1963455654907794,
+    "fp_iou": 1.0,
+    "vs_input": 0.8356860530773574,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 14304,
+   "alternative": 13009,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8400358229463146,
+    "missing": 0.0,
+    "extra": 0.1904254231594935,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7477645254494912,
+    "missing": 0.20250317643450702,
+    "extra": 0.0665079666437866,
+    "fp_iou": 0.9244975556762629,
+    "vs_input": 0.6833961586788727,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7477645254494912,
+    "missing": 0.20250317643450702,
+    "extra": 0.0665079666437866,
+    "fp_iou": 0.9244975556762629,
+    "vs_input": 0.6833961586788727,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7905852847521627,
+    "missing": 0.18053831437208828,
+    "extra": 0.03652534575672163,
+    "fp_iou": 1.0,
+    "vs_input": 0.7190597703405633,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 13009,
+   "alternative": 14627,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.7262047970932659,
+    "missing": 0.0,
+    "extra": 0.3770220246446139,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7181432277336688,
+    "missing": 0.07349436284038471,
+    "extra": 0.2901404641571305,
+    "fp_iou": 0.9165769644779332,
+    "vs_input": 0.7713797561876616,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7279459238664963,
+    "missing": 0.0661753520055442,
+    "extra": 0.28282145332229003,
+    "fp_iou": 0.9165769644779332,
+    "vs_input": 0.8040986208599344,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8016028646943474,
+    "missing": 0.046466422136204596,
+    "extra": 0.18953364547590473,
+    "fp_iou": 1.0,
+    "vs_input": 0.8301009009893698,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 14627,
+   "alternative": 13009,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8377327746741154,
+    "missing": 0.0,
+    "extra": 0.1936980744116258,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7181432277336688,
+    "missing": 0.2384756453360749,
+    "extra": 0.060407346689266166,
+    "fp_iou": 0.9165769644779332,
+    "vs_input": 0.6473934617961324,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7279459238664963,
+    "missing": 0.232459918308372,
+    "extra": 0.05439161966156326,
+    "fp_iou": 0.9165769644779332,
+    "vs_input": 0.6473934617961324,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.787276794684599,
+    "missing": 0.18348662091194531,
+    "extra": 0.037136347217205254,
+    "fp_iou": 1.0,
+    "vs_input": 0.7151303538175047,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 13037,
+   "alternative": 16133,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8676598371901583,
+    "missing": 0.0,
+    "extra": 0.1525253989379225,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8142212022505182,
+    "missing": 0.1304273346598321,
+    "extra": 0.06798086679228874,
+    "fp_iou": 0.933066361556064,
+    "vs_input": 0.7581581981023322,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8265714285714286,
+    "missing": 0.12320626177706914,
+    "extra": 0.06075979390952575,
+    "fp_iou": 0.933066361556064,
+    "vs_input": 0.7581581981023322,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8886313549661828,
+    "missing": 0.07547865962128898,
+    "extra": 0.04038793501034405,
+    "fp_iou": 1.0,
+    "vs_input": 0.837213024787341,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 16133,
+   "alternative": 13037,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8385385975250442,
+    "missing": 0.0,
+    "extra": 0.19255094869992972,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8142212022505182,
+    "missing": 0.07250878425860857,
+    "extra": 0.1391145467322558,
+    "fp_iou": 0.933066361556064,
+    "vs_input": 0.8103685182682344,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8265714285714286,
+    "missing": 0.06480674631061138,
+    "extra": 0.1314125087842586,
+    "fp_iou": 0.933066361556064,
+    "vs_input": 0.8415842718513342,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8915545893846335,
+    "missing": 0.043148278285312716,
+    "extra": 0.07323963457484188,
+    "fp_iou": 1.0,
+    "vs_input": 0.8637713612256924,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 13045,
+   "alternative": 9588,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.7536660100678485,
+    "missing": 0.0,
+    "extra": 0.3268476840423987,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7445705548165736,
+    "missing": 0.13033251052708,
+    "extra": 0.1680121968926964,
+    "fp_iou": 0.9128787878787878,
+    "vs_input": 0.7360689118452894,
+    "spill": 0.0006565988181221273
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7623161833959137,
+    "missing": 0.11857122114128067,
+    "extra": 0.15625090750689705,
+    "fp_iou": 0.9128787878787878,
+    "vs_input": 0.7360689118452894,
+    "spill": 0.0006565988181221273
+   },
+   "alt_exact": {
+    "vol_iou": 0.8134970718901454,
+    "missing": 0.06410628720778278,
+    "extra": 0.15045738347611443,
+    "fp_iou": 1.0,
+    "vs_input": 0.8187458962573867,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 9588,
+   "alternative": 13045,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8176212159348328,
+    "missing": 0.0,
+    "extra": 0.22306023927796823,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7445705548165736,
+    "missing": 0.16191142517316168,
+    "extra": 0.12559994402854543,
+    "fp_iou": 0.9128787878787878,
+    "vs_input": 0.6980984461588612,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7623161833959137,
+    "missing": 0.1505772056251312,
+    "extra": 0.11426572448051493,
+    "fp_iou": 0.9128787878787878,
+    "vs_input": 0.7235119605615784,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8169499583977178,
+    "missing": 0.13444343384873714,
+    "extra": 0.05949765619534038,
+    "fp_iou": 1.0,
+    "vs_input": 0.756343958080681,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 13045,
+   "alternative": 9759,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.7536660100678485,
+    "missing": 0.0,
+    "extra": 0.3268476840423987,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7322231265260126,
+    "missing": 0.15087846667634675,
+    "extra": 0.15964861332946131,
+    "fp_iou": 0.9089171974522293,
+    "vs_input": 0.7244765590660077,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7493740674236868,
+    "missing": 0.13950922027007406,
+    "extra": 0.1482793669231886,
+    "fp_iou": 0.9089171974522293,
+    "vs_input": 0.7244765590660077,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8052678008821677,
+    "missing": 0.07219398867431392,
+    "extra": 0.1521707564977494,
+    "fp_iou": 1.0,
+    "vs_input": 0.8139417815714598,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 9759,
+   "alternative": 13045,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8126374397604454,
+    "missing": 0.0,
+    "extra": 0.230561073207243,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7322231265260126,
+    "missing": 0.15826064426979877,
+    "extra": 0.14956674439358608,
+    "fp_iou": 0.9089171974522293,
+    "vs_input": 0.6943493150684932,
+    "spill": 0.0006784260515603799
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7493740674236868,
+    "missing": 0.1469902409534502,
+    "extra": 0.13829634107723754,
+    "fp_iou": 0.9089171974522293,
+    "vs_input": 0.7196617760101601,
+    "spill": 0.0006784260515603799
+   },
+   "alt_exact": {
+    "vol_iou": 0.808841066782307,
+    "missing": 0.14088723839134065,
+    "extra": 0.06215274779054034,
+    "fp_iou": 1.0,
+    "vs_input": 0.7486548448977682,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 13263,
+   "alternative": 1588,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7725337742752604,
+    "missing": 0.0,
+    "extra": 0.29444178791811826,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7174668713496727,
+    "missing": 0.07413985472596034,
+    "extra": 0.2904569984288544,
+    "fp_iou": 0.9201409277745156,
+    "vs_input": 0.9064455894048895,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7174668713496727,
+    "missing": 0.07413985472596034,
+    "extra": 0.2904569984288544,
+    "fp_iou": 0.9201409277745156,
+    "vs_input": 0.9064455894048895,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7618441971383147,
+    "missing": 0.01796570804016668,
+    "extra": 0.2890224742127194,
+    "fp_iou": 1.0,
+    "vs_input": 0.9819342808893893,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 1588,
+   "alternative": 13263,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9831590959287344,
+    "missing": 0.0,
+    "extra": 0.017129378287810998,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7174668713496727,
+    "missing": 0.23880038190089298,
+    "extra": 0.060954377819795194,
+    "fp_iou": 0.9201409277745156,
+    "vs_input": 0.7251496900844586,
+    "spill": 0.0012515644555694619
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7174668713496727,
+    "missing": 0.23880038190089298,
+    "extra": 0.060954377819795194,
+    "fp_iou": 0.9201409277745156,
+    "vs_input": 0.7251496900844586,
+    "spill": 0.0012515644555694619
+   },
+   "alt_exact": {
+    "vol_iou": 0.7688412493069673,
+    "missing": 0.22118426718086004,
+    "extra": 0.01297339798191587,
+    "fp_iou": 1.0,
+    "vs_input": 0.7784546860045646,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 13381,
+   "alternative": 18969,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9789887422360248,
+    "missing": 0.0,
+    "extra": 0.021462205700123915,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8841635338345865,
+    "missing": 0.06741016109045848,
+    "extra": 0.05477075588599752,
+    "fp_iou": 0.9030803906836965,
+    "vs_input": 0.9030803906836965,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8841635338345865,
+    "missing": 0.06741016109045848,
+    "extra": 0.05477075588599752,
+    "fp_iou": 0.9030803906836965,
+    "vs_input": 0.9030803906836965,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9789887422360248,
+    "missing": 0.0,
+    "extra": 0.021462205700123915,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 18969,
+   "alternative": 13381,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8841635338345865,
+    "missing": 0.055471887550200806,
+    "extra": 0.06827309236947791,
+    "fp_iou": 0.9030803906836965,
+    "vs_input": 0.8841635338345865,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8841635338345865,
+    "missing": 0.055471887550200806,
+    "extra": 0.06827309236947791,
+    "fp_iou": 0.9030803906836965,
+    "vs_input": 0.8841635338345865,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9777610441767068,
+    "missing": 0.02223895582329317,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.9777610441767068,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 25522,
+   "alternative": 32465,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9513175524787851,
+    "missing": 0.010223048327137546,
+    "extra": 0.040427509293680296,
+    "fp_iou": 0.9513175524787851,
+    "vs_input": 0.9513175524787851,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9513175524787851,
+    "missing": 0.010223048327137546,
+    "extra": 0.040427509293680296,
+    "fp_iou": 0.9513175524787851,
+    "vs_input": 0.9513175524787851,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 32465,
+   "alternative": 25522,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9513175524787851,
+    "missing": 0.03924221921515562,
+    "extra": 0.009923319801533603,
+    "fp_iou": 0.9513175524787851,
+    "vs_input": 0.9513175524787851,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9513175524787851,
+    "missing": 0.03924221921515562,
+    "extra": 0.009923319801533603,
+    "fp_iou": 0.9513175524787851,
+    "vs_input": 0.9513175524787851,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 25522,
+   "alternative": 32730,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9076669065661911,
+    "missing": 0.0037174721189591076,
+    "extra": 0.09763011152416357,
+    "fp_iou": 0.9528888888888889,
+    "vs_input": 0.9076669065661911,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9076669065661911,
+    "missing": 0.0037174721189591076,
+    "extra": 0.09763011152416357,
+    "fp_iou": 0.9528888888888889,
+    "vs_input": 0.9076669065661911,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 32730,
+   "alternative": 25522,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9076669065661911,
+    "missing": 0.08924854509154241,
+    "extra": 0.0033983263242852893,
+    "fp_iou": 0.9528888888888889,
+    "vs_input": 0.9076669065661911,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9076669065661911,
+    "missing": 0.08924854509154241,
+    "extra": 0.0033983263242852893,
+    "fp_iou": 0.9528888888888889,
+    "vs_input": 0.9076669065661911,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 1710,
+   "alternative": 16654,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8930452674897119,
+    "missing": 0.0,
+    "extra": 0.11976406617206581,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8396515710412871,
+    "missing": 0.12939495875766094,
+    "extra": 0.036864660614718214,
+    "fp_iou": 0.9191176470588235,
+    "vs_input": 0.7984955643677691,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8396515710412871,
+    "missing": 0.12939495875766094,
+    "extra": 0.036864660614718214,
+    "fp_iou": 0.9191176470588235,
+    "vs_input": 0.7984955643677691,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9077101242706338,
+    "missing": 0.06091885166582185,
+    "extra": 0.03456061932629833,
+    "fp_iou": 1.0,
+    "vs_input": 0.8695061728395062,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 16654,
+   "alternative": 1710,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8682980599647266,
+    "missing": 0.0,
+    "extra": 0.15167826131112577,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8396515710412871,
+    "missing": 0.04062357182755294,
+    "extra": 0.14258873711471082,
+    "fp_iou": 0.9191176470588235,
+    "vs_input": 0.8282595262615859,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8396515710412871,
+    "missing": 0.04062357182755294,
+    "extra": 0.14258873711471082,
+    "fp_iou": 0.9191176470588235,
+    "vs_input": 0.8282595262615859,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9104648938205472,
+    "missing": 0.03336210836337785,
+    "extra": 0.061697049713096024,
+    "fp_iou": 1.0,
+    "vs_input": 0.8929012345679013,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 13393,
+   "alternative": 30679,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7650045606567346,
+    "missing": 0.0,
+    "extra": 0.3071817495330074,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7507892090760993,
+    "missing": 0.04295338023131036,
+    "extra": 0.27472079806049043,
+    "fp_iou": 0.9368898186889819,
+    "vs_input": 0.9368898186889819,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7507892090760993,
+    "missing": 0.04295338023131036,
+    "extra": 0.27472079806049043,
+    "fp_iou": 0.9368898186889819,
+    "vs_input": 0.9368898186889819,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7650045606567346,
+    "missing": 0.0,
+    "extra": 0.3071817495330074,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 30679,
+   "alternative": 13393,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7507892090760993,
+    "missing": 0.2230297652657901,
+    "extra": 0.03487133984028394,
+    "fp_iou": 0.9368898186889819,
+    "vs_input": 0.7507892090760993,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7507892090760993,
+    "missing": 0.2230297652657901,
+    "extra": 0.03487133984028394,
+    "fp_iou": 0.9368898186889819,
+    "vs_input": 0.7507892090760993,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7793579091715738,
+    "missing": 0.22064209082842623,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.7793579091715738,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 25781,
+   "alternative": 27509,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9094129554655871,
+    "missing": 0.07893388006150692,
+    "extra": 0.012813941568426449,
+    "fp_iou": 0.9094129554655871,
+    "vs_input": 0.9094129554655871,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9094129554655871,
+    "missing": 0.07893388006150692,
+    "extra": 0.012813941568426449,
+    "fp_iou": 0.9094129554655871,
+    "vs_input": 0.9094129554655871,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 27509,
+   "alternative": 25781,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9094129554655871,
+    "missing": 0.013721185510428101,
+    "extra": 0.0845225027442371,
+    "fp_iou": 0.9094129554655871,
+    "vs_input": 0.9094129554655871,
+    "spill": 0.0005488474204171241
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9094129554655871,
+    "missing": 0.013721185510428101,
+    "extra": 0.0845225027442371,
+    "fp_iou": 0.9094129554655871,
+    "vs_input": 0.9094129554655871,
+    "spill": 0.0005488474204171241
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 13559,
+   "alternative": 11033,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9030629139072848,
+    "missing": 0.0,
+    "extra": 0.1073425611880099,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7650658301670054,
+    "missing": 0.2063204693372445,
+    "extra": 0.037400311669263914,
+    "fp_iou": 0.957078795643818,
+    "vs_input": 0.7100315380883067,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7650658301670054,
+    "missing": 0.2063204693372445,
+    "extra": 0.037400311669263914,
+    "fp_iou": 0.957078795643818,
+    "vs_input": 0.7100315380883067,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7923446494130445,
+    "missing": 0.19875790631588597,
+    "extra": 0.011229260243835365,
+    "fp_iou": 1.0,
+    "vs_input": 0.7337127483443708,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 11033,
+   "alternative": 13559,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7335153721682848,
+    "missing": 0.0,
+    "extra": 0.3632979456776506,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7650658301670054,
+    "missing": 0.04500206810974769,
+    "extra": 0.24825589411278093,
+    "fp_iou": 0.957078795643818,
+    "vs_input": 0.8664848497002026,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7650658301670054,
+    "missing": 0.04500206810974769,
+    "extra": 0.24825589411278093,
+    "fp_iou": 0.957078795643818,
+    "vs_input": 0.8664848497002026,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7936511457663213,
+    "missing": 0.013456500758306908,
+    "extra": 0.24304425754860057,
+    "fp_iou": 1.0,
+    "vs_input": 0.9019215210355987,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 26150,
+   "alternative": 26378,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9042096219931272,
+    "missing": 0.04966139954853273,
+    "extra": 0.051015801354401806,
+    "fp_iou": 0.9042096219931272,
+    "vs_input": 0.9042096219931272,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9042096219931272,
+    "missing": 0.04966139954853273,
+    "extra": 0.051015801354401806,
+    "fp_iou": 0.9042096219931272,
+    "vs_input": 0.9042096219931272,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 26378,
+   "alternative": 26150,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9042096219931272,
+    "missing": 0.0509467989179441,
+    "extra": 0.04959422903516682,
+    "fp_iou": 0.9042096219931272,
+    "vs_input": 0.9042096219931272,
+    "spill": 0.005410279531109108
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9042096219931272,
+    "missing": 0.0509467989179441,
+    "extra": 0.04959422903516682,
+    "fp_iou": 0.9042096219931272,
+    "vs_input": 0.9042096219931272,
+    "spill": 0.005410279531109108
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 26176,
+   "alternative": 30404,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8920122845364248,
+    "missing": 0.028974158183241974,
+    "extra": 0.08857900126498404,
+    "fp_iou": 0.9253731343283582,
+    "vs_input": 0.8920122845364248,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8920122845364248,
+    "missing": 0.028974158183241974,
+    "extra": 0.08857900126498404,
+    "fp_iou": 0.9253731343283582,
+    "vs_input": 0.8920122845364248,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 30404,
+   "alternative": 26176,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8920122845364248,
+    "missing": 0.08359625934453256,
+    "extra": 0.02734430516471959,
+    "fp_iou": 0.9253731343283582,
+    "vs_input": 0.8920122845364248,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8920122845364248,
+    "missing": 0.08359625934453256,
+    "extra": 0.02734430516471959,
+    "fp_iou": 0.9253731343283582,
+    "vs_input": 0.8920122845364248,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 26544,
+   "alternative": 28380,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9053951367781155,
+    "missing": 0.057730328192961644,
+    "extra": 0.04072756030051404,
+    "fp_iou": 0.9053951367781155,
+    "vs_input": 0.9053951367781155,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9053951367781155,
+    "missing": 0.057730328192961644,
+    "extra": 0.04072756030051404,
+    "fp_iou": 0.9053951367781155,
+    "vs_input": 0.9053951367781155,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 28380,
+   "alternative": 26544,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9053951367781155,
+    "missing": 0.041432019308125505,
+    "extra": 0.058728881737731296,
+    "fp_iou": 0.9053951367781155,
+    "vs_input": 0.9053951367781155,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9053951367781155,
+    "missing": 0.041432019308125505,
+    "extra": 0.058728881737731296,
+    "fp_iou": 0.9053951367781155,
+    "vs_input": 0.9053951367781155,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 26544,
+   "alternative": 30055,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9309252379255942,
+    "missing": 0.03562672993277975,
+    "extra": 0.03592988005799394,
+    "fp_iou": 0.961875714830347,
+    "vs_input": 0.9309252379255942,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9309252379255942,
+    "missing": 0.03562672993277975,
+    "extra": 0.03592988005799394,
+    "fp_iou": 0.961875714830347,
+    "vs_input": 0.9309252379255942,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 30055,
+   "alternative": 26544,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9309252379255942,
+    "missing": 0.03591899121131066,
+    "extra": 0.03561593295824384,
+    "fp_iou": 0.961875714830347,
+    "vs_input": 0.9309252379255942,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9309252379255942,
+    "missing": 0.03591899121131066,
+    "extra": 0.03561593295824384,
+    "fp_iou": 0.961875714830347,
+    "vs_input": 0.9309252379255942,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 26566,
+   "alternative": 18535,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8722962962962963,
+    "missing": 0.1277037037037037,
+    "extra": 0.0,
+    "fp_iou": 0.908641975308642,
+    "vs_input": 0.8722962962962963,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8722962962962963,
+    "missing": 0.1277037037037037,
+    "extra": 0.0,
+    "fp_iou": 0.908641975308642,
+    "vs_input": 0.8722962962962963,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 18535,
+   "alternative": 26566,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8722962962962963,
+    "missing": 0.0,
+    "extra": 0.14639945652173914,
+    "fp_iou": 0.908641975308642,
+    "vs_input": 0.8722962962962963,
+    "spill": 0.0016983695652173913
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8722962962962963,
+    "missing": 0.0,
+    "extra": 0.14639945652173914,
+    "fp_iou": 0.908641975308642,
+    "vs_input": 0.8722962962962963,
+    "spill": 0.0016983695652173913
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 14304,
+   "alternative": 14627,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8400358229463146,
+    "missing": 0.0,
+    "extra": 0.1904254231594935,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9421037348414663,
+    "missing": 0.004980065135162765,
+    "extra": 0.056168124662275644,
+    "fp_iou": 0.9777901166018879,
+    "vs_input": 0.8175466849814681,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9421037348414663,
+    "missing": 0.004980065135162765,
+    "extra": 0.056168124662275644,
+    "fp_iou": 0.9777901166018879,
+    "vs_input": 0.8532291754705819,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9878055887409307,
+    "missing": 0.00981408730448498,
+    "extra": 0.00240970893636908,
+    "fp_iou": 1.0,
+    "vs_input": 0.8338158798704485,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 14627,
+   "alternative": 14304,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8377327746741154,
+    "missing": 0.0,
+    "extra": 0.1936980744116258,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9421037348414663,
+    "missing": 0.053432993414654475,
+    "extra": 0.004737558698491206,
+    "fp_iou": 0.9777901166018879,
+    "vs_input": 0.7898354992406765,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9421037348414663,
+    "missing": 0.053432993414654475,
+    "extra": 0.004737558698491206,
+    "fp_iou": 0.9777901166018879,
+    "vs_input": 0.7898354992406765,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9875719122464147,
+    "missing": 0.0030981688849370643,
+    "extra": 0.00944733112895607,
+    "fp_iou": 1.0,
+    "vs_input": 0.8430516759776536,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 14472,
+   "alternative": 19547,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9452900810979413,
+    "missing": 0.0,
+    "extra": 0.05787632811984426,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7886891433689464,
+    "missing": 0.18643172969049032,
+    "extra": 0.031544908598957304,
+    "fp_iou": 0.9031870114251352,
+    "vs_input": 0.7551889950696938,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7886891433689464,
+    "missing": 0.18643172969049032,
+    "extra": 0.031544908598957304,
+    "fp_iou": 0.9031870114251352,
+    "vs_input": 0.7551889950696938,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8581712360238934,
+    "missing": 0.13722255218988538,
+    "extra": 0.0053674739875492206,
+    "fp_iou": 1.0,
+    "vs_input": 0.8206487835308796,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 19547,
+   "alternative": 14472,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8198463508322663,
+    "missing": 0.0,
+    "extra": 0.21974074652506637,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7886891433689464,
+    "missing": 0.03732625331875683,
+    "extra": 0.22059971888177418,
+    "fp_iou": 0.9031870114251352,
+    "vs_input": 0.8573756639304684,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7886891433689464,
+    "missing": 0.03732625331875683,
+    "extra": 0.22059971888177418,
+    "fp_iou": 0.9031870114251352,
+    "vs_input": 0.8573756639304684,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8576723498888065,
+    "missing": 0.006168983289083242,
+    "extra": 0.15875370919881307,
+    "fp_iou": 1.0,
+    "vs_input": 0.9449423815620999,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 27198,
+   "alternative": 22617,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8762654439958613,
+    "missing": 0.028301462317210348,
+    "extra": 0.10890888638920135,
+    "fp_iou": 0.904613789528253,
+    "vs_input": 0.8762654439958613,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8901083180053138,
+    "missing": 0.020179977502812148,
+    "extra": 0.10078740157480315,
+    "fp_iou": 0.904613789528253,
+    "vs_input": 0.8901083180053138,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9743419572553431,
+    "missing": 0.02565804274465692,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.9743419572553431,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 22617,
+   "alternative": 27198,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.9743792599805258,
+    "missing": 0.0,
+    "extra": 0.026294422584473176,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8762654439958613,
+    "missing": 0.10078487706368539,
+    "extra": 0.02619032748318864,
+    "fp_iou": 0.904613789528253,
+    "vs_input": 0.8703936473733564,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8901083180053138,
+    "missing": 0.09326921075094206,
+    "extra": 0.01867466117044532,
+    "fp_iou": 0.904613789528253,
+    "vs_input": 0.8703936473733564,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9743792599805258,
+    "missing": 0.0,
+    "extra": 0.026294422584473176,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 14914,
+   "alternative": 21525,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7782554182339244,
+    "missing": 0.0,
+    "extra": 0.2849252013808976,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7943131815572987,
+    "missing": 0.04444764096662831,
+    "extra": 0.20299194476409665,
+    "fp_iou": 0.9206185567010309,
+    "vs_input": 0.8315219735196446,
+    "spill": 0.0032240730789897904
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7943131815572987,
+    "missing": 0.04444764096662831,
+    "extra": 0.20299194476409665,
+    "fp_iou": 0.9206185567010309,
+    "vs_input": 0.8315219735196446,
+    "spill": 0.0032240730789897904
+   },
+   "alt_exact": {
+    "vol_iou": 0.8478802377487854,
+    "missing": 0.010960874568469505,
+    "extra": 0.1664844649021864,
+    "fp_iou": 1.0,
+    "vs_input": 0.8992924950743328,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 21525,
+   "alternative": 14914,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8997095621090259,
+    "missing": 0.0,
+    "extra": 0.11146979215812867,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7943131815572987,
+    "missing": 0.17521293238310448,
+    "extra": 0.038365076605994385,
+    "fp_iou": 0.9206185567010309,
+    "vs_input": 0.7315564846267747,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7943131815572987,
+    "missing": 0.17521293238310448,
+    "extra": 0.038365076605994385,
+    "fp_iou": 0.9206185567010309,
+    "vs_input": 0.7315564846267747,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8469939978352848,
+    "missing": 0.14499267462938592,
+    "extra": 0.009460902386332596,
+    "fp_iou": 1.0,
+    "vs_input": 0.7777703306523682,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 27732,
+   "alternative": 32974,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9000805801772764,
+    "missing": 0.09039087947882736,
+    "extra": 0.010586319218241042,
+    "fp_iou": 0.9000805801772764,
+    "vs_input": 0.9000805801772764,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9000805801772764,
+    "missing": 0.09039087947882736,
+    "extra": 0.010586319218241042,
+    "fp_iou": 0.9000805801772764,
+    "vs_input": 0.9000805801772764,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 32974,
+   "alternative": 27732,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9000805801772764,
+    "missing": 0.011504424778761062,
+    "extra": 0.09823008849557523,
+    "fp_iou": 0.9000805801772764,
+    "vs_input": 0.9000805801772764,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9000805801772764,
+    "missing": 0.011504424778761062,
+    "extra": 0.09823008849557523,
+    "fp_iou": 0.9000805801772764,
+    "vs_input": 0.9000805801772764,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 27948,
+   "alternative": 34194,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9761194029850746,
+    "missing": 0.01919616076784643,
+    "extra": 0.004799040191961607,
+    "fp_iou": 0.9761194029850746,
+    "vs_input": 0.9761194029850746,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9761194029850746,
+    "missing": 0.01919616076784643,
+    "extra": 0.004799040191961607,
+    "fp_iou": 0.9761194029850746,
+    "vs_input": 0.9761194029850746,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 34194,
+   "alternative": 27948,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.9761194029850746,
+    "missing": 0.004869141813755326,
+    "extra": 0.019476567255021303,
+    "fp_iou": 0.9761194029850746,
+    "vs_input": 0.9761194029850746,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9761194029850746,
+    "missing": 0.004869141813755326,
+    "extra": 0.019476567255021303,
+    "fp_iou": 0.9761194029850746,
+    "vs_input": 0.9761194029850746,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 4216,
+   "alternative": 5639,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8295052338278485,
+    "missing": 0.0,
+    "extra": 0.20553790285973672,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8415936128168061,
+    "missing": 0.03983961264941746,
+    "extra": 0.140883643516417,
+    "fp_iou": 0.9243654822335026,
+    "vs_input": 0.8490593500964303,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8415936128168061,
+    "missing": 0.03983961264941746,
+    "extra": 0.140883643516417,
+    "fp_iou": 0.9243654822335026,
+    "vs_input": 0.8490593500964303,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.903311929243281,
+    "missing": 0.001709789680738387,
+    "extra": 0.10514449992434559,
+    "fp_iou": 1.0,
+    "vs_input": 0.9153048673343877,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 5639,
+   "alternative": 4216,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.91476844169558,
+    "missing": 0.0,
+    "extra": 0.09317282321899736,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8415936128168061,
+    "missing": 0.12795459542656112,
+    "extra": 0.0361834872471416,
+    "fp_iou": 0.9243654822335026,
+    "vs_input": 0.7746015499342009,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8415936128168061,
+    "missing": 0.12795459542656112,
+    "extra": 0.0361834872471416,
+    "fp_iou": 0.9243654822335026,
+    "vs_input": 0.7746015499342009,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9035152712603935,
+    "missing": 0.09506926121372032,
+    "extra": 0.001566622691292876,
+    "fp_iou": 1.0,
+    "vs_input": 0.829235178759994,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 4216,
+   "alternative": 18092,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8295052338278485,
+    "missing": 0.0,
+    "extra": 0.20553790285973672,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7430798622247633,
+    "missing": 0.1937206839158723,
+    "extra": 0.08505068845513694,
+    "fp_iou": 0.927536231884058,
+    "vs_input": 0.7191663565314477,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7659324979161664,
+    "missing": 0.17967922529883493,
+    "extra": 0.07100922983809956,
+    "fp_iou": 0.927536231884058,
+    "vs_input": 0.7191663565314477,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8101645490522807,
+    "missing": 0.11720381298229687,
+    "extra": 0.0896504766227871,
+    "fp_iou": 1.0,
+    "vs_input": 0.8066495971082159,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 18092,
+   "alternative": 4216,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8060755336617406,
+    "missing": 0.0,
+    "extra": 0.2405785292320228,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7430798622247633,
+    "missing": 0.09541997691315271,
+    "extra": 0.21733890133767908,
+    "fp_iou": 0.927536231884058,
+    "vs_input": 0.7758297285916625,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7659324979161664,
+    "missing": 0.07966659876417465,
+    "extra": 0.20158552318870102,
+    "fp_iou": 0.927536231884058,
+    "vs_input": 0.814874222448261,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8079919806807309,
+    "missing": 0.09691383173762477,
+    "extra": 0.11769199429619066,
+    "fp_iou": 1.0,
+    "vs_input": 0.822824302134647,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 4216,
+   "alternative": 18980,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8295052338278485,
+    "missing": 0.0,
+    "extra": 0.20553790285973672,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7806651292632601,
+    "missing": 0.02679679225298835,
+    "extra": 0.24663337872597973,
+    "fp_iou": 0.9170392449080974,
+    "vs_input": 0.8987562189054726,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7806651292632601,
+    "missing": 0.02679679225298835,
+    "extra": 0.24663337872597973,
+    "fp_iou": 0.9170392449080974,
+    "vs_input": 0.8987562189054726,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8469674243298335,
+    "missing": 0.00036314117113027687,
+    "extra": 0.18025419881979118,
+    "fp_iou": 1.0,
+    "vs_input": 0.97872580766624,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 18980,
+   "alternative": 4216,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9783384301732926,
+    "missing": 0.0,
+    "extra": 0.022141182599635323,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7806651292632601,
+    "missing": 0.20218558900507325,
+    "extra": 0.021967526265520534,
+    "fp_iou": 0.9170392449080974,
+    "vs_input": 0.7645716730241346,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7806651292632601,
+    "missing": 0.20218558900507325,
+    "extra": 0.021967526265520534,
+    "fp_iou": 0.9170392449080974,
+    "vs_input": 0.7645716730241346,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8448927964682977,
+    "missing": 0.15487664198265919,
+    "extra": 0.0002728885250375222,
+    "fp_iou": 1.0,
+    "vs_input": 0.8270836367166643,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 4216,
+   "alternative": 34538,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8295052338278485,
+    "missing": 0.0,
+    "extra": 0.20553790285973672,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7591824094146795,
+    "missing": 0.07270388863670751,
+    "extra": 0.22144045997881676,
+    "fp_iou": 0.9118387909319899,
+    "vs_input": 0.8702550664711397,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7972536860089856,
+    "missing": 0.046830080193675294,
+    "extra": 0.19556665153578454,
+    "fp_iou": 0.9118387909319899,
+    "vs_input": 0.8702550664711397,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8295052338278485,
+    "missing": 0.0,
+    "extra": 0.20553790285973672,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 34538,
+   "alternative": 4216,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7591824094146795,
+    "missing": 0.19276870389884088,
+    "extra": 0.06329030558482614,
+    "fp_iou": 0.9118387909319899,
+    "vs_input": 0.7591824094146795,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7972536860089856,
+    "missing": 0.1702449947312961,
+    "extra": 0.04076659641728135,
+    "fp_iou": 0.9118387909319899,
+    "vs_input": 0.7972536860089856,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8193097997892519,
+    "missing": 0.18069020021074816,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.8193097997892519,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 28116,
+   "alternative": 30300,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8904771550102722,
+    "missing": 0.06405109489051095,
+    "extra": 0.05106447688564477,
+    "fp_iou": 0.9272349272349273,
+    "vs_input": 0.8904771550102722,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8904771550102722,
+    "missing": 0.06405109489051095,
+    "extra": 0.05106447688564477,
+    "fp_iou": 0.9272349272349273,
+    "vs_input": 0.8904771550102722,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 30300,
+   "alternative": 28116,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8904771550102722,
+    "missing": 0.0517363571934798,
+    "extra": 0.064893846485687,
+    "fp_iou": 0.9272349272349273,
+    "vs_input": 0.8904771550102722,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8904771550102722,
+    "missing": 0.0517363571934798,
+    "extra": 0.064893846485687,
+    "fp_iou": 0.9272349272349273,
+    "vs_input": 0.8904771550102722,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 28380,
+   "alternative": 30055,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8767601681280167,
+    "missing": 0.05744167337087691,
+    "extra": 0.07504692947170823,
+    "fp_iou": 0.9048152295632699,
+    "vs_input": 0.8767601681280167,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8767601681280167,
+    "missing": 0.05744167337087691,
+    "extra": 0.07504692947170823,
+    "fp_iou": 0.9048152295632699,
+    "vs_input": 0.8767601681280167,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 30055,
+   "alternative": 28380,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8767601681280167,
+    "missing": 0.07374856706152083,
+    "extra": 0.056447893745141184,
+    "fp_iou": 0.9048152295632699,
+    "vs_input": 0.8767601681280167,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8767601681280167,
+    "missing": 0.07374856706152083,
+    "extra": 0.056447893745141184,
+    "fp_iou": 0.9048152295632699,
+    "vs_input": 0.8767601681280167,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 5253,
+   "alternative": 8995,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8146351575456053,
+    "missing": 0.0,
+    "extra": 0.2275433864318795,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7950056631249663,
+    "missing": 0.06228052318184132,
+    "extra": 0.1795129523130948,
+    "fp_iou": 0.9036993540810335,
+    "vs_input": 0.8132889907805536,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7950056631249663,
+    "missing": 0.06228052318184132,
+    "extra": 0.1795129523130948,
+    "fp_iou": 0.9036993540810335,
+    "vs_input": 0.8132889907805536,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8724530960579098,
+    "missing": 0.023169118021273347,
+    "extra": 0.11963713166064431,
+    "fp_iou": 1.0,
+    "vs_input": 0.8932213930348258,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 8995,
+   "alternative": 5253,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8956548347613219,
+    "missing": 0.0,
+    "extra": 0.11650153741031773,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7950056631249663,
+    "missing": 0.16067646053980184,
+    "extra": 0.05574535929848536,
+    "fp_iou": 0.9036993540810335,
+    "vs_input": 0.7443635753152744,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7950056631249663,
+    "missing": 0.16067646053980184,
+    "extra": 0.05574535929848536,
+    "fp_iou": 0.9036993540810335,
+    "vs_input": 0.7443635753152744,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8667471279781861,
+    "missing": 0.1167293019018335,
+    "extra": 0.019063887939870173,
+    "fp_iou": 1.0,
+    "vs_input": 0.8081803345573235,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 17112,
+   "alternative": 8474,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8646857923497268,
+    "missing": 0.0,
+    "extra": 0.15648945414329726,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8238954848391226,
+    "missing": 0.01693130052400137,
+    "extra": 0.19319588171788188,
+    "fp_iou": 0.9325113562621674,
+    "vs_input": 0.9179277348401204,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8238954848391226,
+    "missing": 0.01693130052400137,
+    "extra": 0.19319588171788188,
+    "fp_iou": 0.9325113562621674,
+    "vs_input": 0.9179277348401204,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8791989813635838,
+    "missing": 0.0,
+    "extra": 0.1373989519972615,
+    "fp_iou": 1.0,
+    "vs_input": 0.9834927140255009,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 8474,
+   "alternative": 17112,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9835094671950683,
+    "missing": 0.0,
+    "extra": 0.0167670300642475,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8238954848391226,
+    "missing": 0.16424525978822951,
+    "extra": 0.014394125943005529,
+    "fp_iou": 0.9325113562621674,
+    "vs_input": 0.810498664872023,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8238954848391226,
+    "missing": 0.16424525978822951,
+    "extra": 0.014394125943005529,
+    "fp_iou": 0.9325113562621674,
+    "vs_input": 0.810498664872023,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8791833628080857,
+    "missing": 0.12081663719191421,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.8646851607221488,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 17131,
+   "alternative": 9687,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.9936813186813187,
+    "missing": 0.0,
+    "extra": 0.006358860934476085,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8960726689820999,
+    "missing": 0.07271219242466131,
+    "extra": 0.03483549903234725,
+    "fp_iou": 0.9455973079080202,
+    "vs_input": 0.8996798292422625,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8965793693212186,
+    "missing": 0.07243572021011889,
+    "extra": 0.03455902681780481,
+    "fp_iou": 0.9455973079080202,
+    "vs_input": 0.8996798292422625,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9936813186813187,
+    "missing": 0.0,
+    "extra": 0.006358860934476085,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 9687,
+   "alternative": 17131,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8960726689820999,
+    "missing": 0.03620689655172414,
+    "extra": 0.07557471264367815,
+    "fp_iou": 0.9455973079080202,
+    "vs_input": 0.8960726689820999,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8965793693212186,
+    "missing": 0.035919540229885055,
+    "extra": 0.07528735632183908,
+    "fp_iou": 0.9455973079080202,
+    "vs_input": 0.8965793693212186,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9945553539019963,
+    "missing": 0.0054446460980036296,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.9945553539019963,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 29123,
+   "alternative": 21671,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7173324798510285,
+    "missing": 0.26297433035714285,
+    "extra": 0.027453364158163265,
+    "fp_iou": 0.9613319011815252,
+    "vs_input": 0.7173324798510285,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7173324798510285,
+    "missing": 0.26297433035714285,
+    "extra": 0.027453364158163265,
+    "fp_iou": 0.9613319011815252,
+    "vs_input": 0.7173324798510285,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7652164381377551,
+    "missing": 0.2347835618622449,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.7652164381377551,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 21671,
+   "alternative": 29123,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.7638092393468737,
+    "missing": 0.0,
+    "extra": 0.3092274202588735,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7173324798510285,
+    "missing": 0.03591120612119869,
+    "extra": 0.3439915533714822,
+    "fp_iou": 0.9613319011815252,
+    "vs_input": 0.9282449199093459,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7173324798510285,
+    "missing": 0.03591120612119869,
+    "extra": 0.3439915533714822,
+    "fp_iou": 0.9613319011815252,
+    "vs_input": 0.9282449199093459,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7638092393468737,
+    "missing": 0.0,
+    "extra": 0.3092274202588735,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 29123,
+   "alternative": 23249,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7065756335589485,
+    "missing": 0.2842992665816326,
+    "extra": 0.012914540816326531,
+    "fp_iou": 0.9802847754654983,
+    "vs_input": 0.7065756335589485,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7065756335589485,
+    "missing": 0.2842992665816326,
+    "extra": 0.012914540816326531,
+    "fp_iou": 0.9802847754654983,
+    "vs_input": 0.7065756335589485,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7427654655612245,
+    "missing": 0.25723453443877553,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.7427654655612245,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 23249,
+   "alternative": 29123,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.7423448667966212,
+    "missing": 0.0,
+    "extra": 0.3470827976695205,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7065756335589485,
+    "missing": 0.017724773653546324,
+    "extra": 0.3901911977898739,
+    "fp_iou": 0.9802847754654983,
+    "vs_input": 0.9459036286060986,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7065756335589485,
+    "missing": 0.017724773653546324,
+    "extra": 0.3901911977898739,
+    "fp_iou": 0.9802847754654983,
+    "vs_input": 0.9459036286060986,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7423448667966212,
+    "missing": 0.0,
+    "extra": 0.3470827976695205,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 5639,
+   "alternative": 18092,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.91476844169558,
+    "missing": 0.0,
+    "extra": 0.09317282321899736,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7580475039720157,
+    "missing": 0.21975318821459983,
+    "extra": 0.02928485048372911,
+    "fp_iou": 0.9319833852544133,
+    "vs_input": 0.7243414907528488,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.770647876717855,
+    "missing": 0.21242854001759015,
+    "extra": 0.021960202286719438,
+    "fp_iou": 0.9319833852544133,
+    "vs_input": 0.7243414907528488,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.83147656468893,
+    "missing": 0.14357959542656112,
+    "extra": 0.029999450307827618,
+    "fp_iou": 1.0,
+    "vs_input": 0.8108689093377583,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 18092,
+   "alternative": 5639,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8060755336617406,
+    "missing": 0.0,
+    "extra": 0.2405785292320228,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7580475039720157,
+    "missing": 0.03617505262443132,
+    "extra": 0.27145718747878045,
+    "fp_iou": 0.9319833852544133,
+    "vs_input": 0.8540628495881216,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.770647876717855,
+    "missing": 0.027127045562572148,
+    "extra": 0.2624091804169213,
+    "fp_iou": 0.9319833852544133,
+    "vs_input": 0.8908393185884306,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8277714685070324,
+    "missing": 0.03488490527602363,
+    "extra": 0.16591973925443063,
+    "fp_iou": 1.0,
+    "vs_input": 0.9116995073891626,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 29447,
+   "alternative": 23041,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8240438585041118,
+    "missing": 0.1108450704225352,
+    "extra": 0.07901408450704225,
+    "fp_iou": 0.9181771103055412,
+    "vs_input": 0.8240438585041118,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8240438585041118,
+    "missing": 0.1108450704225352,
+    "extra": 0.07901408450704225,
+    "fp_iou": 0.9181771103055412,
+    "vs_input": 0.8240438585041118,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.890056338028169,
+    "missing": 0.10994366197183099,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.890056338028169,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 23041,
+   "alternative": 29447,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8908761016070503,
+    "missing": 0.0,
+    "extra": 0.12249054407913879,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8240438585041118,
+    "missing": 0.08161187081757347,
+    "extra": 0.11448938027349433,
+    "fp_iou": 0.9181771103055412,
+    "vs_input": 0.9181771103055412,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8240438585041118,
+    "missing": 0.08161187081757347,
+    "extra": 0.11448938027349433,
+    "fp_iou": 0.9181771103055412,
+    "vs_input": 0.9181771103055412,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8908761016070503,
+    "missing": 0.0,
+    "extra": 0.12249054407913879,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 17863,
+   "alternative": 35177,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8294529262086514,
+    "missing": 0.0,
+    "extra": 0.20561392744842397,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7832623250152161,
+    "missing": 0.01303780964797914,
+    "extra": 0.2600659559782192,
+    "fp_iou": 0.941712204007286,
+    "vs_input": 0.941712204007286,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7832623250152161,
+    "missing": 0.01303780964797914,
+    "extra": 0.2600659559782192,
+    "fp_iou": 0.941712204007286,
+    "vs_input": 0.941712204007286,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8294529262086514,
+    "missing": 0.0,
+    "extra": 0.20561392744842397,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 35177,
+   "alternative": 17863,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7832623250152161,
+    "missing": 0.20854858548585486,
+    "extra": 0.010455104551045511,
+    "fp_iou": 0.941712204007286,
+    "vs_input": 0.7832623250152161,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7832623250152161,
+    "missing": 0.20854858548585486,
+    "extra": 0.010455104551045511,
+    "fp_iou": 0.941712204007286,
+    "vs_input": 0.7832623250152161,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8221863468634686,
+    "missing": 0.17781365313653136,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.8221863468634686,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 18232,
+   "alternative": 19610,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.7055403930131005,
+    "missing": 0.0,
+    "extra": 0.41735329387644576,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7085810498711129,
+    "missing": 0.08020966306912691,
+    "extra": 0.29807357549030983,
+    "fp_iou": 0.9079627714581179,
+    "vs_input": 0.7440604198668714,
+    "spill": 0.0032751091703056767
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7209665315923758,
+    "missing": 0.07086766469382229,
+    "extra": 0.28873157711500524,
+    "fp_iou": 0.9079627714581179,
+    "vs_input": 0.7800162002560685,
+    "spill": 0.0032751091703056767
+   },
+   "alt_exact": {
+    "vol_iou": 0.7874254393035628,
+    "missing": 0.05527832579010483,
+    "extra": 0.1997601640168659,
+    "fp_iou": 1.0,
+    "vs_input": 0.8074781659388647,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 19610,
+   "alternative": 18232,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8068840022553693,
+    "missing": 0.0,
+    "extra": 0.2393355144045993,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7085810498711129,
+    "missing": 0.2447511355334625,
+    "extra": 0.06586094082520726,
+    "fp_iou": 0.9079627714581179,
+    "vs_input": 0.6280949213798989,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7209665315923758,
+    "missing": 0.23708032906648033,
+    "extra": 0.05819013435822507,
+    "fp_iou": 0.9079627714581179,
+    "vs_input": 0.6280949213798989,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7819797759941958,
+    "missing": 0.1783661023409459,
+    "extra": 0.05070990693390084,
+    "fp_iou": 1.0,
+    "vs_input": 0.7038802603926393,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 18477,
+   "alternative": 19190,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.9337962962962963,
+    "missing": 0.0,
+    "extra": 0.07089737233515121,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8468150642001396,
+    "missing": 0.02315732936704677,
+    "extra": 0.15354900016526193,
+    "fp_iou": 0.9055793991416309,
+    "vs_input": 0.9055793991416309,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8468150642001396,
+    "missing": 0.02315732936704677,
+    "extra": 0.15354900016526193,
+    "fp_iou": 0.9055793991416309,
+    "vs_input": 0.9055793991416309,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9337962962962963,
+    "missing": 0.0,
+    "extra": 0.07089737233515121,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 19190,
+   "alternative": 18477,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8468150642001396,
+    "missing": 0.13583698830409358,
+    "extra": 0.02048611111111111,
+    "fp_iou": 0.9055793991416309,
+    "vs_input": 0.8468150642001396,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8468150642001396,
+    "missing": 0.13583698830409358,
+    "extra": 0.02048611111111111,
+    "fp_iou": 0.9055793991416309,
+    "vs_input": 0.8468150642001396,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9337171052631579,
+    "missing": 0.06628289473684211,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.9337171052631579,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 18980,
+   "alternative": 34538,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.9783384301732926,
+    "missing": 0.0,
+    "extra": 0.022141182599635323,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8916642498066512,
+    "missing": 0.08474429104801598,
+    "extra": 0.02645778290477431,
+    "fp_iou": 0.9242273180458624,
+    "vs_input": 0.8811368280975239,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9002294274026147,
+    "missing": 0.08011759014624344,
+    "extra": 0.021831082003001774,
+    "fp_iou": 0.9242273180458624,
+    "vs_input": 0.8811368280975239,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9783384301732926,
+    "missing": 0.0,
+    "extra": 0.022141182599635323,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 34538,
+   "alternative": 18980,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8916642498066512,
+    "missing": 0.02809536354056902,
+    "extra": 0.08998946259220232,
+    "fp_iou": 0.9242273180458624,
+    "vs_input": 0.8916642498066512,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.9002294274026147,
+    "missing": 0.023182297154899896,
+    "extra": 0.08507639620653319,
+    "fp_iou": 0.9242273180458624,
+    "vs_input": 0.9002294274026147,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9771338250790306,
+    "missing": 0.022866174920969443,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.9771338250790306,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 30518,
+   "alternative": 21393,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6407846076147342,
+    "missing": 0.34223024951501774,
+    "extra": 0.026506789751822864,
+    "fp_iou": 0.9033078880407125,
+    "vs_input": 0.6407846076147342,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6729039491715461,
+    "missing": 0.3225215733493879,
+    "extra": 0.0067981135861930565,
+    "fp_iou": 0.9033078880407125,
+    "vs_input": 0.6729039491715461,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.702045287310188,
+    "missing": 0.29795471268981205,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.702045287310188,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 21393,
+   "alternative": 30518,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.7065131056393964,
+    "missing": 0.0,
+    "extra": 0.41540191118605957,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.6407846076147342,
+    "missing": 0.038736955299753156,
+    "extra": 0.5001344184568761,
+    "fp_iou": 0.9033078880407125,
+    "vs_input": 0.8672271573604061,
+    "spill": 0.0015885623510722795
+   },
+   "alt_aligned": {
+    "vol_iou": 0.6729039491715461,
+    "missing": 0.009934745949116504,
+    "extra": 0.47133220910623946,
+    "fp_iou": 0.9033078880407125,
+    "vs_input": 0.8672271573604061,
+    "spill": 0.0015885623510722795
+   },
+   "alt_exact": {
+    "vol_iou": 0.7065131056393964,
+    "missing": 0.0,
+    "extra": 0.41540191118605957,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 6772,
+   "alternative": 23231,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.9528389339513326,
+    "missing": 0.0,
+    "extra": 0.04949531801045847,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.782383172365511,
+    "missing": 0.20269163727755482,
+    "extra": 0.019076573837609957,
+    "fp_iou": 0.9437212863705973,
+    "vs_input": 0.7669092695809726,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7866473149492017,
+    "missing": 0.20025943491831855,
+    "extra": 0.01664437147837367,
+    "fp_iou": 0.9437212863705973,
+    "vs_input": 0.7669092695809726,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8537020233376316,
+    "missing": 0.13045522720823705,
+    "extra": 0.01855770400097288,
+    "fp_iou": 1.0,
+    "vs_input": 0.8462186172267284,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 23231,
+   "alternative": 6772,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.8431889737406216,
+    "missing": 0.0,
+    "extra": 0.18597376287277675,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.782383172365511,
+    "missing": 0.023367131096259073,
+    "extra": 0.24827949194117005,
+    "fp_iou": 0.9437212863705973,
+    "vs_input": 0.8838432827134532,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7866473149492017,
+    "missing": 0.02038789636235439,
+    "extra": 0.24530025720726537,
+    "fp_iou": 0.9437212863705973,
+    "vs_input": 0.89032680043916,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8485798725064004,
+    "missing": 0.019106825426775376,
+    "extra": 0.15592321519012484,
+    "fp_iou": 1.0,
+    "vs_input": 0.9585510450160771,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 30857,
+   "alternative": 22111,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8059904412302994,
+    "missing": 0.1845691552395463,
+    "extra": 0.011712798374809548,
+    "fp_iou": 0.9136029411764706,
+    "vs_input": 0.8059904412302994,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8059904412302994,
+    "missing": 0.1845691552395463,
+    "extra": 0.011712798374809548,
+    "fp_iou": 0.9136029411764706,
+    "vs_input": 0.8059904412302994,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9272790756729304,
+    "missing": 0.07272092432706957,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.9272790756729304,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 22111,
+   "alternative": 30857,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.9232686130007559,
+    "missing": 0.0,
+    "extra": 0.08310841061720499,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8059904412302994,
+    "missing": 0.01416053725615606,
+    "extra": 0.22314039015030382,
+    "fp_iou": 0.9136029411764706,
+    "vs_input": 0.872585904188613,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8059904412302994,
+    "missing": 0.01416053725615606,
+    "extra": 0.22314039015030382,
+    "fp_iou": 0.9136029411764706,
+    "vs_input": 0.872585904188613,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.9232686130007559,
+    "missing": 0.0,
+    "extra": 0.08310841061720499,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 30857,
+   "alternative": 22203,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8320639268506567,
+    "missing": 0.10649441340782123,
+    "extra": 0.07384247502962586,
+    "fp_iou": 0.941280353200883,
+    "vs_input": 0.8320639268506567,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8655549870069932,
+    "missing": 0.08721643812425936,
+    "extra": 0.05456449974606399,
+    "fp_iou": 0.941280353200883,
+    "vs_input": 0.8655549870069932,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8777509734213644,
+    "missing": 0.12224902657863551,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 0.8777509734213644,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 22203,
+   "alternative": 30857,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8837357666209137,
+    "missing": 0.0,
+    "extra": 0.13155995012359722,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8320639268506567,
+    "missing": 0.0763349594207337,
+    "extra": 0.11008903375407433,
+    "fp_iou": 0.941280353200883,
+    "vs_input": 0.9006317325601491,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8655549870069932,
+    "missing": 0.056406273926454184,
+    "extra": 0.09016034825979481,
+    "fp_iou": 0.941280353200883,
+    "vs_input": 0.9006317325601491,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8837357666209137,
+    "missing": 0.0,
+    "extra": 0.13155995012359722,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 32465,
+   "alternative": 32730,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8958566629339306,
+    "missing": 0.02571041948579161,
+    "extra": 0.08755074424898511,
+    "fp_iou": 0.939538929969552,
+    "vs_input": 0.8958566629339306,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8958566629339306,
+    "missing": 0.02571041948579161,
+    "extra": 0.08755074424898511,
+    "fp_iou": 0.939538929969552,
+    "vs_input": 0.8958566629339306,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 32730,
+   "alternative": 32465,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8958566629339306,
+    "missing": 0.08245189244297184,
+    "extra": 0.024213075060532687,
+    "fp_iou": 0.939538929969552,
+    "vs_input": 0.8958566629339306,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8958566629339306,
+    "missing": 0.08245189244297184,
+    "extra": 0.024213075060532687,
+    "fp_iou": 0.939538929969552,
+    "vs_input": 0.8958566629339306,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 21393,
+   "alternative": 23231,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 0.7065131056393964,
+    "missing": 0.0,
+    "extra": 0.41540191118605957,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7517034221991901,
+    "missing": 0.042830608304616664,
+    "extra": 0.27333382212772195,
+    "fp_iou": 0.9833597464342314,
+    "vs_input": 0.8258746742897619,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7611852452214857,
+    "missing": 0.035975267003934795,
+    "extra": 0.2664784808270401,
+    "fp_iou": 0.9833597464342314,
+    "vs_input": 0.860963807788502,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7815178695729997,
+    "missing": 0.03962900505902192,
+    "extra": 0.2288535327614439,
+    "fp_iou": 1.0,
+    "vs_input": 0.8402027143695825,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 23231,
+   "alternative": 21393,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 0.8431889737406216,
+    "missing": 0.0,
+    "extra": 0.18597376287277675,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.7517034221991901,
+    "missing": 0.22213174175993328,
+    "extra": 0.03480739247445306,
+    "fp_iou": 0.9833597464342314,
+    "vs_input": 0.6753768927884656,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.7611852452214857,
+    "missing": 0.2165605728075315,
+    "extra": 0.029236223522051304,
+    "fp_iou": 0.9833597464342314,
+    "vs_input": 0.6753768927884656,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.7820539897089317,
+    "missing": 0.19098880800818296,
+    "extra": 0.0344697458712772,
+    "fp_iou": 1.0,
+    "vs_input": 0.7112138263665595,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 21671,
+   "alternative": 23249,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7638092393468737,
+    "missing": 0.0,
+    "extra": 0.3092274202588735,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8805773454659555,
+    "missing": 0.0854699740605081,
+    "extra": 0.038557294993287014,
+    "fp_iou": 0.9806451612903225,
+    "vs_input": 0.7279769016328156,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8805773454659555,
+    "missing": 0.0854699740605081,
+    "extra": 0.038557294993287014,
+    "fp_iou": 0.9806451612903225,
+    "vs_input": 0.7279769016328156,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8966646178547685,
+    "missing": 0.06822477417000143,
+    "extra": 0.039156901338686344,
+    "fp_iou": 1.0,
+    "vs_input": 0.7416069295101553,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 23249,
+   "alternative": 21671,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.7423448667966212,
+    "missing": 0.0,
+    "extra": 0.3470827976695205,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8805773454659555,
+    "missing": 0.04045515468147378,
+    "extra": 0.08967696052955497,
+    "fp_iou": 0.9806451612903225,
+    "vs_input": 0.7536381287907601,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8805773454659555,
+    "missing": 0.04045515468147378,
+    "extra": 0.08967696052955497,
+    "fp_iou": 0.9806451612903225,
+    "vs_input": 0.7536381287907601,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.896533217475753,
+    "missing": 0.04045515468147378,
+    "extra": 0.07028365108454826,
+    "fp_iou": 1.0,
+    "vs_input": 0.764487897985705,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 9588,
+   "alternative": 9759,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8176212159348328,
+    "missing": 0.0,
+    "extra": 0.22306023927796823,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8362430622508273,
+    "missing": 0.1018680472958791,
+    "extra": 0.07400825578954733,
+    "fp_iou": 0.9096732863549007,
+    "vs_input": 0.7523596760681374,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8362430622508273,
+    "missing": 0.1018680472958791,
+    "extra": 0.07400825578954733,
+    "fp_iou": 0.9096732863549007,
+    "vs_input": 0.7523596760681374,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8981631622318509,
+    "missing": 0.05441824669418596,
+    "extra": 0.05279507451199888,
+    "fp_iou": 1.0,
+    "vs_input": 0.8162940759215614,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 9759,
+   "alternative": 9588,
+   "dy0": 0,
+   "blockout": {
+    "vol_iou": 0.8126374397604454,
+    "missing": 0.0,
+    "extra": 0.230561073207243,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8362430622508273,
+    "missing": 0.07612919941272994,
+    "extra": 0.10478740248150387,
+    "fp_iou": 0.9096732863549007,
+    "vs_input": 0.7658633724854867,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8362430622508273,
+    "missing": 0.07612919941272994,
+    "extra": 0.10478740248150387,
+    "fp_iou": 0.9096732863549007,
+    "vs_input": 0.7658633724854867,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 0.8996811181219893,
+    "missing": 0.04565736822408383,
+    "extra": 0.06075654201571811,
+    "fp_iou": 1.0,
+    "vs_input": 0.8249075936929772,
+    "spill": 0.0
+   },
+   "carve_needed": true
+  },
+  {
+   "target": 34471,
+   "alternative": 35715,
+   "dy0": -1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8825494840128574,
+    "missing": 0.09815022906042009,
+    "extra": 0.02186878727634195,
+    "fp_iou": 0.9217687074829932,
+    "vs_input": 0.8825494840128574,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8825494840128574,
+    "missing": 0.09815022906042009,
+    "extra": 0.02186878727634195,
+    "fp_iou": 0.9217687074829932,
+    "vs_input": 0.8825494840128574,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  },
+  {
+   "target": 35715,
+   "alternative": 34471,
+   "dy0": 1,
+   "blockout": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "alt_raw": {
+    "vol_iou": 0.8825494840128574,
+    "missing": 0.023674729799279464,
+    "extra": 0.10625555607542227,
+    "fp_iou": 0.9217687074829932,
+    "vs_input": 0.8825494840128574,
+    "spill": 0.0
+   },
+   "alt_aligned": {
+    "vol_iou": 0.8825494840128574,
+    "missing": 0.023674729799279464,
+    "extra": 0.10625555607542227,
+    "fp_iou": 0.9217687074829932,
+    "vs_input": 0.8825494840128574,
+    "spill": 0.0
+   },
+   "alt_exact": {
+    "vol_iou": 1.0,
+    "missing": 0.0,
+    "extra": 0.0,
+    "fp_iou": 1.0,
+    "vs_input": 1.0,
+    "spill": 0.0
+   },
+   "carve_needed": false
+  }
+ ]
+}

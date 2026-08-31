@@ -115,8 +115,9 @@ networkx==3.2.1
 ninja==1.13.0
 notebook==7.4.5
 notebook_shim==0.2.4
-numba==0.60.0
-numpy==2.0.2
+numba==0.67.0
+# numpy < 2.3 computes SILENTLY WRONG results on Python 3.14 (see utils/numeric_guard.py)
+numpy==2.5.2
 nvidia-cublas-cu12==12.6.4.1
 nvidia-cuda-cupti-cu12==12.6.80
 nvidia-cuda-nvrtc-cu12==12.6.77
@@ -134,8 +135,8 @@ nvidia-nvtx-cu12==12.6.77
 objprint==0.3.0
 omegaconf==2.3.0
 onnxruntime==1.19.2
-opencv-python==4.12.0.88
-opencv-python-headless==4.13.0.92
+opencv-python==4.14.0.94
+opencv-python-headless==4.14.0.94
 orjson==3.11.5
 osmnx==2.0.7
 overrides==7.7.0

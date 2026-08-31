@@ -67,10 +67,20 @@ def ensure_outward(mesh):
 
 
 def sample_uniform(mesh, n: int, rng: Optional[np.random.Generator] = None) -> np.ndarray:
-    """Uniform surface points with outward normals -> (n, 6) as [x, y, z, nx, ny, nz]."""
+    """Uniform surface points with outward normals -> (n, 6) as [x, y, z, nx, ny, nz].
+
+    ⚠️ `rng` is honoured, and that is load-bearing (#88). This function previously accepted `rng` and
+    **ignored** it, calling `sample_surface` with no seed -- which draws from numpy's GLOBAL generator.
+    Since the coarse stream is the bulk of what the encoder sees, every latent cached before this fix
+    is a function of global interpreter state at write time, and reseeding the codec could not have
+    helped because the codec's generator was never in charge. `seed=` takes a Generator and advances
+    it in place, so a caller holding one gets a reproducible stream that no unrelated numpy call can
+    perturb.
+    """
     import trimesh
+    rng = rng if rng is not None else np.random.default_rng(0)
     mesh = ensure_outward(mesh)
-    pts, fid = trimesh.sample.sample_surface(mesh, n)
+    pts, fid = trimesh.sample.sample_surface(mesh, n, seed=rng)
     return np.concatenate([pts, mesh.face_normals[fid]], axis=1).astype(np.float32)
 
 

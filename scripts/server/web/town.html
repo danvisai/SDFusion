@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GenerativeTowns — draw a town</title>
+<style>
+  :root { --bg:#0a0c10; --panel:#11141b; --card:#161a24; --field:#0d0f15; --ink:#e7ebf2; --mut:#8a94a6; --acc:#5b9dff; --line:#232838; --sel:#f0a526; --danger:#e88; }
+  * { box-sizing:border-box; }
+  body { margin:0; height:100vh; display:flex; font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); overflow:hidden; }
+  #panel { width:300px; flex:0 0 300px; padding:18px; background:var(--panel); overflow:auto; border-right:1px solid var(--line); }
+  h1 { font-size:17px; margin:0; }
+  .sub { color:var(--mut); font-size:12px; margin:4px 0 14px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin:18px 0 6px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  label { display:block; margin:10px 0 4px; color:var(--mut); font-size:12px; }
+  input[type=number], input[type=range] { width:100%; }
+  input[type=number] { background:var(--field); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:6px 8px; }
+  .val { color:var(--acc); float:right; font-variant-numeric:tabular-nums; }
+  button { width:100%; margin-top:10px; padding:10px; border:0; border-radius:8px; background:var(--acc); color:#06101f; font-weight:650; cursor:pointer; font-size:14px; }
+  button.sec { background:#232838; color:var(--ink); }
+  button.sm { margin-top:0; padding:7px; font-size:12px; }
+  button:disabled { opacity:.35; cursor:not-allowed; }
+  .row { display:flex; gap:8px; } .row>* { flex:1; margin-top:10px; }
+  .modes { display:flex; gap:6px; margin-bottom:14px; }
+  .modes button { margin-top:0; }
+  .modes button.active { background:var(--acc); color:#06101f; }
+  .modes button:not(.active) { background:#1a1f2b; color:var(--mut); }
+  #buildings { display:flex; flex-direction:column; gap:6px; margin-top:10px; max-height:220px; overflow:auto; }
+  .bldg { display:flex; align-items:center; gap:6px; background:var(--field); border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .bldg .name { flex:1; font-size:12px; color:var(--mut); }
+  .bldg input { width:60px; padding:4px 6px; font-size:12px; }
+  .bldg .del { width:auto; margin:0; padding:4px 8px; font-size:12px; background:#2a1418; color:var(--danger); flex:none; }
+  #info { margin-top:12px; color:var(--mut); font-size:12px; white-space:pre-line; }
+  #view { flex:1; position:relative; }
+  #hint { position:absolute; bottom:10px; left:12px; color:#aab4c4; font-size:11px; text-shadow:0 1px 2px #000a; pointer-events:none; }
+  .empty { color:var(--mut); font-size:12px; font-style:italic; padding:6px 0; }
+  #drop { border:2px dashed var(--line); border-radius:10px; padding:12px; text-align:center; color:var(--mut); cursor:pointer; background:var(--field); font-size:12px; }
+  #drop.hot { border-color:var(--acc); background:#0f1a2e; }
+  #imgPrev { width:100%; margin-top:8px; border-radius:6px; display:none; border:1px solid var(--line); }
+  #prog { display:none; margin-top:10px; height:6px; background:var(--field); border-radius:3px; overflow:hidden; border:1px solid var(--line); }
+  #progBar { height:100%; width:0%; background:var(--acc); transition:width .25s linear; }
+  .bldg .vsi { font-size:11px; font-variant-numeric:tabular-nums; color:var(--mut); flex:none; }
+  .bldg .vsi.moved { color:var(--acc); }
+  #vsNote { margin-top:10px; padding:8px 10px; background:var(--field); border:1px solid var(--line); border-radius:8px; font-size:11px; color:var(--mut); display:none; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>GenerativeTowns</h1>
+  <div class="sub">Draw footprints → generate a town.</div>
+
+  <div class="modes">
+    <button id="modeDraw" class="active">✏️ Draw</button>
+    <button id="modeView">🔭 View</button>
+  </div>
+
+  <h2>Import from image</h2>
+  <div class="card">
+    <div id="drop">Drop an OSM map / footprint image<br/><small>or click to choose</small><input type="file" id="imgFile" accept="image/*" style="display:none"/></div>
+    <img id="imgPrev"/>
+    <label>Image spans <span class="val" id="imgSpanV">200 m</span></label><input type="range" id="imgSpan" min="30" max="800" value="200" step="10"/>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="imgInvert" style="width:auto"/>Invert detection</label>
+    <div id="presets" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+    <button class="sec" id="importImg" disabled>Import footprints</button>
+  </div>
+
+  <h2>Town</h2>
+  <div class="card">
+    <label>Default height <span class="val" id="dhv">12 m</span></label>
+    <input type="range" id="dh" min="3" max="60" value="12" step="1"/>
+
+    <label>Massing arm <span class="val" style="font-weight:400">model · decode</span></label>
+    <select id="arm" style="width:100%;padding:5px;margin-bottom:4px">
+      <optgroup label="#127 height map (one checkpoint, two decodes)">
+        <option value="heightmap_median">ce · median — ~0.1 s/building</option>
+        <option value="heightmap_mode">ce · mode — carves less</option>
+      </optgroup>
+      <optgroup label="other trained models">
+        <option value="heightmap_slope">#127 slope-trained · median — simpler roofs</option>
+        <option value="heightmap_program">#6 program · compiled — planar, leaves more</option>
+        <option value="a2">a2 · shipped 49M — ~7 s/building</option>
+      </optgroup>
+      <optgroup label="baselines">
+        <option value="retrieval">retrieval — nearest real roof, zero training</option>
+        <option value="envelope">envelope — no carve, for comparison</option>
+      </optgroup>
+    </select>
+    <small style="color:#8a8d94;display:block;margin-bottom:8px">
+      Compare them on one footprint at <a href="/arms" target="_blank">/arms</a>.
+    </small>
+
+    <label>Roof variation <span class="val" id="rvv">0 — as measured</span></label>
+    <input type="range" id="rv" min="0" max="40" value="0" step="5"/>
+    <small style="color:#8a8d94;display:block;margin-bottom:8px">
+      The height map is deterministic, so identical footprints give identical buildings. This
+      varies the roof depth per building. ⚠️ Above 0 you are no longer looking at the arm that
+      was scored.
+    </small>
+
+    <div class="row">
+      <button class="sec sm" id="newB">+ New building</button>
+      <button class="sec sm" id="closeB" disabled>✓ Close shape</button>
+    </div>
+    <button class="sec sm" id="undoV" disabled>↩ Undo point</button>
+
+    <div id="buildings"><div class="empty">no footprints yet — click "+ New building" then click in the viewport</div></div>
+
+    <button id="genTown" disabled>Generate Town</button>
+    <div id="prog"><div id="progBar"></div></div>
+    <button class="sec" id="cancelGen" style="display:none">✕ Cancel</button>
+    <button class="sec" id="clearTown">Clear town</button>
+  </div>
+
+  <div id="vsNote"></div>
+  <div id="info">draw a footprint to begin</div>
+</div>
+<div id="view"><div id="hint">draw: click to place points, click near the first point (or ✓ Close shape) to finish a footprint</div></div>
+
+<script type="importmap">
+{ "imports": { "three":"https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/" }}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $=id=>document.getElementById(id);
+const view=$('view');
+
+// ---------- renderer / scene (dark, plain shaded massing — no textures) ----------
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(devicePixelRatio); renderer.setSize(view.clientWidth,view.clientHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+view.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0a0c10);
+scene.fog=new THREE.Fog(0x0a0c10,300,1400);
+
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),new THREE.MeshStandardMaterial({color:0x11141b,roughness:1}));
+ground.rotation.x=-Math.PI/2; scene.add(ground);
+const grid=new THREE.GridHelper(2000,200,0x2a3244,0x1a2030); scene.add(grid);
+
+scene.add(new THREE.HemisphereLight(0xaebfe0,0x14161c,1.15));
+const sun=new THREE.DirectionalLight(0xffffff,1.5); sun.position.set(80,140,60); scene.add(sun);
+
+const buildingMat=new THREE.MeshStandardMaterial({color:0xcdd6e6,roughness:.85,metalness:0,flatShading:true,side:THREE.DoubleSide});
+const lineMat=new THREE.LineBasicMaterial({color:0x5b9dff});
+const vertexMat=new THREE.MeshBasicMaterial({color:0xf0a526});
+const vertexGeo=new THREE.SphereGeometry(1.6,12,10);
+
+const town=new THREE.Group(); scene.add(town);       // generated massing, one group per building
+const draft=new THREE.Group(); scene.add(draft);     // in-progress polyline + handles
+const handles=new THREE.Group(); scene.add(handles); // draggable vertex handles for finished footprints
+
+// ---------- cameras: orthographic top-down for Draw, perspective orbit for View ----------
+const aspect=()=>view.clientWidth/view.clientHeight;
+const ORTHO_HALF=140;
+const drawCam=new THREE.OrthographicCamera(-ORTHO_HALF*aspect(),ORTHO_HALF*aspect(),ORTHO_HALF,-ORTHO_HALF,0.1,4000);
+drawCam.position.set(0,500,0); drawCam.up.set(0,0,-1); drawCam.lookAt(0,0,0);
+const viewCam=new THREE.PerspectiveCamera(45,aspect(),0.1,4000);
+viewCam.position.set(60,50,90);
+
+let mode='draw';
+let cam=drawCam;
+const orbit=new OrbitControls(viewCam,renderer.domElement);
+orbit.enableDamping=true; orbit.maxPolarAngle=Math.PI*0.495; orbit.enabled=false;
+
+addEventListener('resize',()=>{
+  const a=aspect();
+  drawCam.left=-ORTHO_HALF*a; drawCam.right=ORTHO_HALF*a; drawCam.top=ORTHO_HALF; drawCam.bottom=-ORTHO_HALF; drawCam.updateProjectionMatrix();
+  viewCam.aspect=a; viewCam.updateProjectionMatrix();
+  renderer.setSize(view.clientWidth,view.clientHeight);
+});
+(function loop(){ requestAnimationFrame(loop); if(mode==='view') orbit.update(); renderer.render(scene,cam); })();
+
+// ---------- ground raycasting (works for both cameras) ----------
+const raycaster=new THREE.Raycaster();
+const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function pointerToGround(clientX,clientY,camera){
+  const r=renderer.domElement.getBoundingClientRect();
+  const ndc=new THREE.Vector2(((clientX-r.left)/r.width)*2-1, -((clientY-r.top)/r.height)*2+1);
+  raycaster.setFromCamera(ndc,camera);
+  const pt=new THREE.Vector3();
+  raycaster.ray.intersectPlane(groundPlane,pt);
+  return pt;
+}
+
+// ---------- state ----------
+let footprints=[];     // {id, points:[{x,z}], heightOverride:number|null, group:THREE.Group|null}
+let nextId=1;
+let drawing=false;
+let activePoints=[];   // [{x,z}] for the footprint currently being placed
+const CLOSE_TOL=6;     // world units — click-near-first-point tolerance
+
+function setInfo(t){ $('info').textContent=t; }
+function defaultHeight(){ return +$('dh').value; }
+
+// ---------- drawing a new footprint ----------
+function redrawDraft(){
+  draft.clear();
+  if(activePoints.length){
+    const pts=activePoints.map(p=>new THREE.Vector3(p.x,0.4,p.z));
+    if(pts.length>1) draft.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),lineMat));
+    activePoints.forEach(p=>{ const s=new THREE.Mesh(vertexGeo,vertexMat); s.position.set(p.x,0.4,p.z); draft.add(s); });
+  }
+}
+
+function startNewBuilding(){
+  drawing=true; activePoints=[];
+  redrawDraft();
+  $('closeB').disabled=true; $('undoV').disabled=true;
+  setInfo('drawing a new footprint — click to place points');
+}
+$('newB').onclick=startNewBuilding;
+
+function undoPoint(){
+  if(!drawing||!activePoints.length) return;
+  activePoints.pop(); redrawDraft();
+  $('closeB').disabled=activePoints.length<3; $('undoV').disabled=!activePoints.length;
+}
+$('undoV').onclick=undoPoint;
+
+function closeShape(){
+  if(!drawing||activePoints.length<3) return;
+  footprints.push({id:nextId++, points:activePoints, heightOverride:null, group:null});
+  drawing=false; activePoints=[]; draft.clear();
+  $('closeB').disabled=true; $('undoV').disabled=true;
+  rebuildOutlinesAndHandles();
+  renderBuildingList();
+  $('genTown').disabled=false;
+  setInfo(`${footprints.length} footprint(s) — Generate Town when ready`);
+}
+$('closeB').onclick=closeShape;
+
+// ---------- permanent outlines + editable vertex handles for finished footprints ----------
+function rebuildOutlinesAndHandles(){
+  handles.clear();
+  footprints.forEach((fp,fi)=>{
+    const pts=fp.points.map(p=>new THREE.Vector3(p.x,0.4,p.z));
+    pts.push(pts[0]);
+    handles.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),lineMat));
+    fp.points.forEach((p,vi)=>{
+      const s=new THREE.Mesh(vertexGeo,vertexMat);
+      s.position.set(p.x,0.4,p.z);
+      s.userData={fi,vi};
+      handles.add(s);
+    });
+  });
+}
+
+// ---------- side panel list ----------
+function renderBuildingList(){
+  const el=$('buildings');
+  if(!footprints.length){ el.innerHTML='<div class="empty">no footprints yet — click "+ New building" then click in the viewport</div>'; return; }
+  el.innerHTML='';
+  footprints.forEach((fp,i)=>{
+    const row=document.createElement('div'); row.className='bldg';
+    const name=document.createElement('div'); name.className='name'; name.textContent=`Building ${i+1}`;
+    const h=document.createElement('input'); h.type='number'; h.min='1'; h.placeholder=`${defaultHeight()} m`;
+    h.value = fp.heightOverride ?? '';
+    h.oninput=()=>{ fp.heightOverride = h.value ? +h.value : null; markStale(fp); };
+    const vsi=document.createElement('div'); vsi.className='vsi';
+    if(fp.genError){ vsi.textContent='✕'; vsi.title='generator refused this footprint: '+fp.genError; vsi.style.color='var(--danger)'; }
+    else if(fp.vsInput!=null){
+      vsi.textContent=fp.vsInput.toFixed(3);
+      vsi.title=`vs input ${fp.vsInput.toFixed(4)} — overlap with the footprint envelope A2 started from.`
+        + (fp.vsInput>=0.99 ? ' At this value A2 returned the envelope essentially unchanged.' : '');
+      vsi.classList.toggle('moved',fp.vsInput<0.99);
+    }
+    const del=document.createElement('button'); del.className='del'; del.textContent='✕';
+    del.onclick=()=>{ footprints=footprints.filter(f=>f!==fp); if(fp.group) town.remove(fp.group); rebuildOutlinesAndHandles(); renderBuildingList(); reportVsInput(); $('genTown').disabled=!footprints.length; };
+    row.append(name,h,vsi,del); el.appendChild(row);
+  });
+}
+$('dh').oninput=()=>{ $('dhv').textContent=$('dh').value+' m'; footprints.forEach(fp=>{ if(fp.heightOverride==null) markStale(fp); }); renderBuildingList(); };
+
+// An edited footprint's mesh no longer describes it — and neither does its vs_input, which scored
+// a generation that started from a blockout the user has since moved. Drop both together, and bump
+// `rev` so a generation already in flight for the OLD polygon can be recognised as stale when it
+// lands (see generateTown: the result arriving after an edit is the pre-edit building, not a newer one).
+function markStale(fp){
+  if(fp.group){ town.remove(fp.group); fp.group=null; }
+  fp.vsInput=null; fp.genError=null; fp.rev=(fp.rev||0)+1;
+  reportVsInput();
+}
+
+// ---------- the two back-end services ----------
+// Deliberately two: footprint_extract_service.py is pure image processing (instant boot), while
+// town_generate_service.py loads A2 + the Dora codec. Splitting them keeps image import testable
+// without the model. Both ports are overridable from the URL (?extract=…&gen=…) because over an
+// SSH tunnel the local port often isn't the remote one.
+const q = new URLSearchParams(location.search);
+const EXTRACT_PORT = q.get('extract') || 8766;
+const GEN_PORT     = q.get('gen')     || 8767;
+const svc = port => `${location.protocol}//${location.hostname}:${port}`;
+// Measured on the AMD box (#99, and again after #101 widened the decode chunk): ~7.0s/building for
+// A2, now split about evenly between the Dora grid decode and A2's own 20 denoise steps. #127's
+// height-map arms are a forward pass of a 3.4M convnet plus a marching-cubes surface and are ~0.1s
+// warm on one A100; quoting A2's number for them would make a 29-building town read as three
+// minutes when it finishes in five seconds. Only used to size the ETA before any building has come
+// back; the estimate switches to observed timings as soon as the first one does.
+const SECS_PER_BUILDING = {a2:7, heightmap_median:0.3, heightmap_mode:0.3,
+                           heightmap_slope:0.3, heightmap_program:0.3, retrieval:0.5,
+                           envelope:0.2};
+const armSeconds = () => SECS_PER_BUILDING[$('arm').value] ?? 7;
+
+let imgData=null;
+// One path for "an image became the current import source", whichever way it arrived — file
+// picker, drag-drop, or a preset button.
+function useImage(blob,note){
+  const rd=new FileReader();
+  rd.onload=()=>{
+    imgData=rd.result;
+    $('imgPrev').src=imgData; $('imgPrev').style.display='block';
+    $('importImg').disabled=false;
+    setInfo(note);
+  };
+  rd.readAsDataURL(blob);
+}
+const loadImg=f=>useImage(f,'image loaded — click Import footprints');
+$('imgFile').onchange=e=>{ if(e.target.files[0]) loadImg(e.target.files[0]); };
+const dropEl=$('drop');
+dropEl.onclick=()=>$('imgFile').click();
+dropEl.ondragover=e=>{ e.preventDefault(); dropEl.classList.add('hot'); };
+dropEl.ondragleave=()=>dropEl.classList.remove('hot');
+dropEl.ondrop=e=>{ e.preventDefault(); dropEl.classList.remove('hot'); if(e.dataTransfer.files[0]) loadImg(e.dataTransfer.files[0]); };
+$('imgSpan').oninput=()=>{ $('imgSpanV').textContent=$('imgSpan').value+' m'; };
+// Changing the model or the roof variation invalidates every generated mesh, the same way changing
+// a height does -- otherwise the viewport mixes buildings from two different models.
+$('rv').oninput=()=>{ $('rvv').textContent = $('rv').value==='0' ? '0 — as measured'
+                        : '±'+$('rv').value+'% — unmeasured'; footprints.forEach(markStale); };
+$('arm').onchange=()=>{ footprints.forEach(markStale); };
+
+async function importFromImage(){
+  if(!imgData) return;
+  const bt=$('importImg'); bt.disabled=true; setInfo('detecting footprints…');
+  try{
+    const r=await fetch(`${svc(EXTRACT_PORT)}/extract_footprints`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image_b64:imgData, meters_across:+$('imgSpan').value, invert:$('imgInvert').checked})});
+    if(!r.ok) throw new Error((await r.text()).slice(0,200));
+    const {footprints:extracted}=await r.json();
+    extracted.forEach(poly=>{
+      footprints.push({id:nextId++, points:poly.map(([x,z])=>({x,z})), heightOverride:null, group:null});
+    });
+    rebuildOutlinesAndHandles();
+    renderBuildingList();
+    $('genTown').disabled=!footprints.length;
+    setInfo(`imported ${extracted.length} footprint(s) from image — edit vertices/heights, then Generate Town`);
+  }catch(e){
+    setInfo('import error: '+e.message+` (is footprint_extract_service.py running + tunneled on port ${EXTRACT_PORT}?)`);
+  }
+  bt.disabled=false;
+}
+$('importImg').onclick=importFromImage;
+
+// existing demo presets (web/samples/) — same images the old index.html offers, one click,
+// no local file needed (useful over an SSH tunnel without a second file to hand)
+fetch('/samples/samples.json').then(r=>r.json()).then(list=>{
+  list.forEach(s=>{
+    const b=document.createElement('button'); b.className='sec sm'; b.style='flex:0 0 auto'; b.textContent=s.label;
+    b.onclick=async()=>{
+      const blob=await(await fetch('/samples/'+s.file)).blob();
+      // the preset knows its own real-world scale, so set the span before handing the image over
+      $('imgSpan').value=Math.round(s.meters_across); $('imgSpanV').textContent=Math.round(s.meters_across)+' m';
+      useImage(blob,`${s.label} loaded — click Import footprints`);
+    };
+    $('presets').appendChild(b);
+  });
+}).catch(()=>{});
+
+// ---------- generation: A2 massing, streamed one building at a time ----------
+// The server returns world-metre vertices already positioned at the drawn footprint, so nothing
+// here re-places the mesh — a client-side transform would be a second frame convention to get
+// wrong, and this demo has already paid for one of those (#98's mirrored extrusion).
+function buildMesh(rec){
+  const geo=new THREE.BufferGeometry();
+  const v=new Float32Array(rec.vertices.length*3);
+  rec.vertices.forEach((p,i)=>{ v[i*3]=p[0]; v[i*3+1]=p[1]; v[i*3+2]=p[2]; });
+  const f=new Uint32Array(rec.faces.length*3);
+  rec.faces.forEach((t,i)=>{ f[i*3]=t[0]; f[i*3+1]=t[1]; f[i*3+2]=t[2]; });
+  geo.setAttribute('position',new THREE.BufferAttribute(v,3));
+  geo.setIndex(new THREE.BufferAttribute(f,1));
+  geo.computeVertexNormals();
+  const mesh=new THREE.Mesh(geo,buildingMat);
+  mesh.castShadow=mesh.receiveShadow=true;
+  const g=new THREE.Group(); g.add(mesh);
+  return g;
+}
+
+let genAbort=null;
+function setGenerating(on){
+  $('genTown').disabled = on || !footprints.length;
+  $('cancelGen').style.display = on ? 'block' : 'none';
+  $('prog').style.display = on ? 'block' : 'none';
+  if(!on) $('progBar').style.width='0%';
+}
+
+// A2 is a *projection*: it starts from the deterministic footprint envelope (CONTEXT.md's term for
+// the extruded starting solid) and edits it. vs_input is that edit's size — 1.000 means the massing
+// on screen is the envelope, unchanged, and the
+// learned step contributed nothing. Map #97 requires this be shown rather than quietly absorbed,
+// so it goes both per-building in the list and as a plain-language summary.
+function reportVsInput(){
+  const scored=footprints.filter(fp=>fp.vsInput!=null);
+  const el=$('vsNote');
+  if(!scored.length){ el.style.display='none'; return; }
+  const mean=scored.reduce((a,fp)=>a+fp.vsInput,0)/scored.length;
+  const moved=scored.filter(fp=>fp.vsInput<0.99).length;
+  el.style.display='block';
+  el.innerHTML = `<b>vs&nbsp;input ${mean.toFixed(3)}</b> mean over ${scored.length} building(s) — `
+    + (moved===0
+       ? 'A2 returned the footprint envelope essentially unchanged. What you are looking at is the '
+         + 'deterministic massing, not a learned edit.'
+       : `${moved} of ${scored.length} were edited by more than 1% of their volume; the rest are `
+         + 'the envelope as-is.');
+}
+
+// Is the generator actually there? Asked on load and again before every run, because the failure it
+// catches is otherwise indistinguishable from slow generation: the town endpoint's first record is
+// ~10s away even when all is well, so a client that just starts waiting looks identical whether the
+// service is thinking or absent. Costs one cheap round-trip to say so plainly instead.
+async function generatorReachable(){
+  try{
+    const r=await fetch(`${svc(GEN_PORT)}/health`,{signal:AbortSignal.timeout(5000)});
+    return r.ok ? await r.json() : null;
+  }catch(e){ return null; }
+}
+
+function reportGeneratorDown(){
+  setInfo(`no generator on port ${GEN_PORT} — footprints and editing still work, but Generate Town `
+    + `has nothing to call.\nStart it with:  ./venv/bin/uvicorn scripts.server.town_generate_service:app --port ${GEN_PORT}`
+    + `\n(over SSH, tunnel that port too, or pass ?gen=<local-port>)`);
+}
+
+generatorReachable().then(h=>{
+  if(!h) reportGeneratorDown();
+  else if(!h.ok) setInfo(`generator is up but still loading its models — give it a few seconds`);
+});
+
+async function generateTown(){
+  const pending=footprints.filter(fp=>!fp.group);   // unchanged buildings keep the mesh they have
+  if(!pending.length){ setInfo('every footprint is already generated — edit one, or draw more'); return; }
+
+  const health=await generatorReachable();
+  if(!health){ reportGeneratorDown(); return; }
+  if(!health.ok){ setInfo('generator is still loading its models — try again in a few seconds'); return; }
+
+  genAbort=new AbortController();
+  setGenerating(true);
+  const t0=performance.now();
+  // Stay in Draw until there is something to look at: flipping to an empty orbit view for the
+  // first ~10s reads as a broken demo. The first finished building brings the camera over.
+  // `kept` is what the viewport actually shows, which is not the same as what the server generated:
+  // a footprint edited or deleted mid-run has its result thrown away (see the stream loop below).
+  let doneCount=0, kept=0, failed=0, discarded=0, framed=false, secsEach=armSeconds();
+  let lastRec=performance.now();
+  const tick=()=>{
+    $('progBar').style.width=`${100*doneCount/pending.length}%`;
+    // count down within the building currently being generated, not just between arrivals
+    const inFlight=(performance.now()-lastRec)/1000;
+    const left=Math.max(0,(pending.length-doneCount)*secsEach-inFlight);
+    setInfo(`generating ${Math.min(doneCount+1,pending.length)}/${pending.length} building(s) — `
+      + `about ${left<90?Math.ceil(left)+'s':Math.ceil(left/60)+' min'} left`
+      + (failed?` · ${failed} failed`:''));
+  };
+  // A live clock also doubles as a watchdog: if the service dies mid-stream the connection just
+  // goes quiet, which without this looks exactly like a slow building.
+  const ticker=setInterval(()=>{
+    const silent=(performance.now()-lastRec)/1000;
+    if(silent>Math.max(60,secsEach*4)){
+      setInfo(`nothing from the generator for ${Math.round(silent)}s — it may have stopped.\n`
+        + `Cancel, and check the service on port ${GEN_PORT}.`);
+    }else tick();
+  },1000);
+  tick();
+
+  // The revision each footprint had when we asked for it. Anything edited after this point gets a
+  // different rev, and its in-flight result is discarded rather than shown.
+  const sentRev=pending.map(fp=>fp.rev||0);
+
+  try{
+    const r=await fetch(`${svc(GEN_PORT)}/generate_town`,{
+      method:'POST', headers:{'Content-Type':'application/json'}, signal:genAbort.signal,
+      body:JSON.stringify({
+        buildings:pending.map(fp=>({points:fp.points.map(p=>[p.x,p.z]), height:fp.heightOverride})),
+        default_height:defaultHeight(), seed:0, arm:$('arm').value,
+        roof_variation:(+$('rv').value)/100})});
+    if(!r.ok) throw new Error((await r.text()).slice(0,200));
+
+    // NDJSON: each building appears as it finishes, so a 29-building town builds up in front of
+    // the user instead of hiding behind one five-minute request.
+    const reader=r.body.getReader(), dec=new TextDecoder();
+    let buf='';
+    for(;;){
+      const {value,done}=await reader.read();
+      if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      let nl;
+      while((nl=buf.indexOf('\n'))>=0){
+        const line=buf.slice(0,nl).trim(); buf=buf.slice(nl+1);
+        if(!line) continue;
+        const rec=JSON.parse(line);
+        lastRec=performance.now();          // the stream is alive; reset the watchdog
+        if(rec.index!=null){
+          const fp=pending[rec.index];
+          // Two ways a result can arrive for a footprint that no longer wants it: the user deleted
+          // it, or edited it while it was generating. In both cases the record describes a polygon
+          // that is gone — showing it would put old massing (and an old vs_input, scored against a
+          // blockout that no longer exists) under a shape the user has since changed.
+          if(!footprints.includes(fp) || (fp.rev||0)!==sentRev[rec.index]){ discarded++; doneCount++; tick(); continue; }
+        }
+        if(rec.kind==='building'){
+          const fp=pending[rec.index];
+          fp.group=buildMesh(rec); fp.vsInput=rec.vs_input; fp.genError=null;
+          town.add(fp.group);
+          kept++; doneCount++;
+          secsEach=(secsEach*(doneCount-1)+rec.gen_seconds)/doneCount;   // trust measurement over the constant
+          if(!framed){ framed=true; frameTown(); setMode('view'); }
+          renderBuildingList(); reportVsInput(); tick();
+        }else if(rec.kind==='error'){
+          failed++; doneCount++;
+          console.warn('building',rec.index,'failed:',rec.detail);
+          pending[rec.index].genError=rec.detail;
+          renderBuildingList(); tick();
+        }else if(rec.kind==='done'){
+          frameTown();
+          const secs=(performance.now()-t0)/1000;
+          setInfo(`town: ${kept} building(s) generated in ${secs<90?secs.toFixed(0)+'s':(secs/60).toFixed(1)+' min'}`
+            + (rec.failed?` · ${rec.failed} footprint(s) the generator refused (see the list)`:'')
+            + (discarded?` · ${discarded} discarded (edited while generating — hit Generate Town again)`:''));
+        }
+      }
+    }
+  }catch(e){
+    if(e.name==='AbortError'){
+      setInfo(`cancelled — kept the ${kept} building(s) already generated`);
+    }else{
+      // Reaching here after a successful preflight means the service went away mid-run, so name
+      // that rather than repeating "is it running?" at someone who just watched it answer.
+      setInfo(`generation stopped after ${kept} building(s): ${e.message}`
+        + `\nThe generator on port ${GEN_PORT} answered when this started, so it likely died or was `
+        + `restarted. The buildings already generated are kept.`);
+    }
+  }finally{
+    clearInterval(ticker);
+  }
+  genAbort=null;
+  setGenerating(false);
+}
+$('genTown').onclick=generateTown;
+$('cancelGen').onclick=()=>{ if(genAbort){ genAbort.abort(); setInfo('cancelling…'); } };
+
+function clearTown(){
+  if(genAbort) genAbort.abort();
+  footprints.forEach(fp=>fp.group&&town.remove(fp.group));
+  footprints=[]; drawing=false; activePoints=[];
+  draft.clear(); handles.clear();
+  renderBuildingList(); reportVsInput();
+  $('genTown').disabled=true; $('closeB').disabled=true; $('undoV').disabled=true;
+  setInfo('draw a footprint to begin');
+}
+$('clearTown').onclick=clearTown;
+
+function frameTown(){
+  const box=new THREE.Box3().setFromObject(town);
+  if(box.isEmpty()) return;
+  const c=box.getCenter(new THREE.Vector3()), s=box.getSize(new THREE.Vector3());
+  const r=Math.max(s.x,s.z,s.y*1.4,20);
+  orbit.target.copy(c);
+  viewCam.position.set(c.x+r*1.05,c.y+r*0.85,c.z+r*1.25);
+}
+
+// ---------- Draw / View mode toggle ----------
+function setMode(m){
+  mode=m; cam = m==='draw' ? drawCam : viewCam; orbit.enabled = m==='view';
+  // The editing furniture is for the plan view only: left on, the vertex handles hover around
+  // every building's base in the 3D view and read as part of the massing.
+  handles.visible = draft.visible = (m==='draw');
+  $('modeDraw').classList.toggle('active',m==='draw');
+  $('modeView').classList.toggle('active',m==='view');
+  $('hint').textContent = m==='draw'
+    ? 'draw: click to place points, click near the first point (or ✓ Close shape) to finish a footprint — drag a point to move it, drag empty ground to pan, scroll to zoom'
+    : 'drag to orbit · scroll to zoom';
+}
+$('modeDraw').onclick=()=>setMode('draw');
+$('modeView').onclick=()=>setMode('view');
+setMode('draw');
+
+// ---------- pointer interaction: place points, drag vertices, pan (draw mode only) ----------
+let draggingVertex=null, panning=false, panStart=null, panCamStart=null;
+
+function hitVertex(clientX,clientY){
+  const r=renderer.domElement.getBoundingClientRect();
+  const ndc=new THREE.Vector2(((clientX-r.left)/r.width)*2-1, -((clientY-r.top)/r.height)*2+1);
+  raycaster.setFromCamera(ndc,cam);
+  const hits=raycaster.intersectObjects(handles.children.filter(o=>o.isMesh));
+  return hits.length ? hits[0].object.userData : null;
+}
+
+renderer.domElement.addEventListener('pointerdown',ev=>{
+  if(mode!=='draw'||ev.button!==0) return;
+  const hv=hitVertex(ev.clientX,ev.clientY);
+  if(hv){ draggingVertex=hv; renderer.domElement.setPointerCapture(ev.pointerId); return; }
+  panning=false; panStart={x:ev.clientX,y:ev.clientY}; panCamStart=drawCam.position.clone();
+  renderer.domElement.setPointerCapture(ev.pointerId);
+});
+
+renderer.domElement.addEventListener('pointermove',ev=>{
+  if(mode!=='draw') return;
+  if(draggingVertex){
+    const p=pointerToGround(ev.clientX,ev.clientY,drawCam);
+    const fp=footprints[draggingVertex.fi];
+    fp.points[draggingVertex.vi]={x:p.x,z:p.z};
+    markStale(fp);
+    rebuildOutlinesAndHandles();
+    return;
+  }
+  if(panStart){
+    const dx=ev.clientX-panStart.x, dy=ev.clientY-panStart.y;
+    if(!panning && Math.hypot(dx,dy)>4) panning=true;
+    if(panning){
+      const worldPerPixel=(drawCam.right-drawCam.left)/renderer.domElement.clientWidth/drawCam.zoom;
+      drawCam.position.x = panCamStart.x - dx*worldPerPixel;
+      drawCam.position.z = panCamStart.z - dy*worldPerPixel;
+    }
+  }
+});
+
+addEventListener('pointerup',ev=>{
+  if(mode!=='draw') return;
+  if(draggingVertex){ draggingVertex=null; return; }
+  const wasPan=panning; panning=false; const start=panStart; panStart=null;
+  if(wasPan||!start) return;
+  const moved=Math.hypot(ev.clientX-start.x,ev.clientY-start.y);
+  if(moved>4) return; // was a pan, not a click
+  if(!drawing) return; // not currently placing a footprint
+  const p=pointerToGround(ev.clientX,ev.clientY,drawCam);
+  if(activePoints.length>=3){
+    const d=Math.hypot(p.x-activePoints[0].x,p.z-activePoints[0].z);
+    if(d<CLOSE_TOL){ closeShape(); return; }
+  }
+  activePoints.push({x:p.x,z:p.z});
+  redrawDraft();
+  $('closeB').disabled=activePoints.length<3; $('undoV').disabled=false;
+});
+
+renderer.domElement.addEventListener('wheel',ev=>{
+  if(mode!=='draw') return;
+  ev.preventDefault();
+  drawCam.zoom=THREE.MathUtils.clamp(drawCam.zoom*(ev.deltaY>0?0.9:1.1),0.25,8);
+  drawCam.updateProjectionMatrix();
+},{passive:false});
+</script>
+</body>
+</html>

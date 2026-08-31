@@ -1,0 +1,99 @@
+{
+ "n": 411,
+ "checkpoint": "outputs/height_map_generator/heightmap_program.pt",
+ "head_ablation": {
+  "all three predicted": {
+   "extra": 0.12358832967272614,
+   "missing": 0.021820275582734385
+  },
+  "label types": {
+   "extra": 0.12445976048588238,
+   "missing": 0.022111081863648328
+  },
+  "label assignment": {
+   "extra": 0.11187949715821598,
+   "missing": 0.015347894868307847
+  },
+  "label planes": {
+   "extra": 0.0715575730951335,
+   "missing": 0.0025084541254544587
+  },
+  "all three from the label (the ceiling)": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0
+  }
+ },
+ "flatten_ramps": {
+  "compiled as fitted": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "ops": 2.0,
+   "planar_fraction": 0.5
+  },
+  "every Ramp flattened": {
+   "extra": 0.0527537847125476,
+   "missing": 0.0,
+   "ops": 1.0,
+   "planar_fraction": 0.0
+  }
+ },
+ "slope_symmetry": {
+  "n": 52792,
+  "mean": 0.0008517440489446268,
+  "median": 5.385612548233488e-16,
+  "p25": -0.6474373117089272,
+  "p75": 0.6431724419719295,
+  "positive": 0.5003788452795879,
+  "negative": 0.4960600090922867,
+  "median_abs": 0.6460239998996258
+ },
+ "canonicalisation": {
+  "n": 411,
+  "canonical_order": 0.2646216641163269,
+  "best_permutation": 0.25749446581258995,
+  "cost": 0.007127198303737025,
+  "cost_share": 0.026933540485195983
+ },
+ "slot_usage": {
+  "slots_used_by_arm": 1.194647201946472,
+  "slots_used_by_label": 3.0608272506082725,
+  "arm_uses_exactly_one": 0.7785888077858881,
+  "used_slots_typed_ramp": 0.46435845213849286,
+  "realised_rise_median_voxels": 0.0,
+  "used_slots_compiling_flat": 0.6702586206896551
+ },
+ "robustness": {
+  "plane_noise": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0
+   },
+   "0.02": {
+    "extra": 0.012789880534082924,
+    "missing": 0.006888826659199104
+   },
+   "0.05": {
+    "extra": 0.02542899858433775,
+    "missing": 0.015318940791960335
+   },
+   "0.10": {
+    "extra": 0.035022301516503124,
+    "missing": 0.030119660629450568
+   }
+  },
+  "assignment_corrupted": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0
+   },
+   "0.05": {
+    "extra": 0.010127697049757816,
+    "missing": 0.010357276235528444
+   },
+   "0.25": {
+    "extra": 0.03264722528372702,
+    "missing": 0.05137684345150074
+   }
+  }
+ }
+}

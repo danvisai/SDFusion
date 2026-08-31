@@ -20,39 +20,159 @@ Learned models make the *decisions*; deterministic procedure + retrieval do the 
 features (weathering, ornaments, sketch-relief, recipe-closure round-trip) remain the **demo wrapper**:
 they make the artifact impressive but are not what the paper proves.
 
-## Project status (updated 2026-07-26)
+## Project status (updated 2026-08-21)
 
 The living status lives in the **wayfinding maps** under `docs/wayfinding/` (each mirrors a GitHub
-issue map and carries its own tables + montages); this section is the index into them. The current
-active thread is **massing-surface crispness** — a *massing-fidelity* (C1) sub-problem, distinct from
-the C2 detail-composition thesis above.
+issue map and carries its own tables + montages); this section is only the index into them. Massing
+fidelity (C1) has been the active problem since 2026-07. The C2 detail-composition thesis above is
+unchanged and is **not** currently being worked — its evidence-package effort (map #11) was closed
+stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proof/` and `tickets.md`.
 
-- **Solid massing — DONE & shipped.** `docs/wayfinding/solid-massing-generation/` (map #24): the
-  LoD2-only from-scratch retrain passes the #27 acceptance gate (footprint-IoU 0.43 → ~0.89, solid
-  footprint-matching blocks). This checkpoint is the accepted massing generator. "Breaking apart" was
-  a BuildingNet thin-shell artifact, not a model failure.
-- **Surface crispness, first pass — CLOSED negative.** `docs/wayfinding/massing-surface-fidelity/`
-  (map #34, closed 2026-07-23): the sampled massing is *solid but wavy*; the roughness is **prior-side**
-  (`35-roughness-diagnosis.md`), and the map's cheapest-first levers (sampling knobs, then a decoded-x0
-  smoothness fine-tune) all fell short (`phase1-result.md`, `phase2-result.md`). Originally deferred; the
-  crispness pursuit was then **reopened** by maps #52/#58 below.
+### Active
+
+- **Latent token order — IN PROGRESS.** `docs/wayfinding/latent-token-order/` (map #87). The pair
+  training target was corrupted by token ordering; #88–#91 captured the codec's query positions and
+  rebuilt the aligned cache. #92's arms train against `v4_surf@240k` as the control — arm A closed
+  at step 240000 (its best checkpoint and its first non-zero), arm N (NL/DE only, PLATEAU excluded
+  as LoD1) is still running. Checkpoints are scored continuously by
+  `scripts/foundations/watch_checkpoints.py` into `execution/artifacts/`.
+- **Whole-volume voxel transform — IN PROGRESS (planning + throwaway prototypes only).** Map #113.
+  Decides whether an A2-only whole-volume voxel correction can satisfy hard footprint/validity
+  invariants *and* preserve editability. #114–#116 are settled (dense absolute binary 64³ state;
+  authentic replay supervision; recipe posture deferred to an explicit gate); #117–#125 are open.
+  This is a **competing empirical route beside** solid-first semantic carving (#1), not a silent
+  replacement — the semantic architectural edit program remains authoritative, and this map may not
+  rewrite `CONTEXT.md` or an ADR without the explicit recipe-compatibility decision.
+- **Footprint-drawn town demo — IN PROGRESS.** `docs/wayfinding/footprint-town-demo/` (map #97).
+  The standalone town editor generating from A2, streamed into the viewport. #102/#104/#105 open.
+- **Bitmagic-inspired town experience — IN PROGRESS (Codex).** Map #106: a recipe-preserving town
+  interaction and presentation exploration. #107–#112 open.
+
+### Settled
+
+- **Solid massing — DONE & shipped.** `docs/wayfinding/solid-massing-generation/` (map #24):
+  footprint-IoU 0.43 → ~0.89. "Breaking apart" was a BuildingNet thin-shell artifact, not a model
+  failure. This checkpoint is the accepted dense-grid massing generator.
+- **Surface crispness, first pass — CLOSED NEGATIVE.** `docs/wayfinding/massing-surface-fidelity/`
+  (map #34): the roughness is prior-side, and the map's cheapest-first levers all fell short.
 - **Crisp clean massing — COMPLETE (locates the ceiling).** `docs/wayfinding/crisp-massing-model/`
-  (map #52, commit `c459564`). Key finding: **the VQVAE codec is NOT the crispness bottleneck** —
-  `decode(encode(GT))` ≈ **0.0044** roughness ≈ GT floor **0.0041**, so a crisp building *is*
-  representable at 64³; **the diffusion is what produces lumpy/wavy massing.** Two fixes ruled out
-  cheaply: composite-over-extrusion (#56 — SDF-combine on the 64³ grid corrupts crispness;
-  `residual-retrain-design.md` is therefore **superseded**) and a post-decode SDF refiner (#54 —
-  bounded residual + sharpness losses plateau at ~**0.0047**, cannot reach GT). The forward menu is
-  `representation-ceiling-menu.md`; comparison figures are `refiner-v3-vs-v1.png`, `gate56-*.png`,
-  `residual-decomp-*.png`.
-- **Diffusion latent accuracy — IN PROGRESS.** `docs/wayfinding/diffusion-latent-accuracy/`
-  (map #58). #59 (latent-space corrector, commit `40e9c55`) **CLOSED NEGATIVE**: correcting the
-  diffusion's *latent* also plateaus at the same ~0.0047 wall (`latent-corrector-result.md`, table +
-  `latent-corrector-montage.png`) — so **post-hoc correction is doubly ruled out** (SDF #54 *and*
-  latent #59). #60 (x0-sharp diffusion fine-tune — warm-start the map-#24 prior with the decoded-x0
-  smoothness regularizer already in `stage3a_model.forward()`) is **currently running**. If it
-  over-smooths or plateaus, the durable fix is a **query-based implicit / vecset decoder** (menu
-  option 2) — moving crispness off the dense-grid diffusion and into the decode.
+  (map #52): the VQVAE codec is **not** the crispness bottleneck — `decode(encode(GT))` ≈ 0.0044 vs
+  a GT floor of 0.0041 — **the diffusion is**. Composite-over-extrusion (#56) and a post-decode SDF
+  refiner (#54) were both ruled out cheaply.
+- **Diffusion latent accuracy — CLOSED.** `docs/wayfinding/diffusion-latent-accuracy/` (map #58):
+  #59 (latent-space corrector) and #60 (x0-sharp finetune) both hit the same ~0.0047 wall, so
+  post-hoc correction is ruled out in **both** the SDF and latent domains. The durable fix was to
+  move crispness into the decode — taken up by map #61.
+- **Crisp massing via a query-based decoder — model shipped, map still open.**
+  `docs/wayfinding/crisp-massing-vecset/` (map #61): the A2 vecset massing diffusion is trained,
+  published, and is the current research line (see README). #66/#67 remain open as specs, and the
+  map's own "not yet specified" fog — whether editing survives a token-set latent — is exactly what
+  map #87 is now burning off.
+- **Vecset convergence — COMPLETE.** `docs/wayfinding/vecset-convergence/` (#69–#85, all closed):
+  the evaluation harness, the decoded-surface loss, the height-input decision, and the band-fix
+  findings that map #87 inherited.
+
+### Known gaps in this record
+
+- Maps #106 and #113 have no `docs/wayfinding/` folder yet; #113 names
+  `docs/wayfinding/whole-volume-voxel-transform/` as its required home.
+- `effort:solid-first-carving` (#1–#9) is specified but unstarted; it is deliberately kept open.
+  #10, #126, #127 and #128 are done — see `docs/wayfinding/solid-first-subtractive-modeling/`.
+- 🔑 **#127 broke the no-op.** A 3.4M-parameter footprint→height-map generator carves: `extra`
+  0.2308 → **0.0603** with `vs_input` 0.8432, against the shipped 49M model's 0.2357 at 0.9852
+  vs-input. The pattern that closed #69–#92 was a property of the output space, not of the task.
+  ⚖️ **1-NN was demoted to a reference point by the human on 2026-08-28**, after the results: it is
+  non-parametric (it carries 34,909 real roofs to inference and copies one), so requiring a 3.4M
+  generator to beat it charges a compression constraint as a quality failure. ⚠️ The premise that
+  motivated the ruling — that retrieval always wins — is **false as measured**: three of four arms
+  beat it and the served one beats it by 41.5%, at **six times better collapse** (11 of 411 against
+  retrieval's 65). Its **pre-registered arm did miss** (0.1178 against 0.1031) and the original
+  pre-registration is kept intact in the doc; the arms that clear it were run after seeing that. ⚠️ **The montage disagrees with the scorecard** — every trained arm
+  returns a rounded mound where the real roof is planes meeting at a ridge, and three amplitude
+  statistics failed to separate them. The open problem has moved from *amount* to *form*.
+  ✅ **The human reviewed the montages on 2026-08-28 and accepted them**: this meets the scope
+  *"input a shape, get a blockout that looks like a building"* where earlier approaches did not.
+  Recorded as their judgement on criterion 1; it does not change the scalar record above.
+  **Served in the demo** by `town_generate_service.py` behind an `arm` knob (default still `a2`),
+  with a `/arms` comparison page — ~0.1 s/building against A2's ~7 s, because a height map needs no
+  codec. ⚠️ It is **deterministic**: identical footprints give identical buildings, so a town needs
+  the `roof_variation` knob (default 0 = the arm that was scored). Weights: `weights/massing-heightmap/`.
+  ⚠️ **The "make the objective match the decode" retrain was run and is NEGATIVE**: a pinball loss at
+  q=0.5 scores `extra` 0.0685 against the post-hoc median's 0.0603, winning on only 166/411
+  (p=0.0044). Cross-entropy learns the whole posterior; a quantile head learns one scalar and throws
+  it away. CE + post-hoc median stands as the best arm.
+
+## Integration state
+
+⚠️ **`docs/INTEGRATION_STATE.md`** maps how the massing pieces wire together and which ones have
+never met. Read it before opening [#2](https://github.com/danvisai/SDFusion/issues/2): most of what
+that ticket imagines needs defining is already built and running, and the real gap is one function
+call wide — **the generator predicts a program, compiles it to a height map, and throws the program
+away**, so the editable representation and the generated geometry have never met.
+
+## Reading the numbers
+
+Every massing result on this project is quoted in the same handful of measures. This is what each
+one means, which direction is good, and what to compare it against. ⚠️ **No number here is
+meaningful alone** — #126 exists because a single figure hid the fact that an arm had done nothing,
+and #127 exists because three scalars could not tell a mound from a roof.
+
+**The surplus pair — `missing` and `extra`.** Both are fractions of the real building's volume.
+`missing` is GT the arm failed to fill: it **cut into the building**. `extra` is volume the arm
+added outside GT: **surplus it failed to carve away**. Lower is better for both. ⚠️ They are **not
+symmetric in consequence** — surplus is a building that looks unfinished, `missing` is a building
+with a trench through it, and a plane slightly too steep is charged the whole trench while one
+slightly too shallow only leaves surplus.
+
+**`vs_input`** — IoU against the blockout the arm started from. **1.0 means it did nothing.** An arm
+at 0.99 has not been measured as a generator however good its other numbers look (#75: a model
+scored 3D IoU 0.857 while being 99.9% its own input). Lower means it acted. The guard is < 0.98.
+
+**`collapse_rate`** — the fraction of buildings whose `missing` ≥ 0.15, i.e. that were eaten rather
+than carved. Lower is better, and the bar is **1-NN retrieval's 0.1582**: a generator that destroys
+more buildings than naive retrieval is not servable whatever else it scores.
+
+**`dl_ops` and `dl_planar_fraction` — the FORM pair.** #10's `Layer`/`Ramp`/`CutRoof` fitter is run
+on the arm's *own* surface and asked how many operations explain it. `dl_ops` is that count (lower =
+simpler); `dl_planar_fraction` is the share of them that are **planes** rather than flat terraces
+(higher = more roof-like). 🔑 **Read them together or not at all.** A real building is 2.0 ops at
+0.50 planar; a mound is many `Layer`s at 0.00 planar; an arm reaching 3.0 ops at 0.00 planar has
+simplified without becoming architecture. ⚠️ The pair is **not carve-aware by design** — a bare
+envelope scores 1 op, correctly — so it is always read beside `extra`.
+
+**3D IoU** — demoted to a diagnostic by #126 and printed to the right of the bar. A blockout that
+over-fills by 22% and a generator that ate 22% of the building land on the same IoU while wanting
+opposite responses.
+
+**Programme-arm numbers.** `slots_used` is how many of its K typed regions the arm actually uses
+(the label uses 3.06); an arm at 1.0 is drawing one region and cannot express a gable whatever its
+planes do. `used_slots_typed_ramp` is the share of those typed as pitched. ⚠️ **`realised_rise` has
+two meanings and both are published**: `..._all_slots_voxels` covers every used slot, so a `Layer` —
+flat *by definition* — drags it down as soon as an arm uses more slots; `..._ramp_typed_voxels` is
+the one that says a pitch was actually drawn. #6 typed 46% of its slots `Ramp` and drew them with a
+median 0.00-voxel rise, which is why "it predicted a ramp" is never evidence that it drew one.
+
+**Vertex-budget numbers (#131).** `verts` and `tokens` are the DSL cost of a program — 98.5% of it
+is polygons, not operations. `contained` is the fraction of regions that gained no cell, so #10's
+containment guarantee still holds. `spike` is the worst column's surplus in voxels and `spiked` the
+fraction of buildings with one over `s*` = 3 — ⚠️ that pair is where the median `extra` lies to you:
+a budget can sit inside the allowance while 90% of buildings grow a visible fin.
+
+**The bar itself** is machine-checked in `verdict()`, never in prose, and has three parts. **PASS**
+is what the arm must achieve. **GUARD** is what it may not break on the way (collapse and
+`vs_input`). **KILL** is a pre-registered clause that answers the ticket "no" — it exists so a
+disappointing result cannot be re-narrated as partial success.
+
+**Reference values on the pinned 411 carve-needing buildings**, quote new results against these:
+
+| | `extra` | collapse | ops | planar |
+|---|---|---|---|---|
+| the real building | — | — | **2.0** | **0.50** |
+| compiled label *(sees GT — the ceiling)* | 0.0035 | 0.0000 | 2.0 | 0.50 |
+| blockout *(doing nothing)* | 0.2308 | 0.0000 | 0.0 | 0.00 |
+| 1-NN retrieval *(the guard)* | 0.1031 | **0.1582** | 2.0 | 0.17 |
+| #127 CE+median *(served today)* | **0.0603** | 0.0268 | 6.0 | 0.20 |
+
 
 ## Language
 
@@ -85,8 +205,9 @@ _Avoid_: static mesh, output mesh
 
 **Massing**:
 The generatable part of a building: low-spatial-frequency geometry *above* the detail scale s*
-— base mass, wings, overall roof form. Produced by recipe-param diffusion + Stage 3a. The claim:
-this is well-posed to generate from {footprint, class, height, style}.
+— base mass, wings, overall roof form. Produced by a diffusion-based massing generator conditioned
+on {footprint, class, height, style} — Stage 3a's dense-grid diffusion, or A2's vecset/Dora-latent
+diffusion (map #61); both realize the same C1 transform (ADR 0003), differing in representation.
 _Avoid_: base shape, blockout (blockout is the crude user primitive, not the generated mass)
 
 **Detail**:
@@ -104,9 +225,61 @@ never a line drawn to fit the result.
 _Avoid_: cutoff, threshold (name it s* everywhere)
 
 **Massing fidelity**:
-How well generated *massing* matches the target — measured **paired** (Chamfer / IoU to the
-specific held-out real building), because massing is determined by footprint + height.
-_Avoid_: shape accuracy
+How well generated *massing* matches the target — measured **paired** (Chamfer / IoU to the specific
+held-out real building).
+⚠️ **Massing is NOT determined by footprint + height.** That was this entry's stated justification
+until #126 measured it: two real held-out buildings whose footprints agree to IoU ≥ 0.90 and whose
+heights agree within 5% still differ by a median 3D IoU of **0.886** over all matched pairs (0.829
+on the carve-needing subset), one re-rendered on the other's exact footprint at its exact height.
+The conditioning leaves real architectural freedom and the held-out row is one valid answer among
+several.
+Paired scoring **survives on the C1 transform reading instead** — "was *this* blockout or sculpt
+projected correctly" is well-posed however many valid buildings share the footprint.
+🔑 #126 further decided that for **new** massing work the `missing`/`extra` split leads the
+scorecard and the aggregate 3D IoU is a diagnostic, because on the **median** a real building and
+the envelope are indistinguishable (0.8295 both) while the split separates them unanimously
+(`extra` 0.097 against 0.206, winning every decided offer).
+⚠️ This is in **tension with map #87's pre-registered gate 4** ("3D IoU split into missing vs extra
+— diagnostic only, never pass/fail"), which was fixed before #92's run and is **not** overridden
+here: #92 is judged on the gates it pre-registered. See
+`docs/wayfinding/solid-first-subtractive-modeling/126-massing-scoring.md`.
+Scored on the **carve-needing subset** wherever a generator's carving is the question: 303 of the
+714 held-out buildings need no carve, and that no-op majority flatters every aggregate.
+⚠️ **The split is blind to roof form.** #127 measured an arm scoring `extra` 0.000 on a building
+while looking worse than the blockout it started from — `extra` charges only volume *above* GT, so
+a rough or wrongly-shaped surface underneath it is free. Three amplitude statistics (mean height
+step, second difference, local extrema) were tried and **none separates a mound from a roof**,
+because GT is itself terraced at 64³. Until one exists, the **montage decides form** and the split
+decides surplus. See `docs/wayfinding/solid-first-subtractive-modeling/127-height-map-generator.md`.
+_Avoid_: shape accuracy, 3D IoU as a lone number, "determined by footprint + height"
+
+**Footprint fidelity — fringe / spill / uncovered**:
+The three-way split of footprint error, never reported as one number. Measured on the vertical
+projection of the generated massing against the conditioning footprint.
+**Fringe** is disagreement within *s\** of the footprint boundary — a discretisation effect of the
+64³ grid, present even when the model is right, so it is **reported and ignored**.
+**Spill** is massing built *outside* the footprint. **Uncovered** is footprint left unfilled. Both
+count. Splitting them exists because a single footprint-IoU conflates the harmless with the real:
+their ratio varies from 21% to 100% between buildings, so the aggregate disagrees with what a human
+sees in a plan view.
+_Avoid_: footprint-IoU as a lone number, footprint error (says which, not what kind)
+
+**Allowance**:
+The tolerated fraction of footprint area for *spill* and *uncovered* before a building fails
+footprint fidelity. A **decision**, not a measurement — distinct from *s\**, which is fixed a priori
+by ADR 0004. Recorded in one place in code so it cannot drift.
+_Avoid_: threshold, tolerance (tolerance is s\*, which is not negotiable)
+
+**Footprint solidity**:
+Footprint area divided by its convex-hull area. 1.0 is convex; lower means re-entrant — courtyards,
+L-plans, terraced party walls.
+_Avoid_: complexity, concavity (unquantified)
+
+**vs input**:
+Overlap of a projection with the **footprint envelope** it started from. 1.0 means the model returned
+its input unchanged. Since generation *is* projection (ADR 0003), a quality score without this is
+unattributable: a near-no-op inherits the envelope's perfect footprint and is scored for it.
+_Avoid_: no-op rate, self-similarity
 
 **Detail fidelity**:
 How well generated *detail* matches real — measured **distributionally** (never paired, because

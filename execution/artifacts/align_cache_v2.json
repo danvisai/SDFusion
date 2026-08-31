@@ -1,0 +1,18 @@
+{
+  "published": {
+    "unaligned_pct_random": 99.7,
+    "aligned_pct_random": 13.7,
+    "pos_elementwise": 1.1138,
+    "pos_aligned": 0.1904,
+    "pos_matched_floor": 0.0423
+  },
+  "n": 36818,
+  "token_permutation": "36818/36818",
+  "reordered": "36818/36818",
+  "pos_elementwise": 1.1358351643609097,
+  "pos_aligned": 0.18367808128553972,
+  "pos_matched_floor": 0.037844851189930154,
+  "pos_followed": 0.0,
+  "aligned_pct_random": 13.281832120580862,
+  "unaligned_pct_random": 100.0
+}

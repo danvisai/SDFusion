@@ -30,12 +30,29 @@ imports, not by assumption:
   the `torch.cuda` namespace and maps it onto HIP. **Do not "fix" them** — rewriting them to
   `device_type` strings is churn that buys nothing and risks breaking the CUDA path.
 
-**⚠️ The one real blocker — pytorch3d**
+> ### 🛑 SUPERSEDED (2026-08-13) — read [`ROCM-EXTENSION-BUILDS.md`](ROCM-EXTENSION-BUILDS.md) instead
+>
+> The block immediately below is **wrong** and is kept only as a record of the migration-day
+> assessment. There is no pytorch3d blocker, and CUDA extensions in general are not blocked here.
+>
+> The cause was never a missing port: this venv's ROCm is the **wheel-based TheRock SDK**, so
+> `torch.utils.cpp_extension` finds no `ROCM_HOME` and reports `IS_HIP_EXTENSION = False`. Every
+> CUDA-extension build then fails or silently degrades to CPU-only. **Set `ROCM_HOME` and they build.**
+>
+> Already fixed and installed in the venv: **pytorch3d with GPU support** (512px raster 4464 ms → 160 ms)
+> and **`diso` DiffMC/DiffDMC** (512³ in 29 ms, gradients OK), which unblocks Sharp-Edge Sampling.
+> **FlexiCubes** needs no build at all — it is pure PyTorch, not Kaolin-bound.
+
+**⚠️ The one real blocker — pytorch3d** ← *superseded, see above*
 - No ROCm wheels exist. Needed by `utils/util_3d.py` and `scripts/foundations/eval_massing_arms.py`
   (**the harness**) for `MeshRasterizer` / `MeshRenderer`.
 - Build it **CPU-only** (`FORCE_CUDA=0`). At n=48 buildings the rasterisation cost is tolerable.
 - If the CPU build also fights you, the rendering is separable from the metrics — `fp_iou`, `missing`,
   `extra`, `vol_iou` are voxel operations and do not need pytorch3d. Only the montages do.
+
+  *(Second correction: the harness no longer uses pytorch3d at all — `eval_massing_arms.render_world`
+  renders via pyrender/EGL, and `scripts/train_vecset.py` never imported it. pytorch3d is now only on
+  the superseded dense-grid path, `utils/util_3d.py` → `stage3a_model.py` / `vqvae_model.py`.)*
 
 **⚠️ Do NOT `pip install -r requirements-frozen.txt` verbatim.** It pins 14 `nvidia-*-cu12` packages,
 `torch==2.8.0+cu126`, `torchvision==0.23.0+cu126`, and `triton==3.4.0`. Install ROCm torch wheels first,

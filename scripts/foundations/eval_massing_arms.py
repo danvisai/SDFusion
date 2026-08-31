@@ -46,6 +46,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from itertools import zip_longest
 from pathlib import Path
 
 import numpy as np
@@ -133,6 +134,7 @@ def score_arm(field: np.ndarray, gt_occ: np.ndarray, fp: np.ndarray) -> dict:
     occ = np.asarray(field) <= 0
     row = dict(fp_iou=fp_iou(occ, fp))
     row.update(volume_split(occ, gt_occ))
+    row.update(footprint_split(occ, fp))   # criterion 2 (#85): fringe / spill / uncovered
     # guards only -- kept out of fp_iou/missing/extra and out of every ranking print
     row["guard_roughness"] = surface_roughness(
         torch.from_numpy(np.clip(np.asarray(field, np.float32), -TRUNC, TRUNC)))
@@ -141,52 +143,323 @@ def score_arm(field: np.ndarray, gt_occ: np.ndarray, fp: np.ndarray) -> dict:
 
 
 def summarise(rows) -> dict:
-    """Per-arm medians. `guard_roughness` keeps its prefix so it cannot pass for a criterion."""
+    """Per-arm medians plus #92's hollow-collapse rate.
+
+    `guard_roughness` keeps its prefix so it cannot pass for a criterion. Collapse is the boundary
+    established by #80's bimodal result: a massing with >=15% of GT volume missing is hollow.
+    """
     rows = list(rows)
     if not rows:
         return {}
     med = lambda k: float(np.median([r[k] for r in rows]))  # noqa: E731
     out = dict(n=len(rows), fp_iou=med("fp_iou"), missing=med("missing"), extra=med("extra"),
-               vol_iou=med("vol_iou"), guard_roughness=med("guard_roughness"))
+               vol_iou=med("vol_iou"),
+               collapse_rate=float(np.mean([r["missing"] >= COLLAPSE_MISSING for r in rows])),
+               guard_roughness=med("guard_roughness"))
+    if "vs_input" in rows[0]:
+        out["vs_input"] = med("vs_input")
     if "guard_field_slope" in rows[0]:
         out["guard_field_slope"] = med("guard_field_slope")
     return out
+
+
+def reference_win_rate(candidate: dict, reference: dict, metric: str = "vol_iou") -> float:
+    """Strict paired rate at which `candidate` beats the footprint envelope on `metric`."""
+    if set(candidate) != set(reference):
+        raise ValueError("candidate and reference must contain the same building ids")
+    if not candidate:
+        return 0.0
+    return float(np.mean([candidate[bid][metric] > reference[bid][metric] for bid in candidate]))
 
 
 # --------------------------------------------------------------------------------------------------
 # rendering -- shared world frame, one fixed camera
 # --------------------------------------------------------------------------------------------------
 
-def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device):
+def render_world(verts_w: np.ndarray, faces: np.ndarray, size: int, device=None):
     """Shaded render of a mesh **already in the [-1,1] world frame**, with a fixed camera.
 
     Deliberately NOT `scripts/hunyuan_building_mesh_smoke.render_mesh_png`: that recentres and rescales
     every mesh onto its own bounding box, which is right for comparing two unrelated shapes but wrong
     here -- it would scale an eroded or collapsed arm back up to GT's apparent size and hide exactly
-    the failure criterion 3 exists to expose. Same lights and camera parameters, no normalisation.
+    the failure criterion 3 exists to expose. Same camera parameters, no normalisation.
+
+    Renders via pyrender's EGL/radeonsi path rather than pytorch3d: the installed pytorch3d build has
+    no compiled GPU kernels on this ROCm box (its `_C` extension is CPU-only), while EGL talks to the
+    AMD GPU directly through Mesa. `device` is accepted for call-site compatibility and unused.
+    """
+    import os
+    os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
+    import pyrender
+    import trimesh as tm3
+    from PIL import Image
+
+    mesh = tm3.Trimesh(vertices=np.asarray(verts_w, np.float64), faces=np.asarray(faces, np.int64),
+                        process=False)
+    material = pyrender.MetallicRoughnessMaterial(baseColorFactor=(0.72, 0.72, 0.72, 1.0),
+                                                   metallicFactor=0.0, roughnessFactor=0.8)
+    pymesh = pyrender.Mesh.from_trimesh(mesh, material=material, smooth=True)
+    scene = pyrender.Scene(bg_color=(1.0, 1.0, 1.0), ambient_light=(0.45, 0.45, 0.45))
+    scene.add(pymesh)
+
+    # same spherical camera as pytorch3d's look_at_view_transform(dist, elev, azim), up=(0,1,0)
+    elev, azim = np.radians(CAM["elev"]), np.radians(CAM["azim"])
+    eye = CAM["dist"] * np.array([np.cos(elev) * np.sin(azim), np.sin(elev), np.cos(elev) * np.cos(azim)])
+    forward = -eye / np.linalg.norm(eye)
+    right = np.cross(forward, (0.0, 1.0, 0.0))
+    right /= np.linalg.norm(right)
+    up = np.cross(right, forward)
+    pose = np.eye(4)
+    pose[:3, 0], pose[:3, 1], pose[:3, 2], pose[:3, 3] = right, up, -forward, eye
+
+    # pytorch3d's FoVOrthographicCameras scale_xyz maps camera-space [-1/scale, 1/scale] to NDC
+    # [-1, 1] with default min/max = -1/1; pyrender's xmag/ymag is that same half-extent directly.
+    mag = 1.0 / CAM["scale"]
+    cam = pyrender.OrthographicCamera(xmag=mag, ymag=mag, znear=0.05, zfar=10.0)
+    scene.add(cam, pose=pose)
+    scene.add(pyrender.PointLight(color=(1.0, 1.0, 1.0), intensity=6.0), pose=pose)
+
+    r = pyrender.OffscreenRenderer(size, size)
+    try:
+        img, _ = r.render(scene)
+    finally:
+        r.delete()
+    return Image.fromarray(img)
+
+
+COLLAPSE_MISSING = 0.15    # #80: solid iff missing < 15%; publish beside every #92 median.
+S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~ 3 voxels @64^3. Fixed a priori.
+
+# Criterion 2's allowance, chosen by the human on 2026-08-07 against the FULL held-out set (n=714),
+# where it reads 76.5% [73.4, 79.6]. Two parts, and only one of them was a choice:
+#   * the TOLERANCE (s*) is not a choice -- it is ADR 0004's massing/detail line, fixed in advance.
+#   * the ALLOWANCE is a choice, and it is recorded here so it cannot drift silently.
+# 10% was measured (92.3%) and rejected: a 10% plan-area error is a visible fault, not an
+# approximation. The strict figures stay on the record beside it -- 0% allowance is 23.8%.
+# ⚠️ Never re-quote this against a rate measured at n=48: that sample was 100% Dutch (see pick_ids).
+C2_ALLOWANCE = 0.05
+
+
+def vs_input(arm_occ: np.ndarray, blockout_occ: np.ndarray) -> float:
+    """IoU of a projection with the **blockout it started from**. 1.0 means it did nothing.
+
+    🔑 The map requires this beside every quality number, and #75 is why. A2's apparent quality came
+    almost entirely from declining to act: at 80k steps s=0.45 scored 3D IoU 0.857 while being **99.9%
+    its own input** -- it had returned the blockout. The #75 headline checkpoint was 93% its input, and
+    its 7% edit *cost* 0.036 of IoU. A projection that is 0.99 vs-input has not been measured as a
+    generator at all, however good its score looks; the score belongs to the blockout.
+
+    Read it against the blockout's own row: an arm can only claim a net-positive edit if it both moves
+    (vs_input well below 1.0) and lands better than the arm it started from.
+    """
+    a, b = np.asarray(arm_occ, bool), np.asarray(blockout_occ, bool)
+    u = int((a | b).sum())
+    return float((a & b).sum() / u) if u else 0.0
+
+
+def footprint_split(arm_occ: np.ndarray, fp: np.ndarray, tol: int = S_STAR_VOXELS) -> dict:
+    """Criterion 2 as **fringe / spill / uncovered**, never as a lone fp-IoU (#85).
+
+    fp-IoU conflates two unlike things and their ratio swings from 21% to 100% building to building,
+    which is why the number disagreed with what a human sees in a render:
+
+    * **fringe**  -- disagreement within `tol` voxels of the footprint boundary. A half-voxel rounding
+      of the boundary at 64^3. Present even when the model is right, so it is **reported and ignored**,
+      the same ruling this harness already applies to ribbing (#71) and to SNE's contamination (#79).
+    * **spill**   -- built OUTSIDE the footprint, beyond the tolerance band. **Counts.**
+    * **uncovered** -- footprint left unfilled, beyond the band. **Counts.**
+
+    `tol` defaults to **s\\* = 3 voxels**, the project's detail scale (ADR 0004, 1.0 m @64^3). It is
+    fixed a priori and is the massing/detail line the thesis rests on -- not a tolerance fitted to make
+    a result pass. Criterion 2 is a massing claim, and detail is out of map #69's scope.
+
+    ⚠️ Measured on the full held-out set: **uncovered is essentially zero** (median 0.0000) and spill is
+    the entire failure. Criterion 2 and criterion 3 are therefore driven by the same defect -- the model
+    over-builds -- seen once in plan and once in volume. They stay separate numbers (spill can be zero
+    while `extra` is large, when the model builds too high but stays inside the footprint) but nobody
+    should count them as two independent faults.
+    """
+    from scipy import ndimage
+    ref = np.asarray(fp).astype(bool)
+    proj = np.asarray(arm_occ, bool).any(axis=1)          # vertical projection, footprint axis is H
+    area = int(ref.sum())
+    if area == 0:
+        return dict(fringe=0.0, spill=0.0, uncovered=0.0, fp_area=0)
+    band = (ndimage.binary_dilation(ref, iterations=tol)
+            & ~ndimage.binary_erosion(ref, iterations=tol)) if tol else np.zeros_like(ref)
+    dis = proj ^ ref
+    return dict(fringe=float((dis & band).sum() / area),
+                spill=float(((proj & ~ref) & ~band).sum() / area),
+                uncovered=float(((ref & ~proj) & ~band).sum() / area),
+                fp_area=area)
+
+
+def criterion2_report(scores: dict, arm_order, allowances=(0.0, 0.02, 0.03, 0.05, 0.10)) -> dict:
+    """Pass rates across allowances, with 95% intervals. **The allowance is deliberately not fixed.**
+
+    Criterion 2 is human-judged (#85), so this prints the curve and lets the human pick the point,
+    rather than baking one threshold into the harness. A rate needs n: at n=48 a rate carries about
+    +-11 points, at n=714 about +-3, which is why the interval is printed beside every figure.
+    """
+    out = {}
+    for arm in arm_order:
+        rows = [r for r in scores.get(arm, {}).values() if "spill" in r]
+        if not rows:
+            continue
+        sp = np.array([r["spill"] for r in rows])
+        un = np.array([r["uncovered"] for r in rows])
+        n = len(rows)
+        per = {}
+        for a in allowances:
+            p = float(((sp <= a) & (un <= a)).mean())
+            se = (p * (1 - p) / n) ** 0.5
+            # clamp: the normal approximation runs past 1.0 at high p and small n
+            per[f"{a:.2f}"] = dict(rate=p, lo=max(0.0, p - 1.96 * se),
+                                  hi=min(1.0, p + 1.96 * se), n=n)
+        # ⚠️ vs_input travels WITH the pass rate. Without it a near-no-op arm posts a passing spill
+        # number -- it inherits the footprint envelope's perfect footprint and is scored for it. The
+        # map requires this beside any quality number (#75), and a criterion-2 rate is one.
+        vi = [r["vs_input"] for r in rows if "vs_input" in r]
+        out[arm] = dict(n=n, fringe_median=float(np.median([r["fringe"] for r in rows])),
+                        spill_median=float(np.median(sp)), spill_mean=float(sp.mean()),
+                        uncovered_median=float(np.median(un)), pass_rates=per,
+                        vs_input_median=float(np.median(vi)) if vi else None)
+    return out
+
+
+def build_plan_view(scores: dict, fp_of: dict, proj_of: dict, arm_order, out: Path, n: int) -> Path:
+    """Criterion 2's instrument (#85): the footprint in PLAN, **worst first**.
+
+    The shaded 3/4 montage hides footprint error entirely -- every criterion-2 judgement made before
+    this existed was made without seeing the thing being judged. This looks straight down at the
+    vertical projection against the conditioning footprint.
+
+    ⚠️ **Worst first, not a sample.** A median-ish selection makes criterion 2 pass by construction:
+    at the median the footprint is essentially exact and ~76% of the error is forgiven fringe, while
+    the tail contains filled courtyards and masses built clear of the plan.
+    """
+    from PIL import Image, ImageDraw
+    from scipy import ndimage
+    arm = arm_order[-1]                                   # the candidate, not the controls
+    # ⚠️ Ranked over EVERY scored building, not the montage subset. The first version filtered on
+    # `b in fields`, which holds only a <=8-id PREFIX -- so it sorted the worst 6 of an arbitrary 8
+    # and the tail this instrument exists to expose was structurally unreachable. A projection is
+    # 64x64 bits, so keeping one per building for the whole run costs ~3 MB.
+    rows = [(b, r) for b, r in scores.get(arm, {}).items() if "spill" in r and b in proj_of]
+    if not rows:
+        return out
+    rows.sort(key=lambda kv: -kv[1]["spill"])
+    rows = rows[:n]
+
+    CELL, PAD, LBL, HDR = 200, 8, 34, 46
+    W = len(rows) * CELL + (len(rows) + 1) * PAD
+    canvas = Image.new("RGB", (W, HDR + CELL + LBL + PAD), "white")
+    d = ImageDraw.Draw(canvas)
+    d.text((PAD, 6), f"criterion 2 (#85) -- plan view, WORST FIRST, arm '{arm}', "
+                     f"tolerance s* = {S_STAR_VOXELS} voxels", fill="black")
+    d.text((PAD, 24), "grey = on the footprint | yellow = within s*, FORGIVEN | "
+                      "blue = SPILL (built outside) | red = UNCOVERED", fill=(150, 0, 0))
+    for k, (bid, r) in enumerate(rows):
+        ref = np.asarray(fp_of[bid]).astype(bool)
+        proj = np.unpackbits(proj_of[bid]).reshape(ref.shape).astype(bool)
+        band = (ndimage.binary_dilation(ref, iterations=S_STAR_VOXELS)
+                & ~ndimage.binary_erosion(ref, iterations=S_STAR_VOXELS))
+        img = np.full(ref.shape + (3,), 255, np.uint8)
+        img[ref & proj] = (140, 153, 168)
+        img[(ref ^ proj) & band] = (242, 217, 140)
+        img[(proj & ~ref) & ~band] = (26, 115, 204)
+        img[(ref & ~proj) & ~band] = (217, 51, 46)
+        x = PAD + k * (CELL + PAD)
+        canvas.paste(Image.fromarray(img).resize((CELL, CELL), Image.NEAREST), (x, HDR))
+        d.text((x, HDR + CELL + 4), f"row {bid}", fill="black")
+        d.text((x, HDR + CELL + 17), f"spill {r['spill']*100:.1f}%  unc {r['uncovered']*100:.1f}%",
+               fill="black")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(out)
+    return out
+
+
+def sharp_normal_error(fields: dict, arm_order, device, views: int = 22, size: int = 256):
+    """Dora's SNE, validated for this repo in #79. Lower is better. Returns {arm: mean SNE}.
+
+    Normal maps from `views` directions -> Canny on the **GT** map to find salient regions -> dilate ->
+    mean squared normal difference **inside those regions only**.
+
+    🔑 **This is the first scalar in this project that ranks crisp above melted.** #36
+    (`separation_ok: False`), #63 ("blind to this artifact class") and `deployed-vs-dora` all failed;
+    `surface_roughness` ranks a melted blob ABOVE a crisp ribbed box. Measured in #79 on n=8:
+    codec_ceiling (crisp) **0.084** vs deployed_map24 (melted) **0.636**, separated on 8/8 buildings
+    with no overlap (crisp max 0.111 < melted min 0.517).
+
+    Why masking rescues it: the ribs live on flat FACES, and the salient mask is a thin EDGE outline
+    (~6% of pixels), so face ribbing barely enters the average. Whole-surface roughness drowns in it.
+
+    ⚠️ **Still contaminated across arms, so it is reported, never ranked on.** On a row whose blockout
+    occupancy is BYTE-IDENTICAL to GT, SNE is 0.241, not 0 (#79's C2) -- a faceted signed EDT also
+    perturbs the edges the mask covers. The offset is not a constant that can be subtracted: the
+    codec's own ribbing contaminates far less (0.084) than the EDT's. Safe within one arm across runs;
+    across arms read it only for gaps far larger than that offset, as the crisp/melted 7.6x is.
     """
     import torch
-    from PIL import Image
-    from pytorch3d.renderer import (BlendParams, FoVOrthographicCameras, MeshRasterizer, MeshRenderer,
-                                    PointLights, RasterizationSettings, SoftPhongShader, TexturesVertex,
+    from scipy.ndimage import binary_dilation
+    from skimage.feature import canny
+    from pytorch3d.renderer import (FoVOrthographicCameras, MeshRasterizer, RasterizationSettings,
                                     look_at_view_transform)
     from pytorch3d.structures import Meshes
 
-    v = torch.as_tensor(np.asarray(verts_w, np.float32), device=device)[None]
-    f = torch.as_tensor(np.asarray(faces, np.int64), device=device)[None]
-    r, t = look_at_view_transform(dist=CAM["dist"], elev=CAM["elev"], azim=CAM["azim"], at=((0, 0, 0),))
-    cams = FoVOrthographicCameras(device=device, R=r, T=t, scale_xyz=((CAM["scale"],) * 3,))
-    lights = PointLights(device=device, location=((2.0, 2.0, 2.0),),
-                         ambient_color=((0.45, 0.45, 0.45),), diffuse_color=((0.55, 0.55, 0.55),),
-                         specular_color=((0.05, 0.05, 0.05),))
-    renderer = MeshRenderer(
-        rasterizer=MeshRasterizer(cameras=cams, raster_settings=RasterizationSettings(
-            image_size=size, blur_radius=0.0, faces_per_pixel=1, bin_size=0)),
-        shader=SoftPhongShader(device=device, cameras=cams, lights=lights,
-                               blend_params=BlendParams(background_color=(1.0, 1.0, 1.0))))
-    tex = TexturesVertex(verts_features=torch.full_like(v, 0.72))
-    img = renderer(Meshes(verts=v, faces=f, textures=tex))[0, ..., :3].clamp(0, 1).cpu().numpy()
-    return Image.fromarray((img * 255).astype(np.uint8))
+    ga = np.pi * (3.0 - np.sqrt(5.0))
+    dirs = []
+    for i in range(views):
+        z = 1.0 - (2.0 * i + 1.0) / views
+        r = np.sqrt(max(0.0, 1.0 - z * z))
+        dirs.append((float(np.degrees(np.arcsin(np.clip(z, -1, 1)))),
+                     float(np.degrees(np.arctan2(r * np.sin(ga * i), r * np.cos(ga * i))))))
+    rs = RasterizationSettings(image_size=size, blur_radius=0.0, faces_per_pixel=1, bin_size=0)
+
+    def maps(verts_w, faces):
+        v = torch.as_tensor(np.asarray(verts_w, np.float32), device=device)[None]
+        f = torch.as_tensor(np.asarray(faces, np.int64), device=device)[None]
+        mesh = Meshes(verts=v, faces=f)
+        fn = mesh.faces_normals_packed()
+        out, hits = [], []
+        for elev, azim in dirs:
+            r, t = look_at_view_transform(dist=CAM["dist"], elev=elev, azim=azim, at=((0, 0, 0),))
+            cams = FoVOrthographicCameras(device=device, R=r, T=t, scale_xyz=((CAM["scale"],) * 3,))
+            pix = MeshRasterizer(cameras=cams, raster_settings=rs)(mesh).pix_to_face[0, ..., 0]
+            hit = pix >= 0
+            nrm = torch.zeros((size, size, 3), device=device)
+            if hit.any():
+                nrm[hit] = torch.nn.functional.normalize(fn[pix[hit]] @ r[0].to(device), dim=-1)
+            out.append(nrm); hits.append(hit)
+        return torch.stack(out), torch.stack(hits)
+
+    acc = {a: [] for a in arm_order}
+    for bid, per_arm in fields.items():
+        gv, gf = mesh_sdf_surface(np.clip(per_arm["gt"], -TRUNC, TRUNC))
+        if gv is None:
+            continue
+        gn, gh = maps(verts_to_world(gv), gf)
+        m = []
+        for i in range(gn.shape[0]):
+            nm, hit = gn[i].cpu().numpy(), gh[i].cpu().numpy()
+            e = np.zeros(hit.shape, bool)
+            for c in range(3):
+                e |= canny(nm[..., c], sigma=2.0)
+            m.append(binary_dilation(e & hit, np.ones((3, 3), bool)))
+        mask = torch.as_tensor(np.stack(m), device=device)
+        if not mask.any():
+            continue
+        for arm in arm_order:
+            fld = per_arm.get(arm)
+            if fld is None:
+                continue
+            # the codec's TSDF is already truncated; clipping a metric SDF matches how it is meshed
+            v, f = mesh_sdf_surface(fld if arm == "codec_ceiling" else np.clip(fld, -TRUNC, TRUNC))
+            if v is None:
+                continue
+            an, _ = maps(verts_to_world(v), f)
+            acc[arm].append(float((((an - gn) ** 2).sum(-1))[mask].mean()))
+    return {a: (float(np.mean(v)) if v else float("nan")) for a, v in acc.items()}
 
 
 def build_montage(fields: dict, arm_order, scores: dict, summary: dict, out: Path, size: int) -> Path:
@@ -233,7 +506,7 @@ def build_montage(fields: dict, arm_order, scores: dict, summary: dict, out: Pat
             if mv is None:
                 d.text((x0 + 3, y + 18), "(no zero crossing)", fill=(150, 60, 60))
                 continue
-            canvas.paste(render_world(verts_to_world(mv), mf, size, dev), (x0, y + LBL))
+            canvas.paste(render_world(verts_to_world(mv), mf, size), (x0, y + LBL))
             s = scores.get(arm, {}).get(bid)
             if s:
                 d.text((x0 + 3, y + 18),
@@ -260,6 +533,8 @@ def pick_ids(latents: Path, ids_from):
     with h5py.File(latents, "r") as f:
         held = np.nonzero(f["held_out"][:] == 1)[0]
         rows = f["row"][:][held]
+        # Caches written before the region column existed still load; they just cannot be stratified.
+        region = f["region"][:][held] if "region" in f else None
     lat_of = {int(r): int(h) for r, h in zip(rows, held)}
     if ids_from:
         ids = [int(i) for i in json.loads(Path(ids_from).read_text())["ids"]]
@@ -267,7 +542,25 @@ def pick_ids(latents: Path, ids_from):
         if absent:
             raise SystemExit(f"[ids] {len(absent)} pinned ids are absent from {latents}: {absent[:5]}")
         return ids, lat_of
-    return [int(r) for r in sorted(lat_of)], lat_of
+
+    # ⚠️ Round-robin the regions. Ascending row order tracks SOURCE CORPUS, so the plain
+    # `sorted(lat_of)` this used to return made the first 48 ids **100% BAG_real (Dutch)** -- zero
+    # German, zero Japanese -- while the held-out set is 34.7/32.9/32.4. That is not a small sample of
+    # the held-out set, it is a different population: region is the strongest variable here (mean
+    # height 11.97/5.90/7.47 m, blockout `extra` median 0.223/0.162/0.000). It void-ed this map's
+    # "gap to the blockout closes to 0.007" (really 0.071) and #80's 11.9% surplus reduction, and hid
+    # that region predicts #84's collapse (solid rate 38.7/57.4/77.9%). Interleaving keeps any prefix
+    # of the list region-balanced, so `--n 48` is now a sample rather than one country.
+    if region is None:
+        return [int(r) for r in sorted(lat_of)], lat_of
+    region_of = {int(r): int(g) for r, g in zip(rows, region)}
+    by_region: dict = {}
+    for r in sorted(lat_of):
+        by_region.setdefault(region_of[r], []).append(r)
+    out = []
+    for tup in zip_longest(*(by_region[k] for k in sorted(by_region))):
+        out += [i for i in tup if i is not None]
+    return out, lat_of
 
 
 def main() -> None:
@@ -282,6 +575,18 @@ def main() -> None:
     ap.add_argument("--map24", default=str(MAP24), help="deployed dense-grid checkpoint; '' to skip")
     ap.add_argument("--ddim", type=int, default=100)
     ap.add_argument("--montage", type=int, default=8, help="buildings in the montage (0 disables)")
+    ap.add_argument("--infer_height", action="store_true",
+                    help="#82: derive the blockout's vertical extent from the FOOTPRINT instead of "
+                         "from GT, so EVERY arm is scored on the footprint-only task. A2 projects "
+                         "FROM the blockout, so it inherits the weakened baseline -- which is the "
+                         "point: #82 requires every arm re-scored, not just the blockout. ⚠️ These "
+                         "numbers are a DIFFERENT TASK DEFINITION and must never be quoted against "
+                         "specified-height ones (measured cost: -0.142 mean 3D IoU, 82%% of buildings "
+                         "hurt). The artifact records which task it measured.")
+    ap.add_argument("--plan", type=int, default=6,
+                    help="buildings in the criterion-2 plan view, worst first (#85); 0 disables")
+    ap.add_argument("--sne", type=int, default=22,
+                    help="views for Sharp Normal Error on the montage subset (#79); 0 disables")
     ap.add_argument("--size", type=int, default=300)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tag", default="", help="suffix for the artifact and montage filenames")
@@ -319,7 +624,15 @@ def main() -> None:
     scores: dict = {}
     fields: dict = {}
     gt_occ: dict = {}
+    bo_occ: dict = {}
+    proj_of: dict = {}          # candidate-arm footprint projection, packed -- ~4 KB per building
     ids: list = []
+
+    predicted_extent = None
+    if args.infer_height:
+        from scripts.foundations.probe_height_inference import fit_extent_predictor
+        predicted_extent = fit_extent_predictor(Path(args.latents), H5)
+        print("[height] extent predicted from the footprint -- FOOTPRINT-ONLY task (#82)", flush=True)
 
     # ---- phase A: geometry-only arms (no model). Also fixes the final id set. ----------------------
     t0 = time.time()
@@ -332,14 +645,24 @@ def main() -> None:
             ext = _vertical_extent(gocc)
             if ext is None:
                 continue
-            bo = blockout_sdf(fp_of[bid], *ext)
+            if args.infer_height:
+                pe = predicted_extent(bid)
+                if pe is None:
+                    continue
+                bo = blockout_sdf(fp_of[bid], *pe)
+            else:
+                bo = blockout_sdf(fp_of[bid], *ext)
             if bo is None or mesh_sdf_surface(np.clip(bo, -TRUNC, TRUNC))[0] is None:
                 continue
             ids.append(bid)
             gt_occ[bid] = gocc
+            # packed: a bool 64^3 is 256 KB, so 714 of them is 183 MB for no reason
+            bo_occ[bid] = np.packbits(bo <= 0)
             scores.setdefault("gt", {})[bid] = score_arm(g, gocc, fp_of[bid])
             scores.setdefault("blockout", {})[bid] = score_arm(bo, gocc, fp_of[bid])
-            if len(fields) < args.montage:
+            # keep fields for BOTH pictures: the plan view (#85) is a separate instrument
+            # from the montage, and tying retention to --montage silently rendered nothing.
+            if len(fields) < max(args.montage, args.plan):
                 fields[bid] = {"gt": g.copy(), "blockout": bo.copy()}
     print(f"[phase A] gt + blockout on n={len(ids)}  ({time.time()-t0:.0f}s)", flush=True)
     if len(ids) < args.n:
@@ -392,7 +715,11 @@ def main() -> None:
                                           seed=args.seed * 1000003 + bid)
                     with torch.no_grad():
                         fld = codec.decode_grid(zp * a2["sd"] + a2["mu"], RES).cpu().numpy()[0, 0]
-                    scores.setdefault(f"a2_s{s}", {})[bid] = score_arm(fld, gt_occ[bid], fp)
+                    row = score_arm(fld, gt_occ[bid], fp)
+                    row["vs_input"] = vs_input(
+                        fld <= 0, np.unpackbits(bo_occ[bid]).reshape(RES, RES, RES).astype(bool))
+                    scores.setdefault(f"a2_s{s}", {})[bid] = row
+                    proj_of[bid] = np.packbits((fld <= 0).any(axis=1))
                     if bid in fields:
                         fields[bid][f"a2_s{s}"] = fld
             if (k + 1) % 10 == 0:
@@ -431,6 +758,7 @@ def main() -> None:
             with torch.no_grad():
                 fld = s3.inference(data, ddim_steps=opt.ddim_steps, uc_scale=1.0).cpu().numpy()[0, 0]
             scores.setdefault("deployed_map24", {})[bid] = score_arm(fld, gt_occ[bid], fp_of[bid])
+            proj_of.setdefault(bid, np.packbits((fld <= 0).any(axis=1)))
             if bid in fields:
                 fields[bid]["deployed_map24"] = fld
             if (k + 1) % 10 == 0:
@@ -442,13 +770,32 @@ def main() -> None:
 
     # ---- report ------------------------------------------------------------------------------------
     summary = {arm: summarise(scores.get(arm, {}).values()) for arm in arm_order}
+    for arm in arm_order:
+        if arm.startswith("a2_") and summary[arm]:
+            summary[arm]["beats_envelope_rate"] = reference_win_rate(
+                scores[arm], scores["blockout"]
+            )
     print(f"\n=== MASSING ARMS (n={len(ids)} fixed held-out ids) ===")
-    print(f"{'arm':18s} {'n':>4} {'fp-IoU':>8} {'missing':>9} {'extra':>8} {'3D IoU':>8}")
+    print(f"{'arm':18s} {'n':>4} {'fp-IoU':>8} {'missing':>9} {'extra':>8} {'3D IoU':>8} "
+          f"{'collapse':>9} {'beats env':>9} {'vs input':>9}")
     for arm in arm_order:
         s = summary[arm]
         if s:
+            vi = f"{s['vs_input']:>9.3f}" if "vs_input" in s else f"{'--':>9}"
+            beats = (f"{s['beats_envelope_rate']:>9.3f}"
+                     if "beats_envelope_rate" in s else f"{'--':>9}")
             print(f"{arm:18s} {s['n']:>4} {s['fp_iou']:>8.3f} {s['missing']:>9.3f} "
-                  f"{s['extra']:>8.3f} {s['vol_iou']:>8.3f}")
+                  f"{s['extra']:>8.3f} {s['vol_iou']:>8.3f} {s['collapse_rate']:>9.3f} "
+                  f"{beats} {vi}")
+    # ⚠️ The no-op check the map requires beside every quality claim (#75).
+    bo_iou = summary.get("blockout", {}).get("vol_iou")
+    for arm in arm_order:
+        s = summary[arm]
+        if s and "vs_input" in s:
+            net = s["vol_iou"] - bo_iou if bo_iou is not None else float("nan")
+            verdict = ("NO-OP: it returned its input" if s["vs_input"] >= 0.99 else
+                       "net-positive edit" if net > 0 else "it acted, and the edit COST quality")
+            print(f"   {arm}: vs_input {s['vs_input']:.3f}, net vs blockout {net:+.3f}  -> {verdict}")
     print("\n-- non-ranking regression guard (anti-correlated with the goal; never an arbiter) --")
     print("   ⚠️  comparable for ONE arm ACROSS RUNS only, never between arms: roughness is a raw")
     print("   |Laplacian|, so it scales with each arm's field slope (a metric SDF here is 0.032).")
@@ -456,6 +803,60 @@ def main() -> None:
         if summary[arm]:
             print(f"  {arm:18s} surface_roughness {summary[arm]['guard_roughness']:.5f}   "
                   f"(field slope {summary[arm].get('guard_field_slope', float('nan')):.4f})")
+
+    # ---- criterion 2 (#85): the split, and the plan view the human actually judges on -------------
+    c2 = criterion2_report(scores, arm_order)
+    if c2:
+        print(f"\n-- CRITERION 2 (#85): footprint, split. Tolerance s* = {S_STAR_VOXELS} voxels "
+              f"(ADR 0004, 1.0 m) --")
+        print("   fringe is REPORTED AND IGNORED -- a 64^3 boundary rounding, present when the model")
+        print("   is right. spill and uncovered COUNT. Human-judged; the plan view is the instrument.")
+        print(f"{'arm':<16}{'fringe med':>12}{'spill med':>11}{'spill mean':>12}{'uncov med':>11}")
+        for arm in arm_order:
+            if arm in c2:
+                s = c2[arm]
+                print(f"{arm:<16}{s['fringe_median']:>12.4f}{s['spill_median']:>11.4f}"
+                      f"{s['spill_mean']:>12.4f}{s['uncovered_median']:>11.4f}")
+        tgt = arm_order[-1]
+        if tgt in c2:
+            print(f"\n   pass rate for '{tgt}' by allowance "
+                  f"(gate = spill and uncovered both <= {C2_ALLOWANCE*100:.0f}%):")
+            for a, v in c2[tgt]["pass_rates"].items():
+                mark = "  <- GATE" if abs(float(a) - C2_ALLOWANCE) < 1e-9 else ""
+                print(f"     <= {float(a)*100:>4.0f}% :  {v['rate']*100:>5.1f}%   "
+                      f"[{v['lo']*100:>4.1f}%, {v['hi']*100:>4.1f}%]   n={v['n']}{mark}")
+            g = c2[tgt]["pass_rates"][f"{C2_ALLOWANCE:.2f}"]
+            print(f"\n   ⚠️  CRITERION 2 IS HUMAN-JUDGED. This rate is reported, not a verdict --"
+                  f" the plan view is the instrument.")
+            vi = c2[tgt].get("vs_input_median")
+            vitxt = (f"   ⚠️  vs_input {vi:.3f}" +
+                     ("  -- A NO-OP INHERITS THE ENVELOPE'S PERFECT FOOTPRINT, so this rate is the "
+                      "envelope's, not the model's." if vi is not None and vi >= 0.99 else "")
+                     ) if vi is not None else ""
+            print(f"   criterion 2 at the gate: {g['rate']*100:.1f}% of {g['n']} buildings"
+                  f"  [{g['lo']*100:.1f}%, {g['hi']*100:.1f}%]")
+            if vitxt:
+                print(vitxt)
+
+    if args.plan and fields:
+        print(f"\nrendering criterion-2 plan view (worst first)...", flush=True)
+        print("plan: " + str(build_plan_view(scores, fp_of, proj_of, arm_order,
+                                             montage_path.with_name(
+                                                 montage_path.stem.replace("montage", "plan")
+                                                 + ".png"), args.plan)), flush=True)
+
+    sne = {}
+    if args.sne and fields:
+        print(f"\ncomputing Sharp Normal Error ({len(fields)} buildings x {len(arm_order)} arms x "
+              f"{args.sne} views)...", flush=True)
+        sne = sharp_normal_error(fields, arm_order, dev, views=args.sne)
+        print("\n-- Sharp Normal Error (#79): the ONE scalar here that ranks crisp above melted --")
+        print("   Reported, never ranked on. ⚠️  Contaminated across arms: on a row whose blockout")
+        print("   occupancy is BYTE-IDENTICAL to GT it still reads 0.241, not 0 -- a faceted field")
+        print("   perturbs the edges the mask covers. Read only gaps far larger than that offset.")
+        for arm in arm_order:
+            if arm in sne and not np.isnan(sne[arm]):
+                print(f"  {arm:18s} sharp_normal_error {sne[arm]:.4f}")
 
     if args.montage and fields:
         print(f"\nrendering montage ({len(fields)} buildings x {len(arm_order)} arms)...", flush=True)
@@ -472,7 +873,26 @@ def main() -> None:
                   ddim=args.ddim, steps=args.steps, guidance=args.guidance, seed=args.seed,
                   ids_from=args.ids_from, montage=str(montage_path.relative_to(REPO))),
         ids=ids,
+        # ⚠️ Which POPULATION these ids are. `sorted` (pre-4b77f8e) returned ascending held-out rows,
+        # and row order tracks source corpus, so its first N were one country -- every artifact
+        # written under it is a single-region sample and is NOT comparable to a stratified one.
+        # ⚠️ WHICH TASK. Footprint+height and footprint-only are different problems and their
+        # numbers are not comparable; #82 measured the gap at -0.142 mean 3D IoU.
+        task="footprint-only (inferred height)" if args.infer_height else "footprint + given height",
+        id_set=dict(version="region-stratified" if not args.ids_from else "replayed",
+                    source=args.ids_from or "pick_ids round-robin over region"),
         summary=summary,
+        # criterion 2 (#85): reported as a split, never as a lone fp-IoU, and the allowance is
+        # deliberately left unfixed -- criterion 2 is human-judged, so the harness prints the curve.
+        criterion2=dict(s_star_voxels=S_STAR_VOXELS, allowance=C2_ALLOWANCE, by_arm=c2),
+        # #79: reported, never ranked on. Computed on the montage subset, not all `ids` -- it needs
+        # `views` rasterisations per arm per building. Cross-arm it carries a field-representation
+        # offset (0.241 at byte-identical occupancy), so only large gaps are readable.
+        sharp_normal_error=dict(
+            values=sne, views=args.sne, n_buildings=len(fields),
+            note="the one scalar in this project that ranks crisp above melted (#79: crisp 0.084 vs "
+                 "melted 0.636, separated 8/8). surface_roughness ranks the same pair backwards. "
+                 "Contaminated by field representation -- safe within one arm across runs."),
         # What a difference has to clear to be a difference. `gt`/`blockout`/`codec_ceiling` are
         # deterministic and reproduce bit-exactly; the sampled arms do not, so their medians carry
         # this much run-to-run slop at n=48 even fully seeded. Measured by running the harness twice.

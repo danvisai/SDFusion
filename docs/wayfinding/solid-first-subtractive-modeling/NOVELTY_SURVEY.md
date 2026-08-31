@@ -1,13 +1,19 @@
 # Novelty survey: solid-first semantic architectural carving
 
 **Research cutoff:** 2026-07-15  
+**Primary sources re-read:** 2026-08-31 ([#130](130-baselines-diffusion-curriculum.md)) — the five
+baselines #6 named were read from their papers rather than from this page, and **two rows below did
+not survive it**. Those rows are corrected in place and marked ⚠️ **corrected 2026-08-31**; the rest
+of the page still stands on the 2026-07-15 search. #130 also records what each baseline supports or
+contradicts in *this project's measured results*, which is the part a specification needs and this
+page does not carry.  
 **Question:** Does a system already exist that starts from a site-contextualized set of metric building footprints, generates and edits buildings through architecturally typed additive/subtractive programs, and deterministically realizes those programs as valid solids?
 
 ## Verdict
 
 **No exact published match was found in the primary sources surveyed.** The proposed system appears novel as an exact end-to-end contract, but not because any one of its ingredients is new. Footprint-driven procedural buildings, learned architectural programs, neural CSG/CAD program induction, editable program representations, block-level programs, and deterministic procedural realization all have strong precedents.
 
-The closest whole-system prior is [CityGenAgent](https://arxiv.org/abs/2602.05362): it learns editable, executable Block and Building Programs, represents footprints as metric polygons, generates coordinated blocks, and updates programs through natural-language edits. The closest footprint-and-massing prior is [CoMa](https://arxiv.org/abs/2601.08464): it conditions on site contours and context and emits separate polygonal extrusion sequences for multiple identified buildings. The closest architecture-specific program/compiler prior is [ArcPro](https://openaccess.thecvf.com/content/CVPR2025/html/Huang_ArcPro_Architectural_Programs_for_Structured_3D_Abstraction_of_Sparse_Points_CVPR_2025_paper.html): it predicts a hierarchical architectural DSL that a learning-free interpreter converts to a mesh. The closest learned sequential interaction prior is [Representation Learning for Sequential Volumetric Design Tasks](https://arxiv.org/abs/2309.02583): its Building-Gym representation supports typed volumetric action sequences and partial-sequence autocompletion.
+The closest whole-system prior is [CityGenAgent](https://arxiv.org/abs/2602.05362): it learns editable, executable Block and Building Programs, represents footprints as metric polygons, generates coordinated blocks, and updates programs through natural-language edits. The closest footprint-and-massing prior is [CoMa](https://arxiv.org/abs/2601.08464): it pairs site contours, per-building requirements and context imagery with per-building lists of horizontal polygonal extrusions. ⚠️ **corrected 2026-08-31** — CoMa is a **dataset (CoMa-20K) plus a VLM benchmark**, not a bespoke generator: the extrusion list is the dataset *schema*, the models are fine-tuned Qwen3-VL emitting JSON, and there is no interpreter. The closest architecture-specific program/compiler prior is [ArcPro](https://openaccess.thecvf.com/content/CVPR2025/html/Huang_ArcPro_Architectural_Programs_for_Structured_3D_Abstraction_of_Sparse_Points_CVPR_2025_paper.html): it predicts a hierarchical architectural DSL that a learning-free interpreter converts to a mesh. The closest learned sequential interaction prior is [Representation Learning for Sequential Volumetric Design Tasks](https://arxiv.org/abs/2309.02583): its Building-Gym representation supports typed volumetric action sequences and partial-sequence autocompletion.
 
 None of those systems demonstrates all of the following together:
 
@@ -68,8 +74,8 @@ Legend: **Y** = explicitly demonstrated; **P** = partial/adjacent; **N** = not d
 
 | Primary-source system | Fixed metric footprint input | Learned executable program | Architectural typed +/- | Deterministic realization | Autonomous generation | Guided edit in same representation | Coordinated multiple buildings | Main gap from the contract |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| [CoMa (2026)](https://arxiv.org/abs/2601.08464) | P | P | N | Y | Y | N | Y | Site contour and context produce per-building polygon extrusion lists, but not fixed input footprints, semantic carve operations, or guided editing. |
-| [CityGenAgent (2026)](https://arxiv.org/abs/2602.05362) | P | Y | P | Y | Y | Y | Y | Metric footprint polygons are generated inside a Block Program; Building Programs assemble components/assets rather than execute an SDF/CSG carve sequence over supplied envelopes. |
+| [CoMa (2026)](https://arxiv.org/abs/2601.08464) ⚠️ *corrected 2026-08-31* | P | **N** | N | **P** | Y | N | Y | A dataset (CoMa-20K, City of Melbourne) plus a VLM benchmark. Massing is a list of horizontal extrusions — **every top face flat, no roof form in the corpus at all**. No learned executable program and no interpreter: a fine-tuned Qwen3-VL emits JSON, of which **21% does not parse** at 8B, and the fine-tuned models lose to zero-shot Qwen3-VL-235B on all seven metrics. **None of those seven metrics compares the generated geometry to the ground-truth massing.** |
+| [CityGenAgent (2026)](https://arxiv.org/abs/2602.05362) ⚠️ *corrected 2026-08-31* | P | Y | **N** | Y | Y | Y | Y | Metric footprint polygons are generated inside a Block Program, but **a building's entire massing is `polygon` + `floor_count`** — one extruded prism, i.e. this project's `blockout` baseline. The **roof is a text descriptor** consumed by semantic asset retrieval, not geometry the model predicts. A real risk to editing and block-coordination claims; none at all to a claim about massing form. |
 | [ArcPro (CVPR 2025)](https://openaccess.thecvf.com/content/CVPR2025/html/Huang_ArcPro_Architectural_Programs_for_Structured_3D_Abstraction_of_Sparse_Points_CVPR_2025_paper.html) | P | Y | P | Y | N | P | N | Predicts `CreateLayer` trees from sparse point clouds; real footprints seed synthetic training, but void semantics, autonomous design, and block coordination are absent. |
 | [Building-Gym sequential volumetric design (2023)](https://arxiv.org/abs/2309.02583) | P | P | N | Y | P | Y | N | Learns ordered typed room-volume actions and partial-sequence completion, but its mapping prevents deletion and it does not expose a clean architectural CSG DSL. |
 | [3D Synthesis for Architectural Design (WACV 2025)](https://openaccess.thecvf.com/content/WACV2025/papers/Tsai_3D_Synthesis_for_Architectural_Design_WACV_2025_paper.pdf) | N | P | P | P | Y | P | N | Autonomous cuboid unions are random, while user intrusion/extrusion edits deform detected mesh regions rather than append learned executable operations. |
@@ -85,7 +91,12 @@ Two additional 2026 systems narrow adjacent claims. [ShellMaker](https://arxiv.o
 
 ## Closest precedents in more detail
 
-### 1. CityGenAgent is the strongest whole-system novelty risk
+### 1. CityGenAgent is the strongest whole-system novelty risk — but not on massing
+
+⚠️ **Scoped 2026-08-31 ([#130](130-baselines-diffusion-curriculum.md)).** Everything below is right
+about hierarchy, metric state and program-level editing. It is not a risk to any claim about
+building *form*: a CityGenAgent building is a footprint polygon and a floor count, and its roof is a
+string handed to asset retrieval.
 
 CityGenAgent decomposes a city into a **Block Program** and **Building Program**, trains agents to generate schema-valid programs, executes them into meshes, and edits blocks or buildings by updating those same programs. Its Block Program stores non-self-intersecting polygons in meters, building type, floor count, and facade descriptions; it explicitly evaluates collision and program validity. These properties overlap the proposed hierarchy, metric state, coordinated generation, and program-preserving interaction very closely. [Primary paper](https://arxiv.org/abs/2602.05362)
 
@@ -93,13 +104,29 @@ The defensible distinction is not “hierarchical editable city programs.” It 
 
 ### 2. CoMa is the strongest multi-building massing risk
 
-CoMa accepts a polygonal site contour, urban context, and a separate requirement record per building, then autoregressively emits each building as polygonal horizontal extrusions with bottom/top elevations and stable IDs. That is very close to coordinated separate per-building massing programs. [Primary paper](https://arxiv.org/abs/2601.08464)
+⚠️ **Corrected 2026-08-31 ([#130](130-baselines-diffusion-curriculum.md)).** CoMa contributes
+**CoMa-20K** — 20,000 City of Melbourne sites pairing a site contour, per-building functional and
+economical requirements, five context renderings, and a massing represented as a list of horizontal
+extrusions (polygon + `bottom_elevation` + `top_elevation`, metres) — and benchmarks it by
+fine-tuning Qwen3-VL at 2B/4B/8B to emit that structure as **JSON text**, against zero-shot
+Qwen3-VL-235B. It is a dataset-and-benchmark paper. The paragraph this replaced described a bespoke
+autoregressive per-building generator, which the paper does not contain.
+
+Three facts matter more than the framing. **Its representation has no roofs** — every extrusion's top
+face is horizontal, and the source table is footprints "each with an extrusion height" — so the
+corpus contains no example of pitched massing and the schema could not carry one. **Its fine-tuned
+models lose to the zero-shot 235B model on every reported metric**, with JSON Validity 0.79 against
+0.99. And **none of its seven metrics compares generated geometry to the ground-truth massing**: two
+are formatting, one is a set of ids, two are scalar attributes, Site IoU is site coverage, and
+Contextual Relevance is a binary VLM judge.
 
 Its gap is equally important: final extrusion lists are not semantic edit traces; the input does not hard-fix each building footprint; there is no subtraction, learned rough-carve interpretation, deterministic SDF/CSG evaluator, or edit-locality contract. Its reported geometric failure modes also make hard validation a meaningful research target rather than implementation polish.
 
 ### 3. ArcPro is the strongest architecture-specific program/compiler risk
 
-ArcPro defines a DSL of ground-setting and hierarchical polygonal `CreateLayer` statements, predicts tokenized programs from sparse point clouds, uses a finite-state mask for syntactic validity, and compiles them through a learning-free interpreter. It generates synthetic program/point pairs using **872,487 cleaned Bing Maps footprints** as root contours, then constrains child contours by contraction or planar subdivision. [Primary paper](https://openaccess.thecvf.com/content/CVPR2025/papers/Huang_ArcPro_Architectural_Programs_for_Structured_3D_Abstraction_of_Sparse_Points_CVPR_2025_paper.pdf)
+ArcPro defines a DSL of ground-setting and hierarchical polygonal `CreateLayer(parent, h, contour)` statements, predicts tokenized programs from sparse point clouds, uses a finite-state mask for syntactic validity, and compiles them through a learning-free interpreter. It generates synthetic program/point pairs using **872,487 cleaned Bing Maps footprints** as root contours, then constrains child contours by contraction or planar subdivision.
+
+⚠️ **Sharpened 2026-08-31 ([#130](130-baselines-diffusion-curriculum.md)).** Its training programs are **entirely synthetic** — the footprints ground the *synthesiser*, not the supervision, and the network never sees a real building's program. That is a third supervision route, distinct from both exact labels and pseudo-labels/RL, and it is the one the strongest architecture-program paper took. Its own Future Work names **sloped roofs** as a statement its DSL does not have, and its own Limitations report that the task "may have multiple valid solutions", that it infers one by top-1 sampling, and that **top-3 sampling reduces output quality rather than improving diversity**. [Primary paper](https://openaccess.thecvf.com/content/CVPR2025/papers/Huang_ArcPro_Architectural_Programs_for_Structured_3D_Abstraction_of_Sparse_Points_CVPR_2025_paper.pdf)
 
 Therefore, “synthetic architectural programs built on real footprints, predicted by a Transformer, then deterministically compiled” is already established. The new DSL must do substantially more than relabel ArcPro layers: it must make void type, Boolean mode, parent/support relations, validity, and interactive completion first-class.
 
@@ -184,7 +211,7 @@ The first four together form the strongest paper-shaped contribution. Any one al
 | [DeepCAD repository](https://github.com/rundiwu/DeepCAD) | Code, parsed CAD sequences, pretrained models, and STEP export; the paper reports 178,238 models | Sequence validity, command tokenization, and program metrics |
 | [UrbanWorld repository](https://github.com/Urban-World/UrbanWorld) | Runnable OSM pipeline and urban layout/appearance modules | End-to-end OSM-conditioned city comparator, not a carve-program baseline |
 
-No official code release was located during this search for ArcPro, CoMa, or CityGenAgent. Their papers/project pages remain usable for task and representation comparisons, but reproducible implementation claims should be marked unavailable until rechecked. Text2CSG's publisher page indicated code/data release intent; availability was not independently confirmed by the cutoff.
+No official code release was located during this search for ArcPro, CoMa, or CityGenAgent. ⚠️ **Rechecked narrowly on 2026-08-31** ([#130](130-baselines-diffusion-curriculum.md)): a GitHub repository search returned nothing for ArcPro or CoMa-20K and only a project-page repo for CityGenAgent. ArcPro's project page is JavaScript-rendered, so that recheck is *not found by that search*, not *not released*. Their papers/project pages remain usable for task and representation comparisons, but reproducible implementation claims should be marked unavailable until rechecked. Text2CSG's publisher page indicated code/data release intent; availability was not independently confirmed by the cutoff.
 
 ### Geometry and context data
 
@@ -208,7 +235,7 @@ The largest data gap is therefore not footprints or final meshes. It is paired s
 
 ## Data strategy implied by the literature
 
-1. **Synthetic exact programs.** Generate valid programs from real footprint distributions, following ArcPro's successful use of cleaned real footprints to ground procedural synthesis.
+1. **Synthetic exact programs.** Generate valid programs from real footprint distributions, following ArcPro's successful use of cleaned real footprints to ground procedural synthesis. ⚠️ **Superseded on this corpus, 2026-08-31.** ArcPro's footprints ground the *synthesiser*; its programs are synthetic throughout, which is novelty risk #5 by construction. Where the geometry is a height field, [#10](10-program-recovery.md)'s fitter recovers exact programs from **real** LoD2 at 0.2 s/building, so synthesis is a fallback rather than the plan.
 2. **Canonicalize before learning.** Define equivalence and a normal form for commuting operations, redundant unions, nested subtractions, and geometrically identical sequences.
 3. **Fit candidate programs to real LoD2/LoD3.** Treat inverse fitting as latent/pseudo supervision, not unquestioned ground truth. Keep several near-equivalent candidates when the operation history is ambiguous; PLAD and CSGNet provide relevant pseudo-label/inverse-program precedents.
 4. **Create a small audited semantic set.** Human annotators should identify void type and relationships on a deliberately small, high-quality validation/test corpus. This is needed to determine whether the model learned “courtyard” rather than merely “negative polygon.”
@@ -223,7 +250,7 @@ The literature search changes the likely specification in six ways:
 2. **Make the dual-mode task central.** Autonomous generation plus rough-carve interpretation in one operation space is the clearest unoccupied seam.
 3. **Specify a canonical program algebra.** The spec must define operation equivalence, ordering, invalid references, deletion, resampling, and local regeneration before choosing a neural model.
 4. **Separate three constraint layers.** Syntax validity, program/architectural validity, and final geometric validity must be measured independently.
-5. **Use direct baselines.** At minimum compare against CoMa-style extrusion generation, CityGenAgent-style hierarchical programs, ArcPro-style layer programs, Building-Gym partial completion, generic CSG induction, and deterministic procedural/random sampling.
+5. **Use direct baselines** — ⚠️ **but as representational comparisons, not runs (revised 2026-08-31, [#130](130-baselines-diffusion-curriculum.md)).** None of the five is runnable here: ArcPro, CoMa and CityGenAgent have no released code (rechecked 2026-08-31, unchanged); Building-Gym's task is interior room programming on a 10³ grid; ShapeAssembly and CSGNet are not architectural. Two of them are also mis-scoped in this list — a CityGenAgent building's massing is `polygon` + `floor_count`, and CoMa's extrusion lists are flat-topped by construction. What *is* runnable, and what this project scores against instead, is the envelope, the corpus mean roof, 1-NN retrieval and the compiled-label ceiling ([#126](126-massing-scoring.md), [#127](127-height-map-generator.md)). A stacked-flat-layer output space — ArcPro's and CoMa's — is priced directly by #6's `flatten_ramps` control, which is the honest form of "compare against them".
 6. **Do not claim broad firsts.** Avoid claiming the first learned procedural building system, first editable city program, first footprint-conditioned building generator, first neural CSG generator, or first hybrid learned/procedural architecture system.
 
 ## Recommended next investigations

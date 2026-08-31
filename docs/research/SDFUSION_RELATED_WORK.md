@@ -10,6 +10,11 @@ Gaussian-splat realization; and evaluation.
 repositories, official datasets, or official specifications. The repository observations below
 are based on the checked-in code, plans, and generated artifacts, not on external descriptions.
 
+> **Note on the `outputs/` figure links below (added 2026-08-21).** They resolve only on the
+> machine that produced them. `outputs/` is excluded locally via `.git/info/exclude` and these
+> artifacts were never committed, so they will 404 from a fresh clone. The links are kept as
+> provenance — they name the exact artifact each claim rests on — not because the file is here.
+
 ## Executive findings
 
 1. The repository has a coherent and unusually broad technical thesis: use one SDEdit-style
