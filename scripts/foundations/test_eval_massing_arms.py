@@ -19,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.eval_massing_arms import (  # noqa: E402
     C2_ALLOWANCE, COLLAPSE_MISSING, S_STAR_VOXELS, blockout_sdf, footprint_split, pick_ids,
-    reference_win_rate, summarise, volume_split, vs_input,
+    plan_candidate_arm, reference_win_rate, summarise, volume_split, vs_input,
 )
 
 
@@ -118,6 +118,23 @@ class TestSummarise(unittest.TestCase):
     def test_beats_envelope_refuses_unpaired_rows(self):
         with self.assertRaises(ValueError):
             reference_win_rate({1: self._row(0.0)}, {2: self._row(0.0)})
+
+
+class TestPlanCandidate(unittest.TestCase):
+    def test_multi_strength_plan_uses_the_best_median_iou_not_the_last_strength(self):
+        arm_order = ["gt", "blockout", "codec_ceiling", "a2_s0.4", "a2_s0.5", "a2_s0.85"]
+        summary = {
+            "a2_s0.4": {"vol_iou": 0.86},
+            "a2_s0.5": {"vol_iou": 0.88},
+            "a2_s0.85": {"vol_iou": 0.12},
+        }
+
+        self.assertEqual(plan_candidate_arm(arm_order, summary), "a2_s0.5")
+
+    def test_single_candidate_plan_keeps_the_existing_behaviour(self):
+        arm_order = ["gt", "blockout", "codec_ceiling", "a2_s0.5"]
+        self.assertEqual(plan_candidate_arm(arm_order, {"a2_s0.5": {"vol_iou": 0.8}}),
+                         "a2_s0.5")
 
 
 class TestIdSet(unittest.TestCase):

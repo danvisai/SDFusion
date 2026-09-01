@@ -327,7 +327,16 @@ def criterion2_report(scores: dict, arm_order, allowances=(0.0, 0.02, 0.03, 0.05
     return out
 
 
-def build_plan_view(scores: dict, fp_of: dict, proj_of: dict, arm_order, out: Path, n: int) -> Path:
+def plan_candidate_arm(arm_order, summary: dict) -> str:
+    """Use the best median-IoU strength when one A2 checkpoint was swept at many strengths."""
+    a2_arms = [arm for arm in arm_order if arm.startswith("a2_s") and summary.get(arm)]
+    if len(a2_arms) > 1:
+        return max(a2_arms, key=lambda arm: float(summary[arm]["vol_iou"]))
+    return arm_order[-1]
+
+
+def build_plan_view(scores: dict, fp_of: dict, proj_of: dict, arm_order, summary: dict,
+                    out: Path, n: int) -> Path:
     """Criterion 2's instrument (#85): the footprint in PLAN, **worst first**.
 
     The shaded 3/4 montage hides footprint error entirely -- every criterion-2 judgement made before
@@ -340,12 +349,14 @@ def build_plan_view(scores: dict, fp_of: dict, proj_of: dict, arm_order, out: Pa
     """
     from PIL import Image, ImageDraw
     from scipy import ndimage
-    arm = arm_order[-1]                                   # the candidate, not the controls
+    arm = plan_candidate_arm(arm_order, summary)          # candidate at its registered operating point
     # ⚠️ Ranked over EVERY scored building, not the montage subset. The first version filtered on
     # `b in fields`, which holds only a <=8-id PREFIX -- so it sorted the worst 6 of an arbitrary 8
     # and the tail this instrument exists to expose was structurally unreachable. A projection is
-    # 64x64 bits, so keeping one per building for the whole run costs ~3 MB.
-    rows = [(b, r) for b, r in scores.get(arm, {}).items() if "spill" in r and b in proj_of]
+    # 64x64 bits, so keeping one per arm/building costs 512 bytes.
+    arm_projections = proj_of.get(arm, {})
+    rows = [(b, r) for b, r in scores.get(arm, {}).items()
+            if "spill" in r and b in arm_projections]
     if not rows:
         return out
     rows.sort(key=lambda kv: -kv[1]["spill"])
@@ -361,7 +372,7 @@ def build_plan_view(scores: dict, fp_of: dict, proj_of: dict, arm_order, out: Pa
                       "blue = SPILL (built outside) | red = UNCOVERED", fill=(150, 0, 0))
     for k, (bid, r) in enumerate(rows):
         ref = np.asarray(fp_of[bid]).astype(bool)
-        proj = np.unpackbits(proj_of[bid]).reshape(ref.shape).astype(bool)
+        proj = np.unpackbits(arm_projections[bid]).reshape(ref.shape).astype(bool)
         band = (ndimage.binary_dilation(ref, iterations=S_STAR_VOXELS)
                 & ~ndimage.binary_erosion(ref, iterations=S_STAR_VOXELS))
         img = np.full(ref.shape + (3,), 255, np.uint8)
@@ -625,7 +636,7 @@ def main() -> None:
     fields: dict = {}
     gt_occ: dict = {}
     bo_occ: dict = {}
-    proj_of: dict = {}          # candidate-arm footprint projection, packed -- ~4 KB per building
+    proj_of: dict = {}          # arm -> packed footprint projection -- 512 bytes per arm/building
     ids: list = []
 
     predicted_extent = None
@@ -718,8 +729,9 @@ def main() -> None:
                     row = score_arm(fld, gt_occ[bid], fp)
                     row["vs_input"] = vs_input(
                         fld <= 0, np.unpackbits(bo_occ[bid]).reshape(RES, RES, RES).astype(bool))
-                    scores.setdefault(f"a2_s{s}", {})[bid] = row
-                    proj_of[bid] = np.packbits((fld <= 0).any(axis=1))
+                    arm = f"a2_s{s}"
+                    scores.setdefault(arm, {})[bid] = row
+                    proj_of.setdefault(arm, {})[bid] = np.packbits((fld <= 0).any(axis=1))
                     if bid in fields:
                         fields[bid][f"a2_s{s}"] = fld
             if (k + 1) % 10 == 0:
@@ -758,7 +770,7 @@ def main() -> None:
             with torch.no_grad():
                 fld = s3.inference(data, ddim_steps=opt.ddim_steps, uc_scale=1.0).cpu().numpy()[0, 0]
             scores.setdefault("deployed_map24", {})[bid] = score_arm(fld, gt_occ[bid], fp_of[bid])
-            proj_of.setdefault(bid, np.packbits((fld <= 0).any(axis=1)))
+            proj_of.setdefault("deployed_map24", {})[bid] = np.packbits((fld <= 0).any(axis=1))
             if bid in fields:
                 fields[bid]["deployed_map24"] = fld
             if (k + 1) % 10 == 0:
@@ -817,7 +829,7 @@ def main() -> None:
                 s = c2[arm]
                 print(f"{arm:<16}{s['fringe_median']:>12.4f}{s['spill_median']:>11.4f}"
                       f"{s['spill_mean']:>12.4f}{s['uncovered_median']:>11.4f}")
-        tgt = arm_order[-1]
+        tgt = plan_candidate_arm(arm_order, summary)
         if tgt in c2:
             print(f"\n   pass rate for '{tgt}' by allowance "
                   f"(gate = spill and uncovered both <= {C2_ALLOWANCE*100:.0f}%):")
@@ -840,7 +852,7 @@ def main() -> None:
 
     if args.plan and fields:
         print(f"\nrendering criterion-2 plan view (worst first)...", flush=True)
-        print("plan: " + str(build_plan_view(scores, fp_of, proj_of, arm_order,
+        print("plan: " + str(build_plan_view(scores, fp_of, proj_of, arm_order, summary,
                                              montage_path.with_name(
                                                  montage_path.stem.replace("montage", "plan")
                                                  + ".png"), args.plan)), flush=True)

@@ -126,6 +126,8 @@ fp-IoU 0.958 / missing 0.002 / extra 0.092 / 3D IoU 0.876 / `vs_input` 0.985 on 
 > or **13.2818%** of the random span. See the final section of `91-cache-rebuild.md` and
 > `execution/artifacts/align_cache_v2.json`.
 
+- [Retrain with the aligned pair target](https://github.com/danvisai/SDFusion/issues/92) — **NEGATIVE: alignment does not restore a usable band.** All four arms reached 240k and all six 10k checkpoints were scored on the same 714 IDs. B's best strength is 0.45: 3D IoU **0.8753**, `vs_input` **0.9938**, collapse **10.64%**, beats envelope **5.74%** — it passes only the last clause of the registered AND bar and visually returns the extrusion. Strength 0.30 acts but costs quality (0.8075); 0.70–0.85 collapse into rubble (91.88–100%). At the matched 240k/0.5 endpoint B scores 0.7616 against A's 0.8573 and collapses 46.36% against 8.96%. #89's side-prediction holds: the surface term's endpoint marginal changes from **+0.0241 IoU / -9.0 collapse points** encoded to **-0.1093 / +27.3 points** aligned. The candidate never meets the bar, even transiently, so the gated from-scratch aligned run is not triggered. Assets `92-aligned-retrain.md`, `issue92_2x2_summary.json`.
+
 ## Not yet specified
 
 - **If alignment does not restore a usable band, what replaces the element-wise loss?** Candidates not
