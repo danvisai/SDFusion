@@ -1,15 +1,14 @@
 <!-- RECOVERED FROM THE ISSUE TRACKER, 2026-08-14. -->
 
-> **Recovered document.** The original asset `88-query-positions.md` was written and committed on another
-> machine (`e20f9af`) and was never pushed; it does not exist in this repository or on origin.
-> This file is its findings reconstructed verbatim from GitHub issue #88 — the ticket body
-> and every resolution comment. It is the *record*, not the code: the implementation described
-> below is still missing. See `RECOVERY.md`.
+> **Recovered and re-landed.** The original asset was lost with commit `e20f9af`; this file preserves
+> its tracker record. The implementation was reconstructed in `d12cf33`, hardened in `74ba808` and
+> `d6fcc8b`, and exercised at corpus scale for #91 in `8101143`. See `RECOVERY.md` for the recovery
+> audit and reproduced measurements.
 
 
 # #88 — Capture the codec's token query positions, which are computed and thrown away today
 
-*State: open · opened 2026-08-09*
+*State: closed · opened 2026-08-09 · implementation re-landed 2026-08-14*
 
 
 ## Ticket

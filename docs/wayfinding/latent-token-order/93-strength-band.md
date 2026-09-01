@@ -3,10 +3,13 @@
 > **Open ticket, mirrored locally** so this effort can be read without the
 > tracker. Nothing was lost for this one — it had no committed asset.
 
+> **Resolved, 2026-09-01.** Re-measured on #92's aligned candidate rather than the shipped control —
+> see the Resolution section below and `execution/artifacts/issue93_strength_band_armB.json`.
+
 
 # #93 — Re-measure the strength band on the retrained model
 
-*State: open · opened 2026-08-09*
+*State: resolved 2026-09-01 · opened 2026-08-09*
 
 
 ## Ticket
@@ -116,3 +119,53 @@ cheaply — `scripts/server/town_generate_service.py`, ~10s/building.
 
 Practical consequence already taken: the demo ships `strength=0.5` fixed with no user control, since
 the only alternative on offer is a cliff.
+
+
+---
+
+## Resolution — a per-building band exists, but it covers under 10% of the corpus
+
+Re-measured on **#92's aligned candidate** (`B`, `issue92_aligned_retrain/B_aligned_surf@190000`)
+rather than the shipped `v4_surf@240k` control, since that is the "retrained model" this ticket asks
+about. Reuses #92's own eight-strength full-714 sweep
+(`execution/artifacts/massing_arms_eval_issue92_strength_armB_step190000.json`) rather than repeating
+the run — same data, a different reading. `scripts/foundations/analyze_issue93_strength_band.py`
+classifies every building at every strength as `no_op` (`vs_input ≥ 0.98`), `collapsed`
+(`missing ≥ 0.15`), `net_positive` (acted, survived, and beat *that same building's own* footprint
+envelope), or `net_negative`, then reports each building's own usable-strength set instead of one
+aggregate scalar — the "range per footprint" this ticket's Judged-on clause asked for, at n=714
+rather than three hand-drawn shapes.
+
+| strength | no_op | net_negative | collapsed | net_positive |
+|---:|---:|---:|---:|---:|
+| 0.30 | 290 | 189 | 233 | 2 |
+| 0.40 | 370 | 201 | 136 | 7 |
+| 0.45 | 464 | 159 | 76 | 15 |
+| 0.50 | 452 | 157 | 85 | 20 |
+| 0.55 | 377 | 185 | 120 | 32 |
+| 0.60 | 243 | 235 | 194 | 42 |
+| 0.70 | 10 | 48 | 656 | 0 |
+| 0.85 | 0 | 0 | 714 | 0 |
+
+**A usable strength exists for 69 of 714 buildings (9.66%).** The answer to this ticket's question —
+does the corrected target give back the *middle* of the dial — is mostly no: for 90% of the corpus no
+sampled strength both acts and helps. 🔑 Of the 69 with a band, **38 have exactly one working
+strength, and 19 of those 38 work only at 0.60** — a setting with a **27.17%** collapse rate, higher
+than every other sampled strength short of 0.30 (32.63%) and the 0.70/0.85 wipeout. The population 0.60
+serves is not the population 0.45–0.50 serves (dominant single-strength counts: 0.60→19, 0.55→9,
+0.40→4, 0.50→4, 0.45→2), so there is no single dial setting that is even the *right choice for the
+buildings it helps* — a wider net of strengths recovers more buildings than any one of them, but no
+one strength is a serviceable default beyond what #92 already picked.
+
+⚠️ **This qualifies #92's own headline "beats envelope" figure.** Of the 67/714 (9.38%) rows #92
+counted as beating the envelope at strength 0.5, **47 are no-ops** (`vs_input ≥ 0.98` — the IoU nudged
+up while the building barely moved) and 0 are collapsed, leaving only **20/714 (2.8%)** that both
+acted and improved. This is the map's own standing trap — "report `vs_input` beside every quality
+number... a near-no-op inherits the envelope's perfect footprint and is scored for it" — firing on
+#92's own table rather than the checkpoint comparison it was written to guard.
+
+**Not evidence the band improves elsewhere.** This is the aligned candidate that #92 already found
+does not meet the registered bar; #93 was scoped to describe *how* the failure is distributed across
+strength and footprint, not to reopen whether it passed. It does not.
+
+Asset: `execution/artifacts/issue93_strength_band_armB.json`.

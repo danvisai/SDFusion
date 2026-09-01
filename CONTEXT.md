@@ -20,7 +20,7 @@ Learned models make the *decisions*; deterministic procedure + retrieval do the 
 features (weathering, ornaments, sketch-relief, recipe-closure round-trip) remain the **demo wrapper**:
 they make the artifact impressive but are not what the paper proves.
 
-## Project status (updated 2026-08-21)
+## Project status (updated 2026-09-01)
 
 The living status lives in the **wayfinding maps** under `docs/wayfinding/` (each mirrors a GitHub
 issue map and carries its own tables + montages); this section is only the index into them. Massing
@@ -32,10 +32,9 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
 
 - **Latent token order — IN PROGRESS.** `docs/wayfinding/latent-token-order/` (map #87). The pair
   training target was corrupted by token ordering; #88–#91 captured the codec's query positions and
-  rebuilt the aligned cache. #92's arms train against `v4_surf@240k` as the control — arm A closed
-  at step 240000 (its best checkpoint and its first non-zero), arm N (NL/DE only, PLATEAU excluded
-  as LoD1) is still running. Checkpoints are scored continuously by
-  `scripts/foundations/watch_checkpoints.py` into `execution/artifacts/`.
+  rebuilt the aligned cache. #92's four-arm retrain is complete and negative: alignment did not
+  restore a usable operating band, so its gated from-scratch follow-on was not triggered. The full
+  result and scorecard are in `docs/wayfinding/latent-token-order/92-aligned-retrain.md`.
 - **Whole-volume voxel transform — IN PROGRESS (planning + throwaway prototypes only).** Map #113.
   Decides whether an A2-only whole-volume voxel correction can satisfy hard footprint/validity
   invariants *and* preserve editability. #114–#116 are settled (dense absolute binary 64³ state;
