@@ -121,6 +121,28 @@ def _load_denoiser(path: Path, device: str):
     return checkpoint, model
 
 
+def _pair_step_draw(row: int, fraction: float, timesteps: int, alphas, seed: int,
+                     surface_points: int, shape: Sequence[int], device: str):
+    """Draw the timestep, alpha, noise and query points one pair-training step needs.
+
+    Shared with ``probe_surface_gradient_conflict.py`` (#94): both probes must draw from
+    identical seed streams for their measurements to sit on the same footing, not just be
+    individually reproducible.
+    """
+    import torch
+
+    timestep = min(int(round(fraction * timesteps)), timesteps - 1)
+    t = torch.tensor([timestep], device=device, dtype=torch.long)
+    alpha = alphas[t].view(1, 1, 1)
+    generator = torch.Generator(device="cpu").manual_seed(seed * 1_000_003 + row * 97 + timestep)
+    noise = torch.randn(tuple(shape), generator=generator).to(device)
+    point_generator = torch.Generator(device="cpu").manual_seed(
+        seed * 1_000_003 + row * 193 + timestep
+    )
+    points = (torch.rand((1, surface_points, 3), generator=point_generator) * 2 - 1).to(device)
+    return t, alpha, noise, points
+
+
 def measure(args) -> dict:
     """Measure both losses while changing only the token gauge of the pair source."""
     import h5py
@@ -163,19 +185,10 @@ def measure(args) -> dict:
 
             for fraction in args.t_frac:
                 key = f"{fraction:.2f}"
-                timestep = min(int(round(fraction * checkpoint["args"]["timesteps"])),
-                               checkpoint["args"]["timesteps"] - 1)
-                t = torch.tensor([timestep], device=device, dtype=torch.long)
-                alpha = alphas[t].view(1, 1, 1)
-                generator = torch.Generator(device="cpu").manual_seed(
-                    args.seed * 1_000_003 + row * 97 + timestep
+                t, alpha, noise, points = _pair_step_draw(
+                    row, fraction, checkpoint["args"]["timesteps"], alphas, args.seed,
+                    args.surface_points, zb.shape, device,
                 )
-                noise = torch.randn(zb.shape, generator=generator).to(device)
-                point_generator = torch.Generator(device="cpu").manual_seed(
-                    args.seed * 1_000_003 + row * 193 + timestep
-                )
-                points = (torch.rand((1, args.surface_points, 3),
-                                     generator=point_generator) * 2 - 1).to(device)
                 with torch.no_grad():
                     target_field = codec.query(z * sd + mu, points)
 
