@@ -20,7 +20,7 @@ Learned models make the *decisions*; deterministic procedure + retrieval do the 
 features (weathering, ornaments, sketch-relief, recipe-closure round-trip) remain the **demo wrapper**:
 they make the artifact impressive but are not what the paper proves.
 
-## Project status (updated 2026-09-01)
+## Project status (updated 2026-09-02)
 
 The living status lives in the **wayfinding maps** under `docs/wayfinding/` (each mirrors a GitHub
 issue map and carries its own tables + montages); this section is only the index into them. Massing
@@ -30,11 +30,6 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
 
 ### Active
 
-- **Latent token order — IN PROGRESS.** `docs/wayfinding/latent-token-order/` (map #87). The pair
-  training target was corrupted by token ordering; #88–#91 captured the codec's query positions and
-  rebuilt the aligned cache. #92's four-arm retrain is complete and negative: alignment did not
-  restore a usable operating band, so its gated from-scratch follow-on was not triggered. The full
-  result and scorecard are in `docs/wayfinding/latent-token-order/92-aligned-retrain.md`.
 - **Whole-volume voxel transform — IN PROGRESS (planning + throwaway prototypes only).** Map #113.
   Decides whether an A2-only whole-volume voxel correction can satisfy hard footprint/validity
   invariants *and* preserve editability. #114–#116 are settled (dense absolute binary 64³ state;
@@ -49,6 +44,19 @@ stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proo
 
 ### Settled
 
+- **Latent token order — CLOSED NEGATIVE.** `docs/wayfinding/latent-token-order/` (map #87): the pair
+  training target's token-order corruption was real and #88–#91 fixed it (query positions captured,
+  greedy k=256 alignment, aligned cache built as a pure permutation with no confound). Fixing it did
+  **not** open a usable strength band — #92's aligned retrain made the failure worse, not better
+  (46.36% collapse vs the encoded control's 8.96% at the matched endpoint); #93 found the exception
+  covers under 10% of the corpus; #94 traced the mechanism to the decoded-surface loss term's gradient
+  running 49–128x the epsilon term's at equal nominal weight, compounding specifically under alignment
+  — likely because alignment gave the epsilon target real content for the first time, so the model's
+  first genuine attempt to move the latent gets forced through the codec's frozen, never-fine-tuned
+  decoder (#77). Not a data problem by the end: the data fix made the symptom worse, which is why it
+  was ruled out as the cause rather than confirmed as it. Candidates for what replaces the element-wise
+  pair loss, and whether an unfrozen/adapted decoder changes the picture, are left unspecified for a
+  follow-on map.
 - **Solid massing — DONE & shipped.** `docs/wayfinding/solid-massing-generation/` (map #24):
   footprint-IoU 0.43 → ~0.89. "Breaking apart" was a BuildingNet thin-shell artifact, not a model
   failure. This checkpoint is the accepted dense-grid massing generator.

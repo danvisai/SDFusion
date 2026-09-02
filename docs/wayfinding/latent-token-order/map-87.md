@@ -2,7 +2,13 @@
 
 # Map #87 — Token order in the pair training target, and whether fixing it gives the transform a usable band
 
-*State: open · opened 2026-08-09 · mirrored 2026-08-14*
+*State: closed 2026-09-02 · opened 2026-08-09 · mirrored 2026-08-14*
+
+> **Closed, 2026-09-02.** Destination answered **no**: alignment does not give the transform a usable
+> band — #92 found it makes the failure worse, not better; #93 found the exception covers under 10%
+> of the corpus; #94 traced the mechanism to a loss-term magnitude imbalance riding through the frozen
+> decoder, not to the token-order corruption this map fixed. The human reviewed the montages and
+> confirmed the visual read. See #92/#93/#94's Decisions-so-far entries below for the full chain.
 
 
 > Local mirror of the map. The tracker remains the source of truth; this copy exists
