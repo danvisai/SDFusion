@@ -40,6 +40,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     plane_to_normalised,
     plane_to_voxel, rebin_planes,
     ASSIGN_DECODE, ASSIGN_TEMPERATURE, assignment_prior, assignment_stats, decode_assignment,
+    TYPE_TEMPERATURE, type_prior, type_stats,
     COMPLEXITY_BUCKETS, complexity_strata, label_complexity, slot_counts_of,
     make_model,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
@@ -1637,6 +1638,11 @@ class TestAssignmentDecode(unittest.TestCase):
         that is *also* nearly flat lands in a tie with every other flat class and the argmax between
         them is decided by second-order structure. That is the 0.8251 -> 0.1275 dominant-slot
         accuracy on real weights, and it is why the correction moved into the loss.
+
+        ⚠️ Pinned at `temperature=1.0` explicitly, not the module default: this is a refutation of
+        the FULL decode-side correction #132 measured and rejected, and #139 halving the loss-side
+        `ASSIGN_TEMPERATURE` for training must not quietly weaken the historical refutation it was
+        never about.
         """
         fp = self._fp()
         rng = np.random.default_rng(3)
@@ -1650,7 +1656,7 @@ class TestAssignmentDecode(unittest.TestCase):
         dominant = fp.copy()
         dominant[3:6, 3:6] = False                    # where slot 0 is genuinely the right answer
         kept_arg = float((decode_assignment(lg, fp, "argmax")[dominant] == 0).mean())
-        kept_bal = float((decode_assignment(lg, fp, "balanced")[dominant] == 0).mean())
+        kept_bal = float((decode_assignment(lg, fp, "balanced", 1.0)[dominant] == 0).mean())
         self.assertEqual(kept_arg, 1.0, "the plain argmax keeps the dominant slot")
         self.assertLess(kept_bal, 0.5, "the balanced read hands most of it away")
 
@@ -1725,8 +1731,11 @@ class TestLogitAdjustedAssignmentLoss(unittest.TestCase):
         adj = float(program_loss(self._out(lg), self._labels(a), m, assign_prior=prior))
         self.assertGreater(adj, plain)
 
-    def test_the_adjustment_is_pre_registered_at_one(self):
-        self.assertEqual(ASSIGN_TEMPERATURE, 1.0)
+    def test_the_adjustment_is_pre_registered_at_one_half(self):
+        """#139 halved #132's full adjustment: tau 1.0 targets a uniform balance the corpus does
+        not have, calibrated against a skew (11.9x) inflated by buildings that structurally never
+        reach slot 3 at all. 0.5 is the untuned midpoint, not a value chosen after this run."""
+        self.assertEqual(ASSIGN_TEMPERATURE, 0.5)
 
     def test_the_prior_matches_the_models_assignment_head(self):
         """⚠️ The bug this caught on the first batch: `make_model` IGNORES `--k_planes` for the
@@ -1749,6 +1758,151 @@ class TestLogitAdjustedAssignmentLoss(unittest.TestCase):
         pr = assignment_prior(assign, fp, k_ops=2)
         np.testing.assert_allclose(pr, [0.5, 0.5, 0.0], atol=1e-9)
         self.assertAlmostEqual(float(pr.sum()), 1.0, places=9)
+
+
+class TestTypePrior(unittest.TestCase):
+    """The type-head analogue of `assignment_prior`: `used_slots_typed_ramp`'s 0.390 (#132) is not
+    one scalar's distance from one scalar -- it is the label's own slot-index gradient (measured on
+    the 34,909 training rows: slot 0 59.4% Ramp, slot 1 52.3%, slot 2 32.3%, slot 3 13.4%)."""
+
+    def test_it_is_per_slot_not_one_scalar(self):
+        types = np.array([[1, 1, 0, 0], [1, 0, 0, 0], [1, 1, 1, -1]])
+        pr = type_prior(types, k_ops=4)
+        self.assertEqual(pr.shape, (4, 2))
+        np.testing.assert_allclose(pr.sum(axis=1), 1.0)
+        # slot 0 is Ramp on every active row; slot 3 is never Ramp on the rows that have one
+        self.assertAlmostEqual(float(pr[0, 1]), 1.0)
+        self.assertAlmostEqual(float(pr[3, 1]), 0.0)
+
+    def test_inactive_slots_do_not_enter_the_count(self):
+        types = np.array([[-1, 1], [-1, 0], [-1, 0]])
+        pr = type_prior(types, k_ops=2)
+        # slot 0 is never active: falls back to the uniform prior rather than dividing by zero
+        np.testing.assert_allclose(pr[0], [0.5, 0.5])
+        np.testing.assert_allclose(pr[1], [2 / 3, 1 / 3])
+
+    def test_an_all_ramp_slot_still_sums_to_one(self):
+        types = np.full((5, 1), 1)
+        pr = type_prior(types, k_ops=1)
+        np.testing.assert_allclose(pr, [[0.0, 1.0]])
+
+
+class TestTypeStats(unittest.TestCase):
+    """`type_stats`: the type head's own diffuse-or-wrong question, per slot. Positional and
+    unaggregated by design -- `type_collapse` stacks many buildings' output into one matrix."""
+
+    def _logits(self, p_ramp):
+        """One building, 4 slots, each slot's P(Ramp) set exactly."""
+        p = np.stack([1 - np.asarray(p_ramp), np.asarray(p_ramp)], axis=-1)
+        return np.log(np.clip(p, 1e-12, None))
+
+    def test_a_confident_head_that_is_simply_wrong(self):
+        lab = np.array([1, 0, -1, -1])                     # slot 0 is really a Ramp
+        s = type_stats(self._logits([0.02, 0.02, 0.5, 0.5]), lab)
+        self.assertFalse(s["correct_argmax"][0], "confidently typed Layer where the label is Ramp")
+        self.assertLess(s["confidence"][0], 0.99)
+        self.assertAlmostEqual(float(s["p_ramp"][0]), 0.02)
+
+    def test_a_diffuse_head_that_narrowly_loses(self):
+        lab = np.array([1, -1, -1, -1])
+        s = type_stats(self._logits([0.45, 0.5, 0.5, 0.5]), lab)
+        self.assertFalse(s["correct_argmax"][0])
+        self.assertGreater(s["p_ramp"][0], 0.4, "the head DOES lean towards the right answer")
+        self.assertGreater(s["entropy_norm"][0], 0.9, "and is close to maximum uncertainty")
+
+    def test_inactive_slots_are_excluded_everywhere(self):
+        lab = np.array([1, -1, 0, -1])
+        s = type_stats(self._logits([0.9, 0.9, 0.1, 0.1]), lab)
+        np.testing.assert_array_equal(s["active"], [True, False, True, False])
+        np.testing.assert_array_equal(s["is_ramp"], [True, False, False, False])
+
+    def test_the_balanced_read_can_flip_a_slot_the_argmax_loses(self):
+        """Dividing by a slot-specific prior is the same correction `decode_assignment` makes,
+        applied per slot instead of per column."""
+        lab = np.array([1, 0, -1, -1])
+        lg = self._logits([0.3, 0.3, 0.5, 0.5])             # argmax says Layer on both
+        plain = type_stats(lg, lab)
+        prior = np.array([[0.9, 0.1], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]])
+        adj = type_stats(lg, lab, prior=prior)
+        self.assertFalse(plain["correct_balanced"][0])
+        self.assertTrue(adj["correct_balanced"][0], "a low Ramp prior on slot 0 flips the argmax")
+        self.assertEqual(adj["correct_balanced"][1], plain["correct_balanced"][1],
+                         "slot 1's flat prior changes nothing")
+
+    def test_no_prior_means_the_balanced_read_equals_the_argmax(self):
+        lab = np.array([1, 0, -1, -1])
+        s = type_stats(self._logits([0.7, 0.3, 0.5, 0.5]), lab)
+        np.testing.assert_array_equal(s["correct_argmax"], s["correct_balanced"])
+
+
+class TestTypeTemperatureIsPreRegistered(unittest.TestCase):
+    def test_the_adjustment_is_pre_registered_at_one(self):
+        self.assertEqual(TYPE_TEMPERATURE, 1.0)
+
+
+class TestLogitAdjustedTypeLoss(unittest.TestCase):
+    """The type-head twin of `TestLogitAdjustedAssignmentLoss`. `type_collapse` on #132's own
+    checkpoint found the same shape of problem the assignment head had: a plain argmax under-
+    recalls Ramp hardest exactly where the label's own Ramp share is lowest (slot 3: recall 0.087,
+    balanced-DECODE 0.957 but Layer recall 0.995 -> 0.413 -- the same relabelling cost that sent
+    #132's fix into the loss rather than the decode). This is that fix, one head over.
+    """
+
+    def _out(self, type_logits, k_ops=4):
+        import torch
+        b = type_logits.shape[0]
+        return (torch.zeros(b, k_ops + 1, 8, 8), type_logits, torch.zeros(b, k_ops, 3))
+
+    def _labels(self, types, k_ops=4):
+        import torch
+        b = types.shape[0]
+        return (torch.zeros(b, 8, 8, dtype=torch.long), types, torch.zeros(b, k_ops, 3))
+
+    def test_a_uniform_prior_changes_nothing(self):
+        import torch
+        rng = np.random.default_rng(0)
+        lg = torch.tensor(rng.normal(size=(4, 4, 2)), dtype=torch.float32)
+        t = torch.tensor(rng.integers(0, 2, (4, 4)))
+        m = torch.ones(4, 8, 8, dtype=torch.bool)
+        plain = float(program_loss(self._out(lg), self._labels(t), m))
+        flat = torch.full((4, 2), 0.5)
+        adj = float(program_loss(self._out(lg), self._labels(t), m, type_prior=flat))
+        self.assertAlmostEqual(plain, adj, places=5)
+
+    def test_a_skewed_prior_penalises_predicting_the_majority(self):
+        """The whole point: confidently predicting the majority type costs MORE under the
+        adjustment, so the gradient pushes towards the minority type where the label supports it."""
+        import torch
+        lg = torch.zeros(2, 1, 2)
+        lg[:, 0, 0] = 4.0                                # confidently predict Layer at slot 0
+        t = torch.zeros(2, 1, dtype=torch.long)
+        t[0, 0] = 1                                      # this building's slot 0 really is a Ramp
+        m = torch.ones(2, 8, 8, dtype=torch.bool)
+        prior = torch.tensor([[0.9, 0.1]])               # slot 0 is labelled Layer 90% of the time
+        plain = float(program_loss(self._out(lg, 1), self._labels(t, 1), m))
+        adj = float(program_loss(self._out(lg, 1), self._labels(t, 1), m, type_prior=prior))
+        self.assertGreater(adj, plain)
+
+    def test_inactive_slots_are_unaffected_by_the_prior(self):
+        import torch
+        lg = torch.zeros(1, 1, 2)
+        t = torch.full((1, 1), -1, dtype=torch.long)     # no active slot at all
+        m = torch.ones(1, 8, 8, dtype=torch.bool)
+        prior = torch.tensor([[0.99, 0.01]])
+        plain = float(program_loss(self._out(lg, 1), self._labels(t, 1), m))
+        adj = float(program_loss(self._out(lg, 1), self._labels(t, 1), m, type_prior=prior))
+        self.assertAlmostEqual(plain, adj, places=6)
+
+    def test_the_prior_matches_the_models_type_head(self):
+        """The type-head twin of `test_the_prior_matches_the_models_assignment_head`: the prior is
+        `(K_OPS, n_type)` and the model's type head emits `(K_OPS, n_type)` regardless of
+        `--k_planes`, for the same reason `assignment_prior` must be sized from `K_OPS`."""
+        import torch
+        model = make_model("program", 16, 6, "class")
+        with torch.no_grad():
+            _, type_logits, _ = model(torch.zeros(1, COND_CHANNELS, 32, 32))
+        pr = type_prior(np.full((1, K_OPS), -1, np.int64), K_OPS)
+        self.assertEqual(pr.shape, (type_logits.shape[1], type_logits.shape[2]))
 
 
 class TestClassPlaneAugmentation(unittest.TestCase):

@@ -1,0 +1,530 @@
+{
+ "n": 411,
+ "checkpoint": "outputs/height_map_generator/heightmap_program_assign_tau05.pt",
+ "head_ablation": {
+  "all three predicted": {
+   "extra": 0.10638770927362874,
+   "missing": 0.05924019446094283,
+   "vs_input": 0.8432438192668372,
+   "collapse_rate": 0.17274939172749393
+  },
+  "label types": {
+   "extra": 0.10136495860371447,
+   "missing": 0.06641576950365549,
+   "vs_input": 0.8441450140449438,
+   "collapse_rate": 0.1897810218978102
+  },
+  "label assignment": {
+   "extra": 0.10620997591210857,
+   "missing": 0.06325658348269682,
+   "vs_input": 0.8518239625167336,
+   "collapse_rate": 0.170316301703163
+  },
+  "label planes": {
+   "extra": 0.07602595051297525,
+   "missing": 0.011921203750817766,
+   "vs_input": 0.8616695094217024,
+   "collapse_rate": 0.16058394160583941
+  },
+  "all three from the label (the ceiling)": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0
+  }
+ },
+ "flatten_ramps": {
+  "compiled as fitted": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0,
+   "ops": 2.0,
+   "planar_fraction": 0.5
+  },
+  "every Ramp flattened": {
+   "extra": 0.0527537847125476,
+   "missing": 0.0,
+   "vs_input": 0.8846542346542347,
+   "collapse_rate": 0.0024330900243309003,
+   "ops": 1.0,
+   "planar_fraction": 0.0
+  }
+ },
+ "slope_symmetry": {
+  "n": 52792,
+  "mean": 0.0008517440489446268,
+  "median": 5.385612548233488e-16,
+  "p25": -0.6474373117089272,
+  "p75": 0.6431724419719295,
+  "positive": 0.5003788452795879,
+  "negative": 0.4960600090922867,
+  "median_abs": 0.6460239998996258
+ },
+ "canonicalisation": {
+  "n": 411,
+  "canonical_order": 0.45423625935678835,
+  "best_permutation": 0.3813060673285755,
+  "cost": 0.07293019202821291,
+  "cost_share": 0.1605556371291983
+ },
+ "slot_usage": {
+  "slots_used_by_arm": 2.2798053527980535,
+  "slots_used_by_label": 3.0608272506082725,
+  "arm_uses_exactly_one": 0.30170316301703165,
+  "used_slots_typed_ramp": 0.41728922091782283,
+  "realised_rise_all_slots_voxels": 0.0,
+  "realised_rise_ramp_typed_voxels": 16.0,
+  "n_ramp_typed_slots": 353,
+  "used_slots_compiling_flat": 0.5531645569620253
+ },
+ "assignment_collapse": {
+  "n": 411,
+  "confidence_median": 0.3247902884365675,
+  "accuracy_argmax": 0.4368246219640122,
+  "accuracy_balanced": 0.40950594693194087,
+  "dominant_argmax": 0.7559716422108909,
+  "dominant_balanced": 0.6005012414770222,
+  "entropy_norm_mean": 0.8768884913652593,
+  "slots_argmax_mean": 2.2798053527980535,
+  "slots_label_mean": 3.0608272506082725,
+  "slots_balanced_mean": 2.8661800486618003,
+  "minor_columns_total": 201777,
+  "buildings_with_a_minor_slot": 0.8442822384428224,
+  "p_true_minor": 0.22381095177593244,
+  "p_won_minor": 0.3510263445320474,
+  "recall_minor": 0.11009679002066639,
+  "recall_minor_balanced": 0.1683145254414527
+ },
+ "type_collapse": {
+  "n": 411,
+  "prior_ramp_share": [
+   0.5547445255474452,
+   0.5014409221902018,
+   0.298932384341637,
+   0.1050228310502283
+  ],
+  "confidence_median": 0.696007639112886,
+  "entropy_norm_mean": 0.8037884687343199,
+  "accuracy_argmax": 0.7154213036565977,
+  "accuracy_balanced": 0.5564387917329093,
+  "recall_ramp_argmax": 0.6620825147347741,
+  "recall_ramp_balanced": 0.7190569744597249,
+  "recall_layer_argmax": 0.7516688918558078,
+  "recall_layer_balanced": 0.4459279038718291,
+  "per_slot": [
+   {
+    "n": 411,
+    "label_ramp_share": 0.5547445255474452,
+    "confidence": 0.7900511494884418,
+    "entropy_norm": 0.727110579005359,
+    "recall_ramp_argmax": 0.7105263157894737,
+    "recall_ramp_balanced": 0.6798245614035088,
+    "recall_layer_argmax": 0.7540983606557377,
+    "recall_layer_balanced": 0.7923497267759563,
+    "p_ramp_given_ramp": 0.6628327772527879,
+    "p_ramp_given_layer": 0.3560058828885959
+   },
+   {
+    "n": 347,
+    "label_ramp_share": 0.5014409221902018,
+    "confidence": 0.7206148341325013,
+    "entropy_norm": 0.7939412219904505,
+    "recall_ramp_argmax": 0.6091954022988506,
+    "recall_ramp_balanced": 0.6091954022988506,
+    "recall_layer_argmax": 0.7976878612716763,
+    "recall_layer_balanced": 0.7976878612716763,
+    "p_ramp_given_ramp": 0.6010328249098319,
+    "p_ramp_given_layer": 0.3582681650393162
+   },
+   {
+    "n": 281,
+    "label_ramp_share": 0.298932384341637,
+    "confidence": 0.6502075013188163,
+    "entropy_norm": 0.8758596690958179,
+    "recall_ramp_argmax": 0.6190476190476191,
+    "recall_ramp_balanced": 0.9761904761904762,
+    "recall_layer_argmax": 0.7918781725888325,
+    "recall_layer_balanced": 0.16751269035532995,
+    "p_ramp_given_ramp": 0.6000794453854412,
+    "p_ramp_given_layer": 0.40995596340409934
+   },
+   {
+    "n": 219,
+    "label_ramp_share": 0.1050228310502283,
+    "confidence": 0.6007646937538372,
+    "entropy_norm": 0.870818605707583,
+    "recall_ramp_argmax": 0.7391304347826086,
+    "recall_ramp_balanced": 1.0,
+    "recall_layer_argmax": 0.6683673469387755,
+    "recall_layer_balanced": 0.09183673469387756,
+    "p_ramp_given_ramp": 0.6007283257590571,
+    "p_ramp_given_layer": 0.4171416750006291
+   }
+  ]
+ },
+ "complexity_strata": {
+  "n": 411,
+  "k_ops": 4,
+  "n_train": 34909,
+  "population": {
+   "0 slots": {
+    "n": 15562,
+    "share": 0.4457876192385918,
+    "prior": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "skew": null
+   },
+   "1 slots": {
+    "n": 2568,
+    "share": 0.0735626915695093,
+    "prior": [
+     0.8181542201911519,
+     0.0,
+     0.0,
+     0.0,
+     0.18184577980884808
+    ],
+    "skew": null
+   },
+   "2 slots": {
+    "n": 3556,
+    "share": 0.10186484860637658,
+    "prior": [
+     0.5348846535061579,
+     0.3279924163085852,
+     0.0,
+     0.0,
+     0.13712293018525692
+    ],
+    "skew": null
+   },
+   "3 slots": {
+    "n": 3051,
+    "share": 0.08739866510069037,
+    "prior": [
+     0.47091538453191484,
+     0.26564369172822644,
+     0.09641637258247117,
+     0.0,
+     0.1670245511573876
+    ],
+    "skew": null
+   },
+   "4 slots": {
+    "n": 10172,
+    "share": 0.291386175484832,
+    "prior": [
+     0.3957965332908962,
+     0.24471141052220757,
+     0.17116033114491094,
+     0.08404810091576359,
+     0.1042836241262217
+    ],
+    "skew": 4.709166881564397
+   },
+   "<=2  (an easy-first schedule's first phase)": {
+    "n": 21686,
+    "share": 0.6212151594144777,
+    "prior": [
+     0.17012041390693675,
+     0.05202788791217131,
+     0.0,
+     0.0,
+     0.777851698180892
+    ],
+    "skew": null
+   },
+   ">=3  (its last phase)": {
+    "n": 13223,
+    "share": 0.37878484058552236,
+    "prior": [
+     0.4133393866449357,
+     0.2495998231309748,
+     0.15370502821496818,
+     0.06441995851619457,
+     0.11893580349292673
+    ],
+    "skew": 6.416324942851773
+   },
+   ">=1  (carve-needing -- the population the bar is set on)": {
+    "n": 19347,
+    "share": 0.5542123807614082,
+    "prior": [
+     0.4955613167444298,
+     0.2314360103873751,
+     0.09966644559213,
+     0.041771621690358814,
+     0.13156460558570626
+    ],
+    "skew": 11.863588165618403
+   },
+   "ALL  (what #132's prior was computed on)": {
+    "n": 34909,
+    "share": 1.0,
+    "prior": [
+     0.24953289155220038,
+     0.11653632947111164,
+     0.05018562894036422,
+     0.021033509261166535,
+     0.5627116407751572
+    ],
+    "skew": 11.863588165618403
+   }
+  },
+  "arm": {
+   "1 slots": {
+    "n": 64,
+    "extra": 0.031905266717321024,
+    "missing": 0.044257418147428826,
+    "vs_input": 0.8862816941967031,
+    "collapse_rate": 0.140625,
+    "ops": 1.0,
+    "planar_fraction": 1.0,
+    "slots_used_by_arm": 1.171875,
+    "slots_used_by_label": 1.0
+   },
+   "2 slots": {
+    "n": 66,
+    "extra": 0.06644725317580062,
+    "missing": 0.0745927677720647,
+    "vs_input": 0.849898306148919,
+    "collapse_rate": 0.09090909090909091,
+    "ops": 1.0,
+    "planar_fraction": 1.0,
+    "slots_used_by_arm": 1.6818181818181819,
+    "slots_used_by_label": 2.0
+   },
+   "3 slots": {
+    "n": 62,
+    "extra": 0.0895731423049313,
+    "missing": 0.03994338799478411,
+    "vs_input": 0.8683960013610132,
+    "collapse_rate": 0.1774193548387097,
+    "ops": 1.0,
+    "planar_fraction": 0.35416666666666663,
+    "slots_used_by_arm": 2.1774193548387095,
+    "slots_used_by_label": 3.0
+   },
+   "4 slots": {
+    "n": 219,
+    "extra": 0.14698318496538082,
+    "missing": 0.06892698709182482,
+    "vs_input": 0.8019108280254778,
+    "collapse_rate": 0.2054794520547945,
+    "ops": 2.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 2.8127853881278537,
+    "slots_used_by_label": 4.0
+   },
+   "<=2  (an easy-first schedule's first phase)": {
+    "n": 130,
+    "extra": 0.04535951321901317,
+    "missing": 0.05576808641950655,
+    "vs_input": 0.8705388776165408,
+    "collapse_rate": 0.11538461538461539,
+    "ops": 1.0,
+    "planar_fraction": 1.0,
+    "slots_used_by_arm": 1.4307692307692308,
+    "slots_used_by_label": 1.5076923076923077
+   },
+   ">=3  (its last phase)": {
+    "n": 281,
+    "extra": 0.13641237936108133,
+    "missing": 0.06003702253390766,
+    "vs_input": 0.8198356807511737,
+    "collapse_rate": 0.199288256227758,
+    "ops": 2.0,
+    "planar_fraction": 0.0,
+    "slots_used_by_arm": 2.6725978647686834,
+    "slots_used_by_label": 3.7793594306049823
+   },
+   "ALL  (the pre-registered population)": {
+    "n": 411,
+    "extra": 0.10638770927362874,
+    "missing": 0.05924019446094283,
+    "vs_input": 0.8432438192668372,
+    "collapse_rate": 0.17274939172749393,
+    "ops": 1.0,
+    "planar_fraction": 0.3333333333333333,
+    "slots_used_by_arm": 2.2798053527980535,
+    "slots_used_by_label": 3.0608272506082725
+   }
+  }
+ },
+ "robustness": {
+  "plane_noise": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0,
+    "vs_input": 0.8225742574257425,
+    "collapse_rate": 0.0
+   },
+   "0.02": {
+    "extra": 0.012789880534082924,
+    "missing": 0.006888826659199104,
+    "vs_input": 0.821288358304623,
+    "collapse_rate": 0.0
+   },
+   "0.05": {
+    "extra": 0.02542899858433775,
+    "missing": 0.015318940791960335,
+    "vs_input": 0.8247788640595903,
+    "collapse_rate": 0.0
+   },
+   "0.10": {
+    "extra": 0.035022301516503124,
+    "missing": 0.030119660629450568,
+    "vs_input": 0.8194909693683738,
+    "collapse_rate": 0.0267639902676399
+   }
+  },
+  "assignment_corrupted": {
+   "0.00": {
+    "extra": 0.003514423780934251,
+    "missing": 0.0,
+    "vs_input": 0.8225742574257425,
+    "collapse_rate": 0.0
+   },
+   "0.05": {
+    "extra": 0.010127697049757816,
+    "missing": 0.010357276235528444,
+    "vs_input": 0.8186003683241252,
+    "collapse_rate": 0.0
+   },
+   "0.25": {
+    "extra": 0.03264722528372702,
+    "missing": 0.05137684345150074,
+    "vs_input": 0.7967932621887425,
+    "collapse_rate": 0.0413625304136253
+   }
+  }
+ },
+ "quantisation_ceiling": {
+  "exact (the continuous ceiling)": {
+   "extra": 0.003514423780934251,
+   "missing": 0.0,
+   "vs_input": 0.8225742574257425,
+   "collapse_rate": 0.0
+  },
+  "binned at 32": {
+   "extra": 0.01071881798404641,
+   "missing": 0.005151286520800271,
+   "vs_input": 0.8186410765497463,
+   "collapse_rate": 0.0
+  },
+  "binned at 64  <- PLANE_BINS": {
+   "extra": 0.006340654786572731,
+   "missing": 0.0034770792534271214,
+   "vs_input": 0.8185403621183438,
+   "collapse_rate": 0.0
+  },
+  "binned at 128": {
+   "extra": 0.0038784645572725045,
+   "missing": 0.00258336314136958,
+   "vs_input": 0.8190359477124183,
+   "collapse_rate": 0.0
+  }
+ },
+ "decode_ablation": {
+  "offset median / pitch median / azimuth argmax": {
+   "extra": 0.107464405360134,
+   "missing": 0.07349651124155498,
+   "vs_input": 0.8505550307038262,
+   "collapse_rate": 0.2773722627737226,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 21.0
+  },
+  "offset median / pitch median / azimuth circmean": {
+   "extra": 0.09406396196027303,
+   "missing": 0.09894705766581381,
+   "vs_input": 0.8098136605635632,
+   "collapse_rate": 0.30656934306569344,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 21.0
+  },
+  "offset median / pitch argmax / azimuth argmax": {
+   "extra": 0.11538249102457884,
+   "missing": 0.08822198080753214,
+   "vs_input": 0.8297869129542437,
+   "collapse_rate": 0.2871046228710462,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 22.0
+  },
+  "offset median / pitch argmax / azimuth circmean": {
+   "extra": 0.10016044363443774,
+   "missing": 0.1057140211150213,
+   "vs_input": 0.8030497756017951,
+   "collapse_rate": 0.3236009732360097,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 23.0
+  },
+  "offset argmax / pitch median / azimuth argmax": {
+   "extra": 0.11704743449870544,
+   "missing": 0.05750914918282454,
+   "vs_input": 0.8781942078364565,
+   "collapse_rate": 0.24817518248175183,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 19.0
+  },
+  "offset argmax / pitch median / azimuth circmean": {
+   "extra": 0.10705959862152849,
+   "missing": 0.07901818478349507,
+   "vs_input": 0.8389117512574302,
+   "collapse_rate": 0.25547445255474455,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 20.0
+  },
+  "offset argmax / pitch argmax / azimuth argmax": {
+   "extra": 0.12172085419964192,
+   "missing": 0.0613178003256921,
+   "vs_input": 0.8730763128668888,
+   "collapse_rate": 0.24817518248175183,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 21.0
+  },
+  "offset argmax / pitch argmax / azimuth circmean": {
+   "extra": 0.11443162473992813,
+   "missing": 0.0813407231459488,
+   "vs_input": 0.8496525689851006,
+   "collapse_rate": 0.26763990267639903,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 23.0
+  },
+  "offset median / pitch q0.25 / azimuth argmax   <- PRE-REGISTERED": {
+   "extra": 0.10638770927362874,
+   "missing": 0.05924019446094283,
+   "vs_input": 0.8432438192668372,
+   "collapse_rate": 0.17274939172749393,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 16.0
+  },
+  "offset median / pitch q0.35 / azimuth argmax": {
+   "extra": 0.10994002212775869,
+   "missing": 0.06297229219143577,
+   "vs_input": 0.8430416202155333,
+   "collapse_rate": 0.22871046228710462,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 18.0
+  },
+  "offset median / pitch q0.75 / azimuth argmax": {
+   "extra": 0.10921211578900272,
+   "missing": 0.0938448369776671,
+   "vs_input": 0.8369094843130184,
+   "collapse_rate": 0.34306569343065696,
+   "n_ramp_slots": 353,
+   "ramp_rise_median_voxels": 23.0
+  }
+ },
+ "plane_decode": [
+  "median",
+  "q0.25",
+  "argmax"
+ ],
+ "plane_bins": 64
+}
