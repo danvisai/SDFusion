@@ -55,10 +55,14 @@ no GPU, and does not modify the active #92 experiment.
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
+import math
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional, Sequence, Union
 
 import h5py
 import numpy as np
@@ -270,9 +274,165 @@ def _dists_for(fp):
                 gable_x=_dist_axis(fp, 1), gable_z=_dist_axis(fp, 0))
 
 
+# ----------------------------------------------------------------------------------------------
+# #9 / #149 -- a soft, per-axis block-coordination bias on top of the same fitter
+# ----------------------------------------------------------------------------------------------
+
+# Soft by construction (#9's own decision): a full-match bonus can only ever tip a choice between
+# candidates within this fraction of each other's raw gain. It can never make the fitter prefer a
+# candidate that removes dramatically less surplus, so a program's real quality (`missing`/`extra`/
+# collapse) cannot regress beyond noise -- #149's second acceptance criterion.
+#
+# Measured on 60 real held-out buildings (`ids_from`'s first 60), greedy `fit_program`, a
+# `FitBias(roof_family="ramp")` against no bias at all: Ramp's share of chosen ops rose 0.541 ->
+# 0.647 while mean `extra` moved 0.006981 -> 0.006990 -- a real, measurable shift in family
+# (#149 acceptance criterion 2) with the residual unchanged within noise (criterion 2's other
+# half). Re-runnable: the two `fit_program(..., bias=...)` calls in this docstring's own
+# neighbourhood, `execution/artifacts/massing_arms_eval_ship714.json`'s first 60 ids against
+# `data/real_massing_v1/real.h5`.
+BIAS_WEIGHT = 0.15
+
+AZIMUTH_TOLERANCE_DEG = 20.0        # a compass quadrant's worth of slack around the target fall line
+HEIGHT_RHYTHM_TOLERANCE_VOX = 1     # one voxel of slack -- the fitter's own integer quantisation grain
+SETBACK_TOLERANCE_VOX = 1           # ditto, for an inset depth measured on the same integer grid
+
+_ROOF_FAMILY_OF = {"Layer": "flat", "CutRoof": "cut_roof", "Ramp": "ramp"}
+_VALID_ROOF_FAMILIES = frozenset(_ROOF_FAMILY_OF.values())
+
+
+@dataclass(frozen=True)
+class FitBias:
+    """#9's explicit block program, restricted to what one footprint's fit needs to see: up to
+    four independent, optional targets. Every field defaults to `None` and an unset field
+    contributes nothing (see `_family_bonus`/`_within_type_bonus`) -- so `FitBias()`, like
+    `bias=None`, reproduces the unbiased fitter exactly, and setting only one field never perturbs
+    how the other three would have been chosen (enforced by `_select`'s two-stage ranking, not
+    just by each axis's own zero-contribution-when-unset rule -- see its docstring for why the
+    single check alone was not enough).
+
+    height_rhythm -- target `Layer` step height(s) in voxels, above `y0`. A single value or a
+        sequence (a "rhythm" of several acceptable levels); a candidate matches if it lands within
+        `HEIGHT_RHYTHM_TOLERANCE_VOX` of any of them.
+    roof_family -- one of "flat" (prefer `Layer`), "cut_roof", or "ramp". The only axis allowed to
+        shift which operation TYPE wins; see `_select`.
+    setback -- target inward-inset depth in voxels for a `Layer` read as a setback (#4: a setback
+        *is* a Layer whose polygon is the inward offset of the footprint). Measured as the
+        candidate region's own minimum distance-to-footprint-edge.
+    azimuth -- target `Ramp` fall-line direction in degrees (#129's re-parametrisation).
+    """
+    height_rhythm: Optional[Union[float, Sequence[float]]] = None
+    roof_family: Optional[str] = None
+    setback: Optional[float] = None
+    azimuth: Optional[float] = None
+
+    def __post_init__(self):
+        if self.roof_family is not None and self.roof_family not in _VALID_ROOF_FAMILIES:
+            raise ValueError(f"roof_family must be one of {sorted(_VALID_ROOF_FAMILIES)} or "
+                             f"None, got {self.roof_family!r}")
+
+    def is_empty(self) -> bool:
+        return (self.height_rhythm is None and self.roof_family is None
+                and self.setback is None and self.azimuth is None)
+
+
+def _family_bonus(meta: dict, bias: FitBias) -> float:
+    """1.0 if this candidate's own operation type matches `bias.roof_family`, else 0.0.
+
+    The ONLY bonus `_select` lets compete ACROSS operation types. Unset (`None`), it is always
+    0.0 -- which is what makes leaving `roof_family` alone a true no-op on the type decision,
+    whatever `height_rhythm`/`setback`/`azimuth` are doing (see `_select`).
+    """
+    if bias.roof_family is None:
+        return 0.0
+    return float(_ROOF_FAMILY_OF[meta["op"]] == bias.roof_family)
+
+
+def _within_type_bonus(meta: dict, bias: FitBias, dists) -> float:
+    """[0, 1]: how well one candidate matches the axes that only ever compare candidates of its
+    OWN operation type against each other -- `height_rhythm`/`setback` for `Layer`, `azimuth` for
+    `Ramp` -- averaged over whichever of those apply to this candidate's type. Never used to
+    compare candidates of different types; see `_select`.
+    """
+    op = meta["op"]
+    hits = checks = 0
+
+    if op == "Layer":
+        if bias.height_rhythm is not None:
+            checks += 1
+            targets = ((bias.height_rhythm,) if np.isscalar(bias.height_rhythm)
+                      else tuple(bias.height_rhythm))
+            hits += int(any(abs(meta["height"] - t) <= HEIGHT_RHYTHM_TOLERANCE_VOX
+                            for t in targets))
+        if bias.setback is not None:
+            checks += 1
+            depth = int(dists["hip"][meta["_region"]].min())
+            hits += int(abs(depth - bias.setback) <= SETBACK_TOLERANCE_VOX)
+
+    if op == "Ramp" and bias.azimuth is not None:
+        checks += 1
+        b, cz = meta["slope"]
+        az = math.degrees(math.atan2(cz, b)) % 360.0
+        diff = abs(az - bias.azimuth) % 360.0
+        hits += int(min(diff, 360.0 - diff) <= AZIMUTH_TOLERANCE_DEG)
+
+    return hits / checks if checks else 0.0
+
+
+def _select(candidates, bias: Optional[FitBias], dists, n: int):
+    """Pick the best `n` fitter candidates, honouring `bias` in two independent stages.
+
+    🔑🔑 A single flat score (gain scaled by every matched axis at once) cannot keep the four axes
+    independent: a `height_rhythm` match on a `Layer` candidate would out-bid a `CutRoof` it was
+    never asked to compete against, silently acting as an unrequested `roof_family="flat"`
+    preference whenever it fired (caught in review against #149's own acceptance criterion 4,
+    "supplying only one leaves the other three exactly as the unbiased fitter would have chosen
+    them" -- reproduced on this file's own close-tie test fixture before this fix).
+
+    So the two kinds of axis are kept structurally apart:
+
+    Stage 1 (within one operation type) -- `height_rhythm`/`setback` may re-rank `Layer`
+    candidates against each other, and `azimuth` may re-rank `Ramp` candidates against each
+    other. This decides which candidate of a type would be returned IF that type wins, and never
+    touches whether it does.
+
+    Stage 2 (across types) -- only `roof_family` may shift which type wins, and it compares each
+    type's own best RAW gain (never the stage-1-bonused one). So leaving `roof_family` unset is
+    provably a no-op on the type decision regardless of what the other three axes are doing, and
+    leaving the other three unset is provably a no-op on stage 1 (every candidate scores the same
+    within its type, so stage 1 returns exactly the unbiased per-type ranking).
+
+    With no bias at all this collapses to the fitter's original, single-stage `heapq.nlargest` --
+    bit-identical to before #149 (its acceptance criterion 1), not merely close to it.
+    """
+    candidates = list(candidates)
+    if not candidates:
+        return []
+    if bias is None or bias.is_empty():
+        return heapq.nlargest(n, candidates, key=lambda t: t[0])
+
+    within_key = lambda t: t[0] * (1.0 + BIAS_WEIGHT * _within_type_bonus(t[2], bias, dists))
+    by_type: dict = {}
+    for t in candidates:
+        by_type.setdefault(t[2]["op"], []).append(t)
+
+    entrants = []                        # (this type's stage-1 winner, this type's true best gain)
+    for group in by_type.values():
+        raw_best = max(g[0] for g in group)
+        for t in heapq.nlargest(n, group, key=within_key):
+            entrants.append((t, raw_best))
+
+    family_key = lambda e: e[1] * (1.0 + BIAS_WEIGHT * _family_bonus(e[0][2], bias))
+    return [t for t, _ in heapq.nlargest(n, entrants, key=family_key)]
+
+
 def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
-                ops_allowed=VOCABULARY):
-    """Greedy: repeatedly take the operation that removes the most surplus without cutting GT."""
+                ops_allowed=VOCABULARY, bias: Optional[FitBias] = None):
+    """Greedy: repeatedly take the operation that removes the most surplus without cutting GT.
+
+    `bias` (#149) only ever changes which candidate this ranks highest; it never changes which
+    candidates exist, so containment (every candidate `_all_candidates` yields already stays at or
+    above `target`) is untouched by it.
+    """
     full = np.int16(y1 - y0 + 1)
     h = np.where(fp, full, 0).astype(np.int16)
     gt_vox = int(target[fp].sum())
@@ -282,8 +442,8 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
         surplus = int((h[fp] - target[fp]).sum())
         if gt_vox and surplus / gt_vox <= allowance:
             break
-        best = max(_all_candidates(fp, dists, target, h, ops_allowed),
-                   key=lambda t: t[0], default=None)
+        picked = _select(_all_candidates(fp, dists, target, h, ops_allowed), bias, dists, n=1)
+        best = picked[0] if picked else None
         if best is None or best[0] <= 0:
             break
         gain, h, meta = best
@@ -296,7 +456,7 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
 
 
 def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
-                     beam=6, branch=6, ops_allowed=VOCABULARY):
+                     beam=6, branch=6, ops_allowed=VOCABULARY, bias: Optional[FitBias] = None):
     """Beam search over programs, because greedy is provably myopic on gable roofs.
 
     The worst-residual trace after `Ramp` landed was entirely **symmetric double ramps**: a gable
@@ -308,9 +468,16 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
 
     Beams are de-duplicated by the height map itself rather than by the operation list, since two
     different orders that reach the same massing are the same program for every purpose here.
-    """
-    import heapq
 
+    `bias` (#149) shapes which candidates this function's own branch-selection step *proposes* to
+    expand each beam with; it never touches the per-round beam-survival cut or the final
+    "actually better" comparison below, both of which stay ranked by true surplus alone. That is
+    deliberate, not a gap: letting bias influence which beam SURVIVES (rather than only which
+    candidate gets tried) would let a worse-quality lineage outlive a genuinely better one purely
+    for matching the bias, which is exactly what would put `missing`/`extra`/collapse at risk of
+    moving beyond noise -- #149's acceptance criterion 2. The greedy fallback is given the same
+    `bias` so the two programs being compared for "actually better" were fit under the same terms.
+    """
     full = np.int16(y1 - y0 + 1)
     h0 = np.where(fp, full, 0).astype(np.int16)
     gt_vox = int(target[fp].sum())
@@ -324,8 +491,7 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
             if gt_vox and sur / gt_vox <= allowance:
                 nxt.append((sur, h, ops))                  # already good enough: carry it forward
                 continue
-            top = heapq.nlargest(branch, _all_candidates(fp, dists, target, h, ops_allowed),
-                                 key=lambda t: t[0])
+            top = _select(_all_candidates(fp, dists, target, h, ops_allowed), bias, dists, n=branch)
             for gain, hh, meta in top:
                 if gain <= 0:
                     continue
@@ -348,7 +514,7 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
     # intermediate step by siblings that look better then and end worse. Measured -- id 16764 went
     # 0.152 greedy -> 0.159 beam. Greedy is cheap, so run it too and keep whichever program is
     # actually better. This makes the beam a monotone improvement by construction.
-    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance, ops_allowed)
+    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance, ops_allowed, bias=bias)
     if surplus(g_h) < best[0]:
         return g_ops, g_h
     return best[2], best[1]
