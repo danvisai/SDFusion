@@ -28,7 +28,7 @@ from scene.sdf_edit import (  # noqa: E402
     ALGEBRA, ARCHITECTURAL_VOCABULARY, CORE, PALETTE, PROGRAM_KINDS, VOLUMETRIC,
     EditableBuilding, EditOp, canonical_form, commutes, equivalent, footprint_envelope_sdf,
     is_height_map_representable, layer_program_to_ops,
-    mask_components_rings, mask_to_rings, op_problems, program_problems,
+    mask_components_rings, mask_to_rings, op_problems, program_problems, snap_to_grid,
 )
 from scene.sdf_primitives import sdf_plane_halfspace  # noqa: E402
 
@@ -1024,6 +1024,92 @@ class TestRemoveById(unittest.TestCase):
         removed = eb.remove(0)
         self.assertEqual(removed.kind, "box")
         self.assertEqual([o.kind for o in eb.ops], ["sphere"])
+
+
+# ================================================================================================
+# #142 -- snap new operation geometry to the working grid
+# ================================================================================================
+
+
+class TestSnapToGrid(unittest.TestCase):
+    """#142: a pure function that rounds a NEW op's region geometry onto the module's own voxel
+    pitch, so it meets existing geometry at a clean edge instead of an arbitrary sub-voxel jitter.
+
+    `self.grid_op` is real recovered geometry (via `layer_program_to_ops`) -- already exactly on
+    the grid `snap_to_grid` targets -- used as ground truth for what "the same edge" means.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        m = np.zeros((RES, RES), bool)
+        m[14:24, 6:26] = True
+        m &= self.fx.fp
+        program = [self.fx.layer(m, 9)]
+        self.grid_op = layer_program_to_ops(program, self.fx.fp, self.fx.y0, self.fx.y1,
+                                            res=RES)[0]
+
+    def _jitter(self, op, dx, dz, dy_lo, dy_hi):
+        return replace(op, polygon=[[[x + dx, z + dz] for x, z in ring] for ring in op.polygon],
+                       size=(op.size[0] + dy_lo, op.size[1] + dy_hi))
+
+    def test_jittered_geometry_snaps_onto_the_grid(self):
+        jittered = self._jitter(self.grid_op, 2e-4, -1.5e-4, 1e-4, -3e-5)
+        snapped = snap_to_grid(jittered, res=RES)
+        np.testing.assert_allclose(np.asarray(snapped.polygon), np.asarray(self.grid_op.polygon))
+        np.testing.assert_allclose(np.asarray(snapped.size), np.asarray(self.grid_op.size))
+
+    def test_two_ops_at_different_subvoxel_offsets_meet_at_the_same_edge(self):
+        a = snap_to_grid(self._jitter(self.grid_op, 2e-4, -1.5e-4, 1e-4, -3e-5), res=RES)
+        b = snap_to_grid(self._jitter(self.grid_op, -1e-4, 2e-4, -2e-4, 1e-4), res=RES)
+        np.testing.assert_allclose(np.asarray(a.polygon), np.asarray(b.polygon))
+        np.testing.assert_allclose(np.asarray(a.size), np.asarray(b.size))
+
+    def test_an_already_grid_aligned_op_is_unchanged(self):
+        """The module's own recovered geometry already sits on this grid (⚠️ 'half-voxel
+        offsets', the section header above `_snap_scalar`); snapping it must be a no-op."""
+        snapped = snap_to_grid(self.grid_op, res=RES)
+        np.testing.assert_allclose(np.asarray(snapped.polygon), np.asarray(self.grid_op.polygon))
+        np.testing.assert_allclose(np.asarray(snapped.size), np.asarray(self.grid_op.size))
+
+    def test_smooth_is_untouched_and_keeps_its_default(self):
+        self.assertEqual(self.grid_op.smooth, 0.0, "the hard-edge default")
+        default = snap_to_grid(self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4), res=RES)
+        self.assertEqual(default.smooth, 0.0)
+        blended = replace(self.grid_op, smooth=0.4)
+        self.assertEqual(snap_to_grid(blended, res=RES).smooth, 0.4)
+
+    def test_the_input_is_not_mutated(self):
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        before_polygon = json.loads(json.dumps(jittered.polygon))
+        before_size = tuple(jittered.size)
+        snap_to_grid(jittered, res=RES)
+        self.assertEqual(jittered.polygon, before_polygon)
+        self.assertEqual(jittered.size, before_size)
+
+    def test_id_is_preserved_snapping_does_not_mint_a_new_operation(self):
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        self.assertEqual(snap_to_grid(jittered, res=RES).id, jittered.id)
+
+    def test_an_op_with_no_polygon_passes_through_unchanged(self):
+        """Volumetric CSG kinds (`box`, `sphere`, ...) have no region geometry to snap."""
+        box = EditOp(kind="box", size=(0.3, 0.3, 0.3))
+        self.assertIs(snap_to_grid(box, res=RES), box)
+
+    def test_from_dict_does_not_snap_stored_state(self):
+        """#3's opt-in decision, from the load path: `EditOp.from_dict` reproduces stored geometry
+        exactly -- jitter and all -- until a caller explicitly calls `snap_to_grid`."""
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        loaded = EditOp.from_dict(json.loads(json.dumps(jittered.to_dict())))
+        np.testing.assert_array_equal(np.asarray(loaded.polygon), np.asarray(jittered.polygon))
+        self.assertFalse(np.allclose(np.asarray(loaded.polygon), np.asarray(self.grid_op.polygon)),
+                         "the fixture's jitter must be large enough to actually move the vertices")
+
+    def test_adding_a_jittered_op_to_a_building_does_not_snap_it(self):
+        """#142's own acceptance criterion: snapping is opt-in, not automatic on authorship."""
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        eb = EditableBuilding(None)
+        eb.add(jittered)
+        np.testing.assert_array_equal(np.asarray(eb.ops[-1].polygon), np.asarray(jittered.polygon))
 
 
 if __name__ == "__main__":

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -556,6 +556,57 @@ def recipe_base_sdf(style: str, params, polygon_xz, height: float, device: str =
     def f(pts: torch.Tensor) -> torch.Tensor:
         return module(p, poly, h, pts)
     return f
+
+
+# ==================================================================================================
+# #142 -- snap new operation geometry to the working grid
+#
+# Reuses `_spacing`/`_to_world` below (the layer-program bridge's own world-coordinate pitch) but is
+# NOT part of that bridge: it runs the opposite direction (a possibly off-grid op -> the grid), and
+# nothing in the bridge calls it -- a recovered program is already exactly on this grid by
+# construction. It sits here, ahead of the bridge, so the bridge's own banner below still describes
+# only what is physically inside it.
+# ==================================================================================================
+
+
+def _snap_scalar(w: float, res: int) -> float:
+    """Round one world coordinate to the nearest HALF-voxel-index grid point -- the same offset a
+    recovered region's own boundary sits on (the bridge's banner below: "Region polygons trace the
+    voxel boundary exactly, at half-voxel offsets"). A `layer`'s `y_lo`/`top` land there too
+    (`_op_for`: `_to_world(idx, res) - half` / `... + half`), so one formula covers both a polygon's
+    XZ vertices and a slab's Y bounds.
+    """
+    s = _spacing(res)
+    half_index = round((w + 1.0) / s - 0.5) + 0.5
+    return _to_world(half_index, res)
+
+
+def snap_to_grid(op: "EditOp", res: int = 64) -> "EditOp":
+    """#142: round `op`'s region geometry -- polygon vertices and slab height bounds -- onto the
+    module's own voxel pitch (`_spacing`/`_to_world`, resolution `res`), so a hand-authored or
+    generated op meets existing geometry at the same clean, grid-aligned edge a recovered one
+    already sits on, instead of an arbitrary sub-voxel jitter.
+
+    Pure: returns a NEW `EditOp` (`dataclasses.replace`) with `polygon`/`size` rounded; `op` itself
+    is untouched, and every other field -- `smooth` included, so the hard-edge default (or an
+    explicit blend) survives exactly -- passes through unchanged.
+
+    Ops with no `polygon` (the volumetric CSG kinds -- `box`, `sphere`, ...) have no region
+    geometry in this sense and are returned unchanged; snapping their `center`/`size` is a
+    different question this ticket does not ask.
+
+    ⚠️ #3's decision, restated: this is an explicit, OPT-IN step for newly authored operations,
+    not a filter every op passes through. Nothing in the recovery/replay path (`_op_for`,
+    `layer_program_to_ops`) calls it -- a recovered program is already exactly on this grid by
+    construction (see `_snap_scalar`), and it is not called from `EditableBuilding.add` or
+    `EditOp.from_dict` either, so previously stored state loads exactly as saved.
+    """
+    if op.polygon is None:
+        return op
+    polygon = [[[_snap_scalar(x, res), _snap_scalar(z, res)] for x, z in ring]
+               for ring in op.polygon]
+    size = tuple(_snap_scalar(v, res) for v in op.size)
+    return replace(op, polygon=polygon, size=size)
 
 
 # ==================================================================================================
