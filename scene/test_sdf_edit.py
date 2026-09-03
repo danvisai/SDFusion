@@ -1180,5 +1180,118 @@ class TestAddValidatesBeforeAppending(unittest.TestCase):
         self.assertEqual(eb.ops, [kept])
 
 
+# ================================================================================================
+# #144 -- prove the edit-locality invariant on a mixed program
+# ================================================================================================
+
+
+class TestEditLocalityInvariant(unittest.TestCase):
+    """#3's actual crux, made checkable rather than left as a stated intention: `composed()` folds
+    operations left to right, so one operation's COMPILED CONTRIBUTION -- the set of voxels its own
+    application toggles, given whatever the ops before it already built -- can only be changed by
+    an operation inserted BEFORE it in the list, never one inserted after, and never anything
+    elsewhere on the building. Removing operation X by id (#141) is the case this ticket pins: it
+    must leave every operation before X untouched, leave every later operation whose region does
+    NOT overlap X's untouched, and it MAY change a later operation whose region does overlap X's --
+    on a program that genuinely mixes add and subtract (#140), where #4's free commutativity no
+    longer covers the whole space.
+
+    Four regions on one footprint, in insertion order:
+      `r_before`   -- BEFORE the removed op: a SUBTRACT that lowers a broad region (containing
+                      `r_removed`) first, so the later ADD has real material to raise back up.
+                      ⚠️ It DELIBERATELY overlaps the removed op's region too, so "unaffected"
+                      here proves the invariant is about POSITION, not about overlap.
+      `r_removed`  -- the op that gets removed by id: an ADD, raising `r_before`'s lowered column
+                      back up within its own (smaller) region. This is the one real add-mode
+                      operation, mixing with the three subtracts around it (#140).
+      `r_disjoint` -- AFTER the removed op, region disjoint from it (though it may sit inside
+                      `r_before`'s broad lowered area -- irrelevant, since `r_before` is present
+                      either way; only overlap with `r_removed` itself can matter here).
+      `r_overlap`  -- AFTER the removed op, region overlapping it (and contained in `r_before`'s
+                      lowered area outside the intersection, so the ONLY thing that differs
+                      with/without `r_removed` is the raised sub-patch this op then cuts back down).
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+        def region(z0, z1, x0, x1):
+            m = np.zeros((RES, RES), bool)
+            m[z0:z1, x0:x1] = True
+            m &= self.fx.fp
+            self.assertTrue(m.any(), "fixture region must actually intersect the footprint")
+            return m
+
+        self.r_before = region(10, 22, 8, 22)
+        self.r_removed = region(12, 18, 10, 18)
+        self.r_disjoint = region(8, 14, 6, 10)
+        self.r_overlap = region(15, 21, 15, 21)
+
+        self.assertTrue((self.r_before & self.r_removed).any(),
+                        "deliberately overlapping, to sharpen the 'before is unaffected' claim")
+        self.assertFalse((self.r_disjoint & self.r_removed).any())
+        self.assertTrue((self.r_overlap & self.r_removed).any())
+
+        def op_for(mask, height):
+            return layer_program_to_ops([self.fx.layer(mask, height)], self.fx.fp, self.fx.y0,
+                                        self.fx.y1, res=RES)[0]
+
+        op_before = op_for(self.r_before, 5)                          # SUBTRACT: lower it first
+        op_removed = replace(op_for(self.r_removed, 15), mode="add")  # ADD: raise it back, partly
+        op_disjoint = op_for(self.r_disjoint, 10)
+        op_overlap = op_for(self.r_overlap, 8)
+
+        self.ops = [op_before, op_removed, op_disjoint, op_overlap]
+        self.removed_id = op_removed.id
+
+    def _contribution(self, ops, index):
+        """The voxels operation `ops[index]`'s own application toggles: the occupancy delta
+        between compiling everything through it and everything up to (not including) it."""
+        up_to = EditableBuilding(self.base, ops[:index + 1]).to_occupancy(res=RES)
+        before = EditableBuilding(self.base, ops[:index]).to_occupancy(res=RES)
+        return up_to ^ before
+
+    def _after_removal(self):
+        eb = EditableBuilding(self.base, list(self.ops))
+        removed = eb.remove_by_id(self.removed_id)
+        self.assertEqual(removed.id, self.removed_id)
+        return eb.ops                      # [op_before, op_disjoint, op_overlap]
+
+    def test_the_fixture_actually_mixes_modes_with_an_overlapping_pair(self):
+        """Sanity check against the ticket's own precondition, not the invariant itself."""
+        self.assertEqual({op.mode for op in self.ops}, {"add", "subtract"})
+        self.assertFalse(commutes(self.ops))
+
+    def test_every_operation_before_the_removed_one_is_unaffected(self):
+        after_ops = self._after_removal()
+        before = self._contribution(self.ops, 0)          # op_before, index 0 in both lists
+        after = self._contribution(after_ops, 0)
+        np.testing.assert_array_equal(before, after)
+
+    def test_a_non_overlapping_later_operation_is_unaffected(self):
+        after_ops = self._after_removal()
+        before = self._contribution(self.ops, 2)          # op_disjoint: index 2, then 1
+        after = self._contribution(after_ops, 1)
+        np.testing.assert_array_equal(before, after)
+
+    def test_an_overlapping_later_operation_does_change(self):
+        after_ops = self._after_removal()
+        before = self._contribution(self.ops, 3)          # op_overlap: index 3, then 2
+        after = self._contribution(after_ops, 2)
+        self.assertFalse(np.array_equal(before, after),
+                         "an overlapping later op's contribution must be free to change")
+
+    def test_deterministic_and_repeatable_across_runs(self):
+        def run():
+            after_ops = self._after_removal()
+            return ([self._contribution(self.ops, i) for i in range(len(self.ops))]
+                    + [self._contribution(after_ops, i) for i in range(len(after_ops))])
+        first, second = run(), run()
+        self.assertEqual(len(first), len(second))
+        for a, b in zip(first, second):
+            np.testing.assert_array_equal(a, b)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
