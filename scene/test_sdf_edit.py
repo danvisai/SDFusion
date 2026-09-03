@@ -15,6 +15,7 @@ import itertools
 import json
 import sys
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -575,7 +576,14 @@ class TestOntology(unittest.TestCase):
             spec = ALGEBRA[kind]
             self.assertEqual(spec.tier, CORE)
             self.assertTrue(spec.height_map, f"{kind} must be height-map representable")
-            self.assertTrue(spec.subtractive_only, "#10 measured missing=0 on 714/714")
+
+    def test_layer_and_ramp_are_bidirectional_but_cut_roof_stays_subtract_only(self):
+        """#140: `layer`/`ramp` gain a real additive mode; `cut_roof`'s additive mirror already
+        exists as the volumetric tier's `gable`/`hip`, so it keeps the subtract-only rule #10
+        measured (`missing` = 0 on 714/714 -- real massing is only ever cut from its envelope)."""
+        self.assertFalse(ALGEBRA["layer"].subtractive_only)
+        self.assertFalse(ALGEBRA["ramp"].subtractive_only)
+        self.assertTrue(ALGEBRA["cut_roof"].subtractive_only, "#10 measured missing=0 on 714/714")
 
     def test_the_csg_primitives_are_volumetric_and_not_height_map_representable(self):
         for kind in ("box", "sphere", "cylinder", "cone"):
@@ -636,10 +644,29 @@ class TestOpValidity(unittest.TestCase):
         probs = op_problems(EditOp(kind="buttress"))
         self.assertTrue(any("buttress" in p for p in probs))
 
-    def test_a_core_operation_may_not_be_additive(self):
-        """The core is subtract-only by measurement, so an additive `layer` is a spec violation and
-        not merely unusual -- it would also break commutativity, which everything below relies on."""
-        self.assertTrue(any("subtract" in p for p in op_problems(self._layer(mode="add"))))
+    def test_layer_now_accepts_additive_mode(self):
+        """#140: raising a column is validated exactly like lowering one."""
+        self.assertEqual(op_problems(self._layer(mode="add")), [])
+
+    def test_ramp_now_accepts_additive_mode(self):
+        r = dict(kind="ramp", mode="add", size=(-0.5, 0.5),
+                 polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]],
+                 planes=[[[0.0, 1.0, 0.0, 0.0]]])
+        self.assertEqual(op_problems(EditOp(**r)), [])
+
+    def test_cut_roof_may_not_be_additive(self):
+        """#140 keeps `cut_roof` subtract-only -- its additive mirror is the volumetric tier's
+        `gable`/`hip`, unlike `layer`/`ramp`, which #140 makes bidirectional above."""
+        roof = dict(kind="cut_roof", mode="add", size=(-0.5, 0.5),
+                    polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]],
+                    roof=[0.5, 0.1])
+        self.assertTrue(any("subtract" in p for p in op_problems(EditOp(**roof))))
+
+    def test_a_volumetric_kind_is_unaffected_by_140(self):
+        """`box` was never subtract-only and stays that way -- pins that the kind table's other
+        entries did not move when `layer`/`ramp` flipped."""
+        self.assertFalse(ALGEBRA["box"].subtractive_only)
+        self.assertEqual(op_problems(EditOp(kind="box", mode="add", size=(1.0, 1.0, 1.0))), [])
 
     def test_mode_must_be_add_or_subtract(self):
         self.assertTrue(any("mode" in p for p in op_problems(self._layer(mode="sideways"))))
@@ -792,6 +819,130 @@ class TestHeightMapRepresentable(unittest.TestCase):
 
     def test_the_empty_program_is(self):
         self.assertTrue(is_height_map_representable([]))
+
+
+# ================================================================================================
+# #140 -- layer and ramp become bidirectional
+# ================================================================================================
+
+
+class TestBidirectionalCore(unittest.TestCase):
+    """#140: `layer`/`ramp` gain a real, learnable `mode="add"` mirroring the lower-only
+    `mode="subtract"` they already had. `cut_roof` and the volumetric tier are unaffected --
+    `layer_program_to_ops` still hard-codes `mode="subtract"`, so this exercises a hand-built
+    additive op, the only way one can exist today (#5 owns the training signal for it).
+
+    Mixing add and subtract on overlapping regions reopens exactly the ordering #4 proved away for
+    an all-subtractive program (`union` does not commute with `subtract`) -- #3's grilling decision,
+    made knowingly. `commutes`/`canonical_form` needed no code change for this (they already key off
+    `op.mode`, not `op.kind`); what follows pins that against a REAL additive `layer`/`ramp`, not
+    only the synthetic `box` used elsewhere in this file.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+        m = np.zeros((RES, RES), bool)
+        m[14:24, 6:26] = True
+        m &= self.fx.fp
+        self.region = m
+        program = [self.fx.layer(m.copy(), 9)]
+        self.sub_op = layer_program_to_ops(program, self.fx.fp, self.fx.y0, self.fx.y1, res=RES)[0]
+        self.add_op = replace(self.sub_op, mode="add")
+
+    def _heights(self, ops):
+        return EditableBuilding(self.base, ops).to_occupancy(res=RES).sum(axis=1)   # [z, x]
+
+    def test_add_and_subtract_both_pass_validation_on_layer(self):
+        self.assertEqual(op_problems(self.sub_op), [])
+        self.assertEqual(op_problems(self.add_op), [])
+
+    def test_add_then_subtract_differs_from_subtract_then_add(self):
+        """🔑 The trade #3 made knowingly, made concrete: subtract-then-add REFILLS the region
+        (add is the last word), add-then-subtract CUTS it (subtract is the last word) -- the
+        mirror-image outcome of insertion order, not an arbitrary difference."""
+        sub_then_add = self._heights([self.sub_op, self.add_op])
+        add_then_sub = self._heights([self.add_op, self.sub_op])
+        self.assertFalse(np.array_equal(sub_then_add[self.region], add_then_sub[self.region]))
+        self.assertTrue(np.all(sub_then_add[self.region] > add_then_sub[self.region]))
+        full = self.fx.y1 - self.fx.y0 + 1
+        np.testing.assert_array_equal(sub_then_add[self.region], full)
+
+    def test_replay_is_deterministic_and_stable_across_repeated_calls(self):
+        ops = [self.sub_op, self.add_op]
+        first = self._heights(ops)
+        second = self._heights(ops)
+        third = self._heights(list(ops))          # a fresh list, same ops in the same order
+        np.testing.assert_array_equal(first, second)
+        np.testing.assert_array_equal(first, third)
+
+    def test_non_overlapping_add_and_subtract_still_compose_order_free(self):
+        """#3's locality invariant: two ops whose regions do not overlap compose identically
+        regardless of order -- free, inherited from #4, unchanged by mixing modes."""
+        other = np.zeros((RES, RES), bool)
+        other[8:14, 6:14] = True
+        other &= self.fx.fp
+        self.assertFalse((other & self.region).any(), "fixture must be disjoint from self.region")
+        other_program = [self.fx.layer(other.copy(), 12)]
+        other_sub = layer_program_to_ops(other_program, self.fx.fp, self.fx.y0, self.fx.y1,
+                                         res=RES)[0]
+        other_add = replace(other_sub, mode="add")
+        forward = self._heights([self.sub_op, other_add])
+        backward = self._heights([other_add, self.sub_op])
+        np.testing.assert_array_equal(forward, backward)
+
+    def test_a_program_with_a_real_additive_layer_does_not_commute(self):
+        self.assertFalse(commutes([self.sub_op, self.add_op]))
+
+    def test_commutes_stays_conservative_on_an_all_additive_program(self):
+        """`commutes` checks `op.mode == "subtract"` for every op -- #140's own acceptance
+        criterion pins that reading unchanged ('false for any program containing an additive
+        operation'), even though a pure union is mathematically order-free too. #3's write-up
+        notes that case only in passing ('incidentally'); it is not a claim this predicate makes,
+        and this test is here so nobody 'fixes' it into a silent behaviour change."""
+        other = np.zeros((RES, RES), bool)
+        other[8:14, 6:14] = True
+        other &= self.fx.fp
+        other_program = [self.fx.layer(other.copy(), 12)]
+        other_add = replace(
+            layer_program_to_ops(other_program, self.fx.fp, self.fx.y0, self.fx.y1, res=RES)[0],
+            mode="add")
+        self.assertFalse(commutes([self.add_op, other_add]))
+
+    def test_canonical_form_refuses_a_program_with_a_real_additive_ramp(self):
+        r = EditOp(kind="ramp", mode="add", size=self.sub_op.size, polygon=self.sub_op.polygon,
+                   planes=[[[0.0, 1.0, 0.0, 0.0]]])
+        with self.assertRaises(ValueError):
+            canonical_form([self.sub_op, r])
+
+
+class TestRecoveredProgramsStillCommute(unittest.TestCase):
+    """#140's regression clause: real recovered programs must still report as commuting now that
+    the kind table stops forbidding `add` on `layer`/`ramp`.
+
+    #10's fitter never emits an additive op -- `_op_for` hard-codes `mode="subtract"` for every
+    recovered kind, untouched by this ticket -- so this is a property of the DATA that this pins
+    against the artifact rather than trusting it stays true as the kind table changes underneath.
+    """
+
+    ARTIFACT = REPO / "execution/artifacts/program_recovery_714.json"
+
+    def test_every_recovered_program_still_commutes(self):
+        data = json.loads(self.ARTIFACT.read_text())
+        rows = data["per_building"]
+        res = 64
+        # only a CutRoof entry with no region of its own falls back to this mask (11/714 rows);
+        # every op's MODE -- what `commutes` checks -- is "subtract" regardless of footprint shape.
+        fp = np.ones((res, res), bool)
+        tested = 0
+        for building_id, row in rows.items():
+            program = row.get("program") or []
+            if not program:
+                continue
+            ops = layer_program_to_ops(program, fp, 0, res - 1, res=res)
+            self.assertTrue(commutes(ops), f"building {building_id} no longer commutes")
+            tested += 1
+        self.assertGreater(tested, 400, "the artifact should carry real recovered programs")
 
 
 if __name__ == "__main__":

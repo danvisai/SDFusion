@@ -59,7 +59,8 @@ from scene.sdf_primitives import (
 # good the generator is. `height_map` records that, and `learnable_here` is its consequence.
 # ================================================================================================
 
-CORE = "core"                 # 2.5-D, subtract-only; BOTH compilers run it; learnable from this corpus
+CORE = "core"                 # 2.5-D; `layer`/`ramp` bidirectional (#140), `cut_roof` subtract-only;
+                               # BOTH compilers run it; learnable from this corpus
 VOLUMETRIC = "volumetric"     # only the SDF compiler runs it; zero training signal on this corpus
 
 
@@ -78,15 +79,21 @@ _PRISM = ("polygon", "size")
 
 ALGEBRA = {
     # -- the core: what #10 recovered and #6 generates -------------------------------------------
-    "layer": OpSpec(CORE, True, True, _PRISM,
-                    note="one connected region flattened to one height. ArcPro's CreateLayer, and "
-                         "the operation a SETBACK and a TERRACE both resolve to"),
-    "ramp": OpSpec(CORE, True, True, _PRISM + ("planes",), plane_clauses=1,
-                   note="the tightest PLANE above the target over one region -- the shed roof "
-                        "CutRoof cannot express, at arbitrary rotation"),
+    # 🔑 #140: `layer` and `ramp` are bidirectional -- `mode="add"` raises a column exactly as
+    # `mode="subtract"` already lowers one, validated and composed the same way. `cut_roof` stays
+    # subtract-only; see its own note below.
+    "layer": OpSpec(CORE, False, True, _PRISM,
+                    note="one connected region flattened to one height, lowered (subtract) or "
+                         "raised (add, #140). ArcPro's CreateLayer, and the operation a SETBACK "
+                         "and a TERRACE both resolve to"),
+    "ramp": OpSpec(CORE, False, True, _PRISM + ("planes",), plane_clauses=1,
+                   note="the tightest PLANE above the target (subtract) or up to it (add, #140) "
+                        "over one region -- the shed roof CutRoof cannot express, at arbitrary "
+                        "rotation"),
     "cut_roof": OpSpec(CORE, True, True, _PRISM,
                        note="height falls off with distance from the region's edge: hip erodes on "
-                            "all sides, gable on one axis"),
+                            "all sides, gable on one axis. Stays subtract-only (#140) -- its "
+                            "additive mirror already exists as the volumetric tier's gable/hip"),
     # -- volumetric: compilable, never learnable from THIS corpus --------------------------------
     "box": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG; how a courtyard or light well is cut"),
     "rounded_box": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG"),
@@ -205,6 +212,10 @@ def commutes(ops: Sequence["EditOp"]) -> bool:
 
     ⚠️ This is what makes DELETION, EQUIVALENCE and a CANONICAL FORM well defined at all -- an
     ordered algebra has no normal form that is not just "the order you happened to write".
+
+    ⚠️ #140 gives `layer`/`ramp` a real, learnable `mode="add"`, which reopens exactly this: a
+    program mixing add and subtract is ordered, and this predicate already says so -- it checks
+    every op's `mode`, not its `kind`, so no change was needed here to cover the new additive ops.
     """
     return all(op.mode == "subtract" for op in ops)
 
