@@ -321,9 +321,20 @@ class TestEditOpRoundTrip(unittest.TestCase):
         self.assertEqual(len(back.planes), 2)
         self.assertEqual(len(back.planes[0]), 2, "a clause is intersected, clauses are unioned")
 
-    def test_unknown_kind_is_refused(self):
+    def test_unknown_kind_is_refused_by_add(self):
+        """#143: `.add()` validates before appending, so this is refused right there -- it never
+        reaches the stack in the first place."""
         eb = EditableBuilding(footprint_envelope_sdf(np.ones((4, 4), bool), 0, 1, res=4))
-        eb.add(EditOp(kind="zigzag"))
+        with self.assertRaises(ValueError):
+            eb.add(EditOp(kind="zigzag"))
+        self.assertEqual(eb.ops, [], "a refused add must not touch the stack")
+
+    def test_unknown_kind_is_also_refused_by_composed(self):
+        """`composed()`'s own defense in depth: a building assembled directly from a malformed op
+        list (bypassing `.add()`, e.g. by loading old state) still fails loudly rather than
+        compiling garbage."""
+        eb = EditableBuilding(footprint_envelope_sdf(np.ones((4, 4), bool), 0, 1, res=4),
+                              [EditOp(kind="zigzag")])
         with self.assertRaises(ValueError):
             eb.composed()
 
@@ -1110,6 +1121,63 @@ class TestSnapToGrid(unittest.TestCase):
         eb = EditableBuilding(None)
         eb.add(jittered)
         np.testing.assert_array_equal(np.asarray(eb.ops[-1].polygon), np.asarray(jittered.polygon))
+
+
+# ================================================================================================
+# #143 -- refuse to commit an invalid operation to a building
+# ================================================================================================
+
+
+class TestAddValidatesBeforeAppending(unittest.TestCase):
+    """#143: `EditableBuilding.add` runs the candidate through `op_problems` -- the same
+    per-operation predicate `program_problems`/`canonical_form` already use -- BEFORE touching the
+    stack, so a malformed op can never silently enter a building's state.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_a_well_formed_operation_is_appended_exactly_as_before(self):
+        op = EditOp(kind="box", mode="subtract", size=(0.1, 0.1, 0.1))
+        eb = EditableBuilding(self.base)
+        result = eb.add(op)
+        self.assertIs(result, eb, "add still returns self for chaining")
+        self.assertEqual(eb.ops, [op])
+
+    def test_a_missing_required_field_is_refused_with_a_clear_message(self):
+        eb = EditableBuilding(self.base)
+        with self.assertRaises(ValueError) as ctx:
+            eb.add(EditOp(kind="layer", mode="subtract"))          # no polygon
+        self.assertIn("polygon", str(ctx.exception))
+        self.assertEqual(eb.ops, [])
+
+    def test_the_wrong_mode_for_a_kind_is_refused_with_a_clear_message(self):
+        """#140's cut_roof-stays-subtract-only rule is exactly the case the ticket says this
+        closes automatically, with no further work needed."""
+        eb = EditableBuilding(self.base)
+        roof = EditOp(kind="cut_roof", mode="add", size=(-0.5, 0.5),
+                      polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]],
+                      roof=[0.5, 0.1])
+        with self.assertRaises(ValueError) as ctx:
+            eb.add(roof)
+        self.assertIn("subtract", str(ctx.exception))
+
+    def test_an_invalid_mode_string_is_refused_with_a_clear_message(self):
+        eb = EditableBuilding(self.base)
+        with self.assertRaises(ValueError) as ctx:
+            eb.add(EditOp(kind="box", mode="sideways"))
+        self.assertIn("mode", str(ctx.exception))
+
+    def test_a_rejected_append_leaves_the_stack_byte_for_byte_unchanged(self):
+        kept = EditOp(kind="box", mode="subtract", size=(0.2, 0.2, 0.2))
+        eb = EditableBuilding(self.base, [kept])
+        before = json.dumps([op.to_dict() for op in eb.ops], sort_keys=True)
+        with self.assertRaises(ValueError):
+            eb.add(EditOp(kind="layer", mode="subtract"))
+        after = json.dumps([op.to_dict() for op in eb.ops], sort_keys=True)
+        self.assertEqual(before, after)
+        self.assertEqual(eb.ops, [kept])
 
 
 if __name__ == "__main__":

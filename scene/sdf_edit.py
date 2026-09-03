@@ -457,6 +457,18 @@ class EditableBuilding:
 
     # -- edit stack --------------------------------------------------------
     def add(self, op: EditOp) -> "EditableBuilding":
+        """Append `op`, or refuse it. #143: a candidate is checked against `op_problems` -- the
+        same per-operation predicate `program_problems`/`canonical_form` already run -- BEFORE the
+        stack is touched, so a malformed op (missing a required field, wrong mode for its kind,
+        ...) can never silently enter a building's state.
+
+        ⚠️ REFUSED, not appended-then-rolled-back: the stack is left byte-for-byte as it was on a
+        refusal. #140 already made `op_problems` cover the new `add`-mode cases, so this needed no
+        change there to close the gap for them too.
+        """
+        problems = op_problems(op)
+        if problems:
+            raise ValueError("; ".join(problems))
         self.ops.append(op)
         return self
 
