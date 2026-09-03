@@ -22,8 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scene.sdf_edit import mask_to_rings  # noqa: E402
 from scripts.foundations import recover_massing_programs  # noqa: E402
 from scripts.foundations.recover_massing_programs import (  # noqa: E402
-    FitBias, _dists_for, _family_bonus, _rings_to_mask, _select, _within_type_bonus, fit_program,
-    fit_program_beam, program_floor, replay_program, simplify_region,
+    BIAS_WEIGHT, FitBias, _dists_for, _family_bonus, _rings_to_mask, _select,
+    _within_type_bonus, fit_program, fit_program_beam, program_floor, replay_program,
+    simplify_region,
 )
 
 RES = 32
@@ -313,15 +314,20 @@ class TestWithinTypeBonus(unittest.TestCase):
         meta = dict(op="Ramp", slope=[0.0, 0.0], _region=self.region_edge)
         self.assertEqual(_within_type_bonus(meta, FitBias(setback=1), self.dists), 0.0)
 
-    def test_azimuth_reads_the_ramps_own_fall_line(self):
-        meta_east = dict(op="Ramp", slope=[1.0, 0.0])
-        meta_north = dict(op="Ramp", slope=[0.0, 1.0])
-        self.assertEqual(_within_type_bonus(meta_east, FitBias(azimuth=0.0), self.dists), 1.0)
-        self.assertEqual(_within_type_bonus(meta_east, FitBias(azimuth=90.0), self.dists), 0.0)
-        self.assertEqual(_within_type_bonus(meta_north, FitBias(azimuth=90.0), self.dists), 1.0)
+    def test_azimuth_reads_the_ramp_in_129s_own_convention(self):
+        """🔑 `slope` is `[x_coeff, z_coeff]` and #129's `plane_to_bins` reads `arctan2(Cx, Bz)`
+        -- x first, z second. The arguments were swapped until review caught it, which mirrored
+        every angle about 45 degrees while still matching *some* ramp, so nothing failed loudly.
+        These fixtures are the convention, written down."""
+        meta_0 = dict(op="Ramp", slope=[0.0, 1.0])          # atan2(0, 1) -> 0 degrees
+        meta_90 = dict(op="Ramp", slope=[1.0, 0.0])         # atan2(1, 0) -> 90 degrees
+        self.assertEqual(_within_type_bonus(meta_0, FitBias(azimuth=0.0), self.dists), 1.0)
+        self.assertEqual(_within_type_bonus(meta_0, FitBias(azimuth=90.0), self.dists), 0.0)
+        self.assertEqual(_within_type_bonus(meta_90, FitBias(azimuth=90.0), self.dists), 1.0)
+        self.assertEqual(_within_type_bonus(meta_90, FitBias(azimuth=0.0), self.dists), 0.0)
 
     def test_azimuth_wraps_across_zero_degrees(self):
-        meta = dict(op="Ramp", slope=[1.0, -0.05])          # just under 0 degrees
+        meta = dict(op="Ramp", slope=[-0.05, 1.0])          # just under 0 degrees
         self.assertEqual(_within_type_bonus(meta, FitBias(azimuth=0.0), self.dists), 1.0)
 
     def test_azimuth_never_applies_to_a_layer(self):
@@ -350,7 +356,7 @@ class TestSelectIsIndependentAcrossAxes(unittest.TestCase):
         # gains 100 / 99 / 98: each pair is within BIAS_WEIGHT (0.15) of the others
         self.layer = (99, None, dict(op="Layer", height=5, _region=region))
         self.cut = (100, None, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0))
-        self.ramp = (98, None, dict(op="Ramp", slope=[1.0, 0.0]))
+        self.ramp = (98, None, dict(op="Ramp", slope=[0.0, 1.0]))     # azimuth 0 (see #129)
         self.candidates = [self.layer, self.cut, self.ramp]
 
     def test_no_bias_picks_the_highest_raw_gain(self):
@@ -372,12 +378,89 @@ class TestSelectIsIndependentAcrossAxes(unittest.TestCase):
         """Setting both: `azimuth` can still decide WHICH Ramp wins if Ramp wins at all, and
         `roof_family` can still decide that Ramp wins over Layer/CutRoof -- independently."""
         two_ramps = [self.layer, self.cut,
-                    (98, None, dict(op="Ramp", slope=[1.0, 0.0])),    # azimuth 0, matches target
-                    (98, None, dict(op="Ramp", slope=[0.0, 1.0]))]    # azimuth 90, does not match
+                    (98, None, dict(op="Ramp", slope=[0.0, 1.0])),    # azimuth 0, matches target
+                    (98, None, dict(op="Ramp", slope=[1.0, 0.0]))]    # azimuth 90, does not match
         bias = FitBias(roof_family="ramp", azimuth=0.0)
         picked = _select(two_ramps, bias, self.dists, 1)[0]
         self.assertEqual(picked[2]["op"], "Ramp")
-        self.assertEqual(picked[2]["slope"], [1.0, 0.0])
+        self.assertEqual(picked[2]["slope"], [0.0, 1.0])
+
+
+class TestSelectAtBeamWidths(unittest.TestCase):
+    """⚠️ The gap that shipped a regression: every independence test above uses `n = 1`, and the
+    beam path calls `_select` with `n = branch`. An earlier two-stage design keyed every entrant
+    of a type on that type's own best raw gain, so `nlargest` drained one type's whole list
+    before reaching the next -- a bias matching NOTHING silently replaced two `CutRoof` branches
+    with two far worse `Layer` ones. These pin `n > 1` directly."""
+
+    def setUp(self):
+        self.dists = _dists_for(np.ones((4, 4), bool))
+        region = np.ones((4, 4), bool)
+        # one type holds the top gain and a long tail of bad ones; another holds the middle
+        self.candidates = [
+            (100, None, dict(op="Layer", height=5, _region=region)),
+            (10, None, dict(op="Layer", height=5, _region=region)),
+            (9, None, dict(op="Layer", height=5, _region=region)),
+            (99, None, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0)),
+            (98, None, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0)),
+            (97, None, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0)),
+        ]
+
+    def _gains_and_types(self, picked):
+        return sorted((t[0], t[2]["op"]) for t in picked)
+
+    def test_a_within_type_axis_alone_never_changes_the_types_returned(self):
+        unbiased = self._gains_and_types(_select(self.candidates, None, self.dists, 3))
+        for bias in (FitBias(height_rhythm=5), FitBias(setback=1), FitBias(azimuth=0.0)):
+            got = self._gains_and_types(_select(self.candidates, bias, self.dists, 3))
+            self.assertEqual(got, unbiased, f"{bias} moved a type at n=3")
+
+    def test_a_bias_matching_nothing_is_the_identity_at_every_width(self):
+        for n in (1, 2, 3, 4, 6):
+            unbiased = self._gains_and_types(_select(self.candidates, None, self.dists, n))
+            for bias in (FitBias(height_rhythm=10 ** 6), FitBias(setback=10 ** 6),
+                        FitBias(azimuth=0.0)):
+                got = self._gains_and_types(_select(self.candidates, bias, self.dists, n))
+                self.assertEqual(got, unbiased, f"{bias} perturbed an unmatched fit at n={n}")
+
+    def test_it_never_returns_more_or_fewer_than_the_unbiased_call(self):
+        for n in (1, 2, 3, 4, 6, 10):
+            want = len(_select(self.candidates, None, self.dists, n))
+            for bias in (FitBias(roof_family="flat"), FitBias(height_rhythm=5),
+                        FitBias(roof_family="cut_roof", azimuth=0.0)):
+                self.assertEqual(len(_select(self.candidates, bias, self.dists, n)), want,
+                                 f"{bias} changed the candidate count at n={n}")
+
+    def test_it_never_returns_the_same_candidate_twice(self):
+        for n in (2, 3, 6):
+            for bias in (FitBias(roof_family="flat"), FitBias(height_rhythm=5),
+                        FitBias(setback=1), FitBias(azimuth=0.0)):
+                picked = _select(self.candidates, bias, self.dists, n)
+                self.assertEqual(len({id(t) for t in picked}), len(picked),
+                                 f"{bias} returned a duplicate at n={n}")
+
+    def test_roof_family_still_shifts_which_type_holds_the_positions(self):
+        """The axis that IS allowed to move types must still do so at n > 1.
+
+        ⚠️ Needs its own fixture: on `setUp`'s, `Layer`'s tail (10, 9) is so far below the
+        `CutRoof`s (99, 98) that a soft 15% bonus rightly cannot lift it, and a test asserting
+        otherwise would be demanding back the very drain this class exists to forbid. Here the
+        one `Layer` sits close enough that the bonus genuinely crosses it over.
+        """
+        region = np.ones((4, 4), bool)
+        candidates = [
+            (90, None, dict(op="Layer", height=5, _region=region)),
+            (100, None, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0)),
+            (99, None, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0)),
+            (98, None, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0)),
+        ]
+        unbiased = _select(candidates, None, self.dists, 3)
+        self.assertEqual(sum(1 for t in unbiased if t[2]["op"] == "Layer"), 0,
+                         "fixture is wrong: raw gain should exclude the Layer entirely")
+
+        picked = _select(candidates, FitBias(roof_family="flat"), self.dists, 3)
+        self.assertEqual(sum(1 for t in picked if t[2]["op"] == "Layer"), 1,
+                         "a flat bias should pull the close Layer into the branch set")
 
 
 def _tiny_footprint_fixture():
@@ -391,11 +474,15 @@ def _tiny_footprint_fixture():
     return fp, y0, y1, full, target
 
 
-def _close_tie_fake_candidates(fp, target, full, close_gap):
+def _close_tie_fake_candidates(fp, target, full, close_gap, expect="close"):
     """One `CutRoof` candidate that fully solves the target (gain = every surplus voxel) and one
     `Layer` candidate exactly `close_gap` voxels short of that -- so the two candidates' raw-gain
     gap is a known, exact number, and a bias test can assert on which side of `BIAS_WEIGHT` it
     falls without depending on real geometry finding a tie by chance.
+
+    `expect` asserts the fixture really is what the caller thinks: "close" means a full-match
+    bonus could flip it, "wide" means nothing soft ever could. Checked here rather than restated
+    at each call site, because it is this function's own gap arithmetic that decides it.
     """
     h_cut = target.copy()
     h_layer = target.copy()
@@ -404,6 +491,12 @@ def _close_tie_fake_candidates(fp, target, full, close_gap):
         h_layer[z, x] = target[z, x] + 1
     gain_cut = int((full - h_cut[fp]).sum())
     gain_layer = int((full - h_layer[fp]).sum())
+
+    gap, headroom = gain_cut - gain_layer, gain_layer * BIAS_WEIGHT
+    if expect == "close":
+        assert gap < headroom, f"fixture is not a close tie: gap {gap} >= headroom {headroom}"
+    elif expect == "wide":
+        assert gap > headroom, f"fixture is not a wide gap: gap {gap} <= headroom {headroom}"
 
     def fake(fp_, dists, target_, h_, ops_allowed=None):
         yield gain_cut, h_cut, dict(op="CutRoof", kind="hip", eaves=5, rate=1.0)
@@ -428,18 +521,14 @@ class TestFitProgramGreedyBiasThreading(unittest.TestCase):
         self.assertEqual(ops[0]["op"], "CutRoof")
 
     def test_a_close_bias_flips_the_choice(self):
-        fake, gain_cut, gain_layer = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
-        self.assertLess(gain_cut - gain_layer, gain_layer * recover_massing_programs.BIAS_WEIGHT,
-                        "fixture is not actually a close tie")
+        fake, *_ = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
         bias = FitBias(roof_family="flat")                  # "flat" is Layer's family
         with patch.object(recover_massing_programs, "_all_candidates", fake):
             ops, _ = fit_program(self.fp, self.y0, self.y1, self.target, max_ops=1, bias=bias)
         self.assertEqual(ops[0]["op"], "Layer")
 
     def test_a_wide_gap_is_never_overridden(self):
-        fake, gain_cut, gain_layer = _close_tie_fake_candidates(self.fp, self.target, self.full, 16)
-        self.assertGreater(gain_cut - gain_layer, gain_layer * recover_massing_programs.BIAS_WEIGHT,
-                           "fixture is not actually a wide gap")
+        fake, *_ = _close_tie_fake_candidates(self.fp, self.target, self.full, 16, expect="wide")
         bias = FitBias(roof_family="flat")
         with patch.object(recover_massing_programs, "_all_candidates", fake):
             ops, _ = fit_program(self.fp, self.y0, self.y1, self.target, max_ops=1, bias=bias)
@@ -462,7 +551,7 @@ class TestFitProgramGreedyBiasThreading(unittest.TestCase):
         """#149 acceptance criterion 3, restated for the case with no near-tie at all: a `Ramp`
         bias on a stream with no `Ramp` candidate at all contributes zero to every candidate, so
         the outcome is identical to not biasing."""
-        fake, gain_cut, gain_layer = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
+        fake, *_ = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
         bias = FitBias(roof_family="ramp")                   # neither candidate is a Ramp
         with patch.object(recover_massing_programs, "_all_candidates", fake):
             ops, _ = fit_program(self.fp, self.y0, self.y1, self.target, max_ops=1, bias=bias)
@@ -474,9 +563,7 @@ class TestFitProgramGreedyBiasThreading(unittest.TestCase):
         compete against -- an unrequested implicit `roof_family="flat"` preference. `_select`'s
         two-stage ranking must keep the type decision on raw gain alone when `roof_family` itself
         is unset, whatever `height_rhythm` matches."""
-        fake, gain_cut, gain_layer = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
-        self.assertLess(gain_cut - gain_layer, gain_layer * recover_massing_programs.BIAS_WEIGHT,
-                        "fixture is not actually a close tie")
+        fake, *_ = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
         bias = FitBias(height_rhythm=5)                      # matches the Layer candidate exactly
         with patch.object(recover_massing_programs, "_all_candidates", fake):
             ops, _ = fit_program(self.fp, self.y0, self.y1, self.target, max_ops=1, bias=bias)
@@ -484,7 +571,7 @@ class TestFitProgramGreedyBiasThreading(unittest.TestCase):
                          "height_rhythm alone must never decide Layer vs CutRoof")
 
     def test_setback_alone_never_flips_the_type_choice(self):
-        fake, gain_cut, gain_layer = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
+        fake, *_ = _close_tie_fake_candidates(self.fp, self.target, self.full, 1)
         depth = int(_dists_for(self.fp)["hip"][self.fp].min())
         bias = FitBias(setback=depth)                        # matches the Layer candidate's region
         with patch.object(recover_massing_programs, "_all_candidates", fake):
@@ -558,14 +645,14 @@ class TestFitProgramBiasRealGeometry(unittest.TestCase):
                     FitBias(roof_family="cut_roof"), FitBias(height_rhythm=3),
                     FitBias(setback=2), FitBias(azimuth=45.0),
                     FitBias(roof_family="ramp", azimuth=999.0)):
-            ops, h = fit_program(self.fp, self.y0, self.y1, self.target, max_ops=4, bias=bias)
+            _, h = fit_program(self.fp, self.y0, self.y1, self.target, max_ops=4, bias=bias)
             self.assertTrue((h[self.fp] >= self.target[self.fp]).all(), bias)
 
     def test_every_bias_combination_keeps_containment_under_beam(self):
         for bias in (None, FitBias(roof_family="ramp"), FitBias(roof_family="flat"),
                     FitBias(height_rhythm=3), FitBias(setback=2), FitBias(azimuth=45.0)):
-            ops, h = fit_program_beam(self.fp, self.y0, self.y1, self.target, max_ops=4,
-                                      beam=4, branch=4, bias=bias)
+            _, h = fit_program_beam(self.fp, self.y0, self.y1, self.target, max_ops=4,
+                                    beam=4, branch=4, bias=bias)
             self.assertTrue((h[self.fp] >= self.target[self.fp]).all(), bias)
 
 

@@ -283,19 +283,32 @@ def _dists_for(fp):
 # candidate that removes dramatically less surplus, so a program's real quality (`missing`/`extra`/
 # collapse) cannot regress beyond noise -- #149's second acceptance criterion.
 #
-# Measured on 60 real held-out buildings (`ids_from`'s first 60), greedy `fit_program`, a
-# `FitBias(roof_family="ramp")` against no bias at all: Ramp's share of chosen ops rose 0.541 ->
-# 0.647 while mean `extra` moved 0.006981 -> 0.006990 -- a real, measurable shift in family
-# (#149 acceptance criterion 2) with the residual unchanged within noise (criterion 2's other
-# half). Re-runnable: the two `fit_program(..., bias=...)` calls in this docstring's own
-# neighbourhood, `execution/artifacts/massing_arms_eval_ship714.json`'s first 60 ids against
-# `data/real_massing_v1/real.h5`.
+# Measured against no bias at all, `FitBias(roof_family="ramp")`, on the first ids of
+# `SHIP714` read from `H5`: Ramp's share of chosen ops rose 0.541 -> 0.647 under `fit_program`
+# (n=60) and 0.508 -> 0.610 under `fit_program_beam` at beam=branch=4 (n=40), while mean `extra`
+# moved 0.006981 -> 0.006990 on the first and did not move at all on the second -- a measurable
+# shift in family (#149 acceptance criterion 2) at no cost in residual (its other half).
+# ⚠️ Measured ad hoc, from a throwaway script, and NOT reproduced by anything committed: no CLI
+# flag reaches `bias` (that is #150/#151's job) and this file's tests are corpus-free by
+# convention. Re-deriving it means writing that loop again, not re-running a recorded command --
+# unlike `--measure_commutativity`, which is a real re-runnable check.
+#
+# 🔑 The within-type axes are real but deliberately WEAK, and the difference matters to a caller.
+# On the first 120 `SHIP714` ids: a `height_rhythm` aimed at each building's own lowest available
+# `Layer` step changed the recovered program on 7 of 120, while a fixed `height_rhythm=(3,6,9)`
+# changed 0 of 120 -- because a fixed rhythm value simply is not within
+# `HEIGHT_RHYTHM_TOLERANCE_VOX` of any step that building had on offer. So a block program that
+# names absolute levels will often be a silent no-op on any given footprint; one that names a
+# level the footprint can actually reach will land. That is the soft prior behaving as #9
+# specified (it may never force a step a building does not have), not the axis failing.
 BIAS_WEIGHT = 0.15
 
-AZIMUTH_TOLERANCE_DEG = 20.0        # a compass quadrant's worth of slack around the target fall line
+AZIMUTH_TOLERANCE_DEG = 20.0        # a compass quadrant's worth of slack around the target azimuth
 HEIGHT_RHYTHM_TOLERANCE_VOX = 1     # one voxel of slack -- the fitter's own integer quantisation grain
 SETBACK_TOLERANCE_VOX = 1           # ditto, for an inset depth measured on the same integer grid
 
+# One family name per `VOCABULARY` kind. A kind absent here simply never matches a `roof_family`
+# bias (`_family_bonus` reads it with `.get`) rather than breaking the fitter.
 _ROOF_FAMILY_OF = {"Layer": "flat", "CutRoof": "cut_roof", "Ramp": "ramp"}
 _VALID_ROOF_FAMILIES = frozenset(_ROOF_FAMILY_OF.values())
 
@@ -318,7 +331,9 @@ class FitBias:
     setback -- target inward-inset depth in voxels for a `Layer` read as a setback (#4: a setback
         *is* a Layer whose polygon is the inward offset of the footprint). Measured as the
         candidate region's own minimum distance-to-footprint-edge.
-    azimuth -- target `Ramp` fall-line direction in degrees (#129's re-parametrisation).
+    azimuth -- target `Ramp` direction in degrees, measured up the slope and in #129's own
+        `arctan2(Cx, Bz)` convention, so a value read off a trained plane head means here what it
+        means there. See `_within_type_bonus` for why that argument order is load-bearing.
     """
     height_rhythm: Optional[Union[float, Sequence[float]]] = None
     roof_family: Optional[str] = None
@@ -341,10 +356,13 @@ def _family_bonus(meta: dict, bias: FitBias) -> float:
     The ONLY bonus `_select` lets compete ACROSS operation types. Unset (`None`), it is always
     0.0 -- which is what makes leaving `roof_family` alone a true no-op on the type decision,
     whatever `height_rhythm`/`setback`/`azimuth` are doing (see `_select`).
+
+    An operation kind with no family named for it scores 0.0 rather than raising, matching how
+    the rest of the file's `op` dispatches skip what they don't recognise.
     """
     if bias.roof_family is None:
         return 0.0
-    return float(_ROOF_FAMILY_OF[meta["op"]] == bias.roof_family)
+    return float(_ROOF_FAMILY_OF.get(meta["op"]) == bias.roof_family)
 
 
 def _within_type_bonus(meta: dict, bias: FitBias, dists) -> float:
@@ -370,8 +388,14 @@ def _within_type_bonus(meta: dict, bias: FitBias, dists) -> float:
 
     if op == "Ramp" and bias.azimuth is not None:
         checks += 1
+        # ⚠️ `atan2(x_coeff, z_coeff)`, in that order, because #129's `plane_to_bins` reads
+        # `arctan2(Cx, Bz)` off a plane spelled `(A, Bz, Cx)` -- `Cx` on x, `Bz` on z. This
+        # fitter spells the same plane `[a, b, cz]`, `b` on x and `cz` on z, so #129's azimuth
+        # is `atan2(b, cz)` here. Passing them the other way round (the arguments were swapped
+        # until review caught it) mirrors every angle about 45 degrees, which is silent: a
+        # caller's target still matches *something*, just the wrong ramps.
         b, cz = meta["slope"]
-        az = math.degrees(math.atan2(cz, b)) % 360.0
+        az = math.degrees(math.atan2(b, cz)) % 360.0
         diff = abs(az - bias.azimuth) % 360.0
         hits += int(min(diff, 360.0 - diff) <= AZIMUTH_TOLERANCE_DEG)
 
@@ -379,30 +403,41 @@ def _within_type_bonus(meta: dict, bias: FitBias, dists) -> float:
 
 
 def _select(candidates, bias: Optional[FitBias], dists, n: int):
-    """Pick the best `n` fitter candidates, honouring `bias` in two independent stages.
+    """Pick the best `n` fitter candidates, honouring `bias` without letting any axis reach
+    outside the decision it owns.
 
     🔑🔑 A single flat score (gain scaled by every matched axis at once) cannot keep the four axes
     independent: a `height_rhythm` match on a `Layer` candidate would out-bid a `CutRoof` it was
     never asked to compete against, silently acting as an unrequested `roof_family="flat"`
-    preference whenever it fired (caught in review against #149's own acceptance criterion 4,
-    "supplying only one leaves the other three exactly as the unbiased fitter would have chosen
-    them" -- reproduced on this file's own close-tie test fixture before this fix).
+    preference whenever it fired. That is #149's acceptance criterion 4, "supplying only one
+    leaves the other three exactly as the unbiased fitter would have chosen them".
 
-    So the two kinds of axis are kept structurally apart:
+    ⚠️ The first fix for it -- rank each type's own entrant, then rank those against each other on
+    each type's best RAW gain -- was correct at `n = 1` and **wrong for every `n > 1`**, which is
+    the whole beam path (`n = branch`). Every entrant of a type carried that one type's `raw_best`
+    as its key, so `nlargest` drained a type's entire list before reaching the next type: a bias
+    matching *nothing at all* still replaced two `CutRoof` branches with two much worse `Layer`
+    ones, and moved 7 of the first 120 real buildings. Both review axes caught it; the tests did
+    not, because every one of them exercised `n = 1`.
 
-    Stage 1 (within one operation type) -- `height_rhythm`/`setback` may re-rank `Layer`
-    candidates against each other, and `azimuth` may re-rank `Ramp` candidates against each
-    other. This decides which candidate of a type would be returned IF that type wins, and never
-    touches whether it does.
+    So the split is by DECISION, and the two decisions are made in this order:
 
-    Stage 2 (across types) -- only `roof_family` may shift which type wins, and it compares each
-    type's own best RAW gain (never the stage-1-bonused one). So leaving `roof_family` unset is
-    provably a no-op on the type decision regardless of what the other three axes are doing, and
-    leaving the other three unset is provably a no-op on stage 1 (every candidate scores the same
-    within its type, so stage 1 returns exactly the unbiased per-type ranking).
+    1. **Which positions each operation type occupies** -- raw gain, shifted only by
+       `roof_family`. `_family_bonus` depends on nothing but the type, and is 0.0 when
+       `roof_family` is unset, so with it unset this ranking IS the unbiased one, candidate for
+       candidate.
+    2. **Which member of a type fills each position that type won** -- `_within_type_bonus` only.
+       A type's positions are already fixed by step 1, so these axes permute occupants and can
+       never move the type itself.
 
-    With no bias at all this collapses to the fitter's original, single-stage `heapq.nlargest` --
-    bit-identical to before #149 (its acceptance criterion 1), not merely close to it.
+    Hence: within-type axes alone leave the returned types exactly as unbiased (only *which*
+    `Layer` changes, never that a `Layer` displaced a `CutRoof`); `roof_family` alone leaves each
+    type's internal order exactly as unbiased; a bias matching nothing is the identity; and no
+    bias at all short-circuits to the fitter's original `heapq.nlargest`, bit-identical to before
+    #149 (acceptance criterion 1).
+
+    The returned list is deliberately not re-sorted by raw gain: both callers use it as a set
+    (`fit_program` takes `n = 1`; the beam re-ranks everything it expands by true surplus).
     """
     candidates = list(candidates)
     if not candidates:
@@ -410,19 +445,25 @@ def _select(candidates, bias: Optional[FitBias], dists, n: int):
     if bias is None or bias.is_empty():
         return heapq.nlargest(n, candidates, key=lambda t: t[0])
 
+    # 1. the positions, and so the type filling each one
+    family_key = lambda t: t[0] * (1.0 + BIAS_WEIGHT * _family_bonus(t[2], bias))
+    positions = heapq.nlargest(n, candidates, key=family_key)
+
+    # 2. the occupant of each position, drawn from its own type in within-type order
     within_key = lambda t: t[0] * (1.0 + BIAS_WEIGHT * _within_type_bonus(t[2], bias, dists))
-    by_type: dict = {}
+    ranked_by_type: dict = {}
     for t in candidates:
-        by_type.setdefault(t[2]["op"], []).append(t)
+        ranked_by_type.setdefault(t[2]["op"], []).append(t)
+    for op, group in ranked_by_type.items():
+        ranked_by_type[op] = sorted(group, key=within_key, reverse=True)
 
-    entrants = []                        # (this type's stage-1 winner, this type's true best gain)
-    for group in by_type.values():
-        raw_best = max(g[0] for g in group)
-        for t in heapq.nlargest(n, group, key=within_key):
-            entrants.append((t, raw_best))
-
-    family_key = lambda e: e[1] * (1.0 + BIAS_WEIGHT * _family_bonus(e[0][2], bias))
-    return [t for t, _ in heapq.nlargest(n, entrants, key=family_key)]
+    taken: dict = {}
+    out = []
+    for t in positions:
+        op = t[2]["op"]
+        out.append(ranked_by_type[op][taken.get(op, 0)])
+        taken[op] = taken.get(op, 0) + 1
+    return out
 
 
 def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
