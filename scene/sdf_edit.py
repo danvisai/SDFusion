@@ -25,6 +25,7 @@ Design notes:
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional, Sequence, Tuple
 
@@ -239,6 +240,11 @@ def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
 
     The key is (kind, then the geometry) rather than anything positional, so it survives a round
     trip through JSON and does not depend on how the host happened to enumerate the ops.
+
+    ⚠️ #141: `id` is excluded from the comparison. It is bookkeeping identity, not content -- two
+    ops built separately with the same kind/mode/geometry but different ids still denote the same
+    building, which is exactly what `equivalent()` (the semantic sibling this is a cheap proxy
+    for) already returns, since `composed()` never reads `id` either.
     """
     if not commutes(ops):
         raise ValueError("canonical_form is only defined for a commuting (all-subtractive) "
@@ -246,7 +252,8 @@ def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
     problems = program_problems(ops)
     if problems:
         raise ValueError("; ".join(problems))
-    return sorted((op.to_dict() for op in ops), key=lambda d: json.dumps(d, sort_keys=True))
+    return sorted(({k: v for k, v in op.to_dict().items() if k != "id"} for op in ops),
+                  key=lambda d: json.dumps(d, sort_keys=True))
 
 
 def equivalent(base_sdf: SDF, a: Sequence["EditOp"], b: Sequence["EditOp"],
@@ -279,8 +286,17 @@ _TIE = 1e-5
 
 @dataclass
 class EditOp:
-    """One user edit. `size` is primitive-specific (see _primitive)."""
+    """One user edit. `size` is primitive-specific (see _primitive).
+
+    🔑 #141: `id` is this op's stable identity, auto-assigned when the caller doesn't supply one
+    and unaffected by the op's position in a building's stack -- `EditableBuilding.remove_by_id`
+    is what makes "reroll this decision" a lookup rather than a recomputed index. It is plain
+    bookkeeping, not geometry: `_primitive`/`_region_solid`/`composed()` never read it, and
+    `canonical_form` deliberately strips it before comparing (see there) so that two ops built
+    separately but describing the same edit still denote the same building.
+    """
     kind: str                          # one of PALETTE
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
     center: Tuple[float, float, float] = (0.0, 0.0, 0.0)   # world position
     size: Tuple[float, ...] = (1.0, 1.0, 1.0)
     mode: str = "add"                  # "add" (union) | "subtract"
@@ -313,6 +329,9 @@ class EditOp:
     @staticmethod
     def from_dict(d):
         # tolerate host-side annotation keys (e.g. 'det' type tags, 'layer') on the wire
+        # -- and, by the same filtering, tolerate state saved before #141: a `d` with no 'id'
+        # simply never reaches the constructor as a kwarg, so `id`'s own default_factory assigns
+        # a fresh one rather than the call failing.
         keys = EditOp.__dataclass_fields__.keys()
         return EditOp(**{k: v for k, v in d.items() if k in keys})
 
@@ -463,6 +482,22 @@ class EditableBuilding:
         if index < 0 or index >= len(self.ops):
             raise IndexError(f"no operation at index {index}; the stack has {len(self.ops)}")
         return self.ops.pop(index)
+
+    def remove_by_id(self, op_id: str) -> EditOp:
+        """Delete the operation with this id, wherever it now sits in the stack. #141's answer to
+        the resolve failure `remove`'s own docstring names: a caller rerolling "the wing I just
+        added" should not have to recompute its current list position after other edits shifted
+        it -- this looks it up instead.
+
+        ⚠️ An id with no match is REFUSED, not a no-op: the same reasoning as `remove`'s refused
+        negative index -- a stale or mistyped id must surface as an error, not silently leave the
+        building unchanged while the caller believes their edit was removed.
+        """
+        for i, op in enumerate(self.ops):
+            if op.id == op_id:
+                return self.ops.pop(i)
+        raise KeyError(f"no operation with id {op_id!r}; the stack has ids "
+                       f"{[op.id for op in self.ops]}")
 
     def clear(self):
         self.ops.clear()

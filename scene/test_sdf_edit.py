@@ -294,6 +294,7 @@ class TestEditOpRoundTrip(unittest.TestCase):
         back = EditOp.from_dict(json.loads(json.dumps(op.to_dict())))
         self.assertEqual(back.kind, op.kind)
         self.assertEqual(back.mode, op.mode)
+        self.assertEqual(back.id, op.id, "#141: the id must survive the JSON round trip")
         np.testing.assert_allclose(np.asarray(back.size), np.asarray(op.size))
         for a, b in zip(back.polygon or [], op.polygon or []):
             np.testing.assert_allclose(np.asarray(a), np.asarray(b))
@@ -333,6 +334,15 @@ class TestEditOpRoundTrip(unittest.TestCase):
         self.assertEqual(op.kind, "box")
         self.assertIsNone(op.polygon)
         self.assertIsNone(op.planes)
+
+    def test_old_state_with_no_id_is_assigned_a_fresh_one(self):
+        """#141: `legacy` above predates the id field entirely -- loading it must not fail, and
+        the loaded op must come out addressable rather than id-less."""
+        legacy = {"kind": "box", "center": [0, 0, 0], "size": [1, 1, 1], "mode": "add",
+                  "smooth": 0.0, "rot_y": 0.0, "round_r": 0.0, "lib_id": -1}
+        self.assertNotIn("id", legacy)
+        op = EditOp.from_dict(legacy)
+        self.assertTrue(op.id, "a legacy op must still come out with a usable id")
 
 
 class TestComposedMatchesVoxelCompiler(unittest.TestCase):
@@ -943,6 +953,77 @@ class TestRecoveredProgramsStillCommute(unittest.TestCase):
             self.assertTrue(commutes(ops), f"building {building_id} no longer commutes")
             tested += 1
         self.assertGreater(tested, 400, "the artifact should carry real recovered programs")
+
+
+# ================================================================================================
+# #141 -- every edit operation gets a stable identity
+# ================================================================================================
+
+
+class TestOperationIdentity(unittest.TestCase):
+    """#141: an `EditOp` carries a stable id, auto-assigned when the caller doesn't supply one, so
+    "reroll this decision" is a lookup rather than a recomputed list position. `TestEditOpRoundTrip`
+    above already pins the JSON round trip and the legacy-state (no id) load; this covers the rest
+    of #141's contract: uniqueness, an explicit override, and that `canonical_form` -- #4/#140's
+    content-only equivalence test -- does not start treating id as content.
+    """
+
+    def test_a_new_op_has_a_usable_id_without_being_supplied(self):
+        self.assertTrue(EditOp(kind="box").id)
+
+    def test_two_independently_constructed_ops_get_distinct_ids(self):
+        self.assertNotEqual(EditOp(kind="box").id, EditOp(kind="box").id)
+
+    def test_an_explicit_id_is_honored_not_overwritten(self):
+        self.assertEqual(EditOp(kind="box", id="my-stable-id").id, "my-stable-id")
+
+    def test_canonical_form_ignores_id(self):
+        """Two ops built separately, describing the same edit, must still denote the same building
+        as far as `canonical_form` is concerned -- it is a proxy for `equivalent()`, which never
+        reads `id` because `composed()` never does."""
+        x = EditOp(kind="box", mode="subtract", size=(0.2, 0.2, 0.2))
+        y = EditOp(kind="box", mode="subtract", size=(0.2, 0.2, 0.2))
+        self.assertNotEqual(x.id, y.id)
+        self.assertEqual(canonical_form([x]), canonical_form([y]))
+        self.assertNotIn("id", canonical_form([x])[0])
+
+
+class TestRemoveById(unittest.TestCase):
+    """#141: an id-addressed removal path alongside the existing index-based `remove`."""
+
+    def test_removes_the_right_operation_regardless_of_position(self):
+        ops = [EditOp(kind="box"), EditOp(kind="sphere"), EditOp(kind="cone")]
+        eb = EditableBuilding(None, list(ops))
+        removed = eb.remove_by_id(ops[1].id)
+        self.assertEqual(removed.kind, "sphere")
+        self.assertEqual([o.kind for o in eb.ops], ["box", "cone"])
+
+    def test_survives_other_edits_shifting_its_position(self):
+        """#141's own motivating case: reroll "the operation I just added" without recomputing its
+        current index after later edits inserted around it."""
+        target = EditOp(kind="sphere")
+        eb = EditableBuilding(None, [target])
+        eb.add(EditOp(kind="box"))
+        eb.add(EditOp(kind="cone"))
+        removed = eb.remove_by_id(target.id)
+        self.assertIs(removed, target)
+        self.assertEqual([o.kind for o in eb.ops], ["box", "cone"])
+
+    def test_an_unknown_id_is_refused_not_a_silent_no_op(self):
+        eb = EditableBuilding(None, [EditOp(kind="box")])
+        with self.assertRaises(KeyError):
+            eb.remove_by_id("does-not-exist")
+        self.assertEqual(len(eb.ops), 1, "a failed removal must not silently drop any operation")
+
+    def test_the_index_based_path_is_unchanged(self):
+        """#141 adds a sibling path; it must not alter `remove`'s own behaviour, negative-index
+        refusal included."""
+        eb = EditableBuilding(None, [EditOp(kind="box"), EditOp(kind="sphere")])
+        with self.assertRaises(IndexError):
+            eb.remove(-1)
+        removed = eb.remove(0)
+        self.assertEqual(removed.kind, "box")
+        self.assertEqual([o.kind for o in eb.ops], ["sphere"])
 
 
 if __name__ == "__main__":
