@@ -26,8 +26,8 @@ sys.path.insert(0, str(REPO))
 
 from scene.sdf_edit import (  # noqa: E402
     ALGEBRA, ARCHITECTURAL_VOCABULARY, CORE, PALETTE, PROGRAM_KINDS, VOLUMETRIC,
-    EditableBuilding, EditOp, canonical_form, commutes, equivalent, footprint_envelope_sdf,
-    is_height_map_representable, layer_program_to_ops,
+    EditableBuilding, EditOp, canonical_form, commutes, equivalent, finalize_problems,
+    footprint_envelope_sdf, is_height_map_representable, layer_program_to_ops,
     mask_components_rings, mask_to_rings, op_problems, program_problems, snap_to_grid,
 )
 from scene.sdf_primitives import sdf_plane_halfspace  # noqa: E402
@@ -1291,6 +1291,71 @@ class TestEditLocalityInvariant(unittest.TestCase):
         self.assertEqual(len(first), len(second))
         for a, b in zip(first, second):
             np.testing.assert_array_equal(a, b)
+
+
+# ================================================================================================
+# #145 -- bundle the architectural-program gate into a finalize-time check
+# ================================================================================================
+
+
+class TestFinalizeProblems(unittest.TestCase):
+    """#145/#7: `finalize_problems` bundles `program_problems`, `commutes`, and
+    `is_height_map_representable` -- three checks that existed separately, nothing ran together --
+    into one finalize-time report. Unlike #143's `op_problems`-in-`add` gate, it never raises.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        m = np.zeros((RES, RES), bool)
+        m[14:24, 6:26] = True
+        m &= self.fx.fp
+        program = [self.fx.layer(m, 9)]
+        self.core_ops = layer_program_to_ops(program, self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_a_well_formed_program_produces_an_empty_report(self):
+        self.assertEqual(finalize_problems(self.core_ops), [])
+
+    def test_the_empty_program_produces_an_empty_report(self):
+        self.assertEqual(finalize_problems([]), [])
+
+    def test_a_syntax_problem_is_named_in_the_report(self):
+        bad = [EditOp(kind="layer", mode="subtract")]        # no polygon
+        report = finalize_problems(bad)
+        self.assertTrue(any("polygon" in p for p in report))
+
+    def test_a_non_commuting_mixed_program_is_named_without_a_height_map_complaint(self):
+        """Isolates the commutativity message: `layer`/`ramp` are height-map representable
+        regardless of mode, so a mixed add/subtract program built from them only trips this one
+        check, not the other."""
+        mixed = self.core_ops + [replace(self.core_ops[0], mode="add")]
+        report = finalize_problems(mixed)
+        self.assertTrue(any("commute" in p for p in report), report)
+        self.assertFalse(any("height-map" in p for p in report), report)
+
+    def test_a_non_height_map_representable_program_is_named_without_a_commute_complaint(self):
+        """Isolates the height-map message: a subtract-mode volumetric op still commutes with an
+        all-subtract core program, so this only trips the other check."""
+        volumetric = self.core_ops + [EditOp(kind="box", mode="subtract", size=(0.1, 0.1, 0.1))]
+        report = finalize_problems(volumetric)
+        self.assertTrue(any("height-map" in p for p in report), report)
+        self.assertFalse(any("commute" in p for p in report), report)
+
+    def test_the_gate_never_raises_on_a_severely_malformed_program(self):
+        try:
+            report = finalize_problems([EditOp(kind="zigzag")])
+        except Exception as e:                                # noqa: BLE001
+            self.fail(f"finalize_problems raised {e!r} instead of reporting")
+        self.assertTrue(report)
+
+    def test_the_gate_is_not_wired_into_add_or_the_preview_path(self):
+        """#7's decision: preview/fast-edit stays on #143's per-op gate alone. A program that would
+        fail `finalize_problems` (not height-map representable) must still `.add()` cleanly, since
+        `add` only runs `op_problems` on the one op being appended."""
+        eb = EditableBuilding(None)
+        box = EditOp(kind="box", mode="subtract", size=(0.1, 0.1, 0.1))
+        eb.add(box)                                            # must not raise
+        self.assertEqual(eb.ops, [box])
+        self.assertTrue(finalize_problems(eb.ops), "the fixture must genuinely fail the gate")
 
 
 if __name__ == "__main__":

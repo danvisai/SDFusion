@@ -231,6 +231,31 @@ def is_height_map_representable(ops: Sequence["EditOp"]) -> bool:
         op.kind in ALGEBRA for op in ops)
 
 
+def finalize_problems(ops: Sequence["EditOp"]) -> List[str]:
+    """#145/#7: the finalize-time architectural-program gate. Bundles `program_problems`,
+    `commutes`, and `is_height_map_representable` -- the three checks that exist today but nothing
+    ran together -- and reports every problem found, rather than raising.
+
+    ⚠️ Returns a report, unlike #143's `op_problems`-in-`EditableBuilding.add` gate, which raises.
+    A single malformed op appended mid-edit is a bug to raise on; a fully-composed program failing
+    here is more often a decision point for whoever calls this at finalize (refuse outright, or
+    surface it to a human) -- #3's "a completion failing validity is never committed" does not say
+    that failure must be an exception.
+
+    ⚠️ Deliberately NOT wired into `EditableBuilding.add` or anywhere on the preview/fast-edit
+    path: #3's preview/finalize boundary keeps preview fast and this check is finalize-time only.
+    Nothing calls this automatically -- a caller decides when "finalize" happens and runs it then.
+    """
+    problems = list(program_problems(ops))
+    if not commutes(ops):
+        problems.append("program does not commute: it mixes add and subtract operations, so "
+                        "replay is order-dependent (#140) rather than architecture-neutral")
+    if not is_height_map_representable(ops):
+        problems.append("program is not height-map representable: it uses a volumetric-tier "
+                        "operation the height-map compiler cannot run")
+    return problems
+
+
 def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
     """The program's normal form: the same operations in a deterministic order.
 
