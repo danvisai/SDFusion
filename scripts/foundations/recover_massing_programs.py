@@ -554,8 +554,29 @@ def _rings_to_mask(rings, res: int = RES) -> np.ndarray:
     return mask.reshape(res, res)
 
 
-def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
+def program_floor(program):
+    """#134's confound-control arm: the lowest height ANY `Layer` op in `program` specifies, or
+    `None` if it has none.
+
+    #131 diagnosed the spike as structural: a column no operation's region covers reverts to the
+    FULL envelope height, because `replay_program`'s cascade starts there and every op only ever
+    lowers within its own region. This is the "base `Layer` under the cascade" #131 named and left
+    untested -- a per-building, data-derived floor requiring no information beyond what already
+    recovered this program, not a tuned constant.
+    """
+    heights = [int(op["height"]) for op in program if op["op"] == "Layer"]
+    return min(heights) if heights else None
+
+
+def replay_program(fp: np.ndarray, y0: int, y1: int, program, floor: int = None) -> np.ndarray:
     """Re-run a serialised program in height-map space, reading only what the artifact stores.
+
+    ⚠️ #134's control arm: `floor`, when given, is the height an UNCOVERED column starts at
+    instead of the full envelope extent -- #131's own "base `Layer` under the cascade" (its "What
+    this does not settle", item 1), implemented as changing the cascade's own starting value
+    rather than literally prepending an operation, since every op already takes a MIN against
+    whatever `h` already is. `None` (the default) is the existing, unchanged behaviour: every
+    caller before #134 is unaffected.
 
     The fitter returns its height map as a by-product of the search. This interprets the written
     program instead, so a disagreement means the artifact is not self-contained -- which is the
@@ -578,7 +599,9 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
     commutativity cost nothing and bought a canonical form, an equivalence test, and deletion of
     any operation rather than only the last (`EditableBuilding.remove`).
     """
-    h = np.where(fp, np.int16(y1 - y0 + 1), 0).astype(np.int16)
+    extent = y1 - y0 + 1
+    start = min(int(floor), extent) if floor is not None else extent
+    h = np.where(fp, np.int16(start), 0).astype(np.int16)
     dists = _dists_for(fp)
     for op in program:
         kind = op["op"]
@@ -764,6 +787,147 @@ def _triangle_cells(a, v, b, res: int = RES, eps: float = -1e-9) -> np.ndarray:
     return p[keep].astype(int)
 
 
+# ================================================================================================
+# #134 -- fit few-vertex regions directly, instead of trimming exact rings
+#
+# #131 priced every budget as the cost of DELETING vertices from the exact ring down to it. It left
+# open whether a fitter that placed a FEW vertices directly, rather than trimming many down, would
+# land somewhere better. RADmesh (ECCV 2026) optimizes on a deliberately coarse discretization and
+# re-discretizes on a coarse-to-fine schedule, carrying its optimizer state across each step by
+# barycentric interpolation. The mechanism transfers here as: start a region at a handful of
+# vertices, then GROW it -- insert the vertex that recovers the most currently-uncovered area at
+# each step -- so budget=16's polygon is built ON TOP OF budget=8's, never restarted.
+# ================================================================================================
+
+
+def _triangle_contained(a, v, b, exact_mask, res: int):
+    """Triangle `(a, v, b)`'s cells, or `None` if any of them falls outside `exact_mask`.
+
+    #134's one shared primitive: the identical cell-level containment test `simplify_region`'s
+    `contained` rule already runs for deletion, factored out so `_seed_triangle` and
+    `_fit_outer_ring_direct` -- both admitting an INSERTION instead of a deletion -- share one
+    implementation of "is this triangle safe to add" rather than each re-stating it.
+    """
+    cells = _triangle_cells(a, v, b, res)
+    if len(cells) and not exact_mask[cells[:, 1], cells[:, 0]].all():
+        return None
+    return cells
+
+
+def _seed_triangle(ring, ri: int, exact_mask, res: int):
+    """#134: the coarsest possible contained start for one ring: an "ear" -- three consecutive
+    vertices whose triangle is entirely inside `exact_mask`. Ear-clipping theory guarantees at
+    least one exists for any simple polygon (a ring here always is one), so this is always found,
+    not a heuristic that can fail on a well-formed ring; the explicit containment re-check is
+    defensive. An ear is a corner CONVEX in ring-space -- `turn > 0` for the outer ring, `turn < 0`
+    for a hole, the exact conditions `simplify_region`'s own `contained` rule already uses,
+    mirrored.
+    """
+    n = len(ring)
+    if n <= 3:
+        return list(range(n))
+    for i in range(n):
+        a, v, b = ring[(i - 1) % n], ring[i], ring[(i + 1) % n]
+        turn = _cross(a, v, b)
+        is_ear = (turn > 0) if ri == 0 else (turn < 0)
+        if not is_ear:
+            continue
+        if _triangle_contained(a, v, b, exact_mask, res) is None:
+            continue
+        return sorted({(i - 1) % n, i, (i + 1) % n})
+    return None
+
+
+def _fit_outer_ring_direct(ring, exact_mask, res: int, budget: int):
+    """#134: grow the OUTER ring from a 3-vertex seed toward `exact_mask`, inserting the vertex
+    that recovers the most currently-uncovered area at each step, subject to `_triangle_contained`
+    -- the same cell-level test `simplify_region`'s `contained` rule uses for deletion, shared here
+    rather than restated, applied to insertion instead (`grows = turn > 0`, the mirror image of
+    the deletion rule's `turn < 0`).
+
+    ⚠️ Scoped to the outer ring only (#134's own scope decision): a hole's own vertices stay on the
+    existing, already-measured `contained` trimming path (`simplify_region` handles this by
+    allocating `budget` across all rings; a caller here passes the remainder after hole trimming).
+    Holes are the minority of the vertex count (#131: holes are usually near their own floor
+    already), and growing them too would need a signed incremental-coverage update (a hole
+    REMOVES area rather than adding it) this scope does not need to build.
+
+    Each step's kept-index set is a strict superset of the previous step's -- RADmesh's "carry the
+    fit forward across re-discretization" -- by construction, not by extra bookkeeping.
+    """
+    n = len(ring)
+    seed = _seed_triangle(ring, 0, exact_mask, res)
+    if seed is None:                                      # defensive: a malformed ring
+        return ring
+    kept = set(seed)
+    if len(kept) >= n:
+        return ring
+    covered = np.zeros_like(exact_mask)
+    seed_cells = _triangle_cells(ring[seed[0]], ring[seed[1]], ring[seed[2]], res)
+    if len(seed_cells):
+        covered[seed_cells[:, 1], seed_cells[:, 0]] = True
+
+    while len(kept) < min(budget, n):
+        best = None                                       # (gain, j, cells)
+        idxs = sorted(kept)
+        for pos, i in enumerate(idxs):
+            nxt = idxs[(pos + 1) % len(idxs)]
+            span = (nxt - i) % n
+            for step in range(1, span):
+                j = (i + step) % n
+                a, v, b = ring[i], ring[j], ring[nxt]
+                if _cross(a, v, b) <= 0:                  # not a bulge outward: no area to gain
+                    continue
+                cells = _triangle_contained(a, v, b, exact_mask, res)
+                if cells is None:
+                    continue                              # would add a cell outside the exact region
+                gain = (int((exact_mask[cells[:, 1], cells[:, 0]]
+                            & ~covered[cells[:, 1], cells[:, 0]]).sum()) if len(cells) else 0)
+                if best is None or gain > best[0]:
+                    best = (gain, j, cells)
+        if best is None or best[0] <= 0:
+            break                                          # no admissible insertion still gains area
+        _, j, cells = best
+        kept.add(j)
+        if len(cells):
+            covered[cells[:, 1], cells[:, 0]] = True
+
+    return [ring[i] for i in sorted(kept)]
+
+
+def _simplify_region_direct(rings, budget: int, exact_mask, res: int):
+    """#134's `direct` rule: the outer ring GROWS toward the exact region (`_fit_outer_ring_
+    direct`); holes are reduced to their own LOSSLESS floor first -- free, no fidelity cost, via
+    the existing `lossless` rule on each hole ring by itself -- and spend whatever that floor
+    costs before the outer ring gets the remainder.
+
+    ⚠️ Holes are not GROWN under this rule -- a deliberate scope decision, not an oversight. They
+    are the minority of the vertex count (15.7% of regions carry one at all, #131) and are usually
+    already small (a median hole is a single cell: 4 vertices, which the lossless floor cannot
+    reduce further -- #131's own finding, "a speckle hole is 4 vertices that cannot be spent").
+    #134 is scoped to the outer boundary, where the vertex budget and the spike problem #131
+    diagnosed both concentrate. A pathological region with many holes (#131 records one with 156)
+    can still starve the outer ring down to its 3-vertex floor regardless of budget -- an honest,
+    documented limitation of this scope, not a silent wrong answer: the outer ring's own growth
+    still respects every hole correctly regardless, since `exact_mask` already excludes hole
+    cells, so a growth step that would bulge into one fails the same containment test as any
+    other out-of-region cell.
+    """
+    outer, holes = rings[0], rings[1:]
+    reduced_holes = []
+    for h in holes:
+        if len(h) <= 3:
+            reduced_holes.append(h)
+            continue
+        hole_mask = _rings_to_mask([h], res)
+        reduced_holes.append(simplify_region([h], 0, hole_mask, res, "lossless")[0])
+    hole_verts = sum(len(h) for h in reduced_holes)
+    outer_budget = max(3, budget - hole_verts)
+    grown = _fit_outer_ring_direct([[float(v[0]), float(v[1])] for v in outer], exact_mask, res,
+                                   outer_budget)
+    return [grown] + [[[float(v[0]), float(v[1])] for v in h] for h in reduced_holes]
+
+
 def simplify_region(rings, budget: int, exact_mask, res: int = RES, rule: str = "contained"):
     """One region's rings -> the same region under a vertex budget, cheapest corner first.
 
@@ -794,12 +958,18 @@ def simplify_region(rings, budget: int, exact_mask, res: int = RES, rule: str = 
         that count is the rasterizer's, not the architecture's.
       * `free`      -- no test. It may also delete a ring outright once it is down to a triangle,
         which is how a one-cell speckle hole disappears -- by swallowing its cell.
+      * `direct`    -- #134: not a deletion rule at all. Grows the outer ring from a coarse seed
+        toward the exact region instead of trimming the exact ring down -- see
+        `_fit_outer_ring_direct`. The one thing it shares with `contained` is the same cell-level
+        containment test, reused for insertion rather than deletion.
 
     ⚠️ Marching squares is the obvious tool for this and is wrong here (`mask_to_rings` says why):
     it chamfers every corner diagonally, handing a plain rectangular shed four 45-degree eaves it
     does not have. This deletes *existing* vertices and never invents one, so a rectangle stays a
     rectangle at every budget -- the check `test_simplify_region_keeps_a_plain_shed` pins.
     """
+    if rule == "direct":
+        return _simplify_region_direct(rings, budget, exact_mask, res)
     rs = [[[float(v[0]), float(v[1])] for v in r] for r in rings]
     while sum(len(r) for r in rs) > budget:
         cand = []
@@ -926,8 +1096,8 @@ def _budget_case(task):
 
     from scripts.foundations.train_height_map_generator import roof_description_length
 
-    def score(prog, ledger):
-        h = replay_program(fp, y0, y1, prog)
+    def score(prog, ledger, floor=None):
+        h = replay_program(fp, y0, y1, prog, floor=floor)
         occ = occupancy(fp, y0, h)
         row = volume_split(occ, gt)
         row["vs_input"] = vs_input(occ, bo_occ)
@@ -960,9 +1130,17 @@ def _budget_case(task):
     # the vertices the regions actually NEED: simplified until the rasterized cells would change,
     # with no budget at all. Everything above this count is the rasterizer's, not the building's.
     out["lossless"] = score(*simplify_program(program, 0, "lossless"))
+    floor = program_floor(program)                        # #134's confound control, computed once
     for v in budgets:
-        for arm, rule in (("inner", "contained"), ("free", "free")):
-            out[f"{arm}{v}"] = score(*simplify_program(program, v, rule))
+        for arm, rule in (("inner", "contained"), ("free", "free"), ("direct", "direct")):
+            prog_v, ledger_v = simplify_program(program, v, rule)
+            out[f"{arm}{v}"] = score(prog_v, ledger_v)
+            if arm == "inner":
+                # does a base-Layer floor ALONE -- no change to the fitter -- already fix the
+                # spike `inner` leaves? Isolates the floor's own effect from the search's, so a
+                # `direct` win cannot be attributed to the wrong cause (#134's "confound to
+                # control first").
+                out[f"floor{v}"] = score(prog_v, ledger_v, floor=floor)
     return bid, out
 
 
@@ -1025,10 +1203,14 @@ def report_vertex_budget(art: dict) -> None:
 
     line("exact", "-", "exact")
     line("needed", "-", "lossless")
+    any_row = next(iter(pb.values()))
     for v in budgets:
         print("-" * 118)
-        for arm in ("inner", "free"):
-            line(str(v), arm, f"{arm}{v}")
+        # #134 adds `direct`/`floor`; detected rather than hardcoded so this still reports an
+        # OLD #131-only artifact (inner/free alone) without a KeyError.
+        for arm in ("inner", "floor", "direct", "free"):
+            if f"{arm}{v}" in any_row:
+                line(str(v), arm, f"{arm}{v}")
     print("-" * 118)
     print("  `contained` = fraction of regions that gained NO cell, so #10's guarantee holds and")
     print("  `missing`/collapse stay 0 by construction.  `met` = fraction that reached the budget.")
