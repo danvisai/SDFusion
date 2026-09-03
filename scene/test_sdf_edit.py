@@ -26,8 +26,8 @@ sys.path.insert(0, str(REPO))
 
 from scene.sdf_edit import (  # noqa: E402
     ALGEBRA, ARCHITECTURAL_VOCABULARY, CORE, PALETTE, PROGRAM_KINDS, VOLUMETRIC,
-    EditableBuilding, EditOp, canonical_form, commutes, equivalent, finalize_problems,
-    footprint_envelope_sdf, is_height_map_representable, layer_program_to_ops,
+    EditableBuilding, EditOp, canonical_form, commutes, containment_problems, equivalent,
+    finalize_problems, footprint_envelope_sdf, is_height_map_representable, layer_program_to_ops,
     mask_components_rings, mask_to_rings, op_problems, program_problems, snap_to_grid,
 )
 from scene.sdf_primitives import sdf_plane_halfspace  # noqa: E402
@@ -1356,6 +1356,108 @@ class TestFinalizeProblems(unittest.TestCase):
         eb.add(box)                                            # must not raise
         self.assertEqual(eb.ops, [box])
         self.assertTrue(finalize_problems(eb.ops), "the fixture must genuinely fail the gate")
+
+
+# ================================================================================================
+# #146 -- generalize containment into a footprint-boundary gate
+# ================================================================================================
+
+
+class TestContainmentProblems(unittest.TestCase):
+    """#146/#7: containment against the footprint's OWN envelope -- not a GT target (#10/#131's
+    guarantee only applies when fitting against a real building). Two rules: stay inside the
+    footprint's plan+height bounds, and the exterior must claim the entire boundary at ground
+    level. Runs against compiled occupancy, never any one operation's own region.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def _occ(self, ops):
+        return EditableBuilding(self.base, ops).to_occupancy(res=RES)
+
+    def test_the_untouched_envelope_passes(self):
+        self.assertEqual(containment_problems(self._occ([]), self.fx.fp, self.fx.y0, self.fx.y1),
+                         [])
+
+    def test_material_outside_the_footprint_plan_fails(self):
+        outside = EditOp(kind="box", mode="add", center=(0.9, 0.0, 0.9), size=(0.05, 0.05, 0.05))
+        report = containment_problems(self._occ([outside]), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("envelope" in p for p in report), report)
+
+    def test_material_above_the_declared_height_range_fails(self):
+        step = 2.0 / (RES - 1)
+        above = (self.fx.y1 + 5) * step - 1.0                  # 5 voxels above y1, world units
+        tall = EditOp(kind="box", mode="add", center=(0.0, above, 0.0), size=(0.3, 0.05, 0.3))
+        report = containment_problems(self._occ([tall]), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("envelope" in p for p in report), report)
+
+    def test_material_below_the_declared_height_range_fails(self):
+        step = 2.0 / (RES - 1)
+        # 2 voxels below y0 -- still inside the sampled [-1, 1] grid (fixture y0 = 4), unlike a
+        # larger offset which would fall off the grid entirely and never register as occupied.
+        below = (self.fx.y0 - 2) * step - 1.0
+        low = EditOp(kind="box", mode="add", center=(0.0, below, 0.0), size=(0.3, 0.05, 0.3))
+        report = containment_problems(self._occ([low]), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("envelope" in p for p in report), report)
+
+    def test_a_gap_in_the_ground_level_perimeter_fails(self):
+        """Carving away a chunk of the footprint's own edge, down through ground level, pulls the
+        exterior away from the boundary -- fails even though nothing left the envelope."""
+        boundary_chunk = np.zeros((RES, RES), bool)
+        boundary_chunk[8:11, 6:10] = True                      # touches the top-left edge
+        boundary_chunk &= self.fx.fp
+        self.assertTrue(boundary_chunk.any())
+        ops = layer_program_to_ops([self.fx.layer(boundary_chunk, 0)], self.fx.fp, self.fx.y0,
+                                   self.fx.y1, res=RES)
+        report = containment_problems(self._occ(ops), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("perimeter" in p for p in report), report)
+
+    def test_a_gap_on_the_opposite_edge_of_the_perimeter_also_fails(self):
+        """The same check, at the bottom-right edge instead of the top-left -- the underlying rule
+        must not be hardcoded to whichever side the first test happened to pick."""
+        boundary_chunk = np.zeros((RES, RES), bool)
+        boundary_chunk[20:24, 21:26] = True                    # touches the bottom-right edge
+        boundary_chunk &= self.fx.fp
+        self.assertTrue(boundary_chunk.any())
+        ops = layer_program_to_ops([self.fx.layer(boundary_chunk, 0)], self.fx.fp, self.fx.y0,
+                                   self.fx.y1, res=RES)
+        report = containment_problems(self._occ(ops), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("perimeter" in p for p in report), report)
+
+    def test_an_interior_void_not_touching_the_boundary_passes(self):
+        interior = np.zeros((RES, RES), bool)
+        interior[14:18, 14:18] = True                          # well inside, touches no edge
+        interior &= self.fx.fp
+        self.assertTrue(interior.any())
+        ops = layer_program_to_ops([self.fx.layer(interior, 0)], self.fx.fp, self.fx.y0,
+                                   self.fx.y1, res=RES)
+        report = containment_problems(self._occ(ops), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertEqual(report, [])
+
+    def test_a_free_standing_interior_element_passes(self):
+        """An added interior element, well within the envelope, is exempt from touching the
+        boundary -- it only has to obey the outer bound, which it does here."""
+        interior_add = EditOp(kind="box", mode="add", center=(0.0, 0.0, 0.0),
+                              size=(0.05, 0.05, 0.05))
+        report = containment_problems(self._occ([interior_add]), self.fx.fp, self.fx.y0,
+                                      self.fx.y1)
+        self.assertEqual(report, [])
+
+    def test_the_check_depends_only_on_compiled_occupancy_not_op_history(self):
+        """#146's own criterion: the check runs against the FINAL compiled occupancy, not any
+        operation's own region. Two different op sequences that compile to the same envelope
+        must report identically."""
+        empty_report = containment_problems(self._occ([]), self.fx.fp, self.fx.y0, self.fx.y1)
+        add_then_subtract_same_spot = [
+            EditOp(kind="box", mode="add", center=(0.0, 0.0, 0.0), size=(0.02, 0.02, 0.02)),
+            EditOp(kind="box", mode="subtract", center=(0.0, 0.0, 0.0), size=(0.02, 0.02, 0.02)),
+        ]
+        cancelled_report = containment_problems(self._occ(add_then_subtract_same_spot),
+                                                self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertEqual(empty_report, cancelled_report)
+        self.assertEqual(empty_report, [])
 
 
 if __name__ == "__main__":

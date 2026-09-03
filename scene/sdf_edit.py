@@ -256,6 +256,57 @@ def finalize_problems(ops: Sequence["EditOp"]) -> List[str]:
     return problems
 
 
+def _perimeter_mask(fp: np.ndarray) -> np.ndarray:
+    """Footprint cells with at least one 4-neighbor -- or the grid edge itself -- outside the
+    footprint: the same boundary `_boundary_edges` traces below, as a cell mask rather than a set
+    of edges. A cell is interior (excluded) only when all four of its neighbors are also in `fp`.
+    """
+    Z, X = fp.shape
+    padded = np.zeros((Z + 2, X + 2), bool)
+    padded[1:-1, 1:-1] = fp
+    interior = (padded[:-2, 1:-1] & padded[2:, 1:-1] &
+               padded[1:-1, :-2] & padded[1:-1, 2:])
+    return fp & ~interior
+
+
+def containment_problems(occ: np.ndarray, fp: np.ndarray, y0: int, y1: int) -> List[str]:
+    """#146/#7: the finalize-time containment gate.
+
+    ⚠️ Run against a program's COMPILED occupancy (`EditableBuilding.to_occupancy()`), never
+    against any one operation's own region -- an op whose own declared region reaches outside the
+    footprint is not itself a problem; only material that actually ends up occupied out there is.
+
+    Generalizes #10/#131's containment guarantee -- "a fitted region may only shrink toward its GT
+    target, never grow past it" -- to a program with no GT to fit against: the guarantee here is
+    against the footprint's own envelope, not any particular shape. Two rules:
+
+    1. Every occupied voxel must fall within the footprint's plan outline (`fp`) and the declared
+       height range `[y0, y1]`. The absolute bound -- core ops and any volumetric interior addition
+       alike, nothing may cross it.
+    2. The compiled exterior must claim the ENTIRE footprint boundary at ground level (`y0`) -- no
+       gap anywhere around the perimeter (`_perimeter_mask`). Interior cells are exempt: a
+       courtyard or a free-standing interior element may sit empty at ground level without failing
+       this, provided it still obeys rule 1.
+
+    `occ` is `[z, y, x]`, `fp` is `[z, x]` at the same resolution -- `EditableBuilding.to_occupancy`
+    and the footprint mask a caller already has. Returns a report, never raises, matching
+    `op_problems`/`program_problems`/`finalize_problems`'s own convention.
+    """
+    problems: List[str] = []
+    y_res = occ.shape[1]
+    y_index = np.arange(y_res)[None, :, None]             # [1, y_res, 1], broadcasts to [z, y, x]
+    allowed = fp[:, None, :] & (y_index >= y0) & (y_index <= y1)
+    outside = occ & ~allowed
+    if outside.any():
+        problems.append(f"{int(outside.sum())} occupied voxel(s) fall outside the footprint's "
+                        f"envelope (plan outline and/or declared height range [{y0}, {y1}])")
+    gap = _perimeter_mask(fp) & ~occ[:, y0, :]
+    if gap.any():
+        problems.append(f"the exterior does not claim {int(gap.sum())} footprint-boundary "
+                        f"cell(s) at ground level (y={y0}); the perimeter has a gap")
+    return problems
+
+
 def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
     """The program's normal form: the same operations in a deterministic order.
 
