@@ -1,9 +1,8 @@
 # #5 — Data audit for recoverable architectural programs
 
 *Effort: solid-first semantic architectural carving. Opened 2026-07-15, audited 2026-09-04. Blocks
-[#10](10-program-recovery.md) and [#6](6-program-generator.md) by the tracker's own field, though
-both closed already by measuring the corpus this ticket was meant to have picked first — see
-"Why this is confirmatory, not gating" below.*
+[#10](10-program-recovery.md) and [#6](6-program-generator.md), both closed already; unblocks
+[#9](9-multi-footprint-coordination.md)'s deferred axes directly.*
 
 > Which real and synthetic data sources can legally and technically support semantic architectural
 > edit programs over metric footprint sets, and what split, pseudo-label, provenance, licensing,
@@ -44,7 +43,7 @@ in `massing_arms_eval_ship714.json`, [#10](10-program-recovery.md)'s fitter, and
 reduction [#4](4-edit-algebra.md) and [#10](10-program-recovery.md) proved is lossless on this
 corpus (`missing` of the blockout against GT = 0.000000 on 714/714).
 
-🔑🔑 **And that reduction is also the ceiling, not just a convenience.** [#4](4-edit-algebra.md)
+🔑 **And that reduction is also the ceiling, not just a convenience.** [#4](4-edit-algebra.md)
 measured the four named void operations directly against the ingested geometry, before any
 height-field reduction: **courtyard, passage, and light well are 0 voxels in 4,324,919**, and arcade
 (an overhang, not a through-void) is 71 voxels — 0.0016%. This is not a limitation of the fitter or
@@ -78,9 +77,10 @@ by two of them at all).
 | **ArchiSet** (ICCV 2025) | Real dataset — 13,728 building forms as point clouds/voxels/meshes plus window-to-wall-ratio labels and 1.48M sketch/render images. But it is a **single-view image-to-mesh reconstruction and window-ratio editing** benchmark: no footprint conditioning, no massing/void/subtraction program of any kind. Wrong shape at the wrong scale (facade detail, like ReLoD3, not massing). | Not found — no GitHub, download link, or license statement located for the dataset (only the CVF/IEEE paper pages, one of which 403'd on fetch). | Not a fit. Named explicitly so a future detail-scale effort doesn't waste time re-discovering the same mismatch. |
 | **Procedural programs on real footprint distributions** | Not a data source — a synthesis method. [`NOVELTY_SURVEY.md`](NOVELTY_SURVEY.md#data-strategy-implied-by-the-literature) had ruled this "superseded" once [#10](10-program-recovery.md)'s fitter could recover exact programs from real LoD2 directly. That ruling is correct **for roof/massing operations** and wrong to generalize: it is the *only* lever in this list that can produce a courtyard, passage, or light well at all, since every real source above either lacks them entirely (LoD2) or models them at the wrong scale (LoD3 facades). | N/A (synthetic). | **Un-superseded, narrowly.** Required for two things nothing real can supply: void-tier training examples, and guided-edit (rough-carve) training pairs (below). |
 
-`NOVELTY_SURVEY.md`'s existing table (lines 216–244) covers the same ground at the literature level;
-this table supersedes it wherever they disagree, because this one is checked against what the repo
-actually runs and against primary license pages rather than paper text alone.
+`NOVELTY_SURVEY.md`'s existing "Available code and data" table (lines 216–226) and its "Data
+strategy implied by the literature" list (lines 236–244) cover the same ground at the literature
+level; this table supersedes both wherever they disagree, because this one is checked against what
+the repo actually runs and against primary license pages rather than paper text alone.
 
 
 ## 🔑 A real compliance gap exists today, independent of anything this ticket decides
@@ -210,7 +210,8 @@ one tier where real data structurally cannot compete, because none exists.
   like a building / artifacts / matches the request) — that rubric judges finalize-time output
   quality; this one judges whether a recovered *operation* deserves the semantic name attached to
   it, which is what determines whether the model learned "courtyard" or merely "negative polygon"
-  ([`NOVELTY_SURVEY.md`](NOVELTY_SURVEY.md), risk #2).
+  ([`NOVELTY_SURVEY.md`](NOVELTY_SURVEY.md)'s own phrasing, "Data strategy implied by the
+  literature," item 4).
 - **Protocol:** two independent annotators per operation, disagreements adjudicated by the ticket
   owner; inter-annotator agreement reported, not hidden, per this map's standing rule against
   metrics that could flatter a result ([#7](7-validity-gates-and-visual-carving-traces.md)'s "no
