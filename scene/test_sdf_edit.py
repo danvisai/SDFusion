@@ -1,11 +1,14 @@
-"""Contract tests for the layer-program bridge into the SDF edit stack (#128).
+"""Contract tests for the layer-program bridge into the SDF edit stack (#128), and #151's
+group-id tagging / independent per-footprint commit on top of it.
 
 The recovered massing programs of #10 compile to a 64^3 voxel grid through their own deterministic
 compiler.  These tests pin the *other* path -- the same program expressed as `EditOp`s and composed
 through `scene/sdf_primitives.py` -- and assert the two agree exactly, because a program that only
 exists as voxels is geometry evidence, not a recipe.
 
-Pure CPU, no model, no GPU, no corpus.  Same shape as `scene/test_surface_sampling.py`.
+Pure CPU, no GPU, no corpus. #151's own tests need `scripts.foundations.recover_massing_programs`'
+`BlockProgram` (a model-free, CPU-only object -- see that module's own test file) so "no model"
+no longer holds file-wide, but nothing here trains or loads a checkpoint.
 
 Run: env -u LD_PRELOAD ./sdfusion/bin/python scene/test_sdf_edit.py
 """
@@ -17,6 +20,7 @@ import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -26,11 +30,14 @@ sys.path.insert(0, str(REPO))
 
 from scene.sdf_edit import (  # noqa: E402
     ALGEBRA, ARCHITECTURAL_VOCABULARY, CORE, PALETTE, PROGRAM_KINDS, VOLUMETRIC,
-    EditableBuilding, EditOp, canonical_form, commutes, containment_problems, equivalent,
-    finalize_problems, footprint_envelope_sdf, is_height_map_representable, layer_program_to_ops,
-    mask_components_rings, mask_to_rings, op_problems, program_problems, snap_to_grid,
+    EditableBuilding, EditOp, _current_target, canonical_form, commit_block_program, commutes,
+    containment_problems, equivalent, finalize_problems, footprint_envelope_sdf,
+    is_height_map_representable, layer_program_to_ops, mask_components_rings, mask_to_rings,
+    op_problems, program_problems, snap_to_grid,
 )
 from scene.sdf_primitives import sdf_plane_halfspace  # noqa: E402
+from scripts.foundations import recover_massing_programs  # noqa: E402
+from scripts.foundations.recover_massing_programs import BlockProgram  # noqa: E402
 
 RES = 32                      # the corpus grid is 64^3; the contract is resolution-agnostic and a
                               # smaller grid keeps these tests a few seconds on CPU.
@@ -1458,6 +1465,199 @@ class TestContainmentProblems(unittest.TestCase):
                                                 self.fx.fp, self.fx.y0, self.fx.y1)
         self.assertEqual(empty_report, cancelled_report)
         self.assertEqual(empty_report, [])
+
+
+def _tiny_building(res: int):
+    """A minimal `EditableBuilding` with a small square footprint and no ops yet -- the cheapest
+    valid prior state `commit_block_program` can be pointed at."""
+    fp = np.zeros((res, res), bool)
+    fp[2:6, 2:6] = True
+    y0, y1 = 0, 3
+    return fp, y0, y1, EditableBuilding(footprint_envelope_sdf(fp, y0, y1, res=res))
+
+
+def _layer_entry(fp: np.ndarray, height: int) -> dict:
+    """A recovered-program `Layer` entry over the whole of `fp`, in `recover_massing_programs`'
+    own format -- what `BlockProgram.apply` would actually hand back for a trivial flat fit."""
+    return dict(op="Layer", height=int(height), area=int(fp.sum()), components=1,
+               region=[r.tolist() for r in mask_to_rings(fp)])
+
+
+class TestCurrentTarget(unittest.TestCase):
+    """`_current_target`'s own contract, isolated from `commit_block_program` entirely."""
+
+    def test_a_fully_occupied_column_reports_full_height(self):
+        res = 4
+        occ = np.zeros((res, res, res), bool)
+        occ[1, :, 1] = True
+        fp = np.zeros((res, res), bool)
+        fp[1, 1] = True
+        target = _current_target(occ, fp, 0, res - 1)
+        self.assertEqual(int(target[1, 1]), res)
+
+    def test_a_column_with_no_occupancy_at_all_reports_zero_not_full_height(self):
+        """The bug review caught: `np.argmax` on an all-`False` slice returns index 0, which the
+        raw top-of-column formula reads as the FULL envelope height -- the opposite of empty. A
+        `Layer` cut to height 0 (or any edit that empties a column outright) must not come back
+        looking like the tallest possible column."""
+        res = 4
+        occ = np.zeros((res, res, res), bool)          # nothing occupied anywhere
+        fp = np.zeros((res, res), bool)
+        fp[0, 0] = True
+        target = _current_target(occ, fp, 0, res - 1)
+        self.assertEqual(int(target[0, 0]), 0)
+
+    def test_off_footprint_columns_are_always_zero_regardless_of_occupancy(self):
+        res = 4
+        occ = np.zeros((res, res, res), bool)
+        occ[2, :, 2] = True                            # occupied, but outside fp below
+        fp = np.zeros((res, res), bool)
+        target = _current_target(occ, fp, 0, res - 1)
+        self.assertEqual(int(target[2, 2]), 0)
+
+
+def _fake_flat_fit(fp, y0, y1, target, bias=None):
+    """Stands in for `recover_massing_programs.fit_program_beam`: whatever footprint it is
+    actually handed, it returns one trivial `Layer` program over it -- fast, deterministic, and
+    correct for ANY `fp` passed in, so one fake serves any number of footprints without having to
+    know in advance which ids `BlockProgram.apply` will ask it to fit.
+
+    Patching `fit_program_beam` itself (the same seam `test_recover_massing_programs.py`'s own
+    `TestBlockProgramApply.test_a_missing_footprint_id_prevents_any_fit_at_all` patches) rather
+    than `BlockProgram.apply` as a whole means `BlockProgram`'s own real logic -- the missing-id
+    check, `to_bias()` -- still runs for real here; only the expensive search underneath is faked.
+    """
+    return [_layer_entry(fp, 1)], None
+
+
+class TestCommitBlockProgramGroupId(unittest.TestCase):
+    """#151 acceptance criterion 1, isolated from the real fitter's search cost via a mocked
+    `fit_program_beam` (see `_fake_flat_fit`)."""
+
+    def setUp(self):
+        self.res = 8
+        self.fp_a, self.y0_a, self.y1_a, self.building_a = _tiny_building(self.res)
+        self.fp_b, self.y0_b, self.y1_b, self.building_b = _tiny_building(self.res)
+        self.buildings = {"a": self.building_a, "b": self.building_b}
+        self.envelopes = {"a": (self.fp_a, self.y0_a, self.y1_a),
+                          "b": (self.fp_b, self.y0_b, self.y1_b)}
+
+    def test_every_op_across_every_footprint_shares_one_group_id(self):
+        program = BlockProgram(footprint_ids=("a", "b"), height_rhythm=1)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit):
+            reports = commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+        self.assertEqual(reports, {"a": [], "b": []})
+        all_ops = [op for b in self.buildings.values() for op in b.ops]
+        self.assertTrue(all_ops)
+        ids = {op.group_id for op in all_ops}
+        self.assertEqual(len(ids), 1)
+        self.assertIsNotNone(next(iter(ids)))
+
+    def test_a_second_call_gets_a_different_group_id(self):
+        program = BlockProgram(footprint_ids=("a", "b"), height_rhythm=1)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit):
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+            first = self.buildings["a"].ops[0].group_id
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+            second = self.buildings["a"].ops[0].group_id
+        self.assertIsNotNone(first)
+        self.assertNotEqual(first, second)
+
+    def test_group_id_does_not_affect_canonical_form(self):
+        """#151's own docstring claim on `EditOp.group_id`: stripped by `canonical_form` for the
+        same reason `id` is."""
+        program = BlockProgram(footprint_ids=("a",), height_rhythm=1)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit):
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+        tagged = self.buildings["a"].ops
+        untagged = [replace(op, group_id=None) for op in tagged]
+        self.assertEqual(canonical_form(tagged), canonical_form(untagged))
+
+
+class TestCommitBlockProgramIndependentCommit(unittest.TestCase):
+    """#151 acceptance criteria 2, 3, and 4: one footprint's #7 gate failure is reported against
+    that footprint specifically, its prior program is left untouched, and it never blocks the
+    others' commit in the same call -- isolated from #7's OWN gate correctness (already #145/#146's
+    coverage) via a mocked `finalize_problems`, so this tests only the commit orchestration."""
+
+    def setUp(self):
+        self.res = 8
+        self.fps, self.buildings, self.envelopes, self.prior_ids = {}, {}, {}, {}
+        for fid, height in (("a", 1), ("b", 2), ("c", 3)):
+            fp, y0, y1, building = _tiny_building(self.res)
+            ops = layer_program_to_ops([_layer_entry(fp, height)], fp, y0, y1, res=self.res)
+            building.ops = ops
+            self.fps[fid], self.buildings[fid] = fp, building
+            self.envelopes[fid] = (fp, y0, y1)
+            self.prior_ids[fid] = [op.id for op in ops]
+
+    def test_one_failure_does_not_block_the_others_and_is_reported_by_id(self):
+        program = BlockProgram(footprint_ids=("a", "b", "c"), height_rhythm=9)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit), \
+             patch("scene.sdf_edit.finalize_problems",
+                   side_effect=[[], ["forced failure for b"], []]):
+            reports = commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+
+        self.assertEqual(reports["a"], [])
+        self.assertEqual(reports["b"], ["forced failure for b"])
+        self.assertEqual(reports["c"], [])
+        # a and c committed the new program; b kept its exact prior ops (same ids, untouched)
+        self.assertNotEqual([op.id for op in self.buildings["a"].ops], self.prior_ids["a"])
+        self.assertEqual([op.id for op in self.buildings["b"].ops], self.prior_ids["b"])
+        self.assertNotEqual([op.id for op in self.buildings["c"].ops], self.prior_ids["c"])
+
+    def test_the_gate_is_called_once_per_footprint_and_nothing_else_gates(self):
+        """#151 acceptance criterion 4: no new block-level validity gate -- #7's own is called
+        exactly once per footprint, with no additional gating layer of #151's own."""
+        program = BlockProgram(footprint_ids=("a", "b", "c"), height_rhythm=9)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit), \
+             patch("scene.sdf_edit.finalize_problems", side_effect=[[], [], []]) as mock_gate:
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+        self.assertEqual(mock_gate.call_count, 3)
+
+
+class TestCommitBlockProgramRealFit(unittest.TestCase):
+    """One real, unmocked pass through #150's fitter and #7's gate together -- the actual
+    pipeline #151 wires, not just its own orchestration logic in isolation.
+
+    ⚠️ Uses `res=64`, not this file's usual `RES=32`: `fit_program_beam` (via `BlockProgram.apply`)
+    hardcodes `recover_massing_programs`'s own module-level `RES` internally (e.g. `_ramp_candidates`'
+    meshgrid), so a smaller footprint array would shape-mismatch inside it. The envelope (`y1=9`)
+    is deliberately taller than either building's initial carved height (6 and 4), so there is real
+    surplus for the re-fit to work with -- an envelope equal to the current height would leave
+    `_current_target` reporting zero surplus and the bias would have nothing to act on.
+    """
+
+    def setUp(self):
+        self.res = 64
+
+        def make(row0, col0, size, height):
+            fp = np.zeros((self.res, self.res), bool)
+            fp[row0:row0 + size, col0:col0 + size] = True
+            y0, y1 = 0, 9
+            base = footprint_envelope_sdf(fp, y0, y1, res=self.res)
+            ops = layer_program_to_ops([_layer_entry(fp, height)], fp, y0, y1, res=self.res)
+            return fp, y0, y1, EditableBuilding(base, ops)
+
+        self.fp_a, self.y0_a, self.y1_a, self.building_a = make(4, 4, 6, 6)
+        self.fp_b, self.y0_b, self.y1_b, self.building_b = make(40, 40, 6, 4)
+        self.buildings = {"a": self.building_a, "b": self.building_b}
+        self.envelopes = {"a": (self.fp_a, self.y0_a, self.y1_a),
+                          "b": (self.fp_b, self.y0_b, self.y1_b)}
+
+    def test_a_real_coordinated_bias_commits_a_valid_program_to_both(self):
+        program = BlockProgram(footprint_ids=("a", "b"), roof_family="flat")
+        reports = commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+
+        self.assertEqual(reports, {"a": [], "b": []})
+        group_ids = set()
+        for fid in ("a", "b"):
+            ops = self.buildings[fid].ops
+            self.assertTrue(ops)
+            self.assertEqual(finalize_problems(ops), [])
+            self.assertTrue(all(op.group_id is not None for op in ops))
+            group_ids.update(op.group_id for op in ops)
+        self.assertEqual(len(group_ids), 1)
 
 
 if __name__ == "__main__":

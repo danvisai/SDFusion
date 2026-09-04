@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass, field, asdict, replace
-from typing import List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -320,7 +320,9 @@ def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
     ⚠️ #141: `id` is excluded from the comparison. It is bookkeeping identity, not content -- two
     ops built separately with the same kind/mode/geometry but different ids still denote the same
     building, which is exactly what `equivalent()` (the semantic sibling this is a cheap proxy
-    for) already returns, since `composed()` never reads `id` either.
+    for) already returns, since `composed()` never reads `id` either. #151's `group_id` is
+    excluded for the identical reason: which coordinated edit (if any) produced an op is not part
+    of what it denotes.
     """
     if not commutes(ops):
         raise ValueError("canonical_form is only defined for a commuting (all-subtractive) "
@@ -328,7 +330,8 @@ def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
     problems = program_problems(ops)
     if problems:
         raise ValueError("; ".join(problems))
-    return sorted(({k: v for k, v in op.to_dict().items() if k != "id"} for op in ops),
+    return sorted(({k: v for k, v in op.to_dict().items() if k not in ("id", "group_id")}
+                  for op in ops),
                   key=lambda d: json.dumps(d, sort_keys=True))
 
 
@@ -370,9 +373,18 @@ class EditOp:
     bookkeeping, not geometry: `_primitive`/`_region_solid`/`composed()` never read it, and
     `canonical_form` deliberately strips it before comparing (see there) so that two ops built
     separately but describing the same edit still denote the same building.
+
+    🔑 #151: `group_id` is the same kind of bookkeeping for a *coordinated* edit -- every op one
+    `commit_block_program` call commits, across every footprint it touched, shares one value here,
+    tagged after the fact rather than carried through the fitter (#9's "block identity is
+    ephemeral": no persisted block object, just this tag on the ops it produced). `None` for an op
+    added through the ordinary single-footprint path. Like `id`, it is stripped by
+    `canonical_form` for the same reason: two ops from different coordinated edits, or one
+    coordinated and one not, still denote the same building if their geometry agrees.
     """
     kind: str                          # one of PALETTE
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    group_id: Optional[str] = None     # #151: shared across one BlockProgram commit; else None
     center: Tuple[float, float, float] = (0.0, 0.0, 0.0)   # world position
     size: Tuple[float, ...] = (1.0, 1.0, 1.0)
     mode: str = "add"                  # "add" (union) | "subtract"
@@ -589,6 +601,16 @@ class EditableBuilding:
 
     def clear(self):
         self.ops.clear()
+
+    def replace_ops(self, ops: List[EditOp]) -> "EditableBuilding":
+        """Swap in an entirely new program. #151's own commit path: a re-fit that has already
+        passed the fuller `finalize_problems` gate over the WHOLE replacement program, which
+        subsumes every op's own `op_problems` -- so unlike `add`, this does not re-validate
+        per-operation, and unlike `add`'s refusal-leaves-the-stack-untouched contract, the caller
+        is expected to have decided already that this program is what replaces the last one.
+        """
+        self.ops = list(ops)
+        return self
 
     # -- composed SDF ------------------------------------------------------
     def composed(self) -> SDF:
@@ -988,3 +1010,88 @@ def _op_for(entry, kind, rings_idx, rings, y0, half, top, res) -> EditOp:
         return EditOp(kind="cut_roof", mode="subtract", polygon=rings, size=slab,
                       planes=_eave_planes(rings_idx, roof_kind, eaves, rate, y0, res))
     raise ValueError(f"unknown layer-program operation '{kind}'")
+
+
+# ================================================================================================
+# #9 / #151 -- apply a BlockProgram and commit the result, footprint by footprint
+# ================================================================================================
+
+def _current_target(occ: np.ndarray, fp: np.ndarray, y0: int, y1: int) -> np.ndarray:
+    """How tall the CURRENTLY compiled massing already reaches in each column, against a FIXED
+    envelope `(y0, y1)` -- `recover_massing_programs.height_field`'s own `top` computation, minus
+    its auto-detection of `y0`/`y1` from the occupancy's own extent.
+
+    ⚠️ That auto-detection is exactly wrong here: it would set `y1` to wherever the CURRENT massing
+    happens to reach, which makes the re-fit's own `full` (`y1 - y0 + 1`) equal `target` in every
+    column with nothing left carved away -- zero surplus, so `fit_program_beam` would return an
+    empty program regardless of bias, every time, because it would think there was nothing to
+    re-derive. The envelope is the footprint's own fixed wall/eaves height (#9), not wherever a
+    prior program happened to leave the roofline.
+
+    ⚠️ Unlike `height_field`, this does NOT assume every on-footprint column already has some
+    occupancy: `height_field` trusts a real corpus building's own containment guarantee (#10: 0
+    empty columns in 4.3M), but a building `#151` re-fits may have been edited -- a `Layer` cut to
+    height 0 empties a column outright, and `np.argmax` on an all-`False` slice returns 0, which
+    the raw formula below reads as `top = sub.shape[1]`, i.e. FULL height: the opposite of empty.
+    So an emptied column is checked for directly rather than trusted away.
+    """
+    sub = occ[:, y0:y1 + 1, :]
+    any_occupied = sub.any(axis=1)
+    top = (sub.shape[1] - 1 - np.argmax(sub[:, ::-1, :], axis=1)) + 1
+    top = np.where(any_occupied, top, 0)
+    return np.where(fp, top, 0).astype(np.int16)
+
+
+def commit_block_program(program, buildings: Dict[Any, EditableBuilding],
+                         footprint_envelopes: Dict[Any, Tuple[np.ndarray, int, int]],
+                         res: int = 64) -> Dict[Any, List[str]]:
+    """Re-fit every footprint `program` (a `scripts.foundations.recover_massing_programs.
+    BlockProgram`) names against its OWN currently-compiled massing, then commit each
+    independently.
+
+    `buildings` maps a footprint id to the `EditableBuilding` holding its prior program -- what
+    #151 keeps on failure and replaces on success. `footprint_envelopes` maps the same id to its
+    own immutable `(fp, y0, y1)` -- the footprint polygon and its fixed wall/eaves height range
+    (#9's "footprint envelope"). This is caller-owned truth, independent of how much of it any
+    program has carved away so far, so it is taken as an input rather than reverse-engineered from
+    the building's current occupancy (see `_current_target`'s own warning for why that would only
+    ever recover however tall the massing happens to be right now, not the envelope it may still
+    have room to re-express within).
+
+    🔑 Every `EditOp` this call commits, across every footprint it touches, carries one freshly
+    generated `group_id` (#9's "block identity is ephemeral" decision: nothing persists beyond
+    this shared tag on the ops one coordinated decision produced).
+
+    Each footprint's re-fitted program is checked independently against #7's own finalize-time
+    gate (`finalize_problems`, #145) -- the SAME gate every other program on this project commits
+    through, not a new block-level one. On pass, it REPLACES that footprint's prior program; on
+    fail, the prior program is left untouched and the problems are returned under that footprint's
+    id. One footprint's failure never blocks or rolls back another's commit in the same call.
+
+    Returns `{footprint_id: problems}`; an empty list means that footprint committed.
+    """
+    from scripts.foundations.recover_massing_programs import finalise_program
+
+    footprints = {}
+    for fid in program.footprint_ids:
+        if fid not in buildings or fid not in footprint_envelopes:
+            continue          # BlockProgram.apply's own check names every missing id at once
+        fp, y0, y1 = footprint_envelopes[fid]
+        fp = np.asarray(fp, bool)
+        target = _current_target(buildings[fid].to_occupancy(res=res), fp, y0, y1)
+        footprints[fid] = (fp, y0, y1, target)
+
+    results = program.apply(footprints)
+
+    group_id = uuid.uuid4().hex
+    reports: Dict[Any, List[str]] = {}
+    for fid, (ops, _h) in results.items():
+        fp, y0, y1, _target = footprints[fid]
+        edit_ops = layer_program_to_ops(finalise_program(ops), fp, y0, y1, res=res)
+        for op in edit_ops:
+            op.group_id = group_id
+        problems = finalize_problems(edit_ops)
+        reports[fid] = problems
+        if not problems:
+            buildings[fid].replace_ops(edit_ops)
+    return reports
