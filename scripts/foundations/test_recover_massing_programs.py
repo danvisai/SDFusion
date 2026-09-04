@@ -1,5 +1,6 @@
-"""Contract tests for #134's `direct` region fitter and floor confound control, and #149's
-block-coordination scoring bias. Synthetic, fast, no GPU, no corpus.
+"""Contract tests for #134's `direct` region fitter and floor confound control, #149's
+block-coordination scoring bias, and #150's explicit block program. Synthetic, fast, no GPU,
+no corpus.
 
 `scene/test_sdf_edit.py::TestVertexBudget` is the GUARD and is deliberately left untouched --
 these are new tests for new code, in their own file, mirroring that file's own fixture shapes
@@ -22,9 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scene.sdf_edit import mask_to_rings  # noqa: E402
 from scripts.foundations import recover_massing_programs  # noqa: E402
 from scripts.foundations.recover_massing_programs import (  # noqa: E402
-    BIAS_WEIGHT, FitBias, _dists_for, _family_bonus, _rings_to_mask, _select,
-    _within_type_bonus, fit_program, fit_program_beam, program_floor, replay_program,
-    simplify_region,
+    BIAS_WEIGHT, BlockProgram, FitBias, UnknownFootprintError, _dists_for, _family_bonus,
+    _rings_to_mask, _select, _within_type_bonus, fit_program, fit_program_beam, program_floor,
+    replay_program, simplify_region,
 )
 
 RES = 32
@@ -654,6 +655,129 @@ class TestFitProgramBiasRealGeometry(unittest.TestCase):
             _, h = fit_program_beam(self.fp, self.y0, self.y1, self.target, max_ops=4,
                                     beam=4, branch=4, bias=bias)
             self.assertTrue((h[self.fp] >= self.target[self.fp]).all(), bias)
+
+
+def _multi_footprint_corpus():
+    """Three small, well-separated footprints for #150's block-program tests: two flat targets at
+    different heights (exercise `height_rhythm`/`setback`) and one hip-like target (exercise
+    `roof_family`/`azimuth`) -- nothing #149's own fitter doesn't already understand, just three
+    of them addressed by id at once."""
+    def flat(row0, col0, size, height):
+        fp = np.zeros((64, 64), bool)
+        fp[row0:row0 + size, col0:col0 + size] = True
+        return fp, 0, 9, np.where(fp, height, 0).astype(np.int16)
+
+    def hip(row0, col0, size):
+        fp = np.zeros((64, 64), bool)
+        fp[row0:row0 + size, col0:col0 + size] = True
+        dist = ndimage.distance_transform_edt(fp)
+        return fp, 0, 9, np.where(fp, np.clip(dist, 1, 8).astype(np.int16), 0)
+
+    return {"north": flat(4, 4, 4, 6), "south": flat(40, 40, 4, 4), "east": hip(20, 45, 8)}
+
+
+class TestBlockProgramBias(unittest.TestCase):
+    """`BlockProgram.to_bias`: the one `FitBias` every named footprint is re-fit under."""
+
+    def test_to_bias_carries_only_the_set_fields(self):
+        bp = BlockProgram(footprint_ids=("north",), height_rhythm=5)
+        self.assertEqual(bp.to_bias(), FitBias(height_rhythm=5))
+
+    def test_all_four_axes_round_trip(self):
+        bp = BlockProgram(footprint_ids=("north",), height_rhythm=5, roof_family="ramp",
+                          setback=2, azimuth=45.0)
+        self.assertEqual(bp.to_bias(),
+                         FitBias(height_rhythm=5, roof_family="ramp", setback=2, azimuth=45.0))
+
+    def test_no_axes_set_is_an_empty_bias(self):
+        self.assertTrue(BlockProgram(footprint_ids=("north",)).to_bias().is_empty())
+
+    def test_an_invalid_roof_family_is_rejected_at_construction(self):
+        """Fails fast at `BlockProgram(...)`, not only later at `.apply()` -- reuses `FitBias`'s
+        own validation rather than re-implementing the valid-values list."""
+        with self.assertRaises(ValueError):
+            BlockProgram(footprint_ids=("north",), roof_family="gable")
+
+    def test_a_list_of_ids_is_normalised_to_a_tuple(self):
+        """`@dataclass(frozen=True)` implies hashable; a bare `list` field would silently break
+        that the moment anyone put a `BlockProgram` in a set or used it as a dict key."""
+        bp = BlockProgram(footprint_ids=["north", "south"])
+        self.assertEqual(bp.footprint_ids, ("north", "south"))
+        hash(bp)                 # must not raise
+
+
+class TestBlockProgramApply(unittest.TestCase):
+    """`BlockProgram.apply`'s own contract, over and above `FitBias`/`_select`'s: it reaches every
+    named footprint uniformly, treats a missing id as a caller error rather than a silent skip
+    (and fails before fitting anything rather than fitting some and skipping the rest), and is
+    deterministic across repeat calls -- #150's four acceptance criteria, directly."""
+
+    def setUp(self):
+        self.corpus = _multi_footprint_corpus()
+
+    def test_applies_to_every_named_footprint(self):
+        bp = BlockProgram(footprint_ids=("north", "south", "east"), roof_family="flat")
+        self.assertEqual(set(bp.apply(self.corpus).keys()), {"north", "south", "east"})
+
+    def test_applying_a_subset_only_touches_that_subset(self):
+        bp = BlockProgram(footprint_ids=("north",), roof_family="flat")
+        self.assertEqual(set(bp.apply(self.corpus).keys()), {"north"})
+
+    def test_one_axis_set_matches_a_direct_fit_program_beam_call(self):
+        """#150 acceptance criterion 1: with only one axis set, every named footprint is re-fit
+        with only that axis biased. Checked directly against #149's own fitter rather than
+        re-deriving the independence guarantee `_select` already tests elsewhere."""
+        bp = BlockProgram(footprint_ids=("north", "south", "east"), height_rhythm=6)
+        result = bp.apply(self.corpus)
+        for fid, (fp, y0, y1, target) in self.corpus.items():
+            want = fit_program_beam(fp, y0, y1, target, bias=FitBias(height_rhythm=6))
+            got = result[fid]
+            self.assertEqual([o["op"] for o in got[0]], [o["op"] for o in want[0]], fid)
+            np.testing.assert_array_equal(got[1], want[1], err_msg=fid)
+
+    def test_no_axes_set_matches_the_unbiased_fitter(self):
+        bp = BlockProgram(footprint_ids=("north", "south", "east"))
+        result = bp.apply(self.corpus)
+        for fid, (fp, y0, y1, target) in self.corpus.items():
+            want = fit_program_beam(fp, y0, y1, target)
+            np.testing.assert_array_equal(result[fid][1], want[1], err_msg=fid)
+
+    def test_a_missing_footprint_id_raises_a_clear_error(self):
+        bp = BlockProgram(footprint_ids=("north", "nonexistent"))
+        with self.assertRaises(UnknownFootprintError) as ctx:
+            bp.apply(self.corpus)
+        self.assertIn("nonexistent", str(ctx.exception))
+
+    def test_multiple_missing_ids_are_all_named_at_once(self):
+        bp = BlockProgram(footprint_ids=("north", "missing1", "missing2"))
+        with self.assertRaises(UnknownFootprintError) as ctx:
+            bp.apply(self.corpus)
+        msg = str(ctx.exception)
+        self.assertIn("missing1", msg)
+        self.assertIn("missing2", msg)
+
+    def test_unknown_footprint_error_is_still_a_key_error(self):
+        """So an existing `except KeyError:` around footprint lookup keeps working without
+        having to learn a new exception type."""
+        self.assertTrue(issubclass(UnknownFootprintError, KeyError))
+
+    def test_a_missing_footprint_id_prevents_any_fit_at_all(self):
+        """Fail before doing any work rather than fit some and skip the bad id, so a caller can
+        never be handed a partial result under the same name as a full one."""
+        bp = BlockProgram(footprint_ids=("north", "south", "nonexistent"))
+        with patch.object(recover_massing_programs, "fit_program_beam") as mock_fit:
+            with self.assertRaises(UnknownFootprintError):
+                bp.apply(self.corpus)
+            mock_fit.assert_not_called()
+
+    def test_applying_the_same_object_twice_is_deterministic(self):
+        """#150 acceptance criterion 3."""
+        bp = BlockProgram(footprint_ids=("north", "south", "east"), roof_family="ramp")
+        first, second = bp.apply(self.corpus), bp.apply(self.corpus)
+        for fid in bp.footprint_ids:
+            self.assertEqual([o["op"] for o in first[fid][0]],
+                             [o["op"] for o in second[fid][0]], fid)
+            np.testing.assert_array_equal(first[fid][1], second[fid][1], err_msg=fid)
 
 
 if __name__ == "__main__":

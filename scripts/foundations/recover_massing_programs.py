@@ -62,7 +62,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import h5py
 import numpy as np
@@ -559,6 +559,85 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
     if surplus(g_h) < best[0]:
         return g_ops, g_h
     return best[2], best[1]
+
+
+# ----------------------------------------------------------------------------------------------
+# #9 / #150 -- the explicit block program: one FitBias, applied to a named set of footprints
+# ----------------------------------------------------------------------------------------------
+
+class UnknownFootprintError(KeyError):
+    """Raised by `BlockProgram.apply` when it names a footprint id absent from the mapping it is
+    given, rather than silently skipping it. Deliberately a `KeyError` subclass -- footprint
+    lookup elsewhere in this codebase is ordinary dict access, so a future caller wrapping that
+    lookup in `except KeyError:` should not have to learn a second exception type just because
+    the miss happened inside a `BlockProgram` instead of a plain dict. Its own message names
+    every offending id at once, which a bare `KeyError` on the first miss would not."""
+
+
+# One footprint's fitter inputs, spelled out once rather than left as a bare `Tuple`: exactly
+# `fit_program_beam`'s own leading positional arguments, in that order.
+FootprintFit = Tuple[np.ndarray, int, int, np.ndarray]
+
+
+@dataclass(frozen=True)
+class BlockProgram:
+    """#9's explicit block program: a selected set of footprints plus up to four optional,
+    independently-selectable coordination targets. Per #9's "block identity is ephemeral"
+    decision, this object has no stable id of its own and is never persisted; it exists only for
+    the duration of one `apply()` call.
+
+    🔑 The four fields deliberately restate `FitBias`'s own four, rather than this class simply
+    holding a `bias: FitBias` field -- they are two different layers, not one duplicated: this is
+    #9's domain object (a *block's* coordinated decision, over a named set of footprints), and
+    `FitBias` is #149's fitter-internal search parameter (what one fit call is biased by). Keeping
+    them distinct means #150's own type can change independently of how #149's search happens to
+    take its bias -- `to_bias()` is the one seam between them.
+
+    Applying it means a **full re-fit** of every named footprint (#9's decision, not a parameter
+    nudge) through #10's constrained beam-search fitter, biased by exactly the axes this object
+    sets -- one `FitBias`, constructed once and applied identically everywhere, so a coordinated
+    decision cannot silently drift from one footprint to the next. `FitBias`/`_select` (#149)
+    already guarantee an unset axis is a true no-op; this object's own job is only to build that
+    one bias correctly and apply it uniformly, not to re-derive that guarantee.
+    """
+    footprint_ids: Tuple[Any, ...]
+    height_rhythm: Optional[Union[float, Sequence[float]]] = None
+    roof_family: Optional[str] = None
+    setback: Optional[float] = None
+    azimuth: Optional[float] = None
+
+    def __post_init__(self):
+        # frozen dataclasses still allow this at construction time (`object.__setattr__`, not
+        # `self.x =`) -- accepting a caller's list here rather than only a tuple, without losing
+        # the hashability `frozen=True` otherwise implies.
+        object.__setattr__(self, "footprint_ids", tuple(self.footprint_ids))
+        self.to_bias()          # fails fast on an invalid roof_family, reusing FitBias's own check
+
+    def to_bias(self) -> FitBias:
+        """The single `FitBias` every footprint named here is re-fit under."""
+        return FitBias(height_rhythm=self.height_rhythm, roof_family=self.roof_family,
+                       setback=self.setback, azimuth=self.azimuth)
+
+    def apply(self, footprints: Dict[Any, FootprintFit]) -> Dict[Any, Tuple[list, np.ndarray]]:
+        """Re-fit every named footprint under this program's bias.
+
+        `footprints` maps a footprint id to `(fp, y0, y1, target)` -- exactly `fit_program_beam`'s
+        own positional arguments, so this adds no footprint representation of its own; #151 is
+        what turns a result into committed `EditOp`s.
+
+        Every id is checked against `footprints` before any footprint is fit: a missing one is a
+        caller error, not a partial result, so `UnknownFootprintError` names every offending id at
+        once and nothing is fit at all rather than fitting some and skipping the rest.
+        """
+        missing = [fid for fid in self.footprint_ids if fid not in footprints]
+        if missing:
+            raise UnknownFootprintError(
+                f"BlockProgram names {len(missing)} footprint id(s) absent from the given "
+                f"footprints: {missing!r}")
+
+        bias = self.to_bias()
+        return {fid: fit_program_beam(*footprints[fid], bias=bias)
+                for fid in self.footprint_ids}
 
 
 # ----------------------------------------------------------------------------------------------
