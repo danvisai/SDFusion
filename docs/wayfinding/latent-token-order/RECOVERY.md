@@ -1,5 +1,12 @@
 # Recovery status of this effort — 2026-08-14
 
+> **Status update, 2026-08-31.** The opening inventory below is the historical loss record, not the
+> current repository state. #88, #90, #91, and #95 have been reconstructed, tested, and re-measured;
+> the corpus-scale v2 real, as-encoded blockout, and aligned blockout caches contain 36,818 rows with
+> 715 held out, and all four #92 arms reached step 240000. #89's actual training-path surface-loss
+> ordering probe was reconstructed and re-measured on 2026-09-01, completing recovery of the lost
+> #88–#91/#95 implementation surface. The live tracker remains the source of truth.
+
 Map [#87](https://github.com/danvisai/SDFusion/issues/87) ran five tickets to completion on a
 **cloud A100 instance that was lost before any of its commits were pushed.** None of that work
 exists here or on origin. This file is the inventory: what was recovered, what has to be rebuilt,

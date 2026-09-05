@@ -55,10 +55,14 @@ no GPU, and does not modify the active #92 experiment.
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
+import math
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import h5py
 import numpy as np
@@ -270,9 +274,206 @@ def _dists_for(fp):
                 gable_x=_dist_axis(fp, 1), gable_z=_dist_axis(fp, 0))
 
 
+# ----------------------------------------------------------------------------------------------
+# #9 / #149 -- a soft, per-axis block-coordination bias on top of the same fitter
+# ----------------------------------------------------------------------------------------------
+
+# Soft by construction (#9's own decision): a full-match bonus can only ever tip a choice between
+# candidates within this fraction of each other's raw gain. It can never make the fitter prefer a
+# candidate that removes dramatically less surplus, so a program's real quality (`missing`/`extra`/
+# collapse) cannot regress beyond noise -- #149's second acceptance criterion.
+#
+# Measured against no bias at all, `FitBias(roof_family="ramp")`, on the first ids of
+# `SHIP714` read from `H5`: Ramp's share of chosen ops rose 0.541 -> 0.647 under `fit_program`
+# (n=60) and 0.508 -> 0.610 under `fit_program_beam` at beam=branch=4 (n=40), while mean `extra`
+# moved 0.006981 -> 0.006990 on the first and did not move at all on the second -- a measurable
+# shift in family (#149 acceptance criterion 2) at no cost in residual (its other half).
+# ⚠️ Measured ad hoc, from a throwaway script, and NOT reproduced by anything committed: no CLI
+# flag reaches `bias` (that is #150/#151's job) and this file's tests are corpus-free by
+# convention. Re-deriving it means writing that loop again, not re-running a recorded command --
+# unlike `--measure_commutativity`, which is a real re-runnable check.
+#
+# 🔑 The within-type axes are real but deliberately WEAK, and the difference matters to a caller.
+# On the first 120 `SHIP714` ids: a `height_rhythm` aimed at each building's own lowest available
+# `Layer` step changed the recovered program on 7 of 120, while a fixed `height_rhythm=(3,6,9)`
+# changed 0 of 120 -- because a fixed rhythm value simply is not within
+# `HEIGHT_RHYTHM_TOLERANCE_VOX` of any step that building had on offer. So a block program that
+# names absolute levels will often be a silent no-op on any given footprint; one that names a
+# level the footprint can actually reach will land. That is the soft prior behaving as #9
+# specified (it may never force a step a building does not have), not the axis failing.
+BIAS_WEIGHT = 0.15
+
+AZIMUTH_TOLERANCE_DEG = 20.0        # a compass quadrant's worth of slack around the target azimuth
+HEIGHT_RHYTHM_TOLERANCE_VOX = 1     # one voxel of slack -- the fitter's own integer quantisation grain
+SETBACK_TOLERANCE_VOX = 1           # ditto, for an inset depth measured on the same integer grid
+
+# One family name per `VOCABULARY` kind. A kind absent here simply never matches a `roof_family`
+# bias (`_family_bonus` reads it with `.get`) rather than breaking the fitter.
+_ROOF_FAMILY_OF = {"Layer": "flat", "CutRoof": "cut_roof", "Ramp": "ramp"}
+_VALID_ROOF_FAMILIES = frozenset(_ROOF_FAMILY_OF.values())
+
+
+@dataclass(frozen=True)
+class FitBias:
+    """#9's explicit block program, restricted to what one footprint's fit needs to see: up to
+    four independent, optional targets. Every field defaults to `None` and an unset field
+    contributes nothing (see `_family_bonus`/`_within_type_bonus`) -- so `FitBias()`, like
+    `bias=None`, reproduces the unbiased fitter exactly, and setting only one field never perturbs
+    how the other three would have been chosen (enforced by `_select`'s two-stage ranking, not
+    just by each axis's own zero-contribution-when-unset rule -- see its docstring for why the
+    single check alone was not enough).
+
+    height_rhythm -- target `Layer` step height(s) in voxels, above `y0`. A single value or a
+        sequence (a "rhythm" of several acceptable levels); a candidate matches if it lands within
+        `HEIGHT_RHYTHM_TOLERANCE_VOX` of any of them.
+    roof_family -- one of "flat" (prefer `Layer`), "cut_roof", or "ramp". The only axis allowed to
+        shift which operation TYPE wins; see `_select`.
+    setback -- target inward-inset depth in voxels for a `Layer` read as a setback (#4: a setback
+        *is* a Layer whose polygon is the inward offset of the footprint). Measured as the
+        candidate region's own minimum distance-to-footprint-edge.
+    azimuth -- target `Ramp` direction in degrees, measured up the slope and in #129's own
+        `arctan2(Cx, Bz)` convention, so a value read off a trained plane head means here what it
+        means there. See `_within_type_bonus` for why that argument order is load-bearing.
+    """
+    height_rhythm: Optional[Union[float, Sequence[float]]] = None
+    roof_family: Optional[str] = None
+    setback: Optional[float] = None
+    azimuth: Optional[float] = None
+
+    def __post_init__(self):
+        if self.roof_family is not None and self.roof_family not in _VALID_ROOF_FAMILIES:
+            raise ValueError(f"roof_family must be one of {sorted(_VALID_ROOF_FAMILIES)} or "
+                             f"None, got {self.roof_family!r}")
+
+    def is_empty(self) -> bool:
+        return (self.height_rhythm is None and self.roof_family is None
+                and self.setback is None and self.azimuth is None)
+
+
+def _family_bonus(meta: dict, bias: FitBias) -> float:
+    """1.0 if this candidate's own operation type matches `bias.roof_family`, else 0.0.
+
+    The ONLY bonus `_select` lets compete ACROSS operation types. Unset (`None`), it is always
+    0.0 -- which is what makes leaving `roof_family` alone a true no-op on the type decision,
+    whatever `height_rhythm`/`setback`/`azimuth` are doing (see `_select`).
+
+    An operation kind with no family named for it scores 0.0 rather than raising, matching how
+    the rest of the file's `op` dispatches skip what they don't recognise.
+    """
+    if bias.roof_family is None:
+        return 0.0
+    return float(_ROOF_FAMILY_OF.get(meta["op"]) == bias.roof_family)
+
+
+def _within_type_bonus(meta: dict, bias: FitBias, dists) -> float:
+    """[0, 1]: how well one candidate matches the axes that only ever compare candidates of its
+    OWN operation type against each other -- `height_rhythm`/`setback` for `Layer`, `azimuth` for
+    `Ramp` -- averaged over whichever of those apply to this candidate's type. Never used to
+    compare candidates of different types; see `_select`.
+    """
+    op = meta["op"]
+    hits = checks = 0
+
+    if op == "Layer":
+        if bias.height_rhythm is not None:
+            checks += 1
+            targets = ((bias.height_rhythm,) if np.isscalar(bias.height_rhythm)
+                      else tuple(bias.height_rhythm))
+            hits += int(any(abs(meta["height"] - t) <= HEIGHT_RHYTHM_TOLERANCE_VOX
+                            for t in targets))
+        if bias.setback is not None:
+            checks += 1
+            depth = int(dists["hip"][meta["_region"]].min())
+            hits += int(abs(depth - bias.setback) <= SETBACK_TOLERANCE_VOX)
+
+    if op == "Ramp" and bias.azimuth is not None:
+        checks += 1
+        # ⚠️ `atan2(x_coeff, z_coeff)`, in that order, because #129's `plane_to_bins` reads
+        # `arctan2(Cx, Bz)` off a plane spelled `(A, Bz, Cx)` -- `Cx` on x, `Bz` on z. This
+        # fitter spells the same plane `[a, b, cz]`, `b` on x and `cz` on z, so #129's azimuth
+        # is `atan2(b, cz)` here. Passing them the other way round (the arguments were swapped
+        # until review caught it) mirrors every angle about 45 degrees, which is silent: a
+        # caller's target still matches *something*, just the wrong ramps.
+        b, cz = meta["slope"]
+        az = math.degrees(math.atan2(b, cz)) % 360.0
+        diff = abs(az - bias.azimuth) % 360.0
+        hits += int(min(diff, 360.0 - diff) <= AZIMUTH_TOLERANCE_DEG)
+
+    return hits / checks if checks else 0.0
+
+
+def _select(candidates, bias: Optional[FitBias], dists, n: int):
+    """Pick the best `n` fitter candidates, honouring `bias` without letting any axis reach
+    outside the decision it owns.
+
+    🔑🔑 A single flat score (gain scaled by every matched axis at once) cannot keep the four axes
+    independent: a `height_rhythm` match on a `Layer` candidate would out-bid a `CutRoof` it was
+    never asked to compete against, silently acting as an unrequested `roof_family="flat"`
+    preference whenever it fired. That is #149's acceptance criterion 4, "supplying only one
+    leaves the other three exactly as the unbiased fitter would have chosen them".
+
+    ⚠️ The first fix for it -- rank each type's own entrant, then rank those against each other on
+    each type's best RAW gain -- was correct at `n = 1` and **wrong for every `n > 1`**, which is
+    the whole beam path (`n = branch`). Every entrant of a type carried that one type's `raw_best`
+    as its key, so `nlargest` drained a type's entire list before reaching the next type: a bias
+    matching *nothing at all* still replaced two `CutRoof` branches with two much worse `Layer`
+    ones, and moved 7 of the first 120 real buildings. Both review axes caught it; the tests did
+    not, because every one of them exercised `n = 1`.
+
+    So the split is by DECISION, and the two decisions are made in this order:
+
+    1. **Which positions each operation type occupies** -- raw gain, shifted only by
+       `roof_family`. `_family_bonus` depends on nothing but the type, and is 0.0 when
+       `roof_family` is unset, so with it unset this ranking IS the unbiased one, candidate for
+       candidate.
+    2. **Which member of a type fills each position that type won** -- `_within_type_bonus` only.
+       A type's positions are already fixed by step 1, so these axes permute occupants and can
+       never move the type itself.
+
+    Hence: within-type axes alone leave the returned types exactly as unbiased (only *which*
+    `Layer` changes, never that a `Layer` displaced a `CutRoof`); `roof_family` alone leaves each
+    type's internal order exactly as unbiased; a bias matching nothing is the identity; and no
+    bias at all short-circuits to the fitter's original `heapq.nlargest`, bit-identical to before
+    #149 (acceptance criterion 1).
+
+    The returned list is deliberately not re-sorted by raw gain: both callers use it as a set
+    (`fit_program` takes `n = 1`; the beam re-ranks everything it expands by true surplus).
+    """
+    candidates = list(candidates)
+    if not candidates:
+        return []
+    if bias is None or bias.is_empty():
+        return heapq.nlargest(n, candidates, key=lambda t: t[0])
+
+    # 1. the positions, and so the type filling each one
+    family_key = lambda t: t[0] * (1.0 + BIAS_WEIGHT * _family_bonus(t[2], bias))
+    positions = heapq.nlargest(n, candidates, key=family_key)
+
+    # 2. the occupant of each position, drawn from its own type in within-type order
+    within_key = lambda t: t[0] * (1.0 + BIAS_WEIGHT * _within_type_bonus(t[2], bias, dists))
+    ranked_by_type: dict = {}
+    for t in candidates:
+        ranked_by_type.setdefault(t[2]["op"], []).append(t)
+    for op, group in ranked_by_type.items():
+        ranked_by_type[op] = sorted(group, key=within_key, reverse=True)
+
+    taken: dict = {}
+    out = []
+    for t in positions:
+        op = t[2]["op"]
+        out.append(ranked_by_type[op][taken.get(op, 0)])
+        taken[op] = taken.get(op, 0) + 1
+    return out
+
+
 def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
-                ops_allowed=VOCABULARY):
-    """Greedy: repeatedly take the operation that removes the most surplus without cutting GT."""
+                ops_allowed=VOCABULARY, bias: Optional[FitBias] = None):
+    """Greedy: repeatedly take the operation that removes the most surplus without cutting GT.
+
+    `bias` (#149) only ever changes which candidate this ranks highest; it never changes which
+    candidates exist, so containment (every candidate `_all_candidates` yields already stays at or
+    above `target`) is untouched by it.
+    """
     full = np.int16(y1 - y0 + 1)
     h = np.where(fp, full, 0).astype(np.int16)
     gt_vox = int(target[fp].sum())
@@ -282,8 +483,8 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
         surplus = int((h[fp] - target[fp]).sum())
         if gt_vox and surplus / gt_vox <= allowance:
             break
-        best = max(_all_candidates(fp, dists, target, h, ops_allowed),
-                   key=lambda t: t[0], default=None)
+        picked = _select(_all_candidates(fp, dists, target, h, ops_allowed), bias, dists, n=1)
+        best = picked[0] if picked else None
         if best is None or best[0] <= 0:
             break
         gain, h, meta = best
@@ -296,7 +497,7 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
 
 
 def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
-                     beam=6, branch=6, ops_allowed=VOCABULARY):
+                     beam=6, branch=6, ops_allowed=VOCABULARY, bias: Optional[FitBias] = None):
     """Beam search over programs, because greedy is provably myopic on gable roofs.
 
     The worst-residual trace after `Ramp` landed was entirely **symmetric double ramps**: a gable
@@ -308,9 +509,16 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
 
     Beams are de-duplicated by the height map itself rather than by the operation list, since two
     different orders that reach the same massing are the same program for every purpose here.
-    """
-    import heapq
 
+    `bias` (#149) shapes which candidates this function's own branch-selection step *proposes* to
+    expand each beam with; it never touches the per-round beam-survival cut or the final
+    "actually better" comparison below, both of which stay ranked by true surplus alone. That is
+    deliberate, not a gap: letting bias influence which beam SURVIVES (rather than only which
+    candidate gets tried) would let a worse-quality lineage outlive a genuinely better one purely
+    for matching the bias, which is exactly what would put `missing`/`extra`/collapse at risk of
+    moving beyond noise -- #149's acceptance criterion 2. The greedy fallback is given the same
+    `bias` so the two programs being compared for "actually better" were fit under the same terms.
+    """
     full = np.int16(y1 - y0 + 1)
     h0 = np.where(fp, full, 0).astype(np.int16)
     gt_vox = int(target[fp].sum())
@@ -324,8 +532,7 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
             if gt_vox and sur / gt_vox <= allowance:
                 nxt.append((sur, h, ops))                  # already good enough: carry it forward
                 continue
-            top = heapq.nlargest(branch, _all_candidates(fp, dists, target, h, ops_allowed),
-                                 key=lambda t: t[0])
+            top = _select(_all_candidates(fp, dists, target, h, ops_allowed), bias, dists, n=branch)
             for gain, hh, meta in top:
                 if gain <= 0:
                     continue
@@ -348,10 +555,89 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
     # intermediate step by siblings that look better then and end worse. Measured -- id 16764 went
     # 0.152 greedy -> 0.159 beam. Greedy is cheap, so run it too and keep whichever program is
     # actually better. This makes the beam a monotone improvement by construction.
-    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance, ops_allowed)
+    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance, ops_allowed, bias=bias)
     if surplus(g_h) < best[0]:
         return g_ops, g_h
     return best[2], best[1]
+
+
+# ----------------------------------------------------------------------------------------------
+# #9 / #150 -- the explicit block program: one FitBias, applied to a named set of footprints
+# ----------------------------------------------------------------------------------------------
+
+class UnknownFootprintError(KeyError):
+    """Raised by `BlockProgram.apply` when it names a footprint id absent from the mapping it is
+    given, rather than silently skipping it. Deliberately a `KeyError` subclass -- footprint
+    lookup elsewhere in this codebase is ordinary dict access, so a future caller wrapping that
+    lookup in `except KeyError:` should not have to learn a second exception type just because
+    the miss happened inside a `BlockProgram` instead of a plain dict. Its own message names
+    every offending id at once, which a bare `KeyError` on the first miss would not."""
+
+
+# One footprint's fitter inputs, spelled out once rather than left as a bare `Tuple`: exactly
+# `fit_program_beam`'s own leading positional arguments, in that order.
+FootprintFit = Tuple[np.ndarray, int, int, np.ndarray]
+
+
+@dataclass(frozen=True)
+class BlockProgram:
+    """#9's explicit block program: a selected set of footprints plus up to four optional,
+    independently-selectable coordination targets. Per #9's "block identity is ephemeral"
+    decision, this object has no stable id of its own and is never persisted; it exists only for
+    the duration of one `apply()` call.
+
+    🔑 The four fields deliberately restate `FitBias`'s own four, rather than this class simply
+    holding a `bias: FitBias` field -- they are two different layers, not one duplicated: this is
+    #9's domain object (a *block's* coordinated decision, over a named set of footprints), and
+    `FitBias` is #149's fitter-internal search parameter (what one fit call is biased by). Keeping
+    them distinct means #150's own type can change independently of how #149's search happens to
+    take its bias -- `to_bias()` is the one seam between them.
+
+    Applying it means a **full re-fit** of every named footprint (#9's decision, not a parameter
+    nudge) through #10's constrained beam-search fitter, biased by exactly the axes this object
+    sets -- one `FitBias`, constructed once and applied identically everywhere, so a coordinated
+    decision cannot silently drift from one footprint to the next. `FitBias`/`_select` (#149)
+    already guarantee an unset axis is a true no-op; this object's own job is only to build that
+    one bias correctly and apply it uniformly, not to re-derive that guarantee.
+    """
+    footprint_ids: Tuple[Any, ...]
+    height_rhythm: Optional[Union[float, Sequence[float]]] = None
+    roof_family: Optional[str] = None
+    setback: Optional[float] = None
+    azimuth: Optional[float] = None
+
+    def __post_init__(self):
+        # frozen dataclasses still allow this at construction time (`object.__setattr__`, not
+        # `self.x =`) -- accepting a caller's list here rather than only a tuple, without losing
+        # the hashability `frozen=True` otherwise implies.
+        object.__setattr__(self, "footprint_ids", tuple(self.footprint_ids))
+        self.to_bias()          # fails fast on an invalid roof_family, reusing FitBias's own check
+
+    def to_bias(self) -> FitBias:
+        """The single `FitBias` every footprint named here is re-fit under."""
+        return FitBias(height_rhythm=self.height_rhythm, roof_family=self.roof_family,
+                       setback=self.setback, azimuth=self.azimuth)
+
+    def apply(self, footprints: Dict[Any, FootprintFit]) -> Dict[Any, Tuple[list, np.ndarray]]:
+        """Re-fit every named footprint under this program's bias.
+
+        `footprints` maps a footprint id to `(fp, y0, y1, target)` -- exactly `fit_program_beam`'s
+        own positional arguments, so this adds no footprint representation of its own; #151 is
+        what turns a result into committed `EditOp`s.
+
+        Every id is checked against `footprints` before any footprint is fit: a missing one is a
+        caller error, not a partial result, so `UnknownFootprintError` names every offending id at
+        once and nothing is fit at all rather than fitting some and skipping the rest.
+        """
+        missing = [fid for fid in self.footprint_ids if fid not in footprints]
+        if missing:
+            raise UnknownFootprintError(
+                f"BlockProgram names {len(missing)} footprint id(s) absent from the given "
+                f"footprints: {missing!r}")
+
+        bias = self.to_bias()
+        return {fid: fit_program_beam(*footprints[fid], bias=bias)
+                for fid in self.footprint_ids}
 
 
 # ----------------------------------------------------------------------------------------------
@@ -554,8 +840,29 @@ def _rings_to_mask(rings, res: int = RES) -> np.ndarray:
     return mask.reshape(res, res)
 
 
-def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
+def program_floor(program):
+    """#134's confound-control arm: the lowest height ANY `Layer` op in `program` specifies, or
+    `None` if it has none.
+
+    #131 diagnosed the spike as structural: a column no operation's region covers reverts to the
+    FULL envelope height, because `replay_program`'s cascade starts there and every op only ever
+    lowers within its own region. This is the "base `Layer` under the cascade" #131 named and left
+    untested -- a per-building, data-derived floor requiring no information beyond what already
+    recovered this program, not a tuned constant.
+    """
+    heights = [int(op["height"]) for op in program if op["op"] == "Layer"]
+    return min(heights) if heights else None
+
+
+def replay_program(fp: np.ndarray, y0: int, y1: int, program, floor: int = None) -> np.ndarray:
     """Re-run a serialised program in height-map space, reading only what the artifact stores.
+
+    ⚠️ #134's control arm: `floor`, when given, is the height an UNCOVERED column starts at
+    instead of the full envelope extent -- #131's own "base `Layer` under the cascade" (its "What
+    this does not settle", item 1), implemented as changing the cascade's own starting value
+    rather than literally prepending an operation, since every op already takes a MIN against
+    whatever `h` already is. `None` (the default) is the existing, unchanged behaviour: every
+    caller before #134 is unaffected.
 
     The fitter returns its height map as a by-product of the search. This interprets the written
     program instead, so a disagreement means the artifact is not self-contained -- which is the
@@ -578,7 +885,9 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
     commutativity cost nothing and bought a canonical form, an equivalence test, and deletion of
     any operation rather than only the last (`EditableBuilding.remove`).
     """
-    h = np.where(fp, np.int16(y1 - y0 + 1), 0).astype(np.int16)
+    extent = y1 - y0 + 1
+    start = min(int(floor), extent) if floor is not None else extent
+    h = np.where(fp, np.int16(start), 0).astype(np.int16)
     dists = _dists_for(fp)
     for op in program:
         kind = op["op"]
@@ -764,6 +1073,147 @@ def _triangle_cells(a, v, b, res: int = RES, eps: float = -1e-9) -> np.ndarray:
     return p[keep].astype(int)
 
 
+# ================================================================================================
+# #134 -- fit few-vertex regions directly, instead of trimming exact rings
+#
+# #131 priced every budget as the cost of DELETING vertices from the exact ring down to it. It left
+# open whether a fitter that placed a FEW vertices directly, rather than trimming many down, would
+# land somewhere better. RADmesh (ECCV 2026) optimizes on a deliberately coarse discretization and
+# re-discretizes on a coarse-to-fine schedule, carrying its optimizer state across each step by
+# barycentric interpolation. The mechanism transfers here as: start a region at a handful of
+# vertices, then GROW it -- insert the vertex that recovers the most currently-uncovered area at
+# each step -- so budget=16's polygon is built ON TOP OF budget=8's, never restarted.
+# ================================================================================================
+
+
+def _triangle_contained(a, v, b, exact_mask, res: int):
+    """Triangle `(a, v, b)`'s cells, or `None` if any of them falls outside `exact_mask`.
+
+    #134's one shared primitive: the identical cell-level containment test `simplify_region`'s
+    `contained` rule already runs for deletion, factored out so `_seed_triangle` and
+    `_fit_outer_ring_direct` -- both admitting an INSERTION instead of a deletion -- share one
+    implementation of "is this triangle safe to add" rather than each re-stating it.
+    """
+    cells = _triangle_cells(a, v, b, res)
+    if len(cells) and not exact_mask[cells[:, 1], cells[:, 0]].all():
+        return None
+    return cells
+
+
+def _seed_triangle(ring, ri: int, exact_mask, res: int):
+    """#134: the coarsest possible contained start for one ring: an "ear" -- three consecutive
+    vertices whose triangle is entirely inside `exact_mask`. Ear-clipping theory guarantees at
+    least one exists for any simple polygon (a ring here always is one), so this is always found,
+    not a heuristic that can fail on a well-formed ring; the explicit containment re-check is
+    defensive. An ear is a corner CONVEX in ring-space -- `turn > 0` for the outer ring, `turn < 0`
+    for a hole, the exact conditions `simplify_region`'s own `contained` rule already uses,
+    mirrored.
+    """
+    n = len(ring)
+    if n <= 3:
+        return list(range(n))
+    for i in range(n):
+        a, v, b = ring[(i - 1) % n], ring[i], ring[(i + 1) % n]
+        turn = _cross(a, v, b)
+        is_ear = (turn > 0) if ri == 0 else (turn < 0)
+        if not is_ear:
+            continue
+        if _triangle_contained(a, v, b, exact_mask, res) is None:
+            continue
+        return sorted({(i - 1) % n, i, (i + 1) % n})
+    return None
+
+
+def _fit_outer_ring_direct(ring, exact_mask, res: int, budget: int):
+    """#134: grow the OUTER ring from a 3-vertex seed toward `exact_mask`, inserting the vertex
+    that recovers the most currently-uncovered area at each step, subject to `_triangle_contained`
+    -- the same cell-level test `simplify_region`'s `contained` rule uses for deletion, shared here
+    rather than restated, applied to insertion instead (`grows = turn > 0`, the mirror image of
+    the deletion rule's `turn < 0`).
+
+    ⚠️ Scoped to the outer ring only (#134's own scope decision): a hole's own vertices stay on the
+    existing, already-measured `contained` trimming path (`simplify_region` handles this by
+    allocating `budget` across all rings; a caller here passes the remainder after hole trimming).
+    Holes are the minority of the vertex count (#131: holes are usually near their own floor
+    already), and growing them too would need a signed incremental-coverage update (a hole
+    REMOVES area rather than adding it) this scope does not need to build.
+
+    Each step's kept-index set is a strict superset of the previous step's -- RADmesh's "carry the
+    fit forward across re-discretization" -- by construction, not by extra bookkeeping.
+    """
+    n = len(ring)
+    seed = _seed_triangle(ring, 0, exact_mask, res)
+    if seed is None:                                      # defensive: a malformed ring
+        return ring
+    kept = set(seed)
+    if len(kept) >= n:
+        return ring
+    covered = np.zeros_like(exact_mask)
+    seed_cells = _triangle_cells(ring[seed[0]], ring[seed[1]], ring[seed[2]], res)
+    if len(seed_cells):
+        covered[seed_cells[:, 1], seed_cells[:, 0]] = True
+
+    while len(kept) < min(budget, n):
+        best = None                                       # (gain, j, cells)
+        idxs = sorted(kept)
+        for pos, i in enumerate(idxs):
+            nxt = idxs[(pos + 1) % len(idxs)]
+            span = (nxt - i) % n
+            for step in range(1, span):
+                j = (i + step) % n
+                a, v, b = ring[i], ring[j], ring[nxt]
+                if _cross(a, v, b) <= 0:                  # not a bulge outward: no area to gain
+                    continue
+                cells = _triangle_contained(a, v, b, exact_mask, res)
+                if cells is None:
+                    continue                              # would add a cell outside the exact region
+                gain = (int((exact_mask[cells[:, 1], cells[:, 0]]
+                            & ~covered[cells[:, 1], cells[:, 0]]).sum()) if len(cells) else 0)
+                if best is None or gain > best[0]:
+                    best = (gain, j, cells)
+        if best is None or best[0] <= 0:
+            break                                          # no admissible insertion still gains area
+        _, j, cells = best
+        kept.add(j)
+        if len(cells):
+            covered[cells[:, 1], cells[:, 0]] = True
+
+    return [ring[i] for i in sorted(kept)]
+
+
+def _simplify_region_direct(rings, budget: int, exact_mask, res: int):
+    """#134's `direct` rule: the outer ring GROWS toward the exact region (`_fit_outer_ring_
+    direct`); holes are reduced to their own LOSSLESS floor first -- free, no fidelity cost, via
+    the existing `lossless` rule on each hole ring by itself -- and spend whatever that floor
+    costs before the outer ring gets the remainder.
+
+    ⚠️ Holes are not GROWN under this rule -- a deliberate scope decision, not an oversight. They
+    are the minority of the vertex count (15.7% of regions carry one at all, #131) and are usually
+    already small (a median hole is a single cell: 4 vertices, which the lossless floor cannot
+    reduce further -- #131's own finding, "a speckle hole is 4 vertices that cannot be spent").
+    #134 is scoped to the outer boundary, where the vertex budget and the spike problem #131
+    diagnosed both concentrate. A pathological region with many holes (#131 records one with 156)
+    can still starve the outer ring down to its 3-vertex floor regardless of budget -- an honest,
+    documented limitation of this scope, not a silent wrong answer: the outer ring's own growth
+    still respects every hole correctly regardless, since `exact_mask` already excludes hole
+    cells, so a growth step that would bulge into one fails the same containment test as any
+    other out-of-region cell.
+    """
+    outer, holes = rings[0], rings[1:]
+    reduced_holes = []
+    for h in holes:
+        if len(h) <= 3:
+            reduced_holes.append(h)
+            continue
+        hole_mask = _rings_to_mask([h], res)
+        reduced_holes.append(simplify_region([h], 0, hole_mask, res, "lossless")[0])
+    hole_verts = sum(len(h) for h in reduced_holes)
+    outer_budget = max(3, budget - hole_verts)
+    grown = _fit_outer_ring_direct([[float(v[0]), float(v[1])] for v in outer], exact_mask, res,
+                                   outer_budget)
+    return [grown] + [[[float(v[0]), float(v[1])] for v in h] for h in reduced_holes]
+
+
 def simplify_region(rings, budget: int, exact_mask, res: int = RES, rule: str = "contained"):
     """One region's rings -> the same region under a vertex budget, cheapest corner first.
 
@@ -794,12 +1244,18 @@ def simplify_region(rings, budget: int, exact_mask, res: int = RES, rule: str = 
         that count is the rasterizer's, not the architecture's.
       * `free`      -- no test. It may also delete a ring outright once it is down to a triangle,
         which is how a one-cell speckle hole disappears -- by swallowing its cell.
+      * `direct`    -- #134: not a deletion rule at all. Grows the outer ring from a coarse seed
+        toward the exact region instead of trimming the exact ring down -- see
+        `_fit_outer_ring_direct`. The one thing it shares with `contained` is the same cell-level
+        containment test, reused for insertion rather than deletion.
 
     ⚠️ Marching squares is the obvious tool for this and is wrong here (`mask_to_rings` says why):
     it chamfers every corner diagonally, handing a plain rectangular shed four 45-degree eaves it
     does not have. This deletes *existing* vertices and never invents one, so a rectangle stays a
     rectangle at every budget -- the check `test_simplify_region_keeps_a_plain_shed` pins.
     """
+    if rule == "direct":
+        return _simplify_region_direct(rings, budget, exact_mask, res)
     rs = [[[float(v[0]), float(v[1])] for v in r] for r in rings]
     while sum(len(r) for r in rs) > budget:
         cand = []
@@ -926,8 +1382,8 @@ def _budget_case(task):
 
     from scripts.foundations.train_height_map_generator import roof_description_length
 
-    def score(prog, ledger):
-        h = replay_program(fp, y0, y1, prog)
+    def score(prog, ledger, floor=None):
+        h = replay_program(fp, y0, y1, prog, floor=floor)
         occ = occupancy(fp, y0, h)
         row = volume_split(occ, gt)
         row["vs_input"] = vs_input(occ, bo_occ)
@@ -960,9 +1416,17 @@ def _budget_case(task):
     # the vertices the regions actually NEED: simplified until the rasterized cells would change,
     # with no budget at all. Everything above this count is the rasterizer's, not the building's.
     out["lossless"] = score(*simplify_program(program, 0, "lossless"))
+    floor = program_floor(program)                        # #134's confound control, computed once
     for v in budgets:
-        for arm, rule in (("inner", "contained"), ("free", "free")):
-            out[f"{arm}{v}"] = score(*simplify_program(program, v, rule))
+        for arm, rule in (("inner", "contained"), ("free", "free"), ("direct", "direct")):
+            prog_v, ledger_v = simplify_program(program, v, rule)
+            out[f"{arm}{v}"] = score(prog_v, ledger_v)
+            if arm == "inner":
+                # does a base-Layer floor ALONE -- no change to the fitter -- already fix the
+                # spike `inner` leaves? Isolates the floor's own effect from the search's, so a
+                # `direct` win cannot be attributed to the wrong cause (#134's "confound to
+                # control first").
+                out[f"floor{v}"] = score(prog_v, ledger_v, floor=floor)
     return bid, out
 
 
@@ -1025,10 +1489,14 @@ def report_vertex_budget(art: dict) -> None:
 
     line("exact", "-", "exact")
     line("needed", "-", "lossless")
+    any_row = next(iter(pb.values()))
     for v in budgets:
         print("-" * 118)
-        for arm in ("inner", "free"):
-            line(str(v), arm, f"{arm}{v}")
+        # #134 adds `direct`/`floor`; detected rather than hardcoded so this still reports an
+        # OLD #131-only artifact (inner/free alone) without a KeyError.
+        for arm in ("inner", "floor", "direct", "free"):
+            if f"{arm}{v}" in any_row:
+                line(str(v), arm, f"{arm}{v}")
     print("-" * 118)
     print("  `contained` = fraction of regions that gained NO cell, so #10's guarantee holds and")
     print("  `missing`/collapse stay 0 by construction.  `met` = fraction that reached the budget.")

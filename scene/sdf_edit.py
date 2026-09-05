@@ -25,8 +25,9 @@ Design notes:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Sequence, Tuple
+import uuid
+from dataclasses import dataclass, field, asdict, replace
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -59,7 +60,8 @@ from scene.sdf_primitives import (
 # good the generator is. `height_map` records that, and `learnable_here` is its consequence.
 # ================================================================================================
 
-CORE = "core"                 # 2.5-D, subtract-only; BOTH compilers run it; learnable from this corpus
+CORE = "core"                 # 2.5-D; `layer`/`ramp` bidirectional (#140), `cut_roof` subtract-only;
+                               # BOTH compilers run it; learnable from this corpus
 VOLUMETRIC = "volumetric"     # only the SDF compiler runs it; zero training signal on this corpus
 
 
@@ -78,15 +80,21 @@ _PRISM = ("polygon", "size")
 
 ALGEBRA = {
     # -- the core: what #10 recovered and #6 generates -------------------------------------------
-    "layer": OpSpec(CORE, True, True, _PRISM,
-                    note="one connected region flattened to one height. ArcPro's CreateLayer, and "
-                         "the operation a SETBACK and a TERRACE both resolve to"),
-    "ramp": OpSpec(CORE, True, True, _PRISM + ("planes",), plane_clauses=1,
-                   note="the tightest PLANE above the target over one region -- the shed roof "
-                        "CutRoof cannot express, at arbitrary rotation"),
+    # 🔑 #140: `layer` and `ramp` are bidirectional -- `mode="add"` raises a column exactly as
+    # `mode="subtract"` already lowers one, validated and composed the same way. `cut_roof` stays
+    # subtract-only; see its own note below.
+    "layer": OpSpec(CORE, False, True, _PRISM,
+                    note="one connected region flattened to one height, lowered (subtract) or "
+                         "raised (add, #140). ArcPro's CreateLayer, and the operation a SETBACK "
+                         "and a TERRACE both resolve to"),
+    "ramp": OpSpec(CORE, False, True, _PRISM + ("planes",), plane_clauses=1,
+                   note="the tightest PLANE above the target (subtract) or up to it (add, #140) "
+                        "over one region -- the shed roof CutRoof cannot express, at arbitrary "
+                        "rotation"),
     "cut_roof": OpSpec(CORE, True, True, _PRISM,
                        note="height falls off with distance from the region's edge: hip erodes on "
-                            "all sides, gable on one axis"),
+                            "all sides, gable on one axis. Stays subtract-only (#140) -- its "
+                            "additive mirror already exists as the volumetric tier's gable/hip"),
     # -- volumetric: compilable, never learnable from THIS corpus --------------------------------
     "box": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG; how a courtyard or light well is cut"),
     "rounded_box": OpSpec(VOLUMETRIC, False, False, (), note="raw CSG"),
@@ -205,6 +213,10 @@ def commutes(ops: Sequence["EditOp"]) -> bool:
 
     ⚠️ This is what makes DELETION, EQUIVALENCE and a CANONICAL FORM well defined at all -- an
     ordered algebra has no normal form that is not just "the order you happened to write".
+
+    ⚠️ #140 gives `layer`/`ramp` a real, learnable `mode="add"`, which reopens exactly this: a
+    program mixing add and subtract is ordered, and this predicate already says so -- it checks
+    every op's `mode`, not its `kind`, so no change was needed here to cover the new additive ops.
     """
     return all(op.mode == "subtract" for op in ops)
 
@@ -219,6 +231,82 @@ def is_height_map_representable(ops: Sequence["EditOp"]) -> bool:
         op.kind in ALGEBRA for op in ops)
 
 
+def finalize_problems(ops: Sequence["EditOp"]) -> List[str]:
+    """#145/#7: the finalize-time architectural-program gate. Bundles `program_problems`,
+    `commutes`, and `is_height_map_representable` -- the three checks that exist today but nothing
+    ran together -- and reports every problem found, rather than raising.
+
+    ⚠️ Returns a report, unlike #143's `op_problems`-in-`EditableBuilding.add` gate, which raises.
+    A single malformed op appended mid-edit is a bug to raise on; a fully-composed program failing
+    here is more often a decision point for whoever calls this at finalize (refuse outright, or
+    surface it to a human) -- #3's "a completion failing validity is never committed" does not say
+    that failure must be an exception.
+
+    ⚠️ Deliberately NOT wired into `EditableBuilding.add` or anywhere on the preview/fast-edit
+    path: #3's preview/finalize boundary keeps preview fast and this check is finalize-time only.
+    Nothing calls this automatically -- a caller decides when "finalize" happens and runs it then.
+    """
+    problems = list(program_problems(ops))
+    if not commutes(ops):
+        problems.append("program does not commute: it mixes add and subtract operations, so "
+                        "replay is order-dependent (#140) rather than architecture-neutral")
+    if not is_height_map_representable(ops):
+        problems.append("program is not height-map representable: it uses a volumetric-tier "
+                        "operation the height-map compiler cannot run")
+    return problems
+
+
+def _perimeter_mask(fp: np.ndarray) -> np.ndarray:
+    """Footprint cells with at least one 4-neighbor -- or the grid edge itself -- outside the
+    footprint: the same boundary `_boundary_edges` traces below, as a cell mask rather than a set
+    of edges. A cell is interior (excluded) only when all four of its neighbors are also in `fp`.
+    """
+    Z, X = fp.shape
+    padded = np.zeros((Z + 2, X + 2), bool)
+    padded[1:-1, 1:-1] = fp
+    interior = (padded[:-2, 1:-1] & padded[2:, 1:-1] &
+               padded[1:-1, :-2] & padded[1:-1, 2:])
+    return fp & ~interior
+
+
+def containment_problems(occ: np.ndarray, fp: np.ndarray, y0: int, y1: int) -> List[str]:
+    """#146/#7: the finalize-time containment gate.
+
+    ⚠️ Run against a program's COMPILED occupancy (`EditableBuilding.to_occupancy()`), never
+    against any one operation's own region -- an op whose own declared region reaches outside the
+    footprint is not itself a problem; only material that actually ends up occupied out there is.
+
+    Generalizes #10/#131's containment guarantee -- "a fitted region may only shrink toward its GT
+    target, never grow past it" -- to a program with no GT to fit against: the guarantee here is
+    against the footprint's own envelope, not any particular shape. Two rules:
+
+    1. Every occupied voxel must fall within the footprint's plan outline (`fp`) and the declared
+       height range `[y0, y1]`. The absolute bound -- core ops and any volumetric interior addition
+       alike, nothing may cross it.
+    2. The compiled exterior must claim the ENTIRE footprint boundary at ground level (`y0`) -- no
+       gap anywhere around the perimeter (`_perimeter_mask`). Interior cells are exempt: a
+       courtyard or a free-standing interior element may sit empty at ground level without failing
+       this, provided it still obeys rule 1.
+
+    `occ` is `[z, y, x]`, `fp` is `[z, x]` at the same resolution -- `EditableBuilding.to_occupancy`
+    and the footprint mask a caller already has. Returns a report, never raises, matching
+    `op_problems`/`program_problems`/`finalize_problems`'s own convention.
+    """
+    problems: List[str] = []
+    y_res = occ.shape[1]
+    y_index = np.arange(y_res)[None, :, None]             # [1, y_res, 1], broadcasts to [z, y, x]
+    allowed = fp[:, None, :] & (y_index >= y0) & (y_index <= y1)
+    outside = occ & ~allowed
+    if outside.any():
+        problems.append(f"{int(outside.sum())} occupied voxel(s) fall outside the footprint's "
+                        f"envelope (plan outline and/or declared height range [{y0}, {y1}])")
+    gap = _perimeter_mask(fp) & ~occ[:, y0, :]
+    if gap.any():
+        problems.append(f"the exterior does not claim {int(gap.sum())} footprint-boundary "
+                        f"cell(s) at ground level (y={y0}); the perimeter has a gap")
+    return problems
+
+
 def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
     """The program's normal form: the same operations in a deterministic order.
 
@@ -228,6 +316,13 @@ def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
 
     The key is (kind, then the geometry) rather than anything positional, so it survives a round
     trip through JSON and does not depend on how the host happened to enumerate the ops.
+
+    ⚠️ #141: `id` is excluded from the comparison. It is bookkeeping identity, not content -- two
+    ops built separately with the same kind/mode/geometry but different ids still denote the same
+    building, which is exactly what `equivalent()` (the semantic sibling this is a cheap proxy
+    for) already returns, since `composed()` never reads `id` either. #151's `group_id` is
+    excluded for the identical reason: which coordinated edit (if any) produced an op is not part
+    of what it denotes.
     """
     if not commutes(ops):
         raise ValueError("canonical_form is only defined for a commuting (all-subtractive) "
@@ -235,7 +330,9 @@ def canonical_form(ops: Sequence["EditOp"]) -> List[dict]:
     problems = program_problems(ops)
     if problems:
         raise ValueError("; ".join(problems))
-    return sorted((op.to_dict() for op in ops), key=lambda d: json.dumps(d, sort_keys=True))
+    return sorted(({k: v for k, v in op.to_dict().items() if k not in ("id", "group_id")}
+                  for op in ops),
+                  key=lambda d: json.dumps(d, sort_keys=True))
 
 
 def equivalent(base_sdf: SDF, a: Sequence["EditOp"], b: Sequence["EditOp"],
@@ -268,8 +365,26 @@ _TIE = 1e-5
 
 @dataclass
 class EditOp:
-    """One user edit. `size` is primitive-specific (see _primitive)."""
+    """One user edit. `size` is primitive-specific (see _primitive).
+
+    🔑 #141: `id` is this op's stable identity, auto-assigned when the caller doesn't supply one
+    and unaffected by the op's position in a building's stack -- `EditableBuilding.remove_by_id`
+    is what makes "reroll this decision" a lookup rather than a recomputed index. It is plain
+    bookkeeping, not geometry: `_primitive`/`_region_solid`/`composed()` never read it, and
+    `canonical_form` deliberately strips it before comparing (see there) so that two ops built
+    separately but describing the same edit still denote the same building.
+
+    🔑 #151: `group_id` is the same kind of bookkeeping for a *coordinated* edit -- every op one
+    `commit_block_program` call commits, across every footprint it touched, shares one value here,
+    tagged after the fact rather than carried through the fitter (#9's "block identity is
+    ephemeral": no persisted block object, just this tag on the ops it produced). `None` for an op
+    added through the ordinary single-footprint path. Like `id`, it is stripped by
+    `canonical_form` for the same reason: two ops from different coordinated edits, or one
+    coordinated and one not, still denote the same building if their geometry agrees.
+    """
     kind: str                          # one of PALETTE
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    group_id: Optional[str] = None     # #151: shared across one BlockProgram commit; else None
     center: Tuple[float, float, float] = (0.0, 0.0, 0.0)   # world position
     size: Tuple[float, ...] = (1.0, 1.0, 1.0)
     mode: str = "add"                  # "add" (union) | "subtract"
@@ -302,6 +417,9 @@ class EditOp:
     @staticmethod
     def from_dict(d):
         # tolerate host-side annotation keys (e.g. 'det' type tags, 'layer') on the wire
+        # -- and, by the same filtering, tolerate state saved before #141: a `d` with no 'id'
+        # simply never reaches the constructor as a kwarg, so `id`'s own default_factory assigns
+        # a fresh one rather than the call failing.
         keys = EditOp.__dataclass_fields__.keys()
         return EditOp(**{k: v for k, v in d.items() if k in keys})
 
@@ -427,6 +545,18 @@ class EditableBuilding:
 
     # -- edit stack --------------------------------------------------------
     def add(self, op: EditOp) -> "EditableBuilding":
+        """Append `op`, or refuse it. #143: a candidate is checked against `op_problems` -- the
+        same per-operation predicate `program_problems`/`canonical_form` already run -- BEFORE the
+        stack is touched, so a malformed op (missing a required field, wrong mode for its kind,
+        ...) can never silently enter a building's state.
+
+        ⚠️ REFUSED, not appended-then-rolled-back: the stack is left byte-for-byte as it was on a
+        refusal. #140 already made `op_problems` cover the new `add`-mode cases, so this needed no
+        change there to close the gap for them too.
+        """
+        problems = op_problems(op)
+        if problems:
+            raise ValueError("; ".join(problems))
         self.ops.append(op)
         return self
 
@@ -453,8 +583,34 @@ class EditableBuilding:
             raise IndexError(f"no operation at index {index}; the stack has {len(self.ops)}")
         return self.ops.pop(index)
 
+    def remove_by_id(self, op_id: str) -> EditOp:
+        """Delete the operation with this id, wherever it now sits in the stack. #141's answer to
+        the resolve failure `remove`'s own docstring names: a caller rerolling "the wing I just
+        added" should not have to recompute its current list position after other edits shifted
+        it -- this looks it up instead.
+
+        ⚠️ An id with no match is REFUSED, not a no-op: the same reasoning as `remove`'s refused
+        negative index -- a stale or mistyped id must surface as an error, not silently leave the
+        building unchanged while the caller believes their edit was removed.
+        """
+        for i, op in enumerate(self.ops):
+            if op.id == op_id:
+                return self.ops.pop(i)
+        raise KeyError(f"no operation with id {op_id!r}; the stack has ids "
+                       f"{[op.id for op in self.ops]}")
+
     def clear(self):
         self.ops.clear()
+
+    def replace_ops(self, ops: List[EditOp]) -> "EditableBuilding":
+        """Swap in an entirely new program. #151's own commit path: a re-fit that has already
+        passed the fuller `finalize_problems` gate over the WHOLE replacement program, which
+        subsumes every op's own `op_problems` -- so unlike `add`, this does not re-validate
+        per-operation, and unlike `add`'s refusal-leaves-the-stack-untouched contract, the caller
+        is expected to have decided already that this program is what replaces the last one.
+        """
+        self.ops = list(ops)
+        return self
 
     # -- composed SDF ------------------------------------------------------
     def composed(self) -> SDF:
@@ -510,6 +666,57 @@ def recipe_base_sdf(style: str, params, polygon_xz, height: float, device: str =
     def f(pts: torch.Tensor) -> torch.Tensor:
         return module(p, poly, h, pts)
     return f
+
+
+# ==================================================================================================
+# #142 -- snap new operation geometry to the working grid
+#
+# Reuses `_spacing`/`_to_world` below (the layer-program bridge's own world-coordinate pitch) but is
+# NOT part of that bridge: it runs the opposite direction (a possibly off-grid op -> the grid), and
+# nothing in the bridge calls it -- a recovered program is already exactly on this grid by
+# construction. It sits here, ahead of the bridge, so the bridge's own banner below still describes
+# only what is physically inside it.
+# ==================================================================================================
+
+
+def _snap_scalar(w: float, res: int) -> float:
+    """Round one world coordinate to the nearest HALF-voxel-index grid point -- the same offset a
+    recovered region's own boundary sits on (the bridge's banner below: "Region polygons trace the
+    voxel boundary exactly, at half-voxel offsets"). A `layer`'s `y_lo`/`top` land there too
+    (`_op_for`: `_to_world(idx, res) - half` / `... + half`), so one formula covers both a polygon's
+    XZ vertices and a slab's Y bounds.
+    """
+    s = _spacing(res)
+    half_index = round((w + 1.0) / s - 0.5) + 0.5
+    return _to_world(half_index, res)
+
+
+def snap_to_grid(op: "EditOp", res: int = 64) -> "EditOp":
+    """#142: round `op`'s region geometry -- polygon vertices and slab height bounds -- onto the
+    module's own voxel pitch (`_spacing`/`_to_world`, resolution `res`), so a hand-authored or
+    generated op meets existing geometry at the same clean, grid-aligned edge a recovered one
+    already sits on, instead of an arbitrary sub-voxel jitter.
+
+    Pure: returns a NEW `EditOp` (`dataclasses.replace`) with `polygon`/`size` rounded; `op` itself
+    is untouched, and every other field -- `smooth` included, so the hard-edge default (or an
+    explicit blend) survives exactly -- passes through unchanged.
+
+    Ops with no `polygon` (the volumetric CSG kinds -- `box`, `sphere`, ...) have no region
+    geometry in this sense and are returned unchanged; snapping their `center`/`size` is a
+    different question this ticket does not ask.
+
+    ⚠️ #3's decision, restated: this is an explicit, OPT-IN step for newly authored operations,
+    not a filter every op passes through. Nothing in the recovery/replay path (`_op_for`,
+    `layer_program_to_ops`) calls it -- a recovered program is already exactly on this grid by
+    construction (see `_snap_scalar`), and it is not called from `EditableBuilding.add` or
+    `EditOp.from_dict` either, so previously stored state loads exactly as saved.
+    """
+    if op.polygon is None:
+        return op
+    polygon = [[[_snap_scalar(x, res), _snap_scalar(z, res)] for x, z in ring]
+               for ring in op.polygon]
+    size = tuple(_snap_scalar(v, res) for v in op.size)
+    return replace(op, polygon=polygon, size=size)
 
 
 # ==================================================================================================
@@ -803,3 +1010,88 @@ def _op_for(entry, kind, rings_idx, rings, y0, half, top, res) -> EditOp:
         return EditOp(kind="cut_roof", mode="subtract", polygon=rings, size=slab,
                       planes=_eave_planes(rings_idx, roof_kind, eaves, rate, y0, res))
     raise ValueError(f"unknown layer-program operation '{kind}'")
+
+
+# ================================================================================================
+# #9 / #151 -- apply a BlockProgram and commit the result, footprint by footprint
+# ================================================================================================
+
+def _current_target(occ: np.ndarray, fp: np.ndarray, y0: int, y1: int) -> np.ndarray:
+    """How tall the CURRENTLY compiled massing already reaches in each column, against a FIXED
+    envelope `(y0, y1)` -- `recover_massing_programs.height_field`'s own `top` computation, minus
+    its auto-detection of `y0`/`y1` from the occupancy's own extent.
+
+    ⚠️ That auto-detection is exactly wrong here: it would set `y1` to wherever the CURRENT massing
+    happens to reach, which makes the re-fit's own `full` (`y1 - y0 + 1`) equal `target` in every
+    column with nothing left carved away -- zero surplus, so `fit_program_beam` would return an
+    empty program regardless of bias, every time, because it would think there was nothing to
+    re-derive. The envelope is the footprint's own fixed wall/eaves height (#9), not wherever a
+    prior program happened to leave the roofline.
+
+    ⚠️ Unlike `height_field`, this does NOT assume every on-footprint column already has some
+    occupancy: `height_field` trusts a real corpus building's own containment guarantee (#10: 0
+    empty columns in 4.3M), but a building `#151` re-fits may have been edited -- a `Layer` cut to
+    height 0 empties a column outright, and `np.argmax` on an all-`False` slice returns 0, which
+    the raw formula below reads as `top = sub.shape[1]`, i.e. FULL height: the opposite of empty.
+    So an emptied column is checked for directly rather than trusted away.
+    """
+    sub = occ[:, y0:y1 + 1, :]
+    any_occupied = sub.any(axis=1)
+    top = (sub.shape[1] - 1 - np.argmax(sub[:, ::-1, :], axis=1)) + 1
+    top = np.where(any_occupied, top, 0)
+    return np.where(fp, top, 0).astype(np.int16)
+
+
+def commit_block_program(program, buildings: Dict[Any, EditableBuilding],
+                         footprint_envelopes: Dict[Any, Tuple[np.ndarray, int, int]],
+                         res: int = 64) -> Dict[Any, List[str]]:
+    """Re-fit every footprint `program` (a `scripts.foundations.recover_massing_programs.
+    BlockProgram`) names against its OWN currently-compiled massing, then commit each
+    independently.
+
+    `buildings` maps a footprint id to the `EditableBuilding` holding its prior program -- what
+    #151 keeps on failure and replaces on success. `footprint_envelopes` maps the same id to its
+    own immutable `(fp, y0, y1)` -- the footprint polygon and its fixed wall/eaves height range
+    (#9's "footprint envelope"). This is caller-owned truth, independent of how much of it any
+    program has carved away so far, so it is taken as an input rather than reverse-engineered from
+    the building's current occupancy (see `_current_target`'s own warning for why that would only
+    ever recover however tall the massing happens to be right now, not the envelope it may still
+    have room to re-express within).
+
+    🔑 Every `EditOp` this call commits, across every footprint it touches, carries one freshly
+    generated `group_id` (#9's "block identity is ephemeral" decision: nothing persists beyond
+    this shared tag on the ops one coordinated decision produced).
+
+    Each footprint's re-fitted program is checked independently against #7's own finalize-time
+    gate (`finalize_problems`, #145) -- the SAME gate every other program on this project commits
+    through, not a new block-level one. On pass, it REPLACES that footprint's prior program; on
+    fail, the prior program is left untouched and the problems are returned under that footprint's
+    id. One footprint's failure never blocks or rolls back another's commit in the same call.
+
+    Returns `{footprint_id: problems}`; an empty list means that footprint committed.
+    """
+    from scripts.foundations.recover_massing_programs import finalise_program
+
+    footprints = {}
+    for fid in program.footprint_ids:
+        if fid not in buildings or fid not in footprint_envelopes:
+            continue          # BlockProgram.apply's own check names every missing id at once
+        fp, y0, y1 = footprint_envelopes[fid]
+        fp = np.asarray(fp, bool)
+        target = _current_target(buildings[fid].to_occupancy(res=res), fp, y0, y1)
+        footprints[fid] = (fp, y0, y1, target)
+
+    results = program.apply(footprints)
+
+    group_id = uuid.uuid4().hex
+    reports: Dict[Any, List[str]] = {}
+    for fid, (ops, _h) in results.items():
+        fp, y0, y1, _target = footprints[fid]
+        edit_ops = layer_program_to_ops(finalise_program(ops), fp, y0, y1, res=res)
+        for op in edit_ops:
+            op.group_id = group_id
+        problems = finalize_problems(edit_ops)
+        reports[fid] = problems
+        if not problems:
+            buildings[fid].replace_ops(edit_ops)
+    return reports
