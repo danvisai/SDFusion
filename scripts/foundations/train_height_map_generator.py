@@ -488,7 +488,7 @@ from scripts.foundations.measure_scoring_optimum import (        # noqa: E402
     compare_to_envelope, transplant_height,
 )
 from scripts.foundations.recover_massing_programs import (       # noqa: E402
-    CARVE_NEEDED, H5, K_OPS, SHIP714, SLOT_TYPES, fit_program_beam, height_field,
+    CARVE_NEEDED, H5, K_OPS, SHIP714, SLOT_TYPES, FitBias, fit_program_beam, height_field,
     occupancy, plane_surface, program_to_slots, render_iso,
 )
 
@@ -742,6 +742,70 @@ def roof_description_length(surface: np.ndarray, fp: np.ndarray, y0: int, extent
                 planar_fraction=float(planar / len(mix)) if mix else 0.0)
 
 
+def smooth_heightmap(h: np.ndarray, fp: np.ndarray, sigma: float) -> np.ndarray:
+    """Footprint-masked Gaussian blur of a per-column height map, footprint-exact in and out.
+
+    A plain `gaussian_filter(h)` would blend in the height-0 exterior at every boundary column,
+    understating height exactly at the wall. This is "normalised convolution": blur `h * mask` and
+    `mask` separately and divide, so a boundary column's smoothed value is the average of its
+    FOOTPRINT neighbours only, never diluted by the outside. Undefined columns (the blurred mask is
+    ~0, meaning no footprint pixel was within reach of `sigma`) cannot occur inside a footprint of
+    any real building at the sigmas this is used at, but are floored to the raw value rather than
+    left as a division artefact if they ever do.
+    """
+    m = np.asarray(fp, bool).astype(np.float64)
+    num = ndimage.gaussian_filter(np.asarray(h, np.float64) * m, sigma)
+    den = ndimage.gaussian_filter(m, sigma)
+    safe = den > 1e-6
+    out = np.where(safe, num / np.where(safe, den, 1.0), h)
+    return np.where(fp, np.clip(np.rint(out), 1, None), 0).astype(h.dtype)
+
+
+def fit_decode(heights: np.ndarray, held: dict, max_ops: int = K_OPS,
+               allowance: float = CARVE_NEEDED, bias: FitBias | None = None,
+               smooth_sigma: float = 0.0) -> np.ndarray:
+    """#8's fusion arm: SERVE #10's beam-fitter's output instead of only measuring it.
+
+    `roof_description_length` already runs `fit_program_beam` on an arm's own surface, but only to
+    report `dl_ops`/`dl_planar_fraction` as a diagnostic -- the fitted height map it computes along
+    the way is discarded. This function keeps it, so a generator's raw per-column prediction (a
+    mound, per #127's montage) is replaced by the small typed `Layer`/`Ramp`/`CutRoof` program the
+    fitter finds to explain it, compiled back to a height map.
+
+    🔑 The fitter's containment invariant (`fitted` may never drop below the `target` it is fit to)
+    gives this a provable, one-directional trade: since `target` here is the ARM's own prediction,
+    not GT, `fitted >= heights` on every footprint column WHEN `smooth_sigma == 0`. Relative to GT,
+    that means `missing` can only fall or hold and `extra` can only rise or hold. Whether the
+    `dl_ops`/`dl_planar_fraction` gain is worth that `extra` cost is an empirical question this
+    function does not answer -- it only makes the arm exist so `score_arm` can.
+
+    ⚠️ Measured unbiased, unsmoothed on the served CE+median arm (#8): `dl_ops` 6.0 -> 3.0 but
+    `dl_planar_fraction` 0.20 -> **0.00** -- the fitter resolved the generator's own noise into MORE
+    flat `Layer` terraces, not fewer pitched planes, because a plane must dominate every point in
+    its region while a `Layer` only has to beat the local max, so noise favours `Layer` on raw gain
+    every round. `bias` (#9's own `FitBias`, reused rather than a new mechanism) was tried first and
+    measured to have **no effect** at #9's own bias strength -- the noise dominates the per-round
+    raw-gain ranking too strongly for a soft nudge to flip it.
+
+    `smooth_sigma` attacks the noise itself, upstream of the fitter, instead: `target` is
+    `smooth_heightmap(heights[i], fp, smooth_sigma)`, not the raw prediction. 🔑 This trades away
+    part of the containment guarantee above -- blurring can pull a column BELOW what the raw model
+    predicted there, so `fitted` is only guaranteed `>= the SMOOTHED target`, not `>= heights`
+    itself, and the monotonic missing/extra argument no longer holds unconditionally. That is the
+    real cost of this variant and is measured, not assumed.
+    """
+    out = np.zeros_like(heights)
+    for i in range(len(heights)):
+        fp, y0, extent = held["fp"][i], int(held["y0"][i]), int(held["extent"][i])
+        target = heights[i].astype(np.int16)
+        if smooth_sigma > 0:
+            target = smooth_heightmap(target, fp, smooth_sigma)
+        _, fitted = fit_program_beam(fp, y0, y0 + extent - 1, target,
+                                     max_ops=max_ops, allowance=allowance, bias=bias)
+        out[i] = fitted
+    return out
+
+
 def roof_shape_stats(h: np.ndarray, fp: np.ndarray) -> dict:
     """Three attempts at a scalar for "does this roof look like a building", and all three fail.
 
@@ -963,12 +1027,23 @@ def head_channels(objective: str) -> int:
     return DEPTH_CLASSES if objective == "ce" else 1
 
 
-def make_model(objective: str, width: int, k_planes: int, plane_head: str = "regress"):
-    """The one place an objective chooses an architecture."""
+def make_model(objective: str, width: int, k_planes: int, plane_head: str = "regress",
+              k_hyp: int = 1):
+    """The one place an objective chooses an architecture.
+
+    `k_hyp` (#8) only widens the 'ce' head's final 1x1 conv to `k_hyp` independent copies of the
+    same `DEPTH_CLASSES`-channel posterior -- the 4M-parameter U-Net backbone is untouched, so a
+    `k_hyp=1` model is bit-for-bit what every prior arm on this file already built.
+    """
+    if k_hyp > 1 and objective != "ce":
+        raise ValueError(f"k_hyp > 1 needs a distribution per hypothesis; "
+                         f"'{objective}' has no per-column posterior to multiply")
     if objective == "program":
         return build_program_model(K_OPS, width, plane_head)
     if objective == "planes":
         return build_plane_model(k_planes, width)
+    if k_hyp > 1:
+        return build_model(head_channels(objective) * k_hyp, width)
     return build_model(head_channels(objective), width)
 
 
@@ -1083,6 +1158,76 @@ def slope_loss(depth, y, mask):
     dx, tx, mx = d[:, :, 1:] - d[:, :, :-1], t[:, :, 1:] - t[:, :, :-1], m[:, :, 1:] & m[:, :, :-1]
     num = ((dz - tz).abs() * mz).sum() + ((dx - tx).abs() * mx).sum()
     return num / (mz.sum() + mx.sum()).clamp(min=1)
+
+
+def wta_ce_loss(out: "torch.Tensor", y: "torch.Tensor", m: "torch.Tensor",
+               k_hyp: int, epsilon: float = 0.05) -> "torch.Tensor":
+    """Relaxed winner-take-all cross-entropy over `k_hyp` independent 'ce' heads (#8).
+
+    `slope_loss` above already tried to fix the mound by PENALISING an incoherent surface, and
+    #127 measured it does not (`heightmap_ce_slope`: `extra` 0.0651 against plain median's 0.0603,
+    `dl_planar_fraction` 0.22 against 0.20 -- noise). A penalty cannot fix this because the failure
+    is not incoherence a single head could learn away: when two training buildings share almost the
+    same conditioning but genuinely differ (a roof tilts left on one, right on the other), ONE
+    per-column head minimising average cross-entropy over both is doing the correct thing by
+    hedging -- the hedge (a mound) is the Bayes-optimal single answer to a genuinely bimodal
+    target, not a bug a sharper penalty can train out of it.
+
+    Winner-take-all instead gives the network `k_hyp` separate candidate answers for the SAME
+    input. For each training building, all `k_hyp` candidates are scored against its real height
+    map (summed over that building's own footprint columns, never per-column -- picking a winner
+    per column would let one served building be stitched together from different hypotheses'
+    columns, which is incoherent by construction and defeats the entire point); whichever
+    hypothesis is already closest gets most of the gradient, so gradient descent pushes it to
+    specialise further on buildings like this one instead of every hypothesis being pulled toward
+    the same compromise. The other `k_hyp - 1` hypotheses still get a small `epsilon` share rather
+    than zero -- Rupprecht et al. 2017's "relaxed" WTA -- because plain hard WTA is documented to
+    let a hypothesis that loses early in training never win again, and so never learn anything at
+    all ("hypothesis death").
+
+    `out` is `[B, k_hyp * DEPTH_CLASSES, Z, X]`; `y`/`m` are the ordinary per-column target/footprint
+    mask every other 'ce' loss here already takes.
+    """
+    import torch
+    import torch.nn.functional as F
+
+    B, _, Z, X = out.shape
+    logits = out.view(B, k_hyp, DEPTH_CLASSES, Z, X)
+    yc = y.clamp(0, DEPTH_CLASSES - 1)
+    per_hyp = torch.stack([F.cross_entropy(logits[:, k], yc, reduction="none")
+                          for k in range(k_hyp)], dim=1)                       # [B, k_hyp, Z, X]
+    mf = m.float().unsqueeze(1)
+    whole = (per_hyp * mf).sum(dim=(2, 3)) / mf.sum(dim=(2, 3)).clamp(min=1)   # [B, k_hyp]
+    winner = whole.argmin(dim=1)
+    weight = torch.full_like(whole, epsilon / max(k_hyp - 1, 1))
+    weight.scatter_(1, winner.unsqueeze(1), 1.0 - epsilon)
+    return (whole * weight).sum(dim=1).mean()
+
+
+def decode_wta(out_k: np.ndarray, fp: np.ndarray, extent: int, k_hyp: int,
+               quantile: float | None, target: np.ndarray | None = None) -> np.ndarray:
+    """Decode a `k_hyp`-headed 'ce' prediction into ONE height map (#8).
+
+    Each of the `k_hyp` slices is an ordinary single-hypothesis 'ce' posterior and is decoded by
+    the exact same `decode_logits` every other 'ce' arm uses -- a hypothesis is not a new kind of
+    output, there are just several of them.
+
+    `target`, when given, picks the ORACLE hypothesis: whichever candidate has the lowest
+    `missing + extra` against it. ⚠️ This is legitimate ONLY where the real answer is already known
+    -- training-time validation, or #8's own stage-1 gate ("if even an oracle can't find a good
+    roof among k_hyp candidates, no real selector could either") -- and it is NEVER a servable
+    decode: nothing at generation time has `target` to cheat with. Callers that score this against
+    `target` must keep it out of any `verdict()` comparison the way `program_label (sees GT)`
+    already is (`NOT_GENERATORS`), for the same reason. Without `target`, hypothesis 0 is returned:
+    an arbitrary, clearly-unfinished placeholder until a real selector exists.
+    """
+    cands = [decode_logits(out_k[k * DEPTH_CLASSES:(k + 1) * DEPTH_CLASSES], fp, extent, quantile)
+             for k in range(k_hyp)]
+    if target is None:
+        return cands[0]
+    scores = [height_split(c, target) for c in cands]
+    best = min(range(k_hyp), key=lambda k: scores[k]["extra"] + scores[k]["missing"])
+    return cands[best]
 
 
 def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective: str,
@@ -1932,12 +2077,15 @@ def train(cache: dict, args) -> Path:
               + "  ".join(f"slot{k} {v:.4f}" for k, v in enumerate(t_prior[:, ramp]))
               + f"   (tau={TYPE_TEMPERATURE})", flush=True)
 
-    model = make_model(args.objective, args.width, args.k_planes, args.plane_head).to(dev)
+    model = make_model(args.objective, args.width, args.k_planes, args.plane_head,
+                       args.k_hyp).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=steps)
-    print(f"[train] {n_par/1e6:.2f}M parameters, {steps} steps", flush=True)
+    print(f"[train] {n_par/1e6:.2f}M parameters, {steps} steps"
+          + (f", k_hyp={args.k_hyp} (relaxed WTA, epsilon={args.wta_epsilon})"
+             if args.k_hyp > 1 else ""), flush=True)
 
     def loss_of(x, y, ext, prog_labels=None):
         m = x[:, 0] > 0                                   # footprint columns only
@@ -1946,6 +2094,8 @@ def train(cache: dict, args) -> Path:
             # weight` either: the joint structure is in the output space now, and #127 measured
             # that adding it to the loss buys description length without buying planes.
             return program_loss(model(x), prog_labels, m, args.plane_head, a_prior, t_prior)
+        if args.k_hyp > 1:
+            return wta_ce_loss(model(x), y, m, args.k_hyp, args.wta_epsilon)
         out = (forward_heights(model, x, ext, args.objective) if args.objective == "planes"
                else model(x))
         per = per_column_loss(out, y, ext, args.objective, args.quantile)
@@ -1987,12 +2137,12 @@ def train(cache: dict, args) -> Path:
         run /= max(len(order) // args.batch, 1)
         model.eval()
         vl, ve, vm = _validate(model, va, val_carve, args.objective, args.quantile, dev,
-                               args.plane_head, a_prior, t_prior)
+                               args.plane_head, a_prior, t_prior, args.k_hyp)
         curve.append(dict(epoch=ep + 1, train=run, val=vl, val_extra=ve, val_missing=vm,
                           val_symmetric=ve + vm))
         mark = ""
         snap = dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                    quantile=args.quantile, k_planes=args.k_planes,
+                    quantile=args.quantile, k_planes=args.k_planes, k_hyp=args.k_hyp,
                     plane_head=args.plane_head, slope_weight=args.slope_weight,
                     slope_decode_quantile=SLOPE_DECODE_QUANTILE,
                     # ⚠️ the decode travels WITH the weights. #129's checkpoints were trained and
@@ -2023,8 +2173,16 @@ def train(cache: dict, args) -> Path:
 
 
 def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
-              plane_head: str = "regress", assign_prior=None, type_prior=None) -> tuple:
-    """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings."""
+              plane_head: str = "regress", assign_prior=None, type_prior=None,
+              k_hyp: int = 1) -> tuple:
+    """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings.
+
+    ⚠️ `k_hyp > 1` (#8) validates at the ORACLE decode (`decode_wta` given the real `va.target`) --
+    legitimate here because checkpoint selection is a training-time decision allowed to know the
+    answer, same footing as every other selection rule in this function. It is a ceiling on what a
+    real, servable selector could ever reach, not a preview of one; nothing about `_validate`
+    picking the oracle hypothesis makes the SERVED arm able to do the same.
+    """
     import torch
 
     # ⚠️ The CE arm is validated at its ARGMAX, which is what it is trained for. Validating it at
@@ -2045,6 +2203,10 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
                     out, tuple(torch.from_numpy(t).to(dev) for t in p), m, plane_head,
                     assign_prior, type_prior).detach()))
                 o = [tuple(t[k].cpu().numpy() for t in out) for k in range(len(sel))]
+            elif k_hyp > 1:
+                out = model(xt)
+                losses.append(float(wta_ce_loss(out, yt, m, k_hyp).detach()))
+                o = out.cpu().numpy()
             else:
                 out = (forward_heights(model, xt, et, objective) if objective == "planes"
                        else model(xt))
@@ -2053,9 +2215,9 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
                 o = out.cpu().numpy()
             for k, i in enumerate(sel):
                 ext, fp = int(va.extent[i]), va.fp[i]
-                splits.append(height_split(
-                    decode_prediction(o[k], fp, ext, objective, decode_q, plane_head),
-                    va.target[i]))
+                decoded = (decode_wta(o[k], fp, ext, k_hyp, decode_q, va.target[i]) if k_hyp > 1
+                          else decode_prediction(o[k], fp, ext, objective, decode_q, plane_head))
+                splits.append(height_split(decoded, va.target[i]))
     carve = [d for d, m in zip(splits, carve_mask) if m]
     return (float(np.mean(losses)),
             float(np.median([d["extra"] for d in carve])) if carve else float("nan"),
@@ -2069,6 +2231,11 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     The provenance travels with the prediction rather than with the command line: a `--ckpt` rerun
     scores a file trained by some earlier invocation, and recording the flags of the *rerun* would
     put a number in the artifact that did not produce the checkpoint beside it.
+
+    ⚠️ A `k_hyp > 1` checkpoint (#8) is decoded here at its ORACLE hypothesis (`decode_wta` given
+    `held["target"]`) -- this is stage 1's own gate ("is a good roof even IN the k_hyp candidates"),
+    not a servable arm, and the returned meta says `oracle=True` so callers keep it out of any
+    generator-vs-generator comparison, the same way `program_label (sees GT)` already is kept out.
     """
     import torch
 
@@ -2076,7 +2243,8 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
     # ⚠️ default "regress": #6's committed checkpoints predate the flag and must still load
     head = d.get("plane_head", "regress")
-    model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head).to(dev)
+    k_hyp = d.get("k_hyp", 1)
+    model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head, k_hyp).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     out = np.zeros((len(held["fp"]), RES, RES), np.int16)
@@ -2096,14 +2264,21 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
             else:
                 y = model(xt).cpu().numpy()
             for k, i in enumerate(sel):
-                out[i] = decode_prediction(y[k], held["fp"][i], int(held["extent"][i]),
-                                           d["objective"], quantile, head)
+                if k_hyp > 1:
+                    out[i] = decode_wta(y[k], held["fp"][i], int(held["extent"][i]), k_hyp,
+                                        quantile, target=held["target"][i])
+                else:
+                    out[i] = decode_prediction(y[k], held["fp"][i], int(held["extent"][i]),
+                                               d["objective"], quantile, head)
     # the whole training curve travels into the artifact, not a summary of it: this project has
     # twice recommended stopping at a dip that recovered (#80), and a curve nobody can re-read is
     # how that happens a third time.
     curve = ckpt.with_name(ckpt.stem + "_curve.json")
     return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"],
-                     decode=("argmax" if d["objective"] == "ce" and quantile is None else
+                     k_hyp=k_hyp, oracle=bool(k_hyp > 1),
+                     decode=(f"ORACLE best-of-{k_hyp} (sees GT -- stage-1 gate, not a servable arm)"
+                             if k_hyp > 1 else
+                             "argmax" if d["objective"] == "ce" and quantile is None else
                              f"posterior q={quantile}" if d["objective"] == "ce" else
                              # ⚠️ read from PLANE_DECODE / ASSIGN_DECODE, never spelled out: this
                              # string said "median pitch" for two committed #132 artifacts after
@@ -2206,7 +2381,11 @@ def verdict(arms: dict, pop: str) -> dict:
     out = {}
     bo, nn = arms["blockout"][pop], arms["nn_retrieval"][pop]
     for name, a in arms.items():
-        if name in NOT_GENERATORS:
+        # ⚠️ `_oracle` (#8) is the same shape of ceiling as `PROGRAM_LABEL_ARM`, by suffix rather
+        # than a fixed name: it is `predict()`'s k_hyp>1 decode, which is given the real answer to
+        # pick a hypothesis and so would collect a mechanical PASS for the same reason the compiled
+        # label would.
+        if name in NOT_GENERATORS or "_oracle" in name:
             continue
         s = a[pop]
         out[name] = dict(
@@ -3456,6 +3635,15 @@ def main() -> None:
                          "in place of it. 0 disables it, which is every arm on #127's record; the "
                          "pre-registered value is 1.0, fixed a priori as a 20%% share of the "
                          "converged loss (CE 1.5552, slope 0.3090) and deliberately not swept")
+    ap.add_argument("--k_hyp", type=int, default=1,
+                    help="#8: number of independent 'ce' hypothesis heads, trained with relaxed "
+                         "winner-take-all instead of one averaged posterior. 1 (default) is every "
+                         "prior arm on this file, bit-for-bit unchanged. Only valid with "
+                         "--objective ce")
+    ap.add_argument("--wta_epsilon", type=float, default=0.05,
+                    help="with --k_hyp > 1: the gradient share given to each LOSING hypothesis "
+                         "(Rupprecht et al. 2017's relaxed WTA), so an early-losing hypothesis "
+                         "still learns something instead of dying")
     ap.add_argument("--tag", default=None, help="run name; defaults to the objective")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=64)
@@ -3481,6 +3669,19 @@ def main() -> None:
                          "training failure, so they are a code path and not a notebook")
     ap.add_argument("--ckpt", nargs="*", default=None,
                     help="score these checkpoints instead of training (name=path or path)")
+    ap.add_argument("--fit_decode", action="store_true",
+                    help="#8's fusion: add '<arm>_fit' siblings that post-process each trained "
+                         "arm's height map (and its _median sibling, if any) through #10's "
+                         "beam-search fitter before scoring")
+    ap.add_argument("--fit_decode_roof_family", default=None, choices=("flat", "ramp", "cut_roof"),
+                    help="with --fit_decode, also add a '<arm>_fit_<family>' sibling that biases "
+                         "the fitter's per-round type choice toward this family via #9's FitBias "
+                         "-- tests whether that recovers dl_planar_fraction lost to plain fitting")
+    ap.add_argument("--fit_decode_smooth", type=float, nargs="*", default=[],
+                    help="with --fit_decode, also add one '<arm>_fit_smXX' sibling per sigma that "
+                         "Gaussian-blurs the raw height map before fitting (XX = sigma*10, e.g. "
+                         "sigma=1.5 -> '_fit_sm15') -- tests whether denoising upstream of the "
+                         "fitter recovers dl_planar_fraction where a bias on the fitter could not")
     ap.add_argument("--no_form", action="store_true",
                     help="skip the description-length form metric. It fits a Layer/Ramp/CutRoof "
                          "program to every arm's own surface, which is the only measure found that "
@@ -3621,11 +3822,38 @@ def main() -> None:
                        for i in range(len(sel))}
 
     ckpt_meta = {}
-    for name, path in ckpts.items():
-        heights[name], ckpt_meta[name] = predict(path, held, cpu=args.cpu)
+    for raw_name, path in ckpts.items():
+        h0, m0 = predict(path, held, cpu=args.cpu)
+        # ⚠️ #8: a k_hyp>1 checkpoint's decode is the ORACLE hypothesis (`predict` says so in
+        # `oracle=True`), suffixed by CONTENT rather than by whatever `--tag`/`--ckpt` name was
+        # chosen, so `verdict()`'s `_oracle` exclusion can never be bypassed by a forgetful name.
+        name = f"{raw_name}_oracle" if m0.get("oracle") else raw_name
+        heights[name], ckpt_meta[name] = h0, m0
         if args.median_decode and ckpt_meta[name]["objective"] == "ce":
             alt = f"{name}_median"
             heights[alt], ckpt_meta[alt] = predict(path, held, cpu=args.cpu, quantile=0.5)
+        if args.fit_decode:
+            bases = [name] + ([f"{name}_median"] if f"{name}_median" in heights else [])
+            for base in bases:
+                fit_name = f"{base}_fit"
+                heights[fit_name] = fit_decode(heights[base], held)
+                ckpt_meta[fit_name] = dict(ckpt_meta[base],
+                                           decode=ckpt_meta[base]["decode"] + " -> #10 beam fit")
+                if args.fit_decode_roof_family:
+                    ramp_name = f"{fit_name}_{args.fit_decode_roof_family}"
+                    heights[ramp_name] = fit_decode(
+                        heights[base], held, bias=FitBias(roof_family=args.fit_decode_roof_family))
+                    ckpt_meta[ramp_name] = dict(
+                        ckpt_meta[base],
+                        decode=ckpt_meta[base]["decode"] +
+                        f" -> #10 beam fit (roof_family={args.fit_decode_roof_family} bias)")
+                for sigma in args.fit_decode_smooth:
+                    sm_name = f"{base}_fit_sm{int(round(sigma * 10)):02d}"
+                    heights[sm_name] = fit_decode(heights[base], held, smooth_sigma=sigma)
+                    ckpt_meta[sm_name] = dict(
+                        ckpt_meta[base],
+                        decode=ckpt_meta[base]["decode"] +
+                        f" -> gaussian blur sigma={sigma} -> #10 beam fit")
 
     # ---- score, split by population, never pooled -----------------------------------------------
     rows = {name: score_arm(h, held, form=not args.no_form)
