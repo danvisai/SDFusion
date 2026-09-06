@@ -43,16 +43,16 @@ cannot support either outcome would not be a real test.
 
 **Decision:** H2 is out of this package. It remains a named, deferred hypothesis — matching
 [#9](9-multi-footprint-coordination.md)'s own treatment of the courtyard/style axes — pending
-procedural synthetic void data, the one route [#5](5-data-audit.md) called "un-superseded, narrowly,
-for the volumetric tier."
+procedural synthetic void data, the one route [#5](5-data-audit.md) found un-superseded by any real
+source, narrowly, for the volumetric tier.
 
 
 ## H4 (edit locality) is cited, not re-measured
 
 [#7](7-validity-gates-and-visual-carving-traces.md) already retired edit locality as a *scored*
-metric: "[#144](https://github.com/danvisai/SDFusion/issues/144)'s structural proof already exceeds
-what a statistical score could show." Re-running a statistical locality test on top of a structural
-proof would be strictly weaker evidence, not stronger.
+metric, on the grounds that [#144](https://github.com/danvisai/SDFusion/issues/144)'s structural
+proof already exceeds what a statistical score could show. Re-running a statistical locality test on
+top of a structural proof would be strictly weaker evidence, not stronger.
 
 **Decision:** the proof package cites [#144](https://github.com/danvisai/SDFusion/issues/144)
 directly for H4. The one exception is H1b below, where locality is re-checked on a *new* code path
@@ -65,7 +65,7 @@ directly for H4. The one exception is H1b below, where locality is re-checked on
 
 1. `blockout` — do nothing (the safety floor).
 2. `1-NN` retrieval — zero-training, fully automatic. This is **the pass/fail baseline**, not
-   `blockout` — [#127](127-height-map-generator.md) already established "1-NN is the real bar."
+   `blockout`.
 3. the raw [#127](127-height-map-generator.md)/[#155](https://github.com/danvisai/SDFusion/issues/155)
    height-map generator, unfused.
 4. `fit_decode` — the generator fused through [#10](10-program-recovery.md)'s fitter, the arm
@@ -83,26 +83,41 @@ generator it fuses. Picking one as "the" arm to score would hide exactly that sp
 mistake this map has refused to make in [#130](130-baselines-diffusion-curriculum.md),
 [#126](126-massing-scoring.md), and [#155](https://github.com/danvisai/SDFusion/issues/155) itself.
 
-**Baseline protocol:** [#130](130-baselines-diffusion-curriculum.md)'s named-baseline-equivalents
-(ArcPro/CoMa's `flatten_ramps`, CityGenAgent's `blockout`) were run **oracle-fed** — given
-[#10](10-program-recovery.md)'s ground-truth recovered program, not run automatically. That is a
-ceiling check, not a fair fight against a fully-automatic system.
+**Baseline protocol, and why 1-NN's status here differs from #127's own ruling on it:**
+[#127](127-height-map-generator.md)'s pre-registration originally named 1-NN "the real bar," but its
+own later, standing ruling (dated 2026-08-28, made after seeing results) **demoted** it to "a
+reference point, not a gate" — because requiring one specific *parametric* trained network to beat a
+*non-parametric* baseline that carries all 34,909 training roofs to inference time treats a fair
+compression constraint as a quality failure for that network. That ruling is about judging a single
+generator's own training run, and stands unchanged.
 
-**Decision:** `1-NN` is the actual gate. [#130](130-baselines-diffusion-curriculum.md)'s oracle-fed
-numbers stay in every report table, explicitly labeled oracle-fed/ceiling-only, never as the
-pass/fail comparison.
+This ticket asks a different question — not "is this network good enough" but "does the system beat
+mere integration of known components" — and 1-NN retrieval *is* one of the simplest such known
+components. For that comparison, being non-parametric and automatic is exactly what makes it the
+right line, not a reason to excuse it. [#130](130-baselines-diffusion-curriculum.md)'s
+named-baseline-equivalents (ArcPro/CoMa's `flatten_ramps`, CityGenAgent's `blockout`), by contrast,
+were run **oracle-fed** — given [#10](10-program-recovery.md)'s ground-truth recovered program, not
+run automatically — which makes them a ceiling check, not a fair automatic-vs-automatic comparison.
 
-**Verdict shape:** PASS/PARTIAL/KILL is reported **per axis** (volume/safety vs. architectural
-form), not collapsed into one word when the axes disagree — again matching
-[#155](https://github.com/danvisai/SDFusion/issues/155)'s own honest split reading rather than
-forcing a verdict past what the numbers show.
+**Decision:** `1-NN` is this package's pass/fail gate for H1a specifically (distinct from, and not a
+reversal of, #127's own generator-quality ruling). [#130](130-baselines-diffusion-curriculum.md)'s
+oracle-fed numbers stay in every report table, explicitly labeled oracle-fed/ceiling-only, never as
+the pass/fail comparison.
+
+**Verdict shape:** each hypothesis resolves to one of three readings — **SUPPORTED**,
+**PARTIALLY SUPPORTED**, or **FALSIFIED** — reported **per axis** for H1a (volume/safety vs.
+architectural form), not collapsed into one word when the axes disagree. This is a hypothesis-level
+rollup, a different altitude from `verdict()`'s own PASS/GUARD/KILL bar on a single measured arm
+(CONTEXT.md's "the bar itself" entry) — an axis reads PARTIALLY SUPPORTED exactly when its
+constituent arms disagree the way [#155](https://github.com/danvisai/SDFusion/issues/155) found
+(safety clears its bar, form does not), never by inventing a fourth bar component.
 
 
 ## H1b — guided-edit: a headless proxy, not new interaction code
 
 No gesture, accept/reject, or confidence UI exists anywhere in the repository —
-[#3](3-dual-mode-carving-edit-locality.md) explicitly left that layer "not-yet-specified rather than
-guessed against a demo the owner disowned mid-session," and this session's own repository search
+[#3](3-dual-mode-carving-edit-locality.md) explicitly left that layer not-yet-specified rather than
+guessed against a demo the owner disowned mid-session, and this session's own repository search
 confirms no completion/gesture code path exists to test yet. Building it is out of scope for a
 planning-only map ([#1](https://github.com/danvisai/SDFusion/issues/1)).
 
@@ -151,9 +166,9 @@ existing visual carving trace on the assembled block, not a number this package 
 ## H5 — the benchmark itself, gated on the split fix already in flight
 
 [#5](5-data-audit.md)'s audit already found the standing evaluation set has a live, only
-eval-sampling-patched defect: "today's row-random `Bag3dDataset` permutation has a proven region
-confound." [#153](https://github.com/danvisai/SDFusion/issues/153) exists specifically to fix that
-at the split level.
+eval-sampling-patched defect: today's row-random permutation in `Bag3dDataset` has a proven region
+confound. [#153](https://github.com/danvisai/SDFusion/issues/153) exists specifically to fix that at
+the split level.
 
 **Decision: this proof package's held-out data is [#153](https://github.com/danvisai/SDFusion/issues/153)'s
 region/tile-stratified split, not the legacy pinned-714** — running the most rigorous evaluation this
@@ -168,15 +183,15 @@ reason.
 **Consequence:** H5's benchmark — [#153](https://github.com/danvisai/SDFusion/issues/153)'s split +
 [#154](https://github.com/danvisai/SDFusion/issues/154)'s semantic annotations +
 [#7](7-validity-gates-and-visual-carving-traces.md)'s visual carving trace and
-[#148](148-human-eval-rubric.md)'s rubric — exists as *infrastructure* today (H5 itself: PASS), but
-this ticket's other measurements (H1a's five-arm scorecard) do not run until
-[#153](https://github.com/danvisai/SDFusion/issues/153) lands.
+[#148](https://github.com/danvisai/SDFusion/issues/148)'s rubric — exists as *infrastructure* today
+(H5 itself: SUPPORTED), but this ticket's other measurements (H1a's five-arm scorecard) do not run
+until [#153](https://github.com/danvisai/SDFusion/issues/153) lands.
 
 
 ## Evidence and reporting standard, reused not reinvented
 
 **Visual evidence:** [#7](7-validity-gates-and-visual-carving-traces.md)'s existing 4-fixed-view,
-delta-highlighted carving trace and [#148](148-human-eval-rubric.md)'s existing 3-question human
+delta-highlighted carving trace and [#148](https://github.com/danvisai/SDFusion/issues/148)'s existing 3-question human
 rubric are the qualitative reporting mechanism for every judged output in this package — autonomous
 generations, coordinated blocks, and guided-edit-proxy completions alike. Nothing new is built.
 
@@ -189,9 +204,8 @@ small), adopted project-wide for this package rather than re-derived.
 
 **Reporting shape: a per-hypothesis scorecard, never a single collapsed verdict.** H1a
 (volume/safety and architectural form as separate axes), H1b, H3, and H5 each get an independent
-PASS/PARTIAL/KILL. There is no single "did dual-mode semantic carving pass" sentence this package
-produces — a single verdict would force exactly the kind of forced collapse this map has refused to
-make everywhere else it found a split result.
+SUPPORTED / PARTIALLY SUPPORTED / FALSIFIED reading, per the verdict shape defined under H1a above.
+There is no single "did dual-mode semantic carving pass" sentence this package produces.
 
 
 ## What this ticket explicitly does not decide
@@ -232,5 +246,5 @@ now blocked by it.
   the package's *design*, matching how [#3](3-dual-mode-carving-edit-locality.md),
   [#7](7-validity-gates-and-visual-carving-traces.md), and
   [#9](9-multi-footprint-coordination.md) each closed on their decision, not on execution.
-- H2 (voids) and the relational-graph coordination upgrade remain named, deferred, and unblocked by
-  nothing yet chartered — not silently dropped, not ready-for-agent either.
+- H2 (voids) remains named and deferred, unblocked by nothing yet chartered — not silently dropped,
+  not ready-for-agent either.
