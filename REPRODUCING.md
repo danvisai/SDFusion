@@ -1,10 +1,12 @@
 # Reproducing this on a new machine
 
-Everything needed to clone, rebuild and continue. Written 2026-08-03, at map
-[#69](https://github.com/danvisai/SDFusion/issues/69).
+Environment and artifact reference, originally written 2026-08-03 for map #69.
+Reconciled 2026-09-09. See [PROJECT_STATE.md](docs/PROJECT_STATE.md) for the current work.
+This is **not yet a verified clean-clone, end-to-end corpus rebuild guide**; §4b identifies the gap.
 
-**The short version:** the repo plus ~25 MB of committed data regenerates the full 67 GB corpus. Only
-the model weights (~1 GB) and one third-party checkpoint (2.1 GB) come from elsewhere.
+The repo contains compact identity and recovered-surface artifacts. Large SDF/latent stores are
+derived, but rebuilding them must preserve original row IDs and the historical split. Model
+weights and the third-party Dora checkpoint are separate downloads.
 
 | what | size | where it comes from |
 |---|---|---|
@@ -13,7 +15,7 @@ the model weights (~1 GB) and one third-party checkpoint (2.1 GB) come from else
 | `data/real_massing_v1/surfaces_*.h5` | **18 MB** | this repo |
 | `external/dora_vae_1_1.ckpt` | 2.1 GB | Hugging Face (third-party) |
 | `external/Dora` source | ~50 MB | `git clone`, pinned commit below |
-| model weights | ~1 GB | **not yet published — see §6** |
+| model weights | varies by bundle | publication locations documented in §6 |
 | `real.h5` SDF field | 34.9 GB | **regenerated**, §4 |
 | vecset latent caches | 17.4 GB | **regenerated**, §4 |
 
@@ -89,26 +91,31 @@ sources that can and do change upstream. If it is lost, the exact corpus cannot 
 this at load time, so always go through `dora_frozen_gate.load_surfaces`, **never** `h5py` directly. The
 signed-distance path will not notice inside-out surfaces; a vecset encoder will.
 
-### 4b. Regenerate `real.h5`'s SDF field (34.9 GB)
+### 4b. SDF regeneration gap
 
-`real.h5` is 99.6% SDF, and the SDF is a voxelisation of the meshes:
+`ingest_surfaces.py --verify --source plateau` **requires an existing real.h5**.
+It re-voxelizes a sample of recovered surfaces and compares occupancy; it does not write or
+reconstruct `real.h5`. Its normal mode recovers surface meshes from source data, also using
+the existing corpus identity in `real.h5`.
+
+The 35,623 recovered meshes can support a future rebuild, but 153 of the original 35,776
+rows have no recovered surface. Compacting away those rows changes row identities and the
+deterministic split; do not claim that a compacted file reproduces the pinned evaluation.
+A complete rebuild needs a row-preserving writer, explicit missing-row handling and a
+verification against the identity/split artifacts. That work is not supplied by this command.
+
+On a machine that already has the original corpus, the verification command remains useful:
 
 ```bash
 env -u LD_PRELOAD ./sdfusion/bin/python scripts/foundations/ingest_surfaces.py --verify --source plateau
 ```
-
-`--verify` re-voxelises recovered meshes and compares against a stored field, which is the check that
-this path is faithful. ⚠️ Regeneration is **equivalent, not bit-identical** — verification compares
-occupancy IoU, not float equality. And a rebuilt corpus has **35,623 rows, not 35,776**: the 153
-unrecovered buildings have no mesh. #74 established they are ordinary buildings (median occupancy 0.18,
-none empty), 150 of them German, so nothing is lost analytically.
 
 ### 4c. Regenerate the latent caches (17.4 GB, ~2 h each)
 
 ```bash
 # real-surface latents
 env -u LD_PRELOAD ./sdfusion/bin/python scripts/foundations/precompute_vecset_latents.py
-# the aligned blockout partners
+# blockout partner encodings (token alignment is a separate pass)
 env -u LD_PRELOAD ./sdfusion/bin/python scripts/foundations/precompute_vecset_latents.py --blockout \
     --out data/real_massing_v1/vecset_blockout_latents.h5
 ```
@@ -125,8 +132,9 @@ so training learned a **transposed** building. Expect `median ≈ 0.997`; a fram
 
 ## 5. Verify the rebuild
 
-Run the harness on the pinned id set. It should reproduce the committed baseline exactly for the
-deterministic arms:
+With the original row identities, required caches and checkpoints available, run the harness on
+the pinned id set. Compare against the recorded baseline; regenerated fields and surface sampling
+must not be promised bit-identical:
 
 ```bash
 env -u LD_PRELOAD ./sdfusion/bin/python scripts/foundations/eval_massing_arms.py \
@@ -141,7 +149,8 @@ Expect (from `execution/artifacts/massing_arms_eval_baseline.json`):
 | blockout | 1.000 | 0.000 | 0.183 | 0.845 |
 | codec_ceiling | 0.997 | 0.000 | 0.001 | 0.999 |
 
-`gt`, `blockout` and `codec_ceiling` are deterministic and should match. ⚠️ `deployed_map24` is a
+`gt` and `blockout` are fixed by the supplied rows. `codec_ceiling` also depends on the
+surface/encoding path; compare its measured tolerance rather than assuming bit equality. ⚠️ `deployed_map24` is a
 sampled arm and carries a measured noise floor (fp ±0.008, extra ±0.040, 3D IoU ±0.001).
 
 ## 6. Model weights — published
@@ -154,7 +163,8 @@ hf download danvisimhadri/SDFUSION --include 'massing-vecset/*' --local-dir weig
 cd weights/massing-vecset && sha256sum -c SHA256SUMS
 ```
 
-**Start here — the current line of work**, all scored on the 48-id harness:
+**Historical vecset checkpoints**, reported on the 48-id harness (later 714-row results
+and the closed #87 investigation supersede these as current research status):
 
 | checkpoint | what it is |
 |---|---|
@@ -172,8 +182,9 @@ transposed latents and learned a compensating axis swap.
 **not resume-ready**. To resume a run, use the originals under `logs_building/`.
 `scripts/foundations/stage_weights_for_transfer.py` regenerates the published set.
 
-⚠️ The corpus derives from **3DBAG** (NL), **NRW open data** (DE) and **PLATEAU** (JP), all carrying
-attribution terms. The model card cites all three; **any downstream use must honour them.**
+The corpus derives from **3DBAG** (NL), **NRW open data** (DE) and **PLATEAU** (JP).
+Their source-specific licensing/provenance must be recorded by #152; do not assume one shared
+attribution policy. See the dated [data audit](docs/wayfinding/solid-first-subtractive-modeling/5-data-audit.md).
 
 **What is still cluster-only.** ~700 GB across `logs_building/` and `legacy/` — intermediate step
 checkpoints and snapshots of the superseded dense-grid architecture, including six documented-negative
@@ -185,19 +196,12 @@ exists off-cluster — the 493 GB `data/` tree is regenerated, never transferred
 
 ## 7. Where the work stands
 
-Read in this order:
+Read [PROJECT_STATE.md](docs/PROJECT_STATE.md), [INTEGRATION_STATE.md](docs/INTEGRATION_STATE.md),
+then the relevant `docs/wayfinding/` directory and live issue.
 
-1. `docs/SESSION-HANDOVER-2026-08-03.md` — current state, criteria, and the traps
-2. `docs/SESSION-HANDOVER-2026-07-29.md` — the previous session
-3. `docs/wayfinding/vecset-convergence/` — one write-up per closed ticket
+Map #69 and token-alignment map #87 are closed. The v5 band-fix run is complete and its collapse
+findings are historical; do not resume it based on an old handover. Current work concerns semantic
+height-map/program generation (#1), BuildingWorld (#156), and the separate demo maps (#97/#106).
 
-Live map: [#69](https://github.com/danvisai/SDFusion/issues/69). Frontier: **#77**, **#79**, **#82**.
-
-**Immediate next step:** the band-fix run (`--surf_t_center 0.55`) was launched and may not have
-finished. Check `logs_building/vecset_v5_surfband/` and `logs_building/_launch_logs/v5_surfband.log`. It
-is a controlled comparison against `vecset_v4_surf` — same checkpoint, same 60k steps, one variable.
-
-⚠️ **Read the traps in the handover before trusting any number.** The load-bearing ones: never
-extrapolate the training curve (it went 0.719 → 0.657 → 0.532 → 0.840 by epoch), always report
-`vs input` beside a quality number (the generator scores well by *declining to act*), and n=10 probes are
-not quotable — only the 48-id harness settles anything.
+The historical pinned-714 set remains a regression control. #153's new proof split and
+#177's BuildingWorld split have distinct purposes and must be versioned separately.

@@ -17,7 +17,7 @@ Massachusetts State Plane), the same category as New York. The decision below co
 
 | City | #157 defect | #158 effective yield | Decision |
 |---|---|---|---|
-| New York | isotropic, US feet | 46% | **Reproject** — divide by the exact US survey foot factor (1200/3937 m, ≈3.28083989501×) |
+| New York | isotropic, US feet | 46% | **Reproject** — multiply coordinates by 1200/3937 metres per US survey foot (equivalently divide by ≈3.28083333333 feet per metre) |
 | Philadelphia | mixed: `2010_ph_downtown/` feet, `2015_scene/` metres | 18% | **Reproject the feet subfolder only** — per-subfolder fix, not per-city; `2015_scene/` is left as-is |
 | Boston | isotropic, US feet | 81% | **Reproject** — same exact-factor fix as New York |
 | Cambridge | isotropic, US feet | 45% | **Reproject** — same exact-factor fix as New York |

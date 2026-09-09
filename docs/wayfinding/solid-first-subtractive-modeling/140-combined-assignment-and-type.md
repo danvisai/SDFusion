@@ -1,4 +1,9 @@
-# #140 — Do the assignment and type fixes compound, or do they trade against each other?
+# Combined assignment/type experiment — do the fixes compound?
+
+> **Identifier correction, 2026-09-09:** this filename preserves an old local experiment label.
+> GitHub [#140](https://github.com/danvisai/SDFusion/issues/140) is **Make Layer and Ramp Ops
+> Bidirectional**, not this experiment. Refer to this result by checkpoint
+> `heightmap_program_assign_tau05`. It has no distinct verified GitHub ticket number.
 
 *Effort: solid-first semantic architectural carving. Opened 2026-09-02, discovered rather than
 planned: `heightmap_program_assign_tau05`, trained while writing up [#139](139-assignment-temperature.md),
@@ -29,7 +34,7 @@ every number from this map's own scoring harness:
 | `heightmap_program_adj` *(#132)* | 1.0 | off | 0.0659 | 0.0832 | 0.8470 | 0.2579 | 0.12 | 2.03 | *0.8080* |
 | `heightmap_program_typeadj` *(#138)* | 1.0 | on | 0.0835 | 0.0938 | 0.8163 | 0.2774 | 0.50 | 2.00 | *0.7960* |
 | `heightmap_program_assign_tau05_only` *(#139)* | 0.5 | off | 0.0926 | **0.0772** | 0.8039 | 0.2603 | **0.67** | 1.77 | 0.8131 |
-| **`heightmap_program_assign_tau05` *(#140, this arm)*** | 0.5 | on | **0.0592** | 0.1064 | 0.8432 | **0.1727** | 0.33 | **2.28** | **0.8189** |
+| **`heightmap_program_assign_tau05` *(combined, this arm)*** | 0.5 | on | **0.0592** | 0.1064 | 0.8432 | **0.1727** | 0.33 | **2.28** | **0.8189** |
 
 🔑 **No metric is monotonic in "more fixes applied."** Reading down each column tells a different,
 sometimes contradictory story:
@@ -37,8 +42,8 @@ sometimes contradictory story:
 * **`missing`**: worst under type-alone (0.0835) and assign-alone (0.0926) each pull it up from
   #132's 0.0659 — but COMBINED it falls to the best value in the table, 0.0592. Assign-alone hurts
   `missing`, type-alone hurts `missing`, and together they fix it. A genuine positive interaction.
-* **`extra`**: assign-alone is the best in the table (0.0772, and the only arm to beat 1-NN's
-  0.1031). Adding the type fix on top makes it the WORST (0.1064). A genuine negative interaction —
+* **`extra`**: assign-alone is the best in the table (0.0772). The first three arms all beat 1-NN's
+  0.1031 on `extra` alone; none meets the stricter `PROGRAM_BAR` requirement of <0.0603. Adding the type fix on top makes it the WORST (0.1064). A genuine negative interaction —
   the combination is worse than either ingredient alone, not just worse than the best one.
 * **collapse**: type-alone is worst (0.2774), assign-alone is flat against baseline (0.2603 vs
   0.2579), and COMBINED is by far the best (0.1727) — the closest any program-route arm has come to
@@ -88,10 +93,10 @@ where a correctly-identified SECOND region, correctly typed, first shows up ofte
            vs_input < 0.98     0.8432    ✔
     KILL   planar <= 0.20        0.33    -> not fired
 
-**Verdict: NOT MET**, the fourth arm in this chain to fail it, and the fourth different way of
-failing it: #138 tripped the KILL clause outright; #139 (isolated) cleared `extra` but failed
-collapse by a wide margin; this arm clears neither PASS clause but comes closer to the collapse
-GUARD than anything else measured, on this map or its predecessors on the program route.
+**Verdict: NOT MET.** #138 clears the planar KILL clause (0.50 > 0.20), but fails the
+`extra` PASS and collapse GUARD. #139 (isolated) beats retrieval's `extra`, not the stricter
+PROGRAM_BAR `extra < 0.0603`, and also fails collapse. This combined arm passes the operation-count
+clause, fails planar/extra, and comes closest to the collapse GUARD among these four cells.
 
 
 ## What this settles, and what it does not

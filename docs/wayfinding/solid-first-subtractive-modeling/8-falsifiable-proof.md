@@ -69,7 +69,7 @@ directly for H4. The one exception is H1b below, where locality is re-checked on
 3. the raw [#127](127-height-map-generator.md)/[#155](https://github.com/danvisai/SDFusion/issues/155)
    height-map generator, unfused.
 4. `fit_decode` — the generator fused through [#10](10-program-recovery.md)'s fitter, the arm
-   actually served today.
+   measured in evaluation and selected for future serving; the town-service integration is pending.
 5. `fit_decode` + [#9](9-multi-footprint-coordination.md)'s block-coordination bias.
 
 Multi-hypothesis (`k_hyp`) training is deliberately excluded:
@@ -184,7 +184,7 @@ reason.
 [#154](https://github.com/danvisai/SDFusion/issues/154)'s semantic annotations +
 [#7](7-validity-gates-and-visual-carving-traces.md)'s visual carving trace and
 [#148](https://github.com/danvisai/SDFusion/issues/148)'s rubric — exists as *infrastructure* today
-(H5 itself: SUPPORTED), but this ticket's other measurements (H1a's five-arm scorecard) do not run
+(H5 infrastructure: present; the completed benchmark claim remains pending #153/#154), but this ticket's other measurements (H1a's five-arm scorecard) do not run
 until [#153](https://github.com/danvisai/SDFusion/issues/153) lands.
 
 

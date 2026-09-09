@@ -23,7 +23,7 @@ sweep cannot fix. Run and written 2026-09-02. One A100, ~20 minutes of training 
 > and a true isolated arm, `heightmap_program_assign_tau05_only`, was retrained. **Every number
 > below is from the corrected, actually-isolated run.** The mislabelled run is not wasted: it is the
 > combined arm, and it is written up on its own terms in
-> [#140](140-combined-assignment-and-type.md).
+> [the combined experiment](140-combined-assignment-and-type.md).
 
 > #132's own write-up disclosed the cost of its assignment fix without asking whether the cost was
 > load-bearing: dominant-slot accuracy fell 0.8251 → 0.2677 and confidence fell 0.43 → 0.34 to buy
@@ -32,7 +32,7 @@ sweep cannot fix. Run and written 2026-09-02. One A100, ~20 minutes of training 
 > imbalance actually calls for?
 
 Code `scripts/foundations/train_height_map_generator.py` (`ASSIGN_TEMPERATURE` 1.0 → 0.5; a new
-`--no_type_prior` flag so this run and #140 could be told apart), contract tests
+`--no_type_prior` flag so this run and the combined experiment could be told apart), contract tests
 `scripts/foundations/test_train_height_map_generator.py`, artifacts
 `execution/artifacts/height_map_generator_assign_tau05_only_train.json` and
 `..._assign_tau05_only_714_diagnostics.json`. No montage this run.
@@ -77,7 +77,7 @@ is #132's, untouched, this time.
 Two of five numbers moved the direction the mechanism predicts; two moved the other way; one is
 flat. This is a **narrower, more mixed** result than the mislabelled first draft reported:
 
-    beats_1nn_extra            0.0772 vs 0.1031   ✔  (the only arm in this chain to clear it in isolation)
+    beats_1nn_extra            0.0772 vs 0.1031   ✔  (a retrieval comparison, not PROGRAM_BAR's stricter extra clause)
     collapse_no_worse_than_1nn 0.2603 vs 0.1582   ✘  (essentially unchanged from #132's 0.2579)
     moved (vs_input < 0.98)                       ✔
 
@@ -152,11 +152,11 @@ calibration; it mostly stops asking slot 3 to answer at all.
 **Settles:**
 * 🔑🔑 **The assignment correction's cost was substantially a calibration artifact.** In true
   isolation, dominant-slot accuracy recovers to within 0.012 of #129's uncorrected number (0.8134 vs
-  0.8251), and `extra` clears the 1-NN bar for the first time in this chain (0.0772 vs 0.1031).
+  0.8251), and `extra` improves to 0.0772 versus 1-NN's 0.1031; #132 and #138 also beat 1-NN on this scalar.
 * 🔑 **The `planar_fraction` gain from a better-calibrated assignment head is real and larger than
   first measured (0.67, not 0.33)** — but it now reads as a low-complexity artifact (fewer slots
   used, not better-typed ones) rather than as evidence the two heads' errors are simply coupled.
-  That hypothesis is neither confirmed nor refuted by this arm alone; #140 tests it directly.
+  That hypothesis is neither confirmed nor refuted by this arm alone; the combined experiment tests it directly.
 * **Isolating variables by reading a checkpoint's own saved config, not by trusting a run's
   pre-registered intent, caught a real confound before it shipped in the write-up.**
 
@@ -166,8 +166,8 @@ calibration; it mostly stops asking slot 3 to answer at all.
 * ⚠️ **Minor-slot recall (0.0727) is closer to #129's zero than to #132's 0.28.** Whatever the
   correction still buys on the columns that most need it, it buys less of it at tau=0.5 than at
   tau=1.0 — the trade this ticket predicted, now sized correctly.
-* **Whether combining this with #138's type fix compounds favourably is #140's question, not this
-  one's** — and the fact that this isolated run's `planar_fraction` (0.67) beats #140's combined
+* **Whether combining this with #138's type fix compounds favourably is the combined experiment's question, not this
+  one's** — and the fact that this isolated run's `planar_fraction` (0.67) beats the combined experiment's combined
   number (0.33) is itself evidence the two do not simply add.
 * ⚠️ **0.5 is one untested point on a continuum, not a located optimum,** for the same reason it
   was in the mislabelled draft.
@@ -189,7 +189,7 @@ not by the suite; that is a gap, not a design choice.
 - **The question #139 asked is answered, on the corrected run: yes, `tau=1.0` was over-correcting**,
   and roughly recovers the assignment head's dominant-slot calibration in isolation.
 - 🔑 **The `planar_fraction` finding needs the same caution #6/#129/#132 already learned about
-  `dl_ops` in isolation: high and low-complexity are not the same as high and correct.** #140's
+  `dl_ops` in isolation: high and low-complexity are not the same as high and correct.** the combined experiment's
   combined arm is the test of whether pairing this with #138's fix produces a *complex, correct*
   roof rather than a *simple, lucky* one.
 - **`ASSIGN_TEMPERATURE` = 0.5 is now the value future arms in this chain inherit**, the same way
