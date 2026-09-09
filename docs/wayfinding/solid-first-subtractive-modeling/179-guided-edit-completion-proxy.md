@@ -73,16 +73,21 @@ a pre-gesture op *missing* from the completion (107 rows show both). The dominan
 the re-fit **restructuring** an unrelated part of the building, not merely running out of budget to
 redo it.
 
-Mechanistically: `_layer_candidates`/`_ramp_candidates` rank candidates by raw gain across the
-**whole footprint** at every beam step, not per-region. Introducing the gesture's own local surplus
-adds a new competing candidate into that global ranking, which can change *which* candidate wins a
-beam slot at an early step — and once the search diverges there, it can settle on a different (but
-equally valid, equally low-residual) decomposition of an area whose **target height never changed**.
-A concrete, representative case (id 3305, `fp_area` 1535): the pre-gesture program's second `Layer`
-covers 1386 of 1535 footprint cells (90%) at one height — with almost any small gesture box
-overlapping that dominant region by construction, the re-fit sometimes **splits** it into two or
-more smaller `Layer`s, one of which lands entirely outside the gesture and has no match in the
-original program.
+Mechanistically this splits into two distinct sub-mechanisms, both real: **182 of 461** completions
+end with *more* ops than the pre-gesture program (130 of those fail locality) — genuine
+restructuring, where `_layer_candidates`/`_ramp_candidates`' whole-footprint, raw-gain ranking lets
+the gesture's own new candidate change which candidate wins a beam slot early, settling the search
+into a different (equally valid, equally low-residual) decomposition of an area whose **target
+height never changed**. The other **234** keep the *same* op count, yet **153** of those still fail
+locality — a subtler mechanism: **boundary narrowing**. A concrete, verified case (id 3305,
+`fp_area` 1535, `add` gesture, 28 gesture cells): the pre-gesture program is two `Layer`s (40 cells
+at height 41, 1386 cells at height 43) that both geometrically contain the gesture's own footprint
+columns. After the gesture, the completion still has exactly two `Layer`s at the *same two heights*
+(41 and 43) — but each has shrunk by precisely the gesture's own 28 cells (40→22, 1386→1376), since
+those columns are no longer any `Layer`'s to cover. Both ops now sit fully outside the gesture
+region, and both fail the byte-identical mask check: the architectural decision (height 41 here,
+height 43 there) never changed, but its geometric footprint did, which is exactly what "provably
+byte-identical" is supposed to catch.
 
 ⚠️ **This means a full re-fit is not, on this evidence, a locality-preserving guided-edit
 completion strategy** at these settings — 2 times in 3, some part of the building the user did not
