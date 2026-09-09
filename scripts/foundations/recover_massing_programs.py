@@ -920,7 +920,8 @@ def program_floor(program):
     return min(heights) if heights else None
 
 
-def replay_program(fp: np.ndarray, y0: int, y1: int, program, floor: int = None) -> np.ndarray:
+def replay_program(fp: np.ndarray, y0: int, y1: int, program, floor: int = None,
+                   return_masks: bool = False):
     """Re-run a serialised program in height-map space, reading only what the artifact stores.
 
     ⚠️ #134's control arm: `floor`, when given, is the height an UNCOVERED column starts at
@@ -929,6 +930,13 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program, floor: int = None)
     rather than literally prepending an operation, since every op already takes a MIN against
     whatever `h` already is. `None` (the default) is the existing, unchanged behaviour: every
     caller before #134 is unaffected.
+
+    🔑 #179: `return_masks`, when true, additionally returns the [Z, X] bool mask each op ACTUALLY
+    changed -- the height-field analogue of #144's own `_contribution` (the voxels one operation's
+    own application toggles, given whatever came before it). `False` (the default) returns exactly
+    `h` as before, unchanged: every caller before #179 is unaffected. This is the one cascade the
+    corpus's own programs are read through; a locality check over "which columns did this op touch"
+    reuses it rather than forking a second copy that could silently drift from it.
 
     The fitter returns its height map as a by-product of the search. This interprets the written
     program instead, so a disagreement means the artifact is not self-contained -- which is the
@@ -955,6 +963,7 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program, floor: int = None)
     start = min(int(floor), extent) if floor is not None else extent
     h = np.where(fp, np.int16(start), 0).astype(np.int16)
     dists = _dists_for(fp)
+    masks = []
     for op in program:
         kind = op["op"]
         if kind == "Layer":
@@ -968,8 +977,11 @@ def replay_program(fp: np.ndarray, y0: int, y1: int, program, floor: int = None)
             cand = np.minimum(h, np.floor(int(op["eaves"]) + slope))
         else:
             raise ValueError(f"unknown operation '{kind}'")
-        h = np.where(fp, np.maximum(cand.astype(np.int16), 1), 0).astype(np.int16)
-    return h
+        cand = np.where(fp, np.maximum(cand.astype(np.int16), 1), 0).astype(np.int16)
+        if return_masks:
+            masks.append(cand != h)
+        h = cand
+    return (h, masks) if return_masks else h
 
 
 def replay_program_ordered(fp: np.ndarray, y0: int, y1: int, program) -> np.ndarray:
