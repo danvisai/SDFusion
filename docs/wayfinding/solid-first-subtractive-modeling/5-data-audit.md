@@ -1,8 +1,8 @@
 # #5 — Data audit for recoverable architectural programs
 
-*Effort: solid-first semantic architectural carving. Opened 2026-07-15, audited 2026-09-04. Blocks
-[#10](10-program-recovery.md) and [#6](6-program-generator.md), both closed already; unblocks
-[#9](9-multi-footprint-coordination.md)'s deferred axes directly.*
+*Effort: solid-first semantic architectural carving. Opened 2026-07-15, audited 2026-09-04, addendum
+2026-09-09. Blocks [#10](10-program-recovery.md) and [#6](6-program-generator.md), both closed
+already; unblocks [#9](9-multi-footprint-coordination.md)'s deferred axes directly.*
 
 > Which real and synthetic data sources can legally and technically support semantic architectural
 > edit programs over metric footprint sets, and what split, pseudo-label, provenance, licensing,
@@ -189,6 +189,56 @@ tier [#4](4-edit-algebra.md) declared but left unexercised. This does not reopen
 one tier where real data structurally cannot compete, because none exists.
 
 
+## 🔑 Addendum (2026-09-09): an existing procedural corpus doesn't supply the void tier either
+
+This audit named procedural synthesis "un-superseded, narrowly" for exactly one job nothing real
+can do — courtyard/passage/light-well examples for the volumetric tier — and left *building* that
+synthesizer as an open design decision rather than starting it. Before starting it, the cheaper
+alternative was checked: does a large existing procedural corpus already contain exterior massing
+voids, sparing a bespoke build?
+
+**Method.** All 8 production shards of SYNBUILD-3D (Stanford; `prod_run_1..8_2000.tar.gz`, ~730 GB,
+`stacks.stanford.edu/file/druid:kz908vb7844/kdmayer/`) were stream-scanned directly from the gzip
+tar stream, without extracting to disk (`data/synbuild3d_full/analyze.py`), reading every
+`final_building_outdir/**/*.json` member. **6,283,181** building records ingested (4 malformed JSON
+records skipped). For each building's footprint point set (`final_building_points`), a convex-hull-
+area / bounding-box-area "solidity" ratio was computed on a 1% random sample (**63,075** samples) —
+a proxy for a concave, notched, or courtyard-opening outer boundary. A plain rectangular footprint
+scores near 1.0; a footprint with a deep notch or a courtyard open on one side scores well below
+that.
+
+**Result: no void-shaped footprints found.** Across all 63,075 sampled buildings, the lowest
+solidity observed is **0.6395**, and the 30 lowest all cluster in **0.64–0.654** — high enough that
+none read as courtyard, U/C-plan, or light-well massing; they read as ordinary rectangular-ish
+residential footprints with mild corner irregularity. Consistent with this, `unit`/`floorplan`
+counts per building are dominated by a flat bucket of 4 (95.7% of the corpus), matching a
+rowhouse/multi-unit residential generator rather than a source that models exterior voids at all.
+
+**⚠️ What this does and does not prove.** The solidity metric is a proxy for a *concave outer
+boundary* — the shape this generator would produce if it modeled a void as a notch open to the
+outside. It is blind by construction to a fully enclosed courtyard (a true inner ring): that would
+not move the convex hull of the outer boundary at all. Whether `final_building_points` ever encodes
+an inner ring was not independently confirmed, so this check cannot rule that representation out.
+The 1% sample is also not exhaustive over the remaining ~6.22M buildings, and the lowest-solidity
+examples cluster inside a handful of `building_<uuid>_building_<uuid>/` folders — procedural
+variants of the same few base footprints, not 63,075 independent shapes — so the true diversity of
+concave outer boundaries sampled is smaller than the raw count suggests.
+
+**Decision: #5's ruling stands, unmodified.** SYNBUILD-3D was separately ruled out for this map's
+*massing/roof-form* purpose too, for an unrelated reason (no real-world scale, no roof-type label —
+see #156's own out-of-scope note). This addendum answers the narrower, void-tier question this
+ticket actually left open, and reaches the same negative: an existing large procedural corpus does
+not supply exterior massing voids either, at least not in a form an outer-boundary check can see.
+**Procedural generation grounded in the real footprint distribution already in `data/real.h5`**
+remains the only named lever for the void tier — adopting an off-the-shelf corpus is not a
+shortcut past it — and building that generator is still an open design decision, not started here.
+
+Evidence: `data/synbuild3d_full/report_merged.json` (merged stats) and
+`analyze.py`/`merge_reports.py`/`download{,_parallel}.sh`/`run_analysis.sh` in the same directory.
+Per this repo's data policy, the directory (report included) lives on scratch disk, not in git; the
+8 source tarballs (~730 GB) remain there too, unneeded now that the analysis is complete.
+
+
 ## Small human-audited annotation strategy
 
 `NOVELTY_SURVEY.md`'s item 4 named this as needed and left it unsized. Concretely:
@@ -269,6 +319,9 @@ relational-graph upgrade.
 - [#9](9-multi-footprint-coordination.md)'s courtyard-patterns and style axes remain deferred:
   courtyard now has a named mechanism (procedural synthesis, not any real source), and style remains
   genuinely undefined by anything audited here.
+- **(2026-09-09)** SYNBUILD-3D was checked as a possible shortcut past building that synthesizer —
+  see the addendum above. It isn't one; the bespoke generator remains the only named lever, still
+  unbuilt.
 - [#152](https://github.com/danvisai/SDFusion/issues/152)–[#154](https://github.com/danvisai/SDFusion/issues/154)
   are ready for an agent to pick up independently; none blocks the others.
 - The compliance gap (two CC BY 4.0 sources, zero attribution anywhere in the repo) is real today
