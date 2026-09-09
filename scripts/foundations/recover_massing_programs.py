@@ -251,6 +251,47 @@ def _ramp_candidates(fp, target, h, max_regions: int = 3):
 VOCABULARY = ("Layer", "CutRoof", "Ramp")
 
 
+def _wireframe_ramp_candidates(fp, target, h, wf_planes):
+    """Wireframe-derived `Ramp` candidates, offered alongside `_ramp_candidates`'s LP-fit ones --
+    NOT a replacement for them, and not force-installed after the fact (that post-hoc approach
+    was tried first, in `wireframe_ramp_carve.py`; this is the coherent version).
+
+    `_ramp_candidates` SOLVES for the LP-optimal plane over the current surplus region, which is
+    provably the tightest plane the DISCRETIZED `target` height field can support -- a wireframe
+    plane fit independently of that discretization cannot beat it on the region the LP already
+    saw whole. What it CAN do is win where the LP's own region segmentation or the voxel grid's
+    quantization introduced error the wireframe's full-precision geometry doesn't have. So each
+    wireframe plane is evaluated, at every search step, against the CURRENT surplus exactly like
+    every other candidate source: it must stay at or above `target` everywhere in its region
+    (never cuts into GT -- the same containment guard `_ramp_candidates` uses) and must remove
+    positive volume, or it isn't offered at all. Selection between this and the LP's own Ramp
+    candidate for the same region is then ordinary `gain`-ranked competition (or `bias`-shaped
+    competition, if a `FitBias` is also given) -- ADDITIVE to the existing vocabulary, using the
+    exact same interface `_layer_candidates`/`_roof_candidates`/`_ramp_candidates` already use,
+    not a new mechanism.
+
+    `wf_planes`: a list of `{"plane": (a, b, c), "region": bool mask}` dicts, already in this
+    fitter's own voxel-index convention (see `wireframe_ramp_carve.py`'s
+    `wireframe_planes_in_voxel_space` / `frame_n_plane_to_voxel_plane`).
+    """
+    for wf in wf_planes:
+        region = fp & (h > target) & wf["region"]
+        if not region.any():
+            continue
+        a, b, c = (float(v) for v in wf["plane"])
+        plane = plane_surface([a, b, c])
+        cand = np.where(region, np.minimum(h, plane).astype(np.int16), h)
+        cand = np.where(fp, np.maximum(cand, 1), 0).astype(np.int16)
+        if (cand[fp] < target[fp]).any():
+            continue                                       # would cut into GT -- rejected
+        gain = int((h[fp] - cand[fp]).sum())
+        if gain > 0:
+            yield gain, cand, dict(op="Ramp", area=int(region.sum()),
+                                   slope=[round(b, 4), round(c, 4)],
+                                   plane=[a, b, c], _region=region, source="wireframe",
+                                   wf_pitch_deg=wf.get("pitch_deg"))
+
+
 def _all_candidates(fp, dists, target, h, ops_allowed=VOCABULARY):
     """Every operation the vocabulary can offer against the current height map.
 
@@ -260,6 +301,11 @@ def _all_candidates(fp, dists, target, h, ops_allowed=VOCABULARY):
     be carried by the (type, plane) slot the generator predicts. That exclusion is a decision with a
     price, and the price is measured rather than assumed -- `--ops_allowed Layer Ramp` re-runs the
     recovery so the two residuals can be read side by side.
+
+    Deliberately does NOT take `wf_planes`: `_wireframe_ramp_candidates` is chained on at the
+    call site instead (`fit_program`/`fit_program_beam`), the same arm's-length pattern `bias`
+    already uses -- neither changes this function's signature, so existing test doubles that mock
+    `_all_candidates` (see `test_recover_massing_programs.py`) keep working unmodified.
     """
     if "CutRoof" in ops_allowed:
         yield from _roof_candidates(fp, dists, target, h)
@@ -267,6 +313,14 @@ def _all_candidates(fp, dists, target, h, ops_allowed=VOCABULARY):
         yield from _layer_candidates(fp, target, h)
     if "Ramp" in ops_allowed:
         yield from _ramp_candidates(fp, target, h)
+
+
+def _candidates_with_wireframe(fp, dists, target, h, ops_allowed=VOCABULARY, wf_planes=None):
+    """`_all_candidates`, plus `_wireframe_ramp_candidates` when `wf_planes` is given -- composed
+    here rather than inside `_all_candidates` itself; see that function's docstring for why."""
+    yield from _all_candidates(fp, dists, target, h, ops_allowed)
+    if wf_planes:
+        yield from _wireframe_ramp_candidates(fp, target, h, wf_planes)
 
 
 def _dists_for(fp):
@@ -467,12 +521,14 @@ def _select(candidates, bias: Optional[FitBias], dists, n: int):
 
 
 def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
-                ops_allowed=VOCABULARY, bias: Optional[FitBias] = None):
+                ops_allowed=VOCABULARY, bias: Optional[FitBias] = None, wf_planes=None):
     """Greedy: repeatedly take the operation that removes the most surplus without cutting GT.
 
     `bias` (#149) only ever changes which candidate this ranks highest; it never changes which
     candidates exist, so containment (every candidate `_all_candidates` yields already stays at or
-    above `target`) is untouched by it.
+    above `target`) is untouched by it. `wf_planes` (see `_wireframe_ramp_candidates`) DOES add
+    candidates, but every one it adds obeys the identical containment guard -- optional, additive,
+    `None` by default.
     """
     full = np.int16(y1 - y0 + 1)
     h = np.where(fp, full, 0).astype(np.int16)
@@ -483,7 +539,7 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
         surplus = int((h[fp] - target[fp]).sum())
         if gt_vox and surplus / gt_vox <= allowance:
             break
-        picked = _select(_all_candidates(fp, dists, target, h, ops_allowed), bias, dists, n=1)
+        picked = _select(_candidates_with_wireframe(fp, dists, target, h, ops_allowed, wf_planes), bias, dists, n=1)
         best = picked[0] if picked else None
         if best is None or best[0] <= 0:
             break
@@ -497,7 +553,8 @@ def fit_program(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
 
 
 def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
-                     beam=6, branch=6, ops_allowed=VOCABULARY, bias: Optional[FitBias] = None):
+                     beam=6, branch=6, ops_allowed=VOCABULARY, bias: Optional[FitBias] = None,
+                     wf_planes=None):
     """Beam search over programs, because greedy is provably myopic on gable roofs.
 
     The worst-residual trace after `Ramp` landed was entirely **symmetric double ramps**: a gable
@@ -518,6 +575,14 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
     for matching the bias, which is exactly what would put `missing`/`extra`/collapse at risk of
     moving beyond noise -- #149's acceptance criterion 2. The greedy fallback is given the same
     `bias` so the two programs being compared for "actually better" were fit under the same terms.
+
+    `wf_planes` (see `_wireframe_ramp_candidates`) is different in kind from `bias`: it doesn't
+    reweight existing candidates, it ADDS new ones to the stream `_all_candidates` yields, so it
+    DOES affect the per-round beam-survival cut and the final comparison -- correctly, since a
+    wireframe candidate that wins there won by the same `gain`/containment contract as every other
+    candidate, not by a soft preference. `None` (the default) is a pure no-op, reproducing the
+    fitter exactly as it existed before this was added. The greedy fallback gets the same
+    `wf_planes` for the same reason it gets the same `bias`.
     """
     full = np.int16(y1 - y0 + 1)
     h0 = np.where(fp, full, 0).astype(np.int16)
@@ -532,7 +597,7 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
             if gt_vox and sur / gt_vox <= allowance:
                 nxt.append((sur, h, ops))                  # already good enough: carry it forward
                 continue
-            top = _select(_all_candidates(fp, dists, target, h, ops_allowed), bias, dists, n=branch)
+            top = _select(_candidates_with_wireframe(fp, dists, target, h, ops_allowed, wf_planes), bias, dists, n=branch)
             for gain, hh, meta in top:
                 if gain <= 0:
                     continue
@@ -555,7 +620,8 @@ def fit_program_beam(fp, y0, y1, target, max_ops=4, allowance=CARVE_NEEDED,
     # intermediate step by siblings that look better then and end worse. Measured -- id 16764 went
     # 0.152 greedy -> 0.159 beam. Greedy is cheap, so run it too and keep whichever program is
     # actually better. This makes the beam a monotone improvement by construction.
-    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance, ops_allowed, bias=bias)
+    g_ops, g_h = fit_program(fp, y0, y1, target, max_ops, allowance, ops_allowed, bias=bias,
+                             wf_planes=wf_planes)
     if surplus(g_h) < best[0]:
         return g_ops, g_h
     return best[2], best[1]

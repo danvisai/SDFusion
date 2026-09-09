@@ -23,8 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scene.sdf_edit import mask_to_rings  # noqa: E402
 from scripts.foundations import recover_massing_programs  # noqa: E402
 from scripts.foundations.recover_massing_programs import (  # noqa: E402
-    BIAS_WEIGHT, BlockProgram, FitBias, UnknownFootprintError, _dists_for, _family_bonus,
-    _rings_to_mask, _select, _within_type_bonus, fit_program, fit_program_beam, program_floor,
+    BIAS_WEIGHT, BlockProgram, FitBias, UnknownFootprintError, _all_candidates,
+    _candidates_with_wireframe, _dists_for, _family_bonus, _rings_to_mask, _select,
+    _wireframe_ramp_candidates, _within_type_bonus, fit_program, fit_program_beam, program_floor,
     replay_program, simplify_region,
 )
 
@@ -505,6 +506,79 @@ def _close_tie_fake_candidates(fp, target, full, close_gap, expect="close"):
                                         components=1, _region=fp)
 
     return fake, gain_cut, gain_layer
+
+
+class TestWireframeRampCandidates(unittest.TestCase):
+    """Contract tests for `_wireframe_ramp_candidates` and its arm's-length composition into the
+    search via `_candidates_with_wireframe` -- the coherent alternative to force-substituting a
+    wireframe plane into an already-finished program (see wireframe_ramp_carve.py's own docstring
+    for why the post-hoc version was tried first and dropped in favor of this)."""
+
+    def setUp(self):
+        self.fp, self.y0, self.y1, self.full, self.target = _tiny_footprint_fixture()
+        self.h = np.where(self.fp, np.int16(self.full), 0).astype(np.int16)
+
+    def test_a_flat_wireframe_plane_within_bounds_yields_one_candidate(self):
+        # plane = a + b*x + c*z; b=c=0, a=6 -> flat height 6 everywhere self.fp is True, staying
+        # above target=5 and one voxel below the full blockout (10), like a shallow real ramp would.
+        wf = [{"plane": (6.0, 0.0, 0.0), "region": self.fp.copy()}]
+        got = list(_wireframe_ramp_candidates(self.fp, self.target, self.h, wf))
+        self.assertEqual(len(got), 1)
+        gain, cand, meta = got[0]
+        self.assertEqual(meta["op"], "Ramp")
+        self.assertEqual(meta["source"], "wireframe")
+        self.assertEqual(gain, int((self.full - 6) * self.fp.sum()))
+        np.testing.assert_array_equal(cand[self.fp], 6)
+
+    def test_a_plane_that_would_cut_into_gt_is_rejected(self):
+        wf = [{"plane": (4.0, 0.0, 0.0), "region": self.fp.copy()}]  # 4 < target's 5 everywhere
+        got = list(_wireframe_ramp_candidates(self.fp, self.target, self.h, wf))
+        self.assertEqual(got, [], "a plane that cuts below target must never be offered")
+
+    def test_a_plane_confined_to_a_partial_region_only_carves_that_region(self):
+        half = self.fp.copy()
+        half[:, 12:] = False                                # left half of the 4x4 block only
+        self.assertTrue(half.any() and (self.fp & ~half).any())
+        wf = [{"plane": (6.0, 0.0, 0.0), "region": half}]
+        gain, cand, meta = next(_wireframe_ramp_candidates(self.fp, self.target, self.h, wf))
+        np.testing.assert_array_equal(cand[half], 6)
+        np.testing.assert_array_equal(cand[self.fp & ~half], self.full)  # untouched -- still full
+
+    def test_a_region_with_no_current_surplus_offers_nothing(self):
+        # h already equals target everywhere -- nothing left to carve, wireframe plane or not.
+        h_done = self.target.copy()
+        wf = [{"plane": (6.0, 0.0, 0.0), "region": self.fp.copy()}]
+        got = list(_wireframe_ramp_candidates(self.fp, self.target, h_done, wf))
+        self.assertEqual(got, [])
+
+    def test_no_wf_planes_is_a_pure_no_op_on_the_composed_stream(self):
+        dists = _dists_for(self.fp)
+        plain = list(_all_candidates(self.fp, dists, self.target, self.h))
+        composed_default = list(_candidates_with_wireframe(self.fp, dists, self.target, self.h))
+        composed_empty = list(_candidates_with_wireframe(self.fp, dists, self.target, self.h,
+                                                          wf_planes=[]))
+        self.assertEqual(len(plain), len(composed_default))
+        self.assertEqual(len(plain), len(composed_empty))
+
+    def test_a_winning_wireframe_candidate_is_picked_through_fit_program(self):
+        """End to end: a wireframe plane that removes MORE surplus than anything `_all_candidates`
+        itself offers is the op `fit_program` actually returns, on raw gain alone -- no bias
+        needed. (Unlike `_close_tie_fake_candidates`, whose `CutRoof` always fully solves the
+        target by construction and so can never legitimately be beaten -- this fixture leaves a
+        real gap for the wireframe candidate, which does fully solve it, to win.)"""
+        h_partial = (self.target + 1).astype(np.int16)          # leaves 1 voxel of surplus/cell
+        gain_partial = int((self.full - h_partial[self.fp]).sum())
+
+        def fake(fp_, dists, target_, h_, ops_allowed=None):
+            yield gain_partial, h_partial, dict(op="Layer", height=6, area=int(self.fp.sum()),
+                                                components=1, _region=self.fp.copy())
+
+        wf = [{"plane": (5.0, 0.0, 0.0), "region": self.fp.copy()}]  # fully solves target
+        with patch.object(recover_massing_programs, "_all_candidates", fake):
+            ops, h = fit_program(self.fp, self.y0, self.y1, self.target, max_ops=1, wf_planes=wf)
+        self.assertEqual(ops[0]["op"], "Ramp")
+        self.assertEqual(ops[0].get("source"), "wireframe")
+        np.testing.assert_array_equal(h[self.fp], 5)
 
 
 class TestFitProgramGreedyBiasThreading(unittest.TestCase):
