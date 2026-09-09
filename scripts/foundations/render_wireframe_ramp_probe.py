@@ -29,7 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import trimesh  # noqa: E402
-from matplotlib import cm  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -44,15 +44,21 @@ from wireframe_ramp_probe import (  # noqa: E402
 )
 
 
+CLEAN_PLANE_COLORS = [
+    "#e6194b", "#3cb44b", "#f58231", "#911eb4", "#42d4f4",
+    "#f032e6", "#469990", "#9A6324", "#800000", "#000075",
+]  # qualitative, high-contrast (tab20/autumn read too similar at n<=3, the common case here)
+
+
 def render_building(ax, mesh_bytes: bytes, wire_data: str, title: str) -> None:
     m = trimesh.load(io.BytesIO(mesh_bytes), file_type="obj", process=False)
     verts, faces = m.vertices, m.faces
     tris = verts[faces]
-    z = tris[:, :, 2].mean(axis=1)
-    zmin, zmax = z.min(), max(z.max(), z.min() + 1e-6)
-    mesh_colors = cm.get_cmap("terrain")(0.15 + 0.7 * (z - zmin) / (zmax - zmin))
-    mesh_colors[:, 3] = 0.25  # translucent -- context only, not the point of the figure
-    ax.add_collection3d(Poly3DCollection(tris, facecolor=mesh_colors, edgecolor="none"))
+    # Flat, low-contrast gray shading -- the mesh is background context ONLY. It used to be a
+    # "terrain" colormap (greens/browns) at alpha 0.25, which visually competed with the
+    # classified-edge colors for attention; the edges are the actual point of this figure.
+    mesh_colors = np.tile([0.6, 0.6, 0.62, 0.14], (len(tris), 1))
+    ax.add_collection3d(Poly3DCollection(tris, facecolor=mesh_colors, edgecolor="none", zorder=1))
 
     V, edges = load_obj_verts_edges(wire_data)
     classes = classify_edges(V, edges)
@@ -63,28 +69,40 @@ def render_building(ax, mesh_bytes: bytes, wire_data: str, title: str) -> None:
     def seglist(edge_list):
         return [(V[a], V[b]) for a, b in edge_list]
 
-    ax.add_collection3d(Line3DCollection(seglist(classes["vertical"]), colors="k", linewidths=0.5))
     ax.add_collection3d(
-        Line3DCollection(seglist(classes["horizontal"]), colors="tab:blue", linewidths=0.5)
+        Line3DCollection(seglist(classes["vertical"]), colors="0.25", linewidths=1.0, zorder=2)
+    )
+    ax.add_collection3d(
+        Line3DCollection(
+            seglist(classes["horizontal"]), colors="dodgerblue", linewidths=1.6, zorder=2
+        )
     )
 
     clustered_edges = set()
-    warm = cm.get_cmap("autumn")
     clean_planes = [p for p in planes if _pitch_ok(p)]
-    for i, p in enumerate(planes):
+    ci = 0
+    for p in planes:
         clustered_edges.update(p.edges)
         if _pitch_ok(p):
-            color = warm(i / max(1, len(clean_planes) - 1)) if len(clean_planes) > 1 else warm(0.3)
-            ax.add_collection3d(Line3DCollection(seglist(p.edges), colors=[color], linewidths=2.2))
+            color = CLEAN_PLANE_COLORS[ci % len(CLEAN_PLANE_COLORS)]
+            ci += 1
+            ax.add_collection3d(
+                Line3DCollection(seglist(p.edges), colors=[color], linewidths=4.0, zorder=4)
+            )
         else:
             ax.add_collection3d(
-                Line3DCollection(seglist(p.edges), colors="0.5", linewidths=1.2, linestyles="dashed")
+                Line3DCollection(
+                    seglist(p.edges), colors="lightcoral", linewidths=2.0,
+                    linestyles="dashed", zorder=3,
+                )
             )
 
     leftover = [e for e in classes["sloped"] if e not in clustered_edges]
     if leftover:
         ax.add_collection3d(
-            Line3DCollection(seglist(leftover), colors="magenta", linewidths=1.0, linestyles="dotted")
+            Line3DCollection(
+                seglist(leftover), colors="magenta", linewidths=1.4, linestyles="dotted", zorder=3
+            )
         )
 
     # Bug fix: axis limits must cover BOTH the mesh and the wireframe, not the wireframe
@@ -167,7 +185,7 @@ def main() -> None:
 
     cols = args.cols
     rows = (len(picked) + cols - 1) // cols
-    fig = plt.figure(figsize=(4 * cols, 4 * rows))
+    fig = plt.figure(figsize=(4.2 * cols, 4.2 * rows + 0.6))
     for i, (mname, wname, stem) in enumerate(picked):
         ax = fig.add_subplot(rows, cols, i + 1, projection="3d")
         try:
@@ -176,10 +194,19 @@ def main() -> None:
             ax.set_title(f"{args.city}/{stem}\nFAILED: {type(e).__name__}: {e}", fontsize=7)
         print(f"[rendered] {stem} ({i + 1}/{len(picked)})")
 
+    legend_handles = [
+        Line2D([0], [0], color="0.25", lw=1.0, label="wall"),
+        Line2D([0], [0], color="dodgerblue", lw=1.6, label="horizontal (eave/ridge/ground)"),
+        Line2D([0], [0], color=CLEAN_PLANE_COLORS[0], lw=4.0, label="ramp plane (pitch<75°), 1 color/plane"),
+        Line2D([0], [0], color="lightcoral", lw=2.0, ls="dashed", label="rejected plane (pitch>=75°, near-vertical)"),
+        Line2D([0], [0], color="magenta", lw=1.4, ls="dotted", label="unclustered sloped edge"),
+    ]
+    fig.legend(handles=legend_handles, loc="lower center", ncol=5, fontsize=8, frameon=False)
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
+    fig.tight_layout(rect=(0, 0.03, 1, 1))
+    fig.savefig(out_path, dpi=200)
     print(f"[wrote] {out_path}")
 
 
