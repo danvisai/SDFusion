@@ -96,15 +96,47 @@ touch changes anyway. Pass rate does not trend cleanly with the pre-gesture prog
 consistent with a structural property of global candidate competition rather than a simple
 "more ops = more starvation" effect.
 
+## A walkthrough where the geometry itself moves (id 389)
+
+Not every failure is the boundary-narrowing technicality above. id 389 (`fp_area` 1502, two `Ramp`s
+covering 1415 and 88 cells): an 8-cell `add` gesture — the smallest size this harness draws —
+completes into `Ramp(1415) > Layer(height 23, 2 cells) > Ramp(86)`, a new tiny `Layer` op and the
+second `Ramp` two cells narrower. The occupancy-level check catches what the op-level one is built
+to catch here: **58 cells change height outside the 8-cell gesture region** — a roughly 7x
+amplification from what the user's own box touched to what actually moved.
+
+## Cross-check: is 31.7% a decomposition technicality, or does the geometry actually move?
+
+The op-level check above is #8's own literal bar, but it has one built-in blind spot: an op whose
+region *straddles* the gesture (touches it, but also extends beyond it) is entirely exempted from
+the byte-identical comparison, including the part of its own footprint that never touches the
+gesture. So the same 461 pairs were additionally checked at the raw **occupancy** level — does the
+compiled height map differ from `h_prog` in ANY column outside the gesture's own region, regardless
+of which op is responsible.
+
+| check | pass rate | 95% CI | n |
+|---|---|---|---|
+| op-level (#8's own bar, reported above) | 0.317 | [0.275, 0.358] | 461 |
+| occupancy-level (every cell outside the gesture, any op) | 0.419 | [0.371, 0.464] | 461 |
+
+The two checks **disagree on 147 of 461 rows** (not a subset relationship): 97 rows have identical
+occupancy outside the gesture yet fail the op-level check (id 3305/3159-style boundary narrowing,
+above — a real decomposition change with zero visible effect), while a separate **50 rows have the
+occupancy-level check's own blind spot exercised in reverse — genuine occupancy change outside the
+gesture that the op-level check misses** because the op responsible for it also touches the gesture
+and is therefore exempt. Reported so the op-level number isn't read as either an overstatement or an
+understatement of "does anything actually move": **both checks land in the same range (32-42% hold),
+and 218 of 461 rows fail both simultaneously** — id 389 above is one of those.
+
 ## Verdict, per #8's own per-axis shape
 
 - **H1b / validity: SUPPORTED.** Every completion the harness produced was well-formed and
   contained (100%, tight CI, n=461).
 - **H1b / locality-on-refit: FALSIFIED as implemented.** The re-fit path does not preserve edit
-  locality reliably (31.7%, tight CI well below any reasonable "holds" bar, n=461). #144's own
-  structural proof (locality under `remove_by_id`, direct algebra edits) does **not** transfer to
-  this different code path, and this ticket's whole reason for existing was to check that rather
-  than assume it — confirmed negative.
+  locality reliably (31.7% op-level, 41.9% at the occupancy level as a cross-check — both tight-CI
+  and in the same 32-42% range, n=461). #144's own structural proof (locality under `remove_by_id`,
+  direct algebra edits) does **not** transfer to this different code path, and this ticket's whole
+  reason for existing was to check that rather than assume it — confirmed negative.
 
 ## Scope and disclosed limitations
 
