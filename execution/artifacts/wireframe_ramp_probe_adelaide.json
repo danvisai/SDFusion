@@ -1,0 +1,355 @@
+{
+  "meta": {
+    "script": "scripts/foundations/wireframe_ramp_probe.py",
+    "steps_covered": "1-3 only (edge classification, plane clustering, Ramp pitch/azimuth) -- NOT step 4 (carving onto the extruded solid) or step 5 (IoU validation)",
+    "city": "Adelaide",
+    "n_requested": 8,
+    "prefix": null,
+    "n_checked": 8,
+    "n_found": 8,
+    "pairing": "geometric (nearest-centroid within the same prefix group), not filename-index -- see match_wireframes_to_meshes",
+    "known_limitation": "plane clustering is more conservative now (loop-closure gated, see cluster_planes/_forms_closed_loop) but still leaves a near-vertical minority (gable-end walls or residual seeding noise) and a large unclustered-edge count on complex buildings -- see n_planes_near_vertical_ge75deg and n_sloped_unclustered per building."
+  },
+  "buildings": {
+    "1_1": {
+      "n_edges_total": 151,
+      "n_wall": 39,
+      "n_horizontal": 93,
+      "n_sloped": 19,
+      "n_planes": 3,
+      "planes": [
+        {
+          "n_edges": 4,
+          "n_points": 4,
+          "pitch_deg": 21.9,
+          "azimuth_deg": 359.7
+        },
+        {
+          "n_edges": 4,
+          "n_points": 4,
+          "pitch_deg": 24.5,
+          "azimuth_deg": 168.0
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 24.8,
+          "azimuth_deg": 4.5
+        }
+      ],
+      "n_sloped_unclustered": 9,
+      "n_planes_plausible_ramp_lt75deg": 3,
+      "n_planes_near_vertical_ge75deg": 0
+    },
+    "1_3": {
+      "n_edges_total": 150,
+      "n_wall": 36,
+      "n_horizontal": 92,
+      "n_sloped": 22,
+      "n_planes": 0,
+      "planes": [],
+      "n_sloped_unclustered": 22,
+      "n_planes_plausible_ramp_lt75deg": 0,
+      "n_planes_near_vertical_ge75deg": 0
+    },
+    "1_4": {
+      "n_edges_total": 181,
+      "n_wall": 47,
+      "n_horizontal": 99,
+      "n_sloped": 35,
+      "n_planes": 7,
+      "planes": [
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 90.0,
+          "azimuth_deg": 230.3
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 29.8,
+          "azimuth_deg": 95.5
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 31.1,
+          "azimuth_deg": 275.0
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 90.0,
+          "azimuth_deg": 3.7
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 28.8,
+          "azimuth_deg": 96.5
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 87.4,
+          "azimuth_deg": 184.5
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 78.9,
+          "azimuth_deg": 183.0
+        }
+      ],
+      "n_sloped_unclustered": 20,
+      "n_planes_plausible_ramp_lt75deg": 3,
+      "n_planes_near_vertical_ge75deg": 4
+    },
+    "1_19": {
+      "n_edges_total": 892,
+      "n_wall": 264,
+      "n_horizontal": 483,
+      "n_sloped": 145,
+      "n_planes": 16,
+      "planes": [
+        {
+          "n_edges": 6,
+          "n_points": 5,
+          "pitch_deg": 39.4,
+          "azimuth_deg": 232.6
+        },
+        {
+          "n_edges": 5,
+          "n_points": 6,
+          "pitch_deg": 9.8,
+          "azimuth_deg": 46.2
+        },
+        {
+          "n_edges": 5,
+          "n_points": 4,
+          "pitch_deg": 14.4,
+          "azimuth_deg": 56.9
+        },
+        {
+          "n_edges": 4,
+          "n_points": 4,
+          "pitch_deg": 46.9,
+          "azimuth_deg": 162.0
+        },
+        {
+          "n_edges": 4,
+          "n_points": 4,
+          "pitch_deg": 9.7,
+          "azimuth_deg": 111.2
+        },
+        {
+          "n_edges": 4,
+          "n_points": 4,
+          "pitch_deg": 13.9,
+          "azimuth_deg": 57.4
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 23.8,
+          "azimuth_deg": 340.5
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 44.6,
+          "azimuth_deg": 42.3
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 48.4,
+          "azimuth_deg": 29.9
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 41.3,
+          "azimuth_deg": 18.7
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 42.5,
+          "azimuth_deg": 353.6
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 90.0,
+          "azimuth_deg": 297.4
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 84.3,
+          "azimuth_deg": 184.2
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 88.5,
+          "azimuth_deg": 95.9
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 15.2,
+          "azimuth_deg": 3.2
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 88.6,
+          "azimuth_deg": 94.5
+        }
+      ],
+      "n_sloped_unclustered": 92,
+      "n_planes_plausible_ramp_lt75deg": 12,
+      "n_planes_near_vertical_ge75deg": 4
+    },
+    "10_0": {
+      "n_edges_total": 714,
+      "n_wall": 179,
+      "n_horizontal": 442,
+      "n_sloped": 93,
+      "n_planes": 11,
+      "planes": [
+        {
+          "n_edges": 4,
+          "n_points": 5,
+          "pitch_deg": 39.0,
+          "azimuth_deg": 3.3
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 90.0,
+          "azimuth_deg": 141.5
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 90.0,
+          "azimuth_deg": 28.7
+        },
+        {
+          "n_edges": 3,
+          "n_points": 3,
+          "pitch_deg": 90.0,
+          "azimuth_deg": 163.8
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 90.0,
+          "azimuth_deg": 185.2
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 54.3,
+          "azimuth_deg": 6.7
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 88.6,
+          "azimuth_deg": 5.5
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 74.0,
+          "azimuth_deg": 6.1
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 79.5,
+          "azimuth_deg": 3.6
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 79.5,
+          "azimuth_deg": 3.6
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 74.0,
+          "azimuth_deg": 6.1
+        }
+      ],
+      "n_sloped_unclustered": 66,
+      "n_planes_plausible_ramp_lt75deg": 4,
+      "n_planes_near_vertical_ge75deg": 7
+    },
+    "10_5": {
+      "n_edges_total": 32,
+      "n_wall": 8,
+      "n_horizontal": 20,
+      "n_sloped": 4,
+      "n_planes": 0,
+      "planes": [],
+      "n_sloped_unclustered": 4,
+      "n_planes_plausible_ramp_lt75deg": 0,
+      "n_planes_near_vertical_ge75deg": 0
+    },
+    "10_7": {
+      "n_edges_total": 41,
+      "n_wall": 10,
+      "n_horizontal": 23,
+      "n_sloped": 8,
+      "n_planes": 2,
+      "planes": [
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 41.1,
+          "azimuth_deg": 5.1
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 40.7,
+          "azimuth_deg": 185.0
+        }
+      ],
+      "n_sloped_unclustered": 4,
+      "n_planes_plausible_ramp_lt75deg": 2,
+      "n_planes_near_vertical_ge75deg": 0
+    },
+    "10_9": {
+      "n_edges_total": 67,
+      "n_wall": 19,
+      "n_horizontal": 38,
+      "n_sloped": 10,
+      "n_planes": 2,
+      "planes": [
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 84.7,
+          "azimuth_deg": 5.4
+        },
+        {
+          "n_edges": 2,
+          "n_points": 3,
+          "pitch_deg": 84.0,
+          "azimuth_deg": 185.4
+        }
+      ],
+      "n_sloped_unclustered": 6,
+      "n_planes_plausible_ramp_lt75deg": 0,
+      "n_planes_near_vertical_ge75deg": 2
+    }
+  }
+}
