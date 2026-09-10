@@ -1004,6 +1004,24 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     return out
 
 
+def bank_eligibility(cache: dict, exclude_ids_path: str | None) -> np.ndarray:
+    """#181's `--bank_exclude_ids`: which cache rows the 1-NN retrieval bank / mean-roof profile
+    may draw from -- the existing held-out exclusion, plus (when given) every row id named in a
+    `{"ids": [...]}` file. The bank is a non-parametric lookup rebuilt fresh every run, so excluding
+    a NEW split's ids from it is not retraining; it never touches a `--ckpt` checkpoint's own
+    weights, which were fixed whenever that checkpoint was trained (see the CLI flag's own help).
+    """
+    eligible = (cache["ok"] > 0) & (cache["held"] == 0)
+    if exclude_ids_path:
+        excl = {int(i) for i in json.load(open(exclude_ids_path))["ids"]}
+        excl_mask = np.array([int(r) in excl for r in cache["row"]], bool)
+        n_excluded = int((eligible & excl_mask).sum())
+        eligible = eligible & ~excl_mask
+        print(f"[bank] excluded {n_excluded} rows named in {exclude_ids_path} "
+             f"(on top of the existing held-out split)", flush=True)
+    return eligible
+
+
 # ==================================================================================================
 # the model
 # ==================================================================================================
@@ -3690,6 +3708,15 @@ def main() -> None:
                     help="add a second arm per CE checkpoint decoding the posterior MEDIAN rather "
                          "than the mode. A decode ablation reported beside the pre-registered arm, "
                          "never in place of it")
+    ap.add_argument("--bank_exclude_ids", default=None, metavar="IDS_JSON",
+                    help="#181: a {'ids': [...]} file of row ids to additionally exclude from the "
+                         "1-NN retrieval bank and the mean-roof profile, on top of the existing "
+                         "held-out exclusion. The retrieval bank is a non-parametric lookup, "
+                         "rebuilt fresh every run -- excluding a NEW split's held-out ids from it "
+                         "is not retraining, unlike the checkpoint passed via --ckpt, which this "
+                         "flag never touches: scoring a --ckpt trained under the OLD split against "
+                         "ids this flag names is a retrospective measurement, not a claim that the "
+                         "checkpoint itself never saw them during training")
     ap.add_argument("--montage", type=int, default=6, help="buildings per sheet; 0 disables")
     ap.add_argument("--montage_rank", default="extra", choices=("extra", "missing"),
                     help="which failure the sheet's best/representative/worst rank by. `extra` is "
@@ -3769,7 +3796,8 @@ def main() -> None:
         return
 
     # ---- the arms -------------------------------------------------------------------------------
-    train_idx = np.nonzero((cache["ok"] > 0) & (cache["held"] == 0))[0]
+    eligible = bank_eligibility(cache, args.bank_exclude_ids)
+    train_idx = np.nonzero(eligible)[0]
     bank_fp = cache["fp"][train_idx] > 0
     bank_target = cache["target"][train_idx].astype(np.int16)
     bank_extent = cache["extent"][train_idx].astype(np.int32)

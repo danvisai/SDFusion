@@ -46,7 +46,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict, fit_decode, FitBias, smooth_heightmap,
-    wta_ce_loss, decode_wta,
+    wta_ce_loss, decode_wta, bank_eligibility,
 )
 
 
@@ -627,6 +627,48 @@ class TestRetrievalBaseline(unittest.TestCase):
         q = _rect(16, 2, 10, 2, 10)
         bank = np.stack([_rect(16, 0, 3, 0, 3), _rect(16, 12, 16, 12, 16)])
         self.assertIn(int(retrieve_nn(q[None], bank)[0]), (0, 1))
+
+
+class TestBankEligibility(unittest.TestCase):
+    """#181's `--bank_exclude_ids`: additionally excludes a NEW split's ids from the retrieval
+    bank / mean-roof profile, on top of the existing held-out exclusion -- never touches a
+    `--ckpt` checkpoint's own weights (those are fixed by whichever split trained them)."""
+
+    def _cache(self, rows, ok, held):
+        return dict(row=np.array(rows, np.int32), ok=np.array(ok, np.uint8),
+                   held=np.array(held, np.uint8))
+
+    def test_matches_the_existing_held_out_exclusion_when_no_file_is_given(self):
+        cache = self._cache([1, 2, 3, 4], [1, 1, 1, 1], [0, 1, 0, 1])
+        np.testing.assert_array_equal(bank_eligibility(cache, None), [True, False, True, False])
+
+    def test_a_row_flagged_not_ok_is_excluded_regardless(self):
+        cache = self._cache([1, 2], [0, 1], [0, 0])
+        np.testing.assert_array_equal(bank_eligibility(cache, None), [False, True])
+
+    def test_named_ids_are_additionally_excluded(self):
+        import json
+        import tempfile
+        cache = self._cache([1, 2, 3, 4], [1, 1, 1, 1], [0, 0, 0, 0])
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"ids": [2, 4]}, f)
+            path = f.name
+        try:
+            np.testing.assert_array_equal(bank_eligibility(cache, path), [True, False, True, False])
+        finally:
+            Path(path).unlink()
+
+    def test_naming_an_id_already_excluded_by_held_out_changes_nothing(self):
+        import json
+        import tempfile
+        cache = self._cache([1, 2, 3], [1, 1, 1], [1, 0, 0])       # row 1 already held-out
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"ids": [1]}, f)
+            path = f.name
+        try:
+            np.testing.assert_array_equal(bank_eligibility(cache, path), [False, True, True])
+        finally:
+            Path(path).unlink()
 
 
 class TestObjectives(unittest.TestCase):

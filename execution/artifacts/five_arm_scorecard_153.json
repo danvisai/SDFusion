@@ -1,0 +1,120 @@
+{
+ "meta": {
+  "created": "2026-09-10T00:22:17",
+  "ckpt": "weights/massing-heightmap/heightmap_ce.pt",
+  "sample_n": 1000,
+  "n_test_full": 7079,
+  "seed": 181,
+  "raw_artifact": "execution/artifacts/height_map_generator_153_test.json"
+ },
+ "overlap": {
+  "n_test": 7079,
+  "n_overlap_bag3d_train": 6798,
+  "n_overlap_heightmap_pool": 6937
+ },
+ "scorecard": {
+  "n_carve": 512,
+  "undersampled": false,
+  "five_arms": {
+   "blockout": {
+    "n": 512,
+    "extra": 0.22360472359665792,
+    "extra_ci": [
+     0.21116021470705384,
+     0.23906075181817776
+    ],
+    "missing": 0.0,
+    "vs_input": 1.0,
+    "collapse_rate": 0.0,
+    "dl_ops": 0.0,
+    "dl_planar_fraction": 0.0
+   },
+   "1-NN retrieval": {
+    "n": 512,
+    "extra": 0.11124167070650642,
+    "extra_ci": [
+     0.0993014922705984,
+     0.1305448207874416
+    ],
+    "missing": 0.030957209568687118,
+    "vs_input": 0.8637130170924183,
+    "collapse_rate": 0.171875,
+    "dl_ops": 2.0,
+    "dl_planar_fraction": 0.25
+   },
+   "raw height-map generator (#127/#155)": {
+    "n": 512,
+    "extra": 0.055070618164544734,
+    "extra_ci": [
+     0.04590656608138065,
+     0.06172665916760405
+    ],
+    "missing": 0.032329909527772316,
+    "vs_input": 0.8284554876356424,
+    "collapse_rate": 0.04296875,
+    "dl_ops": 6.0,
+    "dl_planar_fraction": 0.2
+   },
+   "fit_decode (#155)": {
+    "n": 512,
+    "extra": 0.07238068582496508,
+    "extra_ci": [
+     0.06522365910082789,
+     0.07964027500508991
+    ],
+    "missing": 0.02046337976377583,
+    "vs_input": 0.8505794637992234,
+    "collapse_rate": 0.0234375,
+    "dl_ops": 3.0,
+    "dl_planar_fraction": 0.0
+   },
+   "fit_decode + #9 coordination bias": {
+    "n": 512,
+    "extra": 0.07224035627328154,
+    "extra_ci": [
+     0.06522365910082789,
+     0.07955067067883918
+    ],
+    "missing": 0.020667877670543466,
+    "vs_input": 0.8505794637992234,
+    "collapse_rate": 0.0234375,
+    "dl_ops": 3.0,
+    "dl_planar_fraction": 0.0
+   }
+  },
+  "oracle_reference": {
+   "ceiling (program recovery, sees GT)": {
+    "extra": 0.0035,
+    "missing": 0.0,
+    "vs_input": 0.8226,
+    "collapse_rate": 0.0,
+    "dl_ops": 2.0,
+    "dl_planar_fraction": 0.5,
+    "population": "legacy pinned 411 carve-needing, not #153"
+   },
+   "ArcPro/CoMa (flatten_ramps, oracle-fed)": {
+    "extra": 0.0528,
+    "missing": 0.0,
+    "vs_input": 0.8847,
+    "collapse_rate": 0.0024,
+    "dl_ops": 1.0,
+    "dl_planar_fraction": 0.0,
+    "population": "legacy pinned 411 carve-needing, not #153"
+   }
+  },
+  "axis_verdict": {
+   "raw height-map generator (#127/#155)": {
+    "volume_safety": "PASS",
+    "architectural_form": "KILL"
+   },
+   "fit_decode (#155)": {
+    "volume_safety": "PASS",
+    "architectural_form": "KILL"
+   },
+   "fit_decode + #9 coordination bias": {
+    "volume_safety": "PASS",
+    "architectural_form": "KILL"
+   }
+  }
+ }
+}
