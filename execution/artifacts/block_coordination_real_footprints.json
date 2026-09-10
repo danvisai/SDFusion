@@ -1,0 +1,1872 @@
+{
+ "meta": {
+  "created": "2026-09-09T20:04:29",
+  "samples": [
+   "munich_oldtown",
+   "lafayette"
+  ],
+  "default_height": 12.0,
+  "cut_fractions": [
+   0.15,
+   0.35
+  ],
+  "min_cluster": 3,
+  "max_cluster": 8
+ },
+ "summary": {
+  "n_scenes": 8,
+  "n_checks": 330,
+  "n_pass": 330,
+  "pass_rate": 1.0,
+  "pass_rate_ci": [
+   1.0,
+   1.0
+  ],
+  "per_condition": {
+   "unbiased": {
+    "n_pass": 55,
+    "n_total": 55
+   },
+   "height_rhythm": {
+    "n_pass": 55,
+    "n_total": 55
+   },
+   "roof_family": {
+    "n_pass": 55,
+    "n_total": 55
+   },
+   "setback": {
+    "n_pass": 55,
+    "n_total": 55
+   },
+   "azimuth": {
+    "n_pass": 55,
+    "n_total": 55
+   },
+   "combined": {
+    "n_pass": 55,
+    "n_total": 55
+   }
+  },
+  "regressions": [],
+  "undersampled_scenes": false
+ },
+ "scenes": [
+  {
+   "scene_id": "munich_oldtown_q0",
+   "source": "munich_oldtown",
+   "n_footprints": 5,
+   "footprint_results": {
+    "munich_oldtown_2": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_7": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_17": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_23": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_28": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  },
+  {
+   "scene_id": "munich_oldtown_q1",
+   "source": "munich_oldtown",
+   "n_footprints": 8,
+   "footprint_results": {
+    "munich_oldtown_4": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_5": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_6": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_11": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_12": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_14": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_19": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_21": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  },
+  {
+   "scene_id": "munich_oldtown_q2",
+   "source": "munich_oldtown",
+   "n_footprints": 8,
+   "footprint_results": {
+    "munich_oldtown_3": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_8": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_15": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_16": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_18": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_20": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_25": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_26": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  },
+  {
+   "scene_id": "munich_oldtown_q3",
+   "source": "munich_oldtown",
+   "n_footprints": 6,
+   "footprint_results": {
+    "munich_oldtown_0": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_1": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_9": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_10": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_13": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "munich_oldtown_24": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  },
+  {
+   "scene_id": "lafayette_q0",
+   "source": "lafayette",
+   "n_footprints": 7,
+   "footprint_results": {
+    "lafayette_2": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_3": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_4": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_6": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_10": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_11": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_27": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  },
+  {
+   "scene_id": "lafayette_q1",
+   "source": "lafayette",
+   "n_footprints": 7,
+   "footprint_results": {
+    "lafayette_1": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_7": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_13": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_24": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_26": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_28": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_29": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  },
+  {
+   "scene_id": "lafayette_q2",
+   "source": "lafayette",
+   "n_footprints": 7,
+   "footprint_results": {
+    "lafayette_0": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_5": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_8": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_14": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_21": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_23": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_25": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  },
+  {
+   "scene_id": "lafayette_q3",
+   "source": "lafayette",
+   "n_footprints": 7,
+   "footprint_results": {
+    "lafayette_9": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_15": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_16": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_17": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_18": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_19": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ],
+    "lafayette_20": [
+     {
+      "condition": "unbiased",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "height_rhythm",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "roof_family",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "setback",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "azimuth",
+      "problems": [],
+      "gate_pass": true
+     },
+     {
+      "condition": "combined",
+      "problems": [],
+      "gate_pass": true
+     }
+    ]
+   }
+  }
+ ]
+}
