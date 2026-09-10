@@ -1,0 +1,4322 @@
+{
+ "schema_version": 1,
+ "created": "2026-09-10T14:35:57",
+ "labels": [
+  "courtyard",
+  "passage",
+  "arcade",
+  "terrace_or_setback",
+  "roof_cut",
+  "wing",
+  "roof_volume",
+  "light_well",
+  "ambiguous",
+  "not_architectural"
+ ],
+ "sample_n": 60,
+ "sample_composition": {
+  "NL/carve/high": 19,
+  "NL/flat/low": 3,
+  "NL/carve/mid": 1,
+  "NL/carve/low": 1,
+  "DE/carve/high": 13,
+  "DE/flat/low": 3,
+  "DE/carve/mid": 3,
+  "DE/carve/low": 2,
+  "JP/flat/low": 15
+ },
+ "sample_buildings": [
+  {
+   "building_id": 3855,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 3984,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 4049,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 4135,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 4141,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 4233,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 4242,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 4449,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 4600,
+   "region": "NL",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 4607,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "n_ops": 2
+  },
+  {
+   "building_id": 4954,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5027,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5032,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5071,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5176,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 5241,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5455,
+   "region": "NL",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 5470,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5698,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5713,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5774,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 5785,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 6042,
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "low",
+   "n_ops": 1
+  },
+  {
+   "building_id": 6152,
+   "region": "NL",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 11998,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 12018,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 15156,
+   "region": "DE",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 15194,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 15310,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 15556,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "n_ops": 2
+  },
+  {
+   "building_id": 16041,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 16051,
+   "region": "DE",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 16099,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 16169,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 16192,
+   "region": "DE",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 16421,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 16626,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "n_ops": 2
+  },
+  {
+   "building_id": 16747,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 4
+  },
+  {
+   "building_id": 16776,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "n_ops": 2
+  },
+  {
+   "building_id": 16790,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 16808,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 17568,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "low",
+   "n_ops": 1
+  },
+  {
+   "building_id": 17735,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 17800,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "low",
+   "n_ops": 1
+  },
+  {
+   "building_id": 17857,
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "n_ops": 3
+  },
+  {
+   "building_id": 33351,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 33557,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 33836,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 33888,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 34118,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 34223,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 34280,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 34491,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 34689,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 34957,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 35035,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 35275,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 35614,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 35672,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  },
+  {
+   "building_id": 35714,
+   "region": "JP",
+   "carve_needing": false,
+   "op_count_bucket": "low",
+   "n_ops": 0
+  }
+ ],
+ "operations": [
+  {
+   "building_id": 3855,
+   "operation_id": "c6326f53c2438680a65548f2d01399d8",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/3855",
+   "composite_trace_path": "outputs/void_semantic_traces/3855/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 3855,
+   "operation_id": "b5940e683b73690329229f452f3a1d3b",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/3855",
+   "composite_trace_path": "outputs/void_semantic_traces/3855/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 3855,
+   "operation_id": "53dc3e8f2a989a4ac897722e73a37e5c",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/3855",
+   "composite_trace_path": "outputs/void_semantic_traces/3855/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 3984,
+   "operation_id": "bf5fabba37f0dd1f11013cfa1f05e784",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/3984",
+   "composite_trace_path": "outputs/void_semantic_traces/3984/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 3984,
+   "operation_id": "42d90cd6cf4edcf2085f46cb688d5732",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/3984",
+   "composite_trace_path": "outputs/void_semantic_traces/3984/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 3984,
+   "operation_id": "8290b7d3ef5f785dc409a90944beb418",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/3984",
+   "composite_trace_path": "outputs/void_semantic_traces/3984/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 3984,
+   "operation_id": "e2e30ecce6984863eb8cec68b52311e3",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/3984",
+   "composite_trace_path": "outputs/void_semantic_traces/3984/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4049,
+   "operation_id": "ec83494d450c183cdc6864a8d5775ff8",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4049",
+   "composite_trace_path": "outputs/void_semantic_traces/4049/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4049,
+   "operation_id": "fcf1c56fbea8729d13ed2a4172206874",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4049",
+   "composite_trace_path": "outputs/void_semantic_traces/4049/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4049,
+   "operation_id": "d4559516e5ea008ed98100eef65861a5",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4049",
+   "composite_trace_path": "outputs/void_semantic_traces/4049/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4135,
+   "operation_id": "fcfc27e0c87d7feddce0c8f11af1b33c",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4135",
+   "composite_trace_path": "outputs/void_semantic_traces/4135/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4135,
+   "operation_id": "fce1e1eade2af7d0e2360165b2685924",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4135",
+   "composite_trace_path": "outputs/void_semantic_traces/4135/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4135,
+   "operation_id": "7e6cfb7c378fef129a8818178fbedf05",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4135",
+   "composite_trace_path": "outputs/void_semantic_traces/4135/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4135,
+   "operation_id": "727d53a6326da2390b7cb8e19e7e8ed7",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4135",
+   "composite_trace_path": "outputs/void_semantic_traces/4135/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4141,
+   "operation_id": "b1db0401567d5cbc81cac0652dfd976e",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4141",
+   "composite_trace_path": "outputs/void_semantic_traces/4141/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4141,
+   "operation_id": "288c0c50e0bcf98b374d9b2bb5bff040",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4141",
+   "composite_trace_path": "outputs/void_semantic_traces/4141/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4141,
+   "operation_id": "a5817a006fd9ef29ae6f4c80ae7a82a8",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4141",
+   "composite_trace_path": "outputs/void_semantic_traces/4141/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4141,
+   "operation_id": "af229bb70528c6fc780fdf24cc86ae8d",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4141",
+   "composite_trace_path": "outputs/void_semantic_traces/4141/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4233,
+   "operation_id": "115deb7a926aadb11e7e6d9eaa93767f",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4233",
+   "composite_trace_path": "outputs/void_semantic_traces/4233/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4233,
+   "operation_id": "814ddf4ad46ba7d9f249aaf2b9f12f0d",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4233",
+   "composite_trace_path": "outputs/void_semantic_traces/4233/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4233,
+   "operation_id": "5d64cf0fe483da14acd3907403cd59d3",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4233",
+   "composite_trace_path": "outputs/void_semantic_traces/4233/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4233,
+   "operation_id": "143437c16441587c54be53c1f8b9b057",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4233",
+   "composite_trace_path": "outputs/void_semantic_traces/4233/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4242,
+   "operation_id": "99380eb024ab312d086e8e37c1d20fd7",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4242",
+   "composite_trace_path": "outputs/void_semantic_traces/4242/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4242,
+   "operation_id": "da335a00da9e8bedd295034f0810a679",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4242",
+   "composite_trace_path": "outputs/void_semantic_traces/4242/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4242,
+   "operation_id": "19c38738cf2363a95ce0a3cec93e123a",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4242",
+   "composite_trace_path": "outputs/void_semantic_traces/4242/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4242,
+   "operation_id": "101d068520dd78ead5223c953c484d9d",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4242",
+   "composite_trace_path": "outputs/void_semantic_traces/4242/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4449,
+   "operation_id": "06e743b65622c0339ff128acc75ee3f5",
+   "operation_index": 0,
+   "kind": "cut_roof",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4449",
+   "composite_trace_path": "outputs/void_semantic_traces/4449/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4449,
+   "operation_id": "bfd36857256ca4359fbd519e9e923a36",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4449",
+   "composite_trace_path": "outputs/void_semantic_traces/4449/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4449,
+   "operation_id": "942c4e958cc5fc13f941a55064b51ac1",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4449",
+   "composite_trace_path": "outputs/void_semantic_traces/4449/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4449,
+   "operation_id": "ec147ffb40d9996bdde47cd7ecf2bb11",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4449",
+   "composite_trace_path": "outputs/void_semantic_traces/4449/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4607,
+   "operation_id": "632f3d09bd677e1265254af809571c11",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/4607",
+   "composite_trace_path": "outputs/void_semantic_traces/4607/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4607,
+   "operation_id": "9356383818a26dbcbb851d46ab28a12a",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/4607",
+   "composite_trace_path": "outputs/void_semantic_traces/4607/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4954,
+   "operation_id": "69ec95a5239928f11d8171291d9b1b4b",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4954",
+   "composite_trace_path": "outputs/void_semantic_traces/4954/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4954,
+   "operation_id": "688317e69c4ed3c49c4a2f24feb0b088",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4954",
+   "composite_trace_path": "outputs/void_semantic_traces/4954/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4954,
+   "operation_id": "e5cbcc3194fdb04b31727172cf8397f1",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4954",
+   "composite_trace_path": "outputs/void_semantic_traces/4954/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 4954,
+   "operation_id": "d33faf4728784a9bab7a7cee26439dc9",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/4954",
+   "composite_trace_path": "outputs/void_semantic_traces/4954/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5027,
+   "operation_id": "5413f6c65c09b53879154610b1fc3979",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5027",
+   "composite_trace_path": "outputs/void_semantic_traces/5027/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5027,
+   "operation_id": "846f15402d3dfd4a566fbe8ae59e242a",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5027",
+   "composite_trace_path": "outputs/void_semantic_traces/5027/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5027,
+   "operation_id": "d9bcddc71223c8a090a0ed7db2fcdd66",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5027",
+   "composite_trace_path": "outputs/void_semantic_traces/5027/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5027,
+   "operation_id": "64aee46d6b93e5aa82ed5e1e4f9e63a9",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5027",
+   "composite_trace_path": "outputs/void_semantic_traces/5027/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5032,
+   "operation_id": "fe97215a1c708550a3b0fae9af7c3f4c",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5032",
+   "composite_trace_path": "outputs/void_semantic_traces/5032/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5032,
+   "operation_id": "691bea6385ab5c7f25e874a6f4cac31a",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5032",
+   "composite_trace_path": "outputs/void_semantic_traces/5032/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5032,
+   "operation_id": "e02379b8bd67fa2847a453d2690d542e",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5032",
+   "composite_trace_path": "outputs/void_semantic_traces/5032/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5032,
+   "operation_id": "9aea857ca46a9c13a8eeccef946d2684",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5032",
+   "composite_trace_path": "outputs/void_semantic_traces/5032/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5071,
+   "operation_id": "c8e6bb40079edd6048ae0a275f052be4",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5071",
+   "composite_trace_path": "outputs/void_semantic_traces/5071/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5071,
+   "operation_id": "487c10ca7f025497ab07ac0ed9444ac9",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5071",
+   "composite_trace_path": "outputs/void_semantic_traces/5071/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5071,
+   "operation_id": "e1f9a9e138c800aef562b4f274b653f3",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5071",
+   "composite_trace_path": "outputs/void_semantic_traces/5071/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5071,
+   "operation_id": "88817f3a81973b42df848ec979e92cf7",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5071",
+   "composite_trace_path": "outputs/void_semantic_traces/5071/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5176,
+   "operation_id": "e5926ccbc4e0c6cb5d4a0eaa9cf99e24",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5176",
+   "composite_trace_path": "outputs/void_semantic_traces/5176/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5176,
+   "operation_id": "8c5147f6039bc76ab8d9326ec28efba4",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5176",
+   "composite_trace_path": "outputs/void_semantic_traces/5176/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5176,
+   "operation_id": "599d8db6ae8ca82b4505174bb5f6efec",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5176",
+   "composite_trace_path": "outputs/void_semantic_traces/5176/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5241,
+   "operation_id": "9e1416aa5e384f69b3fb06b106b67818",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5241",
+   "composite_trace_path": "outputs/void_semantic_traces/5241/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5241,
+   "operation_id": "d325a8fdca7f7050886e2d50fd3ff6f1",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5241",
+   "composite_trace_path": "outputs/void_semantic_traces/5241/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5241,
+   "operation_id": "ece0380c5356d2d0c5c6d2aa2aa5ce96",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5241",
+   "composite_trace_path": "outputs/void_semantic_traces/5241/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5241,
+   "operation_id": "64531b85fa1a74f2d98ecf55f3ff7dab",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5241",
+   "composite_trace_path": "outputs/void_semantic_traces/5241/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5470,
+   "operation_id": "83626e06674570ab1554539ece6805e6",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5470",
+   "composite_trace_path": "outputs/void_semantic_traces/5470/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5470,
+   "operation_id": "26a67c1260f5e81792da255c05aef8db",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5470",
+   "composite_trace_path": "outputs/void_semantic_traces/5470/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5470,
+   "operation_id": "89a368e3aa0733ad344c737bfb9c6e83",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5470",
+   "composite_trace_path": "outputs/void_semantic_traces/5470/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5470,
+   "operation_id": "4a3db8a6d3338b063b538d108add9aba",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5470",
+   "composite_trace_path": "outputs/void_semantic_traces/5470/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5698,
+   "operation_id": "bf9ae3bf019d34a84416ef0db1220bea",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5698",
+   "composite_trace_path": "outputs/void_semantic_traces/5698/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5698,
+   "operation_id": "9e730db23a11ff2d9c55c3e0a86b4250",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5698",
+   "composite_trace_path": "outputs/void_semantic_traces/5698/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5698,
+   "operation_id": "f727314b24544418939e2b0f9964b25e",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5698",
+   "composite_trace_path": "outputs/void_semantic_traces/5698/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5698,
+   "operation_id": "cdc1ce0538481eab40e1f599ca5606ff",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5698",
+   "composite_trace_path": "outputs/void_semantic_traces/5698/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5713,
+   "operation_id": "098e858bfaafa1e2f55c6611f6d10d13",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5713",
+   "composite_trace_path": "outputs/void_semantic_traces/5713/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5713,
+   "operation_id": "9d7b623f8f983292b5dc5ced3395f3ca",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5713",
+   "composite_trace_path": "outputs/void_semantic_traces/5713/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5713,
+   "operation_id": "dacb61435349d6be0dec2f5681af221b",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5713",
+   "composite_trace_path": "outputs/void_semantic_traces/5713/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5713,
+   "operation_id": "56d967703d672f31848bc3876b43877b",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5713",
+   "composite_trace_path": "outputs/void_semantic_traces/5713/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5774,
+   "operation_id": "5a8f40c1227e03fa84400ff04f649d79",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5774",
+   "composite_trace_path": "outputs/void_semantic_traces/5774/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5774,
+   "operation_id": "0440228d821ddbb7f9c14b2169068ada",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5774",
+   "composite_trace_path": "outputs/void_semantic_traces/5774/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5774,
+   "operation_id": "47093b80401bfd4f8fca63391eab5548",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5774",
+   "composite_trace_path": "outputs/void_semantic_traces/5774/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5774,
+   "operation_id": "de77d7a283723f387fce8b8943a9a6e5",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5774",
+   "composite_trace_path": "outputs/void_semantic_traces/5774/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5785,
+   "operation_id": "da1ce39ecb3de16de3c8814ffa88d1bd",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5785",
+   "composite_trace_path": "outputs/void_semantic_traces/5785/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5785,
+   "operation_id": "40a1768d50e9f327a4fa1fb9c58f1629",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5785",
+   "composite_trace_path": "outputs/void_semantic_traces/5785/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5785,
+   "operation_id": "7acd0986c0423333ea6f3bcb43d35ad2",
+   "operation_index": 2,
+   "kind": "cut_roof",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5785",
+   "composite_trace_path": "outputs/void_semantic_traces/5785/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 5785,
+   "operation_id": "1e89305f74a447d16535d650bc030fb7",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/5785",
+   "composite_trace_path": "outputs/void_semantic_traces/5785/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 6042,
+   "operation_id": "36ad0ba2677b3991c636c3a4b7b414db",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "NL",
+   "carve_needing": true,
+   "op_count_bucket": "low",
+   "trace_dir": "outputs/void_semantic_traces/6042",
+   "composite_trace_path": "outputs/void_semantic_traces/6042/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 11998,
+   "operation_id": "668f1da4aa880077101a26e5b38214c3",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/11998",
+   "composite_trace_path": "outputs/void_semantic_traces/11998/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 11998,
+   "operation_id": "9d48fdb00ab20aca1866b90c8604335f",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/11998",
+   "composite_trace_path": "outputs/void_semantic_traces/11998/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 11998,
+   "operation_id": "1ebcfff1ce24282836f751fdc0b54b69",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/11998",
+   "composite_trace_path": "outputs/void_semantic_traces/11998/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 11998,
+   "operation_id": "5352670da0e3c84f975a6d799a4bd425",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/11998",
+   "composite_trace_path": "outputs/void_semantic_traces/11998/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 12018,
+   "operation_id": "cdb4662589b18535173d9a9519456dfd",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/12018",
+   "composite_trace_path": "outputs/void_semantic_traces/12018/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 12018,
+   "operation_id": "af0a54d7387fe57f6613fb7a623d10e3",
+   "operation_index": 1,
+   "kind": "cut_roof",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/12018",
+   "composite_trace_path": "outputs/void_semantic_traces/12018/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 12018,
+   "operation_id": "cd5a057f12ecbea30dc96ecfb25692d7",
+   "operation_index": 2,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/12018",
+   "composite_trace_path": "outputs/void_semantic_traces/12018/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 12018,
+   "operation_id": "3d0d02e97c0d9414329ad79473934ab7",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/12018",
+   "composite_trace_path": "outputs/void_semantic_traces/12018/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15194,
+   "operation_id": "2985c5b05ae22d59219fc23089a88bd0",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15194",
+   "composite_trace_path": "outputs/void_semantic_traces/15194/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15194,
+   "operation_id": "d51f4c866ec0ed5929ac84f88f1b832e",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15194",
+   "composite_trace_path": "outputs/void_semantic_traces/15194/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15194,
+   "operation_id": "b10264b7040661a054e6eb3218eb3a2b",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15194",
+   "composite_trace_path": "outputs/void_semantic_traces/15194/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15194,
+   "operation_id": "2946104cf68012cf1c684b7fe0d8228c",
+   "operation_index": 3,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15194",
+   "composite_trace_path": "outputs/void_semantic_traces/15194/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15310,
+   "operation_id": "274fd30340779fd7536154c928d27e9f",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15310",
+   "composite_trace_path": "outputs/void_semantic_traces/15310/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15310,
+   "operation_id": "7a5933db75165f9515d498921144f2e7",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15310",
+   "composite_trace_path": "outputs/void_semantic_traces/15310/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15310,
+   "operation_id": "3838a64522b4c81408924c83b601aa71",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15310",
+   "composite_trace_path": "outputs/void_semantic_traces/15310/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15310,
+   "operation_id": "6a43586e007e61464b6ed0a77ba81af9",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/15310",
+   "composite_trace_path": "outputs/void_semantic_traces/15310/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15556,
+   "operation_id": "58c6f7d3f6b0ed3118993b41b689e2a3",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/15556",
+   "composite_trace_path": "outputs/void_semantic_traces/15556/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 15556,
+   "operation_id": "99de08b84f75f4db06078a797f3ef916",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/15556",
+   "composite_trace_path": "outputs/void_semantic_traces/15556/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16041,
+   "operation_id": "5caefdc71d83f0530a916e871e535ddb",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16041",
+   "composite_trace_path": "outputs/void_semantic_traces/16041/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16041,
+   "operation_id": "524beff834f51e0d346b2a3984898c78",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16041",
+   "composite_trace_path": "outputs/void_semantic_traces/16041/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16041,
+   "operation_id": "6fe4c75fe7daa6d2e80347a5425b98db",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16041",
+   "composite_trace_path": "outputs/void_semantic_traces/16041/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16041,
+   "operation_id": "fba1931258f16ccd0b1071a98f5e1fb5",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16041",
+   "composite_trace_path": "outputs/void_semantic_traces/16041/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16099,
+   "operation_id": "5a7734bf8d89c98349d5a34f8b5836b8",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16099",
+   "composite_trace_path": "outputs/void_semantic_traces/16099/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16099,
+   "operation_id": "8edaaa99b99d91eeda329604f8d5b856",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16099",
+   "composite_trace_path": "outputs/void_semantic_traces/16099/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16099,
+   "operation_id": "da6c697b1ae071837a60209119591549",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16099",
+   "composite_trace_path": "outputs/void_semantic_traces/16099/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16169,
+   "operation_id": "75f6c6234e3a439284c628edab0782a2",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16169",
+   "composite_trace_path": "outputs/void_semantic_traces/16169/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16169,
+   "operation_id": "b2c2b0ceda76329faa6be668dd572cee",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16169",
+   "composite_trace_path": "outputs/void_semantic_traces/16169/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16169,
+   "operation_id": "ff025f43fa173e438f677b6a9281b37d",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16169",
+   "composite_trace_path": "outputs/void_semantic_traces/16169/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16421,
+   "operation_id": "1522bcafe16a930d584ee5b9da174ecb",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16421",
+   "composite_trace_path": "outputs/void_semantic_traces/16421/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16421,
+   "operation_id": "9b7d3927d19d1647b420209380986b22",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16421",
+   "composite_trace_path": "outputs/void_semantic_traces/16421/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16421,
+   "operation_id": "25536f77b9048abde43300dcba646567",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16421",
+   "composite_trace_path": "outputs/void_semantic_traces/16421/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16626,
+   "operation_id": "a16ec0af9f99a3d375b2af222c85ab2d",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/16626",
+   "composite_trace_path": "outputs/void_semantic_traces/16626/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16626,
+   "operation_id": "b7d06107edb8c43508166f221fbe32c4",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/16626",
+   "composite_trace_path": "outputs/void_semantic_traces/16626/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16747,
+   "operation_id": "71532cc7fc633b8f66c7fa7ac1dd57b8",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16747",
+   "composite_trace_path": "outputs/void_semantic_traces/16747/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16747,
+   "operation_id": "52cadf68facaf6473dca6654a9b1bda4",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16747",
+   "composite_trace_path": "outputs/void_semantic_traces/16747/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16747,
+   "operation_id": "db27ee739c120ea435f6ff151b98814b",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16747",
+   "composite_trace_path": "outputs/void_semantic_traces/16747/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16747,
+   "operation_id": "461768a1363f9d63a2c04c00c4993f74",
+   "operation_index": 3,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16747",
+   "composite_trace_path": "outputs/void_semantic_traces/16747/op3_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16776,
+   "operation_id": "3d6fcf01a68e59995f66e51814068f35",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/16776",
+   "composite_trace_path": "outputs/void_semantic_traces/16776/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16776,
+   "operation_id": "72b1698907d8f5af18c1047ad1f96d03",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "mid",
+   "trace_dir": "outputs/void_semantic_traces/16776",
+   "composite_trace_path": "outputs/void_semantic_traces/16776/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16790,
+   "operation_id": "158ad0c73feda9fe1f61bd580635cd7f",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16790",
+   "composite_trace_path": "outputs/void_semantic_traces/16790/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16790,
+   "operation_id": "a7fdd589ab938fe5fedb8a814ac23939",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16790",
+   "composite_trace_path": "outputs/void_semantic_traces/16790/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16790,
+   "operation_id": "2f10b6605aa9f673d841a54db70a6b78",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16790",
+   "composite_trace_path": "outputs/void_semantic_traces/16790/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16808,
+   "operation_id": "e13b854502c4bb4dbcb9e0fb363c39ad",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16808",
+   "composite_trace_path": "outputs/void_semantic_traces/16808/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16808,
+   "operation_id": "cb13c7cd6b2d6d02640235a50da9450e",
+   "operation_index": 1,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16808",
+   "composite_trace_path": "outputs/void_semantic_traces/16808/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 16808,
+   "operation_id": "e3694afebfbaf0c42b46eafc7beaa3c0",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/16808",
+   "composite_trace_path": "outputs/void_semantic_traces/16808/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17568,
+   "operation_id": "4083c7de4224e16d4679cafb7c0ad327",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "low",
+   "trace_dir": "outputs/void_semantic_traces/17568",
+   "composite_trace_path": "outputs/void_semantic_traces/17568/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17735,
+   "operation_id": "f7e3474a5412d9a58eedb9b33aa5bfea",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/17735",
+   "composite_trace_path": "outputs/void_semantic_traces/17735/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17735,
+   "operation_id": "99be17571bf80d8e7cacfbdfae1b9ffa",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/17735",
+   "composite_trace_path": "outputs/void_semantic_traces/17735/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17735,
+   "operation_id": "61cd7d0e45adc8e5781cec0c978fea0c",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/17735",
+   "composite_trace_path": "outputs/void_semantic_traces/17735/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17800,
+   "operation_id": "b0944857a46daced0973473043ca346f",
+   "operation_index": 0,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "low",
+   "trace_dir": "outputs/void_semantic_traces/17800",
+   "composite_trace_path": "outputs/void_semantic_traces/17800/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17857,
+   "operation_id": "0b2089343bc75fc90e6550c42e4afe7e",
+   "operation_index": 0,
+   "kind": "layer",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/17857",
+   "composite_trace_path": "outputs/void_semantic_traces/17857/op0_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17857,
+   "operation_id": "c479950efde32f5b2afd0a29c7e55e94",
+   "operation_index": 1,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/17857",
+   "composite_trace_path": "outputs/void_semantic_traces/17857/op1_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  },
+  {
+   "building_id": 17857,
+   "operation_id": "336258d8ff12bcea50a0c45b1e915074",
+   "operation_index": 2,
+   "kind": "ramp",
+   "mode": "subtract",
+   "region": "DE",
+   "carve_needing": true,
+   "op_count_bucket": "high",
+   "trace_dir": "outputs/void_semantic_traces/17857",
+   "composite_trace_path": "outputs/void_semantic_traces/17857/op2_composite.png",
+   "annotator_1": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "annotator_2": {
+    "label": null,
+    "note": null,
+    "annotated_at": null,
+    "annotator": null
+   },
+   "adjudication": {
+    "label": null,
+    "note": null,
+    "adjudicated_at": null,
+    "by": null
+   }
+  }
+ ]
+}
