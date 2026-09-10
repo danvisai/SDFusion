@@ -55,6 +55,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.baseline_gate_eval import fp_iou, mesh_sdf_surface  # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import RES, TRUNC, verts_to_world  # noqa: E402
 
@@ -647,7 +648,7 @@ def main() -> None:
 
     # ---- phase A: geometry-only arms (no model). Also fixes the final id set. ----------------------
     t0 = time.time()
-    with h5py.File(H5, "r") as gt:
+    with open_real_corpus(H5) as gt:
         for bid in cand:
             if len(ids) >= args.n and not args.ids_from:
                 break

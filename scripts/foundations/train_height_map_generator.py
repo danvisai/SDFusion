@@ -481,6 +481,7 @@ from scipy import ndimage
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.eval_massing_arms import (              # noqa: E402
     COLLAPSE_MISSING, RES, fp_iou, footprint_split, volume_split, vs_input,
 )
@@ -968,6 +969,9 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     """
     import h5py
 
+    # #162: cached training/evaluation must not bypass the raw corpus identity check.
+    with open_real_corpus(H5):
+        pass
     if path.exists() and not force:
         d = np.load(path)
         return {k: d[k] for k in d.files}
@@ -983,7 +987,7 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     extents = np.zeros(n, np.int16)
     ok = np.zeros(n, np.uint8)
     t0 = time.time()
-    with h5py.File(H5, "r") as g:
+    with open_real_corpus(H5) as g:
         for k, b in enumerate(rows):
             gt = np.asarray(g["sdf"][int(b)], np.float32) <= 0
             fp = np.asarray(g["footprint"][int(b)]) > 0

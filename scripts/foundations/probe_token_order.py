@@ -35,6 +35,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from models.shape_codec import Building, DoraCodec                              # noqa: E402
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface             # noqa: E402
 from scripts.foundations.dora_roundtrip_probe import load_dora, H5              # noqa: E402
@@ -191,7 +192,7 @@ def main() -> None:
     cand, lat_of = pick_ids(Path(args.latents), None)
     ids = cand[:args.n]
     fp_of, gt_occ, ht_of, rg_of = {}, {}, {}, {}
-    with h5py.File(H5, "r") as f, h5py.File(args.latents, "r") as g:
+    with open_real_corpus(H5) as f, h5py.File(args.latents, "r") as g:
         reg = np.asarray(g["region"]) if "region" in g else None
         row = np.asarray(g["row"])
         rg_by_row = {int(r): int(x) for r, x in zip(row, reg)} if reg is not None else {}

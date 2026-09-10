@@ -54,12 +54,12 @@ import time
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
-import h5py
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scene.sdf_edit import containment_problems, finalize_problems, layer_program_to_ops  # noqa: E402
 from scripts.foundations.decide_c2_kill_gate import bootstrap_mean_ci  # noqa: E402
 from scripts.foundations.recover_massing_programs import (  # noqa: E402
@@ -311,7 +311,7 @@ def main() -> None:
 
     rows: List[dict] = []
     t0 = time.time()
-    with h5py.File(H5, "r") as g:
+    with open_real_corpus(H5) as g:
         for k, bid in enumerate(ids):
             gt = np.asarray(g["sdf"][bid], np.float32) <= 0
             fp = np.asarray(g["footprint"][bid]) > 0

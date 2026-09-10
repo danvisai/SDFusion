@@ -64,13 +64,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-import h5py
 import numpy as np
 from scipy import ndimage
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.eval_massing_arms import (            # noqa: E402
     RES, S_STAR_VOXELS, COLLAPSE_MISSING, volume_split, footprint_split, fp_iou, vs_input,
 )
@@ -1026,13 +1026,12 @@ def measure_commutativity(rows, n: int = 250, perms: int = 8, seed: int = 0) -> 
     import itertools
     import random
 
-    import h5py
 
     rng = random.Random(seed)
     out = dict(n=0, overlapping=0, ordered_permutation_changed=0,
                min_differs_from_set=0, raises_a_column=0, commuting_permutation_changed=0,
                perms=perms)
-    with h5py.File(H5, "r") as g:
+    with open_real_corpus(H5) as g:
         for b, row in rows.items():
             prog = row.get("program") or []
             if len(prog) < 2:
@@ -1435,7 +1434,7 @@ def _h5():
     """One h5 handle per worker process, opened on first use rather than pickled."""
     global _H5_HANDLE
     if _H5_HANDLE is None:
-        _H5_HANDLE = h5py.File(H5, "r")
+        _H5_HANDLE = open_real_corpus(H5)
     return _H5_HANDLE
 
 
@@ -1641,7 +1640,7 @@ def budget_montage(rows, art: dict, budget: int, out: Path, n: int = 6) -> Path:
     picks = [ranked[int(round(q * (len(ranked) - 1)))]
              for q in np.linspace(0.1, 0.9, n)]
     cases = []
-    with h5py.File(H5, "r") as g:
+    with open_real_corpus(H5) as g:
         for b in picks:
             gt = np.asarray(g["sdf"][int(b)], np.float32) <= 0
             fp = np.asarray(g["footprint"][int(b)]) > 0
@@ -1819,7 +1818,7 @@ def main() -> None:
     print(f"[ids] {len(ids)} buildings from {args.ids_from}", flush=True)
 
     rows, cases, bridge_cases, all_cases, t0 = {}, [], [], [], time.time()
-    with h5py.File(H5, "r") as g:
+    with open_real_corpus(H5) as g:
         for k, b in enumerate(ids):
             gt = np.asarray(g["sdf"][b], np.float32) <= 0
             fp = np.asarray(g["footprint"][b]) > 0

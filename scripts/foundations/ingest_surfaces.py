@@ -36,6 +36,8 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
+
 MARGIN = 1.05           # must match building_to_sdf
 H5 = REPO / "data/real_massing_v1/real.h5"
 OUT = REPO / "data/real_massing_v1"
@@ -74,7 +76,7 @@ def _wanted_ids(source: str):
     """The ids real.h5 actually holds for this source -> {id: row}."""
     import h5py
     sid = {"bag3d": 0, "nrw": 1, "plateau": 2}[source]
-    with h5py.File(H5, "r") as f:
+    with open_real_corpus(H5) as f:
         rows = np.nonzero(f["source_id"][:] == sid)[0]
         ids = [f["bag_id"][int(r)].decode() for r in rows]
     return {i: int(r) for i, r in zip(ids, rows)}
@@ -196,7 +198,7 @@ def verify(source: str, n: int) -> None:
     FWN = igl.SignedDistanceType.SIGNED_DISTANCE_TYPE_FAST_WINDING_NUMBER
     from scripts.foundations.vecset_ceiling_probe import RES, TRUNC, grid_points
     pts = grid_points()
-    with h5py.File(OUT / f"surfaces_{source}.h5", "r") as s, h5py.File(H5, "r") as f:
+    with h5py.File(OUT / f"surfaces_{source}.h5", "r") as s, open_real_corpus(H5) as f:
         k = min(n, len(s["row"]))
         print(f"[verify {source}] n={k}   (IoU of occupancy vs the stored field)")
         ious, errs = [], []

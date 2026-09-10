@@ -37,6 +37,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface          # noqa: E402
 from scripts.foundations.refiner_prototype import surface_roughness          # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import (                       # noqa: E402
@@ -109,8 +110,8 @@ def main() -> None:
     import h5py, trimesh
 
     surf = load_surfaces()
-    with h5py.File(H5, "r") as f:
-        held = [int(i) for i in test_indices(int(f["sdf"].shape[0]))]
+    with open_real_corpus(H5) as f:
+        held = [int(i) for i in test_indices(FROZEN_SPLIT_N_TOTAL)]
     # stratify: take round-robin across sources so all three regions are represented
     by_src = {s: [r for r in held if r in surf and surf[r][2] == s] for s in SOURCES}
     print("held-out with surfaces per source:", {SOURCES[s]: len(v) for s, v in by_src.items()})
@@ -149,7 +150,7 @@ def main() -> None:
     pts = grid_points()
     rows = []
 
-    with h5py.File(H5, "r") as f:
+    with open_real_corpus(H5) as f:
         for k, r in enumerate(picks):
             v, fc, src = surf[r]
             gt = np.asarray(f["sdf"][r], np.float32)

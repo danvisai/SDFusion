@@ -33,6 +33,8 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
+
 SOURCES = ("bag3d", "nrw", "plateau")
 SURF = REPO / "data/real_massing_v1"
 H5 = SURF / "real.h5"
@@ -164,7 +166,7 @@ def main() -> None:
     # ---- the 153 that never came back ----------------------------------------------------------
     missing = {}
     if not args.limit:
-        with h5py.File(H5, "r") as f:
+        with open_real_corpus(H5) as f:
             n_total = int(f["sdf"].shape[0])
             have = set(all_rows)
             absent = [i for i in range(n_total) if i not in have]

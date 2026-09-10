@@ -42,13 +42,13 @@ import sys
 import time
 from pathlib import Path
 
-import h5py
 import numpy as np
 from scipy import ndimage
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.eval_massing_arms import (            # noqa: E402
     COLLAPSE_MISSING, volume_split, footprint_split, fp_iou, vs_input,
 )
@@ -119,7 +119,7 @@ def load_height_fields(ids, h5_path: Path = H5):
     arms are being scored against something that is not quite GT.
     """
     out, mismatch = [], 0
-    with h5py.File(h5_path, "r") as g:
+    with open_real_corpus(h5_path) as g:
         for b in ids:
             gt = np.asarray(g["sdf"][b], np.float32) <= 0
             fp = np.asarray(g["footprint"][b]) > 0

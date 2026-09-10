@@ -43,6 +43,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.eval_massing_arms import H5, LATENTS, RES, pick_ids, volume_split  # noqa: E402
 from scripts.foundations.diagnose_decoder_tolerance import perturb  # noqa: E402
 
@@ -188,7 +189,7 @@ def main() -> None:
     surf = load_surfaces()
 
     print(f"\n--- A: does latent distance rank like surface quality? (n={len(ids)}) ---", flush=True)
-    with h5py.File(args.latents, "r") as lf, h5py.File(H5, "r") as gt:
+    with h5py.File(args.latents, "r") as lf, open_real_corpus(H5) as gt:
         rows = phase_a(codec, lf, gt, ids, lat_of, mu, sd, surf, args.seed, dev)
 
     corr = {}

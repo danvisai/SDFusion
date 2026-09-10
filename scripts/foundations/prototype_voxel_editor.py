@@ -50,6 +50,8 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
+
 RES = 64
 DEFAULT_A2 = REPO / "weights/massing-vecset/vecset_v4_surf.pth"
 DEFAULT_LATENTS = REPO / "data/real_massing_v1/vecset_latents.h5"
@@ -282,6 +284,8 @@ class VoxelCache:
     def __init__(self, path: Path, split: int):
         import h5py
 
+        with open_real_corpus():
+            pass
         self.path = Path(path)
         with h5py.File(self.path, "r") as h:
             self.indices = np.flatnonzero(h["split"][:] == split)
@@ -374,7 +378,7 @@ def select_rows(latents: Path, real: Path, n_train: int, n_val: int, identity_fr
     identity: list[int] = []
     candidates = rows[~held].copy()
     rng.shuffle(candidates)
-    with h5py.File(real, "r") as h:
+    with open_real_corpus(real) as h:
         for row_value in candidates:
             row = int(row_value)
             li = index_of[row]
@@ -470,7 +474,7 @@ def cache_command(args) -> None:
     mu, sd = ck["latent_mu"].to(device), ck["latent_sd"].to(device)
     codec = DoraCodec(load_dora(device))
 
-    with h5py.File(args.latents, "r") as lat, h5py.File(args.real, "r") as real:
+    with h5py.File(args.latents, "r") as lat, open_real_corpus(args.real) as real:
         latent_row = {int(row): i for i, row in enumerate(lat["row"][:])}
         t0 = time.time()
         for k, (row, split) in enumerate(selected):

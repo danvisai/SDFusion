@@ -52,6 +52,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from models.networks.vecset_projection import cosine_alphas                   # noqa: E402
 from models.shape_codec import DoraCodec                                      # noqa: E402
 from scripts.foundations.baseline_gate_eval import fp_iou                     # noqa: E402
@@ -155,7 +156,7 @@ def main() -> None:
     acc = {a: {"iou_vs_full": [], "fp": [], "vol": []} for a in arms}
     acc["full"] = {"fp": [], "vol": []}
 
-    with h5py.File(H5, "r") as gt:
+    with open_real_corpus(H5) as gt:
         for i in range(len(ho)):
             g = np.asarray(gt["sdf"][int(ROW[i])], np.float32)
             gocc = g <= 0

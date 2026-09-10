@@ -27,6 +27,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 from models.shape_codec import Building, DoraCodec                       # noqa: E402
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface       # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import TRUNC, verts_to_world  # noqa: E402
@@ -515,6 +516,9 @@ def main() -> None:
         measure_from_cache(*args.from_cache, n=args.pairs)
         return
 
+    # #162: fail before loading the codec or creating/truncating an output cache.
+    with open_real_corpus(H5):
+        pass
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     codec = DoraCodec(load_dora(dev), n_coarse=args.n_coarse, n_sharp=args.n_sharp)
 
@@ -528,7 +532,7 @@ def main() -> None:
             rows = rows[args.start:]
         if args.limit:
             rows = rows[:args.limit]
-    held = set(int(i) for i in test_indices(35776))
+    held = set(int(i) for i in test_indices(FROZEN_SPLIT_N_TOTAL))
     print(f"[precompute] {len(rows)} buildings -> {args.out}")
 
     # Verification samples span the whole requested output, not just the tail encoded after a
@@ -546,7 +550,7 @@ def main() -> None:
     t0 = time.time()
     attrs = {"codec": codec.name, "n_coarse": args.n_coarse, "n_sharp": args.n_sharp}
     try:
-        with h5py.File(H5, "r") as f:
+        with open_real_corpus(H5) as f:
             for n, r in enumerate(rows):
                 try:
                     bld, src = _building_for_row(f, surf, r, args.blockout)

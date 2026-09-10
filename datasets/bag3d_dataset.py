@@ -19,6 +19,7 @@ import torch
 
 from datasets.base_dataset import BaseDataset
 from datasets.buildingnet_dataset import _augment_sdf_fp
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, assert_frozen_corpus, open_real_corpus
 
 STYLE_UNKNOWN_ID = 8
 
@@ -34,18 +35,28 @@ class Bag3dDataset(BaseDataset):
         self.trunc_thres = float(getattr(opt, "trunc_thres", 0.2))
         self.augment = bool(getattr(opt, "augment", False)) and phase == "train"
         with h5py.File(self.h5_path, "r") as f:
+            # Keep standalone source corpora usable; pin the combined corpus even if renamed.
+            self.frozen_corpus = (self.h5_path.name == "real.h5" or
+                                  ("source_id" in f and len(np.unique(f["source_id"][:])) > 1))
+            if self.frozen_corpus:
+                assert_frozen_corpus(f)
             self.n_total = int(f["sdf"].shape[0])
         # deterministic 96/2/2 split
-        perm = np.random.default_rng(0).permutation(self.n_total)
-        n_val = max(1, int(0.02 * self.n_total))
+        split_size = FROZEN_SPLIT_N_TOTAL if self.frozen_corpus else self.n_total
+        perm = np.random.default_rng(0).permutation(split_size)
+        n_val = max(1, int(0.02 * split_size))
         splits = {"val": perm[:n_val], "test": perm[n_val:2 * n_val], "train": perm[2 * n_val:]}
+        if self.frozen_corpus:
+            # #162: append-only ingestion must not reshuffle the historical 714 held-out rows.
+            splits["train"] = np.concatenate((splits["train"], np.arange(split_size, self.n_total)))
         self.idxs = splits[phase]
         self._h5 = None
         print(f"[bag3d] phase={phase}  n={len(self.idxs)} / {self.n_total}  h5={self.h5_path}")
 
     def _get_h5(self) -> h5py.File:
         if self._h5 is None:
-            self._h5 = h5py.File(self.h5_path, "r")
+            self._h5 = (open_real_corpus(self.h5_path) if self.frozen_corpus
+                        else h5py.File(self.h5_path, "r"))
         return self._h5
 
     def __len__(self) -> int:

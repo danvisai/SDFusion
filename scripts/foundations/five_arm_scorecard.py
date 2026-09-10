@@ -48,12 +48,12 @@ import time
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
-import h5py
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.recover_massing_programs import CARVE_NEEDED, H5  # noqa: E402
 from scripts.foundations.stratified_split import make_split  # noqa: E402
 from scripts.foundations.train_height_map_generator import CACHE, build_cache  # noqa: E402
@@ -91,7 +91,7 @@ def materialize_split(h5_path: Path = H5, val_frac: float = VAL_FRAC, test_frac:
                       seed: int = SPLIT_SEED) -> dict:
     """Runs #153's `make_split` and returns real.h5 ROW INDICES for val/test -- the same id space
     `cache["row"]`/every other arm on this map already uses."""
-    with h5py.File(h5_path, "r") as f:
+    with open_real_corpus(h5_path) as f:
         source_id = f["source_id"][:]
         bag_id = f["bag_id"][:]
     split, report = make_split(source_id, bag_id, val_frac, test_frac, seed)

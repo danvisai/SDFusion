@@ -38,9 +38,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+
+REPO = Path(__file__).resolve().parents[2]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 
 SOURCE_NAMES = {0: "NL", 1: "DE", 2: "JP"}
 NL_PREFIX = "NL.IMBAG.Pand."
@@ -214,9 +221,7 @@ def main() -> None:
     ap.add_argument("--out", default=None, help="write the full report json here")
     args = ap.parse_args()
 
-    import h5py
-
-    with h5py.File(args.h5, "r") as f:
+    with open_real_corpus(args.h5) as f:
         source_id = f["source_id"][:]
         bag_id = f["bag_id"][:]
 
