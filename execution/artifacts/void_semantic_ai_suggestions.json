@@ -1,0 +1,647 @@
+{
+ "3855_c6326f53c2438680a65548f2d01399d8": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A large sloped (hatched top) lower band spanning much of the footprint reads as a pitched roof plane, matching its recorded ramp kind."
+ },
+ "3855_b5940e683b73690329229f452f3a1d3b": {
+  "label": "terrace_or_setback",
+  "confidence": "low",
+  "reasoning": "A narrow flat-topped strip cut down along one outer edge could be a setback channel or a light well; genuinely hard to distinguish at this scale."
+ },
+ "3855_53dc3e8f2a989a4ac897722e73a37e5c": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A narrow ridge strip down the center of an already-gabled roof silhouette reads as the second slope completing the pitched roof form."
+ },
+ "3984_bf5fabba37f0dd1f11013cfa1f05e784": {
+  "label": "courtyard",
+  "confidence": "medium",
+  "reasoning": "A ring/groove of changed columns surrounding a preserved inner block resembles a courtyard or moat cut into the massing."
+ },
+ "3984_42d90cd6cf4edcf2085f46cb688d5732": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "An L-shaped stepped block with a vertical carved face suggests separating a projecting wing from the main mass, though a terrace step is also plausible."
+ },
+ "3984_8290b7d3ef5f785dc409a90944beb418": {
+  "label": "courtyard",
+  "confidence": "low",
+  "reasoning": "A similar ring-shaped cut to the building's first operation, likely extending the same courtyard void, though it could instead read as an open passage."
+ },
+ "3984_e2e30ecce6984863eb8cec68b52311e3": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "A small patch at one corner of an already-notched footprint is too slight to confidently name as a specific architectural feature."
+ },
+ "4049_ec83494d450c183cdc6864a8d5775ff8": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A small corner cut on an L-shaped footprint plausibly trims a narrow wing/projection, but the change is small and could be minor massing noise."
+ },
+ "4049_fcf1c56fbea8729d13ed2a4172206874": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A large flat-topped rectangular block at one end of the L-shaped footprint, distinctly lower than the main mass, reads as a separate wing volume."
+ },
+ "4049_d4559516e5ea008ed98100eef65861a5": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a tiny irregular sliver near one corner is highlighted; too small to confidently name as an architectural feature."
+ },
+ "4135_fcfc27e0c87d7feddce0c8f11af1b33c": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A clean rectangular end-section of the box, differing in height from the rest, reads as a distinct wing volume."
+ },
+ "4135_fce1e1eade2af7d0e2360165b2685924": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large textured surface spanning one full gable slope clearly forms a pitched roof plane, matching its ramp kind."
+ },
+ "4135_7e6cfb7c378fef129a8818178fbedf05": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A ridge-adjacent strip continues building out the pitched roof form alongside the prior slope operation."
+ },
+ "4135_727d53a6326da2390b7cb8e19e7e8ed7": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped band across the upper gable end continues completing the pitched roof volume."
+ },
+ "4141_b1db0401567d5cbc81cac0652dfd976e": {
+  "label": "terrace_or_setback",
+  "confidence": "high",
+  "reasoning": "A wide lower base surrounds a narrower, taller block rising from the middle -- a textbook stepped-back massing."
+ },
+ "4141_288c0c50e0bcf98b374d9b2bb5bff040": {
+  "label": "terrace_or_setback",
+  "confidence": "low",
+  "reasoning": "A small additional edge strip continues the step-back pattern established by the prior operation on this building."
+ },
+ "4141_a5817a006fd9ef29ae6f4c80ae7a82a8": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering one full roof slope, matching its ramp kind."
+ },
+ "4141_af229bb70528c6fc780fdf24cc86ae8d": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A thin ridge-line strip completes the gable roof pitch alongside the prior slope operation."
+ },
+ "4233_115deb7a926aadb11e7e6d9eaa93767f": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "A large flat region cut across most of the footprint, with a small notch preserved at the back, reads as a broad stepped-down mass."
+ },
+ "4233_814ddf4ad46ba7d9f249aaf2b9f12f0d": {
+  "label": "terrace_or_setback",
+  "confidence": "low",
+  "reasoning": "A narrow strip along one edge continues the step-back cut from the prior operation on this building."
+ },
+ "4233_5d64cf0fe483da14acd3907403cd59d3": {
+  "label": "courtyard",
+  "confidence": "high",
+  "reasoning": "A clear U-shaped channel cut around three sides of a preserved rectangular core reads as a courtyard/moat void."
+ },
+ "4233_143437c16441587c54be53c1f8b9b057": {
+  "label": "courtyard",
+  "confidence": "high",
+  "reasoning": "A wider continuation of the same U-shaped ring channel around the preserved core, deepening the courtyard void."
+ },
+ "4242_99380eb024ab312d086e8e37c1d20fd7": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A lower connecting band between two taller tower-like volumes in a complex irregular footprint; hard to pin down precisely."
+ },
+ "4242_da335a00da9e8bedd295034f0810a679": {
+  "label": "ambiguous",
+  "confidence": "low",
+  "reasoning": "A small lowered block sits between two larger volumes; could be a passage-like gap or a minor step, not clearly either."
+ },
+ "4242_19c38738cf2363a95ce0a3cec93e123a": {
+  "label": "ambiguous",
+  "confidence": "low",
+  "reasoning": "A similar small lowered segment in the same connector zone as the prior operation; genuinely unclear which named type it represents."
+ },
+ "4242_101d068520dd78ead5223c953c484d9d": {
+  "label": "ambiguous",
+  "confidence": "low",
+  "reasoning": "Another small lowered segment along the same irregular footprint; too ambiguous to confidently name."
+ },
+ "4449_06e743b65622c0339ff128acc75ee3f5": {
+  "label": "roof_cut",
+  "confidence": "high",
+  "reasoning": "Nearly the entire textured top surface is highlighted, matching its cut_roof kind directly."
+ },
+ "4449_bfd36857256ca4359fbd519e9e923a36": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin sliver near one corner is highlighted; too small to confidently name."
+ },
+ "4449_942c4e958cc5fc13f941a55064b51ac1": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A diagonal sloped strip along one edge continues shaping the pitched roof, matching its ramp kind."
+ },
+ "4449_ec147ffb40d9996bdde47cd7ecf2bb11": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface spanning most of the top, matching its ramp kind, forms a pitched roof plane."
+ },
+ "4607_632f3d09bd677e1265254af809571c11": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
+ },
+ "4607_9356383818a26dbcbb851d46ab28a12a": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A ridge-line band completes the pitched roof form alongside the prior slope operation."
+ },
+ "4954_69ec95a5239928f11d8171291d9b1b4b": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A distinctly lower rectangular block at one end of the building, clearly separated from a taller adjoining volume, reads as a wing."
+ },
+ "4954_688317e69c4ed3c49c4a2f24feb0b088": {
+  "label": "passage",
+  "confidence": "low",
+  "reasoning": "A small L-shaped lowered notch at the inner junction between two wings could be a passage gap, but is not entirely clear."
+ },
+ "4954_e5cbcc3194fdb04b31727172cf8397f1": {
+  "label": "passage",
+  "confidence": "low",
+  "reasoning": "A similar small lowered band near the same inner junction continues the ambiguous connector cut."
+ },
+ "4954_d33faf4728784a9bab7a7cee26439dc9": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a tiny patch at the junction between two wings is highlighted; too small to confidently name."
+ },
+ "5027_5413f6c65c09b53879154610b1fc3979": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "Most of the footprint is lowered, leaving only a small raised strip, reading as a broad stepped-down mass."
+ },
+ "5027_846f15402d3dfd4a566fbe8ae59e242a": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "A similarly large lowered area continues the broad stepped-down reduction from the prior operation."
+ },
+ "5027_d9bcddc71223c8a090a0ed7db2fcdd66": {
+  "label": "ambiguous",
+  "confidence": "low",
+  "reasoning": "A small chunk highlighted at a junction between two masses is too minor and unclear to name confidently."
+ },
+ "5027_64aee46d6b93e5aa82ed5e1e4f9e63a9": {
+  "label": "roof_volume",
+  "confidence": "low",
+  "reasoning": "Two separate top-edge strips on a ramp-kind operation suggest roof-plane shaping, though the extent is small."
+ },
+ "5032_fe97215a1c708550a3b0fae9af7c3f4c": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
+ },
+ "5032_691bea6385ab5c7f25e874a6f4cac31a": {
+  "label": "terrace_or_setback",
+  "confidence": "low",
+  "reasoning": "An L-shaped wedge cut along one edge and corner reads as a minor stepped-back trim."
+ },
+ "5032_e02379b8bd67fa2847a453d2690d542e": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
+ },
+ "5032_9aea857ca46a9c13a8eeccef946d2684": {
+  "label": "courtyard",
+  "confidence": "high",
+  "reasoning": "A clear U-shaped channel cut around a preserved inner block reads as a courtyard/moat void."
+ },
+ "5071_c8e6bb40079edd6048ae0a275f052be4": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A distinctly lower rectangular block at one end of a stepped massing reads as a wing volume."
+ },
+ "5071_487c10ca7f025497ab07ac0ed9444ac9": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "Another lower block segment in the same stepped sequence reads as part of the same wing articulation."
+ },
+ "5071_e1f9a9e138c800aef562b4f274b653f3": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "Continues the same stepped sequence of lower block segments forming a wing."
+ },
+ "5071_88817f3a81973b42df848ec979e92cf7": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "The final segment in the stepped sequence of lower blocks completes the wing articulation."
+ },
+ "5176_e5926ccbc4e0c6cb5d4a0eaa9cf99e24": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin sliver along one edge of the roof-topped mass is highlighted; too small to confidently name."
+ },
+ "5176_8c5147f6039bc76ab8d9326ec28efba4": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "A solid band across the base/front reads as a stepped-down mass reduction."
+ },
+ "5176_599d8db6ae8ca82b4505174bb5f6efec": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin sliver along one edge is highlighted; too small to confidently name."
+ },
+ "5241_9e1416aa5e384f69b3fb06b106b67818": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "An L-shaped corner cut trims a projecting portion of the footprint, plausibly separating a wing."
+ },
+ "5241_d325a8fdca7f7050886e2d50fd3ff6f1": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A similar L-shaped corner cut continues trimming the same projecting portion."
+ },
+ "5241_ece0380c5356d2d0c5c6d2aa2aa5ce96": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a small notch at one corner is highlighted; too minor to confidently name."
+ },
+ "5241_64531b85fa1a74f2d98ecf55f3ff7dab": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a tiny strip at one corner edge is highlighted; too small to confidently name."
+ },
+ "5470_83626e06674570ab1554539ece6805e6": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "Most of the footprint's top is lowered, leaving only a small raised strip, reading as a broad stepped-down mass."
+ },
+ "5470_26a67c1260f5e81792da255c05aef8db": {
+  "label": "courtyard",
+  "confidence": "medium",
+  "reasoning": "A rectangular notch cut deep into the middle of the T-shaped mass, walled on three sides, reads as a courtyard void."
+ },
+ "5470_89a368e3aa0733ad344c737bfb9c6e83": {
+  "label": "courtyard",
+  "confidence": "medium",
+  "reasoning": "A similar enclosed notch elsewhere on the same footprint continues the courtyard-like carving pattern."
+ },
+ "5470_4a3db8a6d3338b063b538d108add9aba": {
+  "label": "passage",
+  "confidence": "low",
+  "reasoning": "A small notch at one edge, not fully enclosed, could be a passage gap but is not entirely clear."
+ },
+ "5698_bf9ae3bf019d34a84416ef0db1220bea": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin strip along one top edge is highlighted; too small to confidently name."
+ },
+ "5698_9e730db23a11ff2d9c55c3e0a86b4250": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "An L-shaped lower block at one end reads as a possible wing, though the ramp kind suggests some slope not clearly visible here."
+ },
+ "5698_f727314b24544418939e2b0f9964b25e": {
+  "label": "terrace_or_setback",
+  "confidence": "low",
+  "reasoning": "A step-shaped lower section at the base reads as a minor stepped-back trim."
+ },
+ "5698_cdc1ce0538481eab40e1f599ca5606ff": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A lower band at one end continues the stepped massing established by prior operations on this building."
+ },
+ "5713_098e858bfaafa1e2f55c6611f6d10d13": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A full lowered block at one part of the L-shaped footprint, distinctly separated from the taller mass, reads as a wing."
+ },
+ "5713_9d7b623f8f983292b5dc5ced3395f3ca": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering one part of the mass forms a pitched roof plane, matching its ramp kind."
+ },
+ "5713_dacb61435349d6be0dec2f5681af221b": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped triangular patch at a corner completes the pitched roof form alongside the prior slope operation."
+ },
+ "5713_56d967703d672f31848bc3876b43877b": {
+  "label": "roof_volume",
+  "confidence": "low",
+  "reasoning": "A small sloped strip near a corner continues minor roof shaping, though the extent is limited."
+ },
+ "5774_5a8f40c1227e03fa84400ff04f649d79": {
+  "label": "passage",
+  "confidence": "low",
+  "reasoning": "A thin vertical column wedged between two larger masses could be a narrow connector gap, but is not entirely clear."
+ },
+ "5774_0440228d821ddbb7f9c14b2169068ada": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin strip near a corner is highlighted; too small to confidently name."
+ },
+ "5774_47093b80401bfd4f8fca63391eab5548": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped triangular surface covering one gable slope forms a pitched roof plane, matching its ramp kind."
+ },
+ "5774_de77d7a283723f387fce8b8943a9a6e5": {
+  "label": "terrace_or_setback",
+  "confidence": "low",
+  "reasoning": "A thin band along the base reads as a minor stepped-down trim."
+ },
+ "5785_da1ce39ecb3de16de3c8814ffa88d1bd": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "A large area at the base of the building is lowered, reading as a broad stepped-down mass."
+ },
+ "5785_40a1768d50e9f327a4fa1fb9c58f1629": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
+ },
+ "5785_7acd0986c0423333ea6f3bcb43d35ad2": {
+  "label": "roof_cut",
+  "confidence": "high",
+  "reasoning": "A large textured roof surface with a ridge channel matches its cut_roof kind directly."
+ },
+ "5785_1e89305f74a447d16535d650bc030fb7": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A U-shaped groove along the roof ridge continues shaping the roof mass from the prior cut_roof operation."
+ },
+ "6042_36ad0ba2677b3991c636c3a4b7b414db": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
+ },
+ "11998_668f1da4aa880077101a26e5b38214c3": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
+ },
+ "11998_9d48fdb00ab20aca1866b90c8604335f": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped band along one edge begins shaping a pitched roof plane, matching its ramp kind."
+ },
+ "11998_1ebcfff1ce24282836f751fdc0b54b69": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
+ },
+ "11998_5352670da0e3c84f975a6d799a4bd425": {
+  "label": "roof_volume",
+  "confidence": "low",
+  "reasoning": "A thin ridge-line strip continues minor roof trimming after the prior slope operations."
+ },
+ "12018_cdb4662589b18535173d9a9519456dfd": {
+  "label": "terrace_or_setback",
+  "confidence": "high",
+  "reasoning": "A wide lower base surrounds a narrower, taller raised core -- a textbook stepped-back massing."
+ },
+ "12018_af0a54d7387fe57f6613fb7a623d10e3": {
+  "label": "roof_cut",
+  "confidence": "high",
+  "reasoning": "A complex textured surface with a ridge groove matches its cut_roof kind directly."
+ },
+ "12018_cd5a057f12ecbea30dc96ecfb25692d7": {
+  "label": "terrace_or_setback",
+  "confidence": "high",
+  "reasoning": "A similar U-shaped groove around the preserved raised core continues the stepped-back massing from the prior operation."
+ },
+ "12018_3d0d02e97c0d9414329ad79473934ab7": {
+  "label": "terrace_or_setback",
+  "confidence": "high",
+  "reasoning": "Continues the same U-shaped stepped-back cut pattern around the preserved raised core."
+ },
+ "15194_2985c5b05ae22d59219fc23089a88bd0": {
+  "label": "courtyard",
+  "confidence": "high",
+  "reasoning": "A clear ring-shaped channel cut around a preserved raised rectangular core reads as a courtyard/moat void."
+ },
+ "15194_d51f4c866ec0ed5929ac84f88f1b832e": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A small notch cut at one edge of a stepped footprint could trim a projecting wing, but the extent is minor."
+ },
+ "15194_b10264b7040661a054e6eb3218eb3a2b": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A diagonal sloped band cutting through the middle of the footprint reads as roof-plane shaping, matching its ramp kind."
+ },
+ "15194_2946104cf68012cf1c684b7fe0d8228c": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A small notch cut at one edge could trim a projecting wing, but the extent is minor."
+ },
+ "15310_274fd30340779fd7536154c928d27e9f": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A distinctly lower block at one end, separated from the taller part of the footprint, reads as a wing."
+ },
+ "15310_7a5933db75165f9515d498921144f2e7": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A stepped notch cut at a corner, leaving a small raised block, plausibly continues the wing articulation."
+ },
+ "15310_3838a64522b4c81408924c83b601aa71": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped band covering a large section reads as roof-plane shaping, matching its ramp kind."
+ },
+ "15310_6a43586e007e61464b6ed0a77ba81af9": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A similar sloped band continues the roof-plane shaping from the prior operation."
+ },
+ "15556_58c6f7d3f6b0ed3118993b41b689e2a3": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering roughly half the roof forms a pitched roof plane, matching its ramp kind."
+ },
+ "15556_99de08b84f75f4db06078a797f3ef916": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "The other half of the sloped roof surface continues the pitched roof plane, matching its ramp kind."
+ },
+ "16041_5caefdc71d83f0530a916e871e535ddb": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering most of the roof forms a pitched roof plane, matching its ramp kind."
+ },
+ "16041_524beff834f51e0d346b2a3984898c78": {
+  "label": "roof_volume",
+  "confidence": "low",
+  "reasoning": "A thin strip at the edge of the roof slope continues minor roof shaping from the prior operation."
+ },
+ "16041_6fe4c75fe7daa6d2e80347a5425b98db": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped band forms a pitched roof plane, matching its ramp kind."
+ },
+ "16041_fba1931258f16ccd0b1071a98f5e1fb5": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A narrower sloped band continues shaping the pitched roof, matching its ramp kind."
+ },
+ "16099_5a7734bf8d89c98349d5a34f8b5836b8": {
+  "label": "ambiguous",
+  "confidence": "low",
+  "reasoning": "A large flat cut across nearly the entire footprint looks like a foundational eave-height leveling rather than a specific named architectural feature."
+ },
+ "16099_8edaaa99b99d91eeda329604f8d5b856": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped band along one edge shapes a pitched roof plane, matching its ramp kind."
+ },
+ "16099_da6c697b1ae071837a60209119591549": {
+  "label": "roof_volume",
+  "confidence": "low",
+  "reasoning": "A thin sloped strip near the edge continues minor roof shaping, matching its ramp kind."
+ },
+ "16169_75f6c6234e3a439284c628edab0782a2": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A small rectangular block protrusion cut at one corner plausibly trims a minor wing."
+ },
+ "16169_b2c2b0ceda76329faa6be668dd572cee": {
+  "label": "wing",
+  "confidence": "low",
+  "reasoning": "A similar small block protrusion at a different location continues minor wing trimming."
+ },
+ "16169_ff025f43fa173e438f677b6a9281b37d": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped roof surface forms a pitched roof plane, matching its ramp kind."
+ },
+ "16421_1522bcafe16a930d584ee5b9da174ecb": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A distinctly lower rectangular block adjacent to a taller volume reads as a wing."
+ },
+ "16421_9b7d3927d19d1647b420209380986b22": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped band forms a pitched roof plane, matching its ramp kind."
+ },
+ "16421_25536f77b9048abde43300dcba646567": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped band along the same edge continues shaping the pitched roof, matching its ramp kind."
+ },
+ "16626_a16ec0af9f99a3d375b2af222c85ab2d": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "A large flat area covering most of the top is lowered, reading as a broad stepped-down mass."
+ },
+ "16626_b7d06107edb8c43508166f221fbe32c4": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
+ },
+ "16747_71532cc7fc633b8f66c7fa7ac1dd57b8": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "A flat band along the base of the mass reads as a minor stepped-down trim."
+ },
+ "16747_52cadf68facaf6473dca6654a9b1bda4": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface at one corner forms a pitched roof plane, matching its ramp kind."
+ },
+ "16747_db27ee739c120ea435f6ff151b98814b": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped ridge-line strip continues shaping the pitched roof, matching its ramp kind."
+ },
+ "16747_461768a1363f9d63a2c04c00c4993f74": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "Another sloped ridge strip continues the roof shaping from prior operations."
+ },
+ "16776_3d6fcf01a68e59995f66e51814068f35": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped surface covering the entire top forms a pitched roof plane, matching its ramp kind."
+ },
+ "16776_72b1698907d8f5af18c1047ad1f96d03": {
+  "label": "roof_volume",
+  "confidence": "low",
+  "reasoning": "A thin strip along the ridge edge continues minor roof trimming after the prior slope operation."
+ },
+ "16790_158ad0c73feda9fe1f61bd580635cd7f": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped section covering roughly half the roof forms a pitched roof plane, matching its ramp kind."
+ },
+ "16790_a7fdd589ab938fe5fedb8a814ac23939": {
+  "label": "roof_volume",
+  "confidence": "low",
+  "reasoning": "A flat band along the ridge edge continues minor roof trimming after the prior slope operation."
+ },
+ "16790_2f10b6605aa9f673d841a54db70a6b78": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped strip on one side continues shaping the pitched roof, matching its ramp kind."
+ },
+ "16808_e13b854502c4bb4dbcb9e0fb363c39ad": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped band on part of the roof forms pitched roof shaping, matching its ramp kind."
+ },
+ "16808_cb13c7cd6b2d6d02640235a50da9450e": {
+  "label": "terrace_or_setback",
+  "confidence": "medium",
+  "reasoning": "A band along the base of the mass reads as a stepped-down trim."
+ },
+ "16808_e3694afebfbaf0c42b46eafc7beaa3c0": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped vertical strip along one edge of the complex footprint continues roof shaping, matching its ramp kind."
+ },
+ "17568_4083c7de4224e16d4679cafb7c0ad327": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "The entire top is a sloped surface, forming a pitched roof plane, matching its ramp kind."
+ },
+ "17735_f7e3474a5412d9a58eedb9b33aa5bfea": {
+  "label": "not_architectural",
+  "confidence": "low",
+  "reasoning": "Only a thin sliver at one edge of a complex footprint is highlighted; too small to confidently name."
+ },
+ "17735_99be17571bf80d8e7cacfbdfae1b9ffa": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A large sloped band forms a pitched roof plane, matching its ramp kind."
+ },
+ "17735_61cd7d0e45adc8e5781cec0c978fea0c": {
+  "label": "roof_volume",
+  "confidence": "medium",
+  "reasoning": "A sloped vertical strip along one edge continues shaping the pitched roof, matching its ramp kind."
+ },
+ "17800_b0944857a46daced0973473043ca346f": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "The entire roof is a sloped surface, forming a pitched roof plane, matching its ramp kind."
+ },
+ "17857_0b2089343bc75fc90e6550c42e4afe7e": {
+  "label": "wing",
+  "confidence": "medium",
+  "reasoning": "A distinctly lower flat half of the mass, separated from a taller adjoining volume, reads as a wing."
+ },
+ "17857_c479950efde32f5b2afd0a29c7e55e94": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A sloped half of the roof forms a pitched roof plane, matching its ramp kind."
+ },
+ "17857_336258d8ff12bcea50a0c45b1e915074": {
+  "label": "roof_volume",
+  "confidence": "high",
+  "reasoning": "A sloped strip along one edge continues shaping the pitched roof, matching its ramp kind."
+ }
+}

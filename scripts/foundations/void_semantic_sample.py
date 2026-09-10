@@ -239,12 +239,13 @@ def render_building_trace(fp: np.ndarray, y0: int, y1: int, ops: list,
 # ------------------------------------------------------------------------------------------------
 
 def _empty_annotation() -> dict:
-    return dict(label=None, note=None, annotated_at=None, annotator=None)
+    return dict(label=None, note=None, annotated_at=None, annotator=None, used_ai_suggestion=None)
 
 
 def build_annotation_schema(sample: Sequence[dict], composition: dict,
                             trace_dirs: Optional[Dict[int, Path]] = None,
-                            composite_paths: Optional[Dict[int, List[Path]]] = None) -> dict:
+                            composite_paths: Optional[Dict[int, List[Path]]] = None,
+                            ai_suggestions: Optional[Dict[str, dict]] = None) -> dict:
     """The versioned JSON `docs/wayfinding/solid-first-subtractive-modeling/
     154-void-semantic-annotation-schema.md` documents. One entry per operation, keyed by
     `(building_id, operation_id)`; both annotator slots and the adjudication
@@ -254,9 +255,16 @@ def build_annotation_schema(sample: Sequence[dict], composition: dict,
     nothing to subtract, so it contributes zero operations. `sample_buildings` records every sampled
     building's own `n_ops` (0 included) alongside `sample_composition`'s building-level counts, so
     that drop-off is auditable from the artifact itself rather than only visible by re-deriving it.
+
+    `ai_suggestions`, when given, is `{doc_id: {label, confidence, reasoning}}` -- an optional
+    review hint the annotation tool shows ONLY to whichever annotator fills the FIRST slot for an
+    operation; the second, independent pass is deliberately unaided, so `compute_agreement` still
+    measures real human agreement rather than two people converging on one model's opinion. `None`
+    (the default) when no suggestions were generated for this run.
     """
     trace_dirs = trace_dirs or {}
     composite_paths = composite_paths or {}
+    ai_suggestions = ai_suggestions or {}
     operations = []
     sample_buildings = []
     for building in sample:
@@ -273,11 +281,13 @@ def build_annotation_schema(sample: Sequence[dict], composition: dict,
         composites = composite_paths.get(building["id"], [])
         for i, op in enumerate(ops):
             rel_composite = str(composites[i].relative_to(REPO)) if i < len(composites) else None
+            doc_id = f"{building['id']}_{op.id}"
             operations.append(dict(
                 building_id=building["id"], operation_id=op.id, operation_index=i,
                 kind=op.kind, mode=op.mode, region=building["region"],
                 carve_needing=building["carve_needing"], op_count_bucket=building["bucket"],
                 trace_dir=rel_trace_dir, composite_trace_path=rel_composite,
+                ai_suggestion=ai_suggestions.get(doc_id),
                 annotator_1=_empty_annotation(), annotator_2=_empty_annotation(),
                 adjudication=dict(label=None, note=None, adjudicated_at=None, by=None),
             ))
@@ -345,6 +355,10 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=SAMPLE_SEED)
     ap.add_argument("--skip_recovery", action="store_true",
                     help="reuse --recovery_out from a previous run instead of re-running #10's fitter")
+    ap.add_argument("--ai_suggestions", default=None,
+                    help="optional path to a {doc_id: {label, confidence, reasoning}} JSON file; "
+                         "embedded into each operation as a review hint, never as a ground-truth "
+                         "annotation (see build_annotation_schema's own docstring)")
     args = ap.parse_args()
 
     ids = materialize_test_ids()
@@ -378,7 +392,8 @@ def main() -> None:
             trace_dirs[building["id"]] = out_dir
             composite_paths[building["id"]] = comp_paths
 
-    schema = build_annotation_schema(sample, composition, trace_dirs, composite_paths)
+    ai_suggestions = json.load(open(args.ai_suggestions)) if args.ai_suggestions else None
+    schema = build_annotation_schema(sample, composition, trace_dirs, composite_paths, ai_suggestions)
     Path(args.schema_out).parent.mkdir(parents=True, exist_ok=True)
     json.dump(schema, open(args.schema_out, "w"), indent=1)
     print(f"[artifact] {args.schema_out}  ({len(schema['operations'])} operations to annotate)",

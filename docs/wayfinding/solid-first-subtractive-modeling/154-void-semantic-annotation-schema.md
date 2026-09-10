@@ -8,6 +8,10 @@ Produced by `scripts/foundations/void_semantic_sample.py`; filled in by two inde
 through the annotation tool (an Artifact, not committed to this repo — see the ticket's own resolution
 comment for the live link); read back by `compute_agreement` in the same module.
 
+`execution/artifacts/void_semantic_ai_suggestions.json` holds the `{doc_id: {label, confidence,
+reasoning}}` review hints an AI model generated for every operation (see the `ai_suggestion` field
+note below) — the input to `--ai_suggestions` when regenerating the schema artifact.
+
 ## File shape
 
 ```json
@@ -34,8 +38,9 @@ comment for the live link); read back by `compute_agreement` in the same module.
       "op_count_bucket": "high",
       "trace_dir": "outputs/void_semantic_traces/12345",
       "composite_trace_path": "outputs/void_semantic_traces/12345/op0_composite.png",
-      "annotator_1": {"label": null, "note": null, "annotated_at": null, "annotator": null},
-      "annotator_2": {"label": null, "note": null, "annotated_at": null, "annotator": null},
+      "ai_suggestion": {"label": "roof_volume", "confidence": "medium", "reasoning": "..."},
+      "annotator_1": {"label": null, "note": null, "annotated_at": null, "annotator": null, "used_ai_suggestion": null},
+      "annotator_2": {"label": null, "note": null, "annotated_at": null, "annotator": null, "used_ai_suggestion": null},
       "adjudication": {"label": null, "note": null, "adjudicated_at": null, "by": null}
     }
   ]
@@ -81,6 +86,19 @@ comment for the live link); read back by `compute_agreement` in the same module.
   always this specific person" — the annotation tool assigns whichever slot a session hasn't already
   filled for that operation, so either of two people filling in labels independently land in
   different slots without needing to coordinate who is "1" and who is "2".
+- **`ai_suggestion`** (`{label, confidence, reasoning}`, `None` when not generated) is a REVIEW HINT,
+  never a ground-truth annotation — produced by an AI model reading each operation's own composite
+  trace image (`scripts/foundations/void_semantic_sample.py`'s `--ai_suggestions` CLI flag embeds it
+  via `build_annotation_schema`'s own optional parameter). The annotation tool shows it ONLY to
+  whichever pass fills the FIRST slot for an operation (speeding up that pass); the second,
+  independent pass is deliberately shown nothing, so `compute_agreement` still measures real human
+  agreement rather than two people converging on one model's opinion. `confidence` ("high"/"medium"/
+  "low") reflects genuine uncertainty — a large low-confidence share is expected and honest, not a
+  sign the feature is broken; it flags exactly the operations that deserve the closest human look.
+- **`used_ai_suggestion`** (inside each annotator slot, `None` until that slot is filled) records
+  whether that annotator's submitted label matched the suggestion they were shown — `False` when no
+  suggestion existed for that operation, or when this is the unaided second pass. This is how the
+  degree of AI influence on the "human-audited" label stays auditable rather than invisible.
 - **`adjudication`** is filled ONLY when `annotator_1["label"] != annotator_2["label"]` — the
   ticket's own decision that disagreements are adjudicated by the ticket owner, never silently
   averaged away. `compute_agreement`'s own `disagreements` list is exactly the set of operations

@@ -198,6 +198,31 @@ class TestBuildAnnotationSchema(unittest.TestCase):
         self.assertIsNone(op["annotator_1"]["label"])
         self.assertIsNone(op["annotator_2"]["label"])
         self.assertIsNone(op["adjudication"]["label"])
+        self.assertIsNone(op["ai_suggestion"])                  # no suggestions given -> None, not {}
+        self.assertIsNone(op["annotator_1"]["used_ai_suggestion"])
+
+    def test_ai_suggestion_is_embedded_when_given_keyed_by_doc_id(self):
+        """ai_suggestions is a review hint, keyed by f'{building_id}_{operation_id}' -- the exact
+        doc_id convention the annotation tool's db already uses -- never a ground-truth label."""
+        fp = _rect(RES, 10, 40, 10, 40)
+        y0, y1 = 0, 20
+        ops = build_operations(fp, y0, y1, [_layer_entry(fp, 15)])
+        doc_id = f"1_{ops[0].id}"
+        suggestions = {doc_id: dict(label="wing", confidence="medium", reasoning="looks like a wing")}
+        sample = [dict(id=1, region="NL", carve_needing=True, bucket="low", ops=ops)]
+        schema = build_annotation_schema(sample, composition={}, trace_dirs={},
+                                         ai_suggestions=suggestions)
+        op = schema["operations"][0]
+        self.assertEqual(op["ai_suggestion"], suggestions[doc_id])
+
+    def test_an_operation_missing_from_ai_suggestions_gets_none_not_a_crash(self):
+        fp = _rect(RES, 10, 40, 10, 40)
+        y0, y1 = 0, 20
+        ops = build_operations(fp, y0, y1, [_layer_entry(fp, 15)])
+        sample = [dict(id=1, region="NL", carve_needing=True, bucket="low", ops=ops)]
+        schema = build_annotation_schema(sample, composition={}, trace_dirs={},
+                                         ai_suggestions={"999_nonexistent": dict(label="wing")})
+        self.assertIsNone(schema["operations"][0]["ai_suggestion"])
 
     def test_a_building_with_no_ops_key_yet_is_skipped_not_crashed_on(self):
         sample = [dict(id=1, region="NL", carve_needing=True, bucket="low")]   # no "ops"
