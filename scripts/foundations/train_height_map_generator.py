@@ -484,6 +484,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 from utils.frozen_corpus import open_real_corpus  # noqa: E402
+from scripts.foundations.corpus_ledger import LEDGER_PATH, read_ledger  # noqa: E402
 from scripts.foundations.eval_massing_arms import (              # noqa: E402
     COLLAPSE_MISSING, RES, fp_iou, footprint_split, volume_split, vs_input,
 )
@@ -495,7 +496,6 @@ from scripts.foundations.recover_massing_programs import (       # noqa: E402
     occupancy, plane_surface, program_to_slots, render_iso,
 )
 
-LATENTS = REPO / "data/real_massing_v1/vecset_latents.h5"
 WORK = REPO / "outputs/height_map_generator"
 CACHE = WORK / "height_fields.npz"
 PROGRAM_CACHE = WORK / "program_labels.npz"
@@ -1047,12 +1047,14 @@ def retrieve_nn(query_fps: np.ndarray, bank_fps: np.ndarray, chunk: int = 512) -
 def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     """Every corpus row as (footprint, base level, extent, target height map) + its conditioning.
 
-    Keyed by the **latent cache**'s rows, because that file carries `held_out` -- the one split all
-    of this project's arms have been scored against. Reading the 64^3 SDFs once and keeping only the
-    height field turns 37 GB into 165 MB, which is the whole reason this task trains in minutes.
+    Keyed by the **ledger**'s rows (#161: `row`/`region`/`held_out`/`height_m`, split out of
+    `vecset_latents.h5` into their own small file) -- this arm never touches a latent, so it no
+    longer needs to open the 9+ GB Dora-encoded cache, or wait for a new corpus row to be Dora-encoded
+    before it can be trained on. `held_out` is still the one split all of this project's arms have
+    been scored against; it just no longer lives beside the latents. Reading the 64^3 SDFs once and
+    keeping only the height field turns 37 GB into 165 MB, which is the whole reason this task trains
+    in minutes.
     """
-    import h5py
-
     # #162: cached training/evaluation must not bypass the raw corpus identity check.
     with open_real_corpus(H5):
         pass
@@ -1061,11 +1063,11 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
             out = {k: d[k] for k in d.files}
         cache_provenance(out)
         return out
-    with h5py.File(LATENTS, "r") as f:
-        rows = f["row"][:].astype(np.int32)
-        held = (f["held_out"][:] == 1).astype(np.uint8)
-        region = validate_region_ids(f["region"][:]).astype(np.int8)
-        height_m = f["height_m"][:].astype(np.float32)
+    ledger = read_ledger(LEDGER_PATH)
+    rows = ledger["row"].astype(np.int32)
+    held = (ledger["held_out"] == 1).astype(np.uint8)
+    region = validate_region_ids(ledger["region"]).astype(np.int8)
+    height_m = ledger["height_m"].astype(np.float32)
     n = len(rows)
     fps = np.zeros((n, RES, RES), np.uint8)
     targets = np.zeros((n, RES, RES), np.uint8)

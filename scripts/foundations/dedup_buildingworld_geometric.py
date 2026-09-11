@@ -35,8 +35,9 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from scripts.foundations.corpus_ledger import LEDGER_PATH, read_ledger  # noqa: E402
+
 REAL_H5 = REPO / "data/real_massing_v1/real.h5"
-LATENTS_H5 = REPO / "data/real_massing_v1/vecset_latents.h5"
 BW_ROOT = REPO / "data/buildingworld_mesh"
 SOURCE_ID = {"nl": 0, "nrw": 1, "plateau": 2}
 # PLATEAU tiles real.h5's 12,000 JP rows actually come from (verified against the live file --
@@ -164,7 +165,7 @@ def nearest_neighbor_distances(candidates: list, existing: list) -> np.ndarray:
     return np.atleast_1d(d)
 
 
-# ---- real.h5 / vecset_latents.h5 index (I/O) ------------------------------------------------
+# ---- real.h5 / corpus ledger index (I/O) --------------------------------------------------
 
 def real_h5_index(h5_path: Path, source_id: int) -> list:
     """Every real.h5 row for one source: global row index, full bag_id, and its gml:id suffix."""
@@ -179,13 +180,11 @@ def real_h5_index(h5_path: Path, source_id: int) -> list:
     return out
 
 
-def held_out_by_row(latents_path: Path) -> dict:
-    """real.h5 row index -> held_out flag, from vecset_latents.h5's separate row/held_out ledger
-    (#161: this ledger is not yet split out on its own -- held_out does not live in real.h5)."""
-    with h5py.File(latents_path, "r") as f:
-        row = f["row"][:]
-        held = f["held_out"][:]
-    return {int(r): int(h) for r, h in zip(row, held)}
+def held_out_by_row(ledger_path: Path = LEDGER_PATH) -> dict:
+    """real.h5 row index -> held_out flag, from the #161 ledger (split out of vecset_latents.h5, so
+    this no longer opens the multi-gigabyte Dora-encoded latent store just for one uint8 column)."""
+    ledger = read_ledger(ledger_path)
+    return {int(r): int(h) for r, h in zip(ledger["row"], ledger["held_out"])}
 
 
 # ---- PLATEAU: re-fetch the known tiles, world-frame (no per-building recentring) ------------
@@ -415,7 +414,7 @@ def run_tokyo_vs_plateau(cell_m: float, iou_threshold: float, height_tol_m: floa
 
     return _run_pair("tokyo_vs_plateau", existing_rows, world, candidates,
                      cell_m, iou_threshold, height_tol_m, min_relocate_frac,
-                     held_out=held_out_by_row(LATENTS_H5))
+                     held_out=held_out_by_row())
 
 
 def run_berlin_vs_nrw(cell_m: float, iou_threshold: float, height_tol_m: float,
@@ -444,7 +443,7 @@ def run_berlin_vs_nrw(cell_m: float, iou_threshold: float, height_tol_m: float,
 
     result = _run_pair("berlin_vs_nrw", existing_rows, world, candidates,
                        cell_m, iou_threshold, height_tol_m, min_relocate_frac,
-                       held_out=held_out_by_row(LATENTS_H5))
+                       held_out=held_out_by_row())
     result["bbox_precheck"] = dict(nrw_bbox_m=list(nrw_box), berlin_sample_bbox_m=list(berlin_sample_box),
                                    sample_n=bbox_sample_n, bbox_margin_m=bbox_margin_m)
     return result
