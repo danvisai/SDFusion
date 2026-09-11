@@ -31,7 +31,8 @@ from scripts.foundations.recover_massing_programs import (  # noqa: E402
     K_OPS, fit_program, occupancy, program_to_slots, replay_program,
 )
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
-    COND_CHANNELS, DEPTH_CLASSES, PLANE_BINS, PROGRAM_TYPES, _d4, _d4_program,
+    CONDITIONING_CHANNELS, COND_CHANNELS, DEPTH_CLASSES, N_REGIONS, PLANE_BINS,
+    PROGRAM_TYPES, _d4, _d4_program,
     apply_depth, bins_to_plane, carve_depth, compile_program,
     condition_channels, decode_logits, decode_plane_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
@@ -47,6 +48,8 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     slope_loss, SLOPE_DECODE_QUANTILE,
     roof_shape_stats, summarise, verdict, fit_decode, FitBias, smooth_heightmap,
     wta_ce_loss, decode_wta, bank_eligibility,
+    cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
+    validate_region_ids,
 )
 
 
@@ -545,6 +548,65 @@ class TestConditioningCarriesNoAnswer(unittest.TestCase):
         c = condition_channels(fp, 64, 300.0, 2)
         self.assertTrue(np.isfinite(c).all())
         self.assertLessEqual(float(np.abs(c).max()), 4.0)
+
+    def test_unrepresentable_regions_are_rejected_instead_of_becoming_all_zero(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        for region in (-1, N_REGIONS):
+            with self.subTest(region=region), self.assertRaisesRegex(ValueError, r"in \[0, 3\)"):
+                condition_channels(fp, 9, 12.0, region)
+
+
+class TestCheckpointProvenance(unittest.TestCase):
+    """#163's compatibility contract: channel meaning and corpus identity travel with weights."""
+
+    @staticmethod
+    def _cache(rows=(7, 2, 11), regions=(0, 1, 2)):
+        return {"row": np.asarray(rows, np.int32), "region": np.asarray(regions, np.int8)}
+
+    def test_cache_validation_rejects_malformed_and_out_of_range_region_columns(self):
+        for regions in (np.asarray([0.0, 1.0]), np.asarray([[0, 1]]),
+                        np.asarray([-1, 0]), np.asarray([0, N_REGIONS])):
+            with self.subTest(regions=regions), self.assertRaises(ValueError):
+                validate_region_ids(regions)
+
+    def test_corpus_identity_is_row_order_independent_but_set_sensitive(self):
+        a = cache_corpus_identity(self._cache())
+        b = cache_corpus_identity(self._cache(rows=(11, 7, 2)))
+        c = cache_corpus_identity(self._cache(rows=(11, 7, 3)))
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, c)
+
+    def test_duplicate_row_ids_are_rejected_as_an_ambiguous_corpus_identity(self):
+        with self.assertRaisesRegex(ValueError, "unique"):
+            cache_corpus_identity(self._cache(rows=(2, 2, 7)))
+
+    def test_saved_metadata_names_every_conditioning_channel_in_order(self):
+        metadata = cache_provenance(self._cache())
+        self.assertEqual(metadata["n_regions"], N_REGIONS)
+        self.assertEqual(metadata["conditioning_channels"], list(CONDITIONING_CHANNELS))
+        self.assertEqual(metadata["region_mapping_sha256"], None)
+        self.assertEqual(metadata["corpus_identity_sha256"], cache_corpus_identity(self._cache()))
+
+    def test_checkpoint_mismatches_fail_before_weights_are_used(self):
+        cache = self._cache()
+        metadata = cache_provenance(cache)
+        mutations = {
+            "n_regions": N_REGIONS + 1,
+            "conditioning_channels": list(reversed(CONDITIONING_CHANNELS)),
+            "corpus_identity_sha256": "different-corpus",
+        }
+        for key, value in mutations.items():
+            checkpoint = {**metadata, key: value}
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
+                validate_checkpoint_provenance(checkpoint, cache)
+
+    def test_partial_provenance_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            validate_checkpoint_provenance({"n_regions": N_REGIONS})
+
+    def test_legacy_checkpoint_load_is_explicitly_unverifiable(self):
+        with self.assertWarnsRegex(RuntimeWarning, "cannot be verified"):
+            validate_checkpoint_provenance({"state": {}})
 
 
 class TestDecode(unittest.TestCase):

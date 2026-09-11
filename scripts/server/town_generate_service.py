@@ -86,7 +86,7 @@ from scripts.foundations.recover_massing_programs import occ_to_field, occupancy
 from scripts.foundations.measure_scoring_optimum import transplant_height              # noqa: E402
 from scripts.foundations.train_height_map_generator import (                           # noqa: E402
     CACHE, DEPTH_CLASSES, apply_depth, build_model, condition_channels, decode_logits,
-    decode_prediction, envelope_depth, make_model, retrieve_nn,
+    decode_prediction, envelope_depth, load_checkpoint, make_model, retrieve_nn,
 )
 
 A2_CKPT = REPO / "weights/massing-vecset/vecset_v4_surf.pth"
@@ -189,11 +189,15 @@ def _load_heightmap_arms(dev) -> None:
     """
     t0 = time.time()
     _state["hm_nets"], _state["hm_models"] = {}, {}
+    cache = None
+    if CACHE.exists():
+        with np.load(CACHE) as source:
+            cache = {key: source[key] for key in source.files}
     for name, chain in HEIGHTMAP_MODELS.items():
         p = next((c for c in chain if c.exists()), None)
         if p is None:
             continue
-        ck = torch.load(p, map_location="cpu", weights_only=False)
+        ck = load_checkpoint(p, cache)
         # `make_model` is the one place an objective chooses an architecture, so the program arm's
         # two-headed net is built by the same function the training used rather than a second
         # spelling here that could drift from it.
@@ -220,7 +224,8 @@ def _load_heightmap_arms(dev) -> None:
               f"{sorted({str(c[0].parent.relative_to(REPO)) for c in HEIGHTMAP_MODELS.values()})}"
               f" -- height-map arms unavailable", flush=True)
     if CACHE.exists():
-        d = np.load(CACHE)
+        d = cache
+        assert d is not None
         keep = (d["ok"] > 0) & (d["held"] == 0)          # TRAINING rows only, never the pinned 714
         _state["bank"] = dict(fp=d["fp"][keep] > 0, target=d["target"][keep].astype(np.int16),
                               extent=d["extent"][keep].astype(np.int32))

@@ -470,9 +470,11 @@ and its numbers are real, not because the experiment was designed to produce the
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -655,7 +657,88 @@ PLANE_FLOOR_EPS = 1e-4
 N_REGIONS = 3          # source corpora: 0 NL / 1 DE / 2 JP, the `region` column of the latent cache
 # footprint mask, conditioned extent, log height in metres, distance-to-edge, region one-hot.
 # Pinned by `test_the_channel_count_matches_the_model_input` so the two cannot drift apart.
-COND_CHANNELS = 4 + N_REGIONS
+CONDITIONING_CHANNELS = (
+    "footprint", "extent_voxels", "log_height_m", "distance_to_footprint_edge",
+    *(f"region_{r}" for r in range(N_REGIONS)),
+)
+COND_CHANNELS = len(CONDITIONING_CHANNELS)
+
+
+def validate_region_ids(regions: np.ndarray) -> np.ndarray:
+    """Return int64 region ids after rejecting values the one-hot cannot represent (#163)."""
+    values = np.asarray(regions)
+    if values.ndim != 1 or values.dtype.kind not in "iu":
+        raise ValueError(f"#163: region must be a one-dimensional integer column, got "
+                         f"shape={values.shape} dtype={values.dtype}")
+    values = values.astype(np.int64, copy=False)
+    bad = values[(values < 0) | (values >= N_REGIONS)]
+    if len(bad):
+        raise ValueError(f"#163: region ids must be in [0, {N_REGIONS}); found "
+                         f"{np.unique(bad).tolist()}")
+    return values
+
+
+def cache_corpus_identity(cache: dict) -> str:
+    """Order-independent identity of the exact row set represented by a height-field cache."""
+    rows = np.asarray(cache["row"])
+    if rows.ndim != 1 or rows.dtype.kind not in "iu":
+        raise ValueError("#163: cache row ids must be a one-dimensional integer column")
+    rows = rows.astype(np.int64, copy=False)
+    if len(np.unique(rows)) != len(rows):
+        raise ValueError("#163: cache row ids must be unique")
+    canonical = np.sort(rows).astype("<i8", copy=False)
+    return hashlib.sha256(canonical.tobytes()).hexdigest()
+
+
+def cache_provenance(cache: dict) -> dict:
+    """The checkpoint compatibility contract derived from its training cache (#163)."""
+    validate_region_ids(cache["region"])
+    if len(cache["region"]) != len(cache["row"]):
+        raise ValueError("#163: cache region and row columns have different lengths")
+    return dict(
+        n_regions=N_REGIONS,
+        conditioning_channels=list(CONDITIONING_CHANNELS),
+        corpus_identity_sha256=cache_corpus_identity(cache),
+        # #167 will choose the authority and canonical serialization for this field.
+        region_mapping_sha256=None,
+    )
+
+
+def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) -> None:
+    """Refuse new checkpoints whose channel/corpus meaning differs from the current runtime.
+
+    Historical checkpoints predate #163. They remain loadable with an explicit warning; their
+    first-layer tensor still enforces channel count, but their corpus provenance is unknowable.
+    """
+    keys = ("n_regions", "conditioning_channels", "corpus_identity_sha256",
+            "region_mapping_sha256")
+    present = [key for key in keys if key in checkpoint]
+    if not present:
+        warnings.warn("#163: legacy height-map checkpoint has no corpus/channel provenance; "
+                      "compatibility cannot be verified", RuntimeWarning, stacklevel=2)
+        return
+    if len(present) != len(keys):
+        raise ValueError(f"#163: checkpoint provenance is incomplete; missing "
+                         f"{sorted(set(keys) - set(present))}")
+    expected = cache_provenance(cache) if cache is not None else {
+        "n_regions": N_REGIONS,
+        "conditioning_channels": list(CONDITIONING_CHANNELS),
+    }
+    for key, value in expected.items():
+        if key == "region_mapping_sha256" and value is None:
+            continue
+        if checkpoint[key] != value:
+            raise ValueError(f"#163: checkpoint {key} mismatch: expected {value!r}, "
+                             f"got {checkpoint[key]!r}")
+
+
+def load_checkpoint(ckpt: Path, cache: dict | None = None) -> dict:
+    """Load one height-map checkpoint through the #163 compatibility gate."""
+    import torch
+
+    checkpoint = torch.load(ckpt, map_location="cpu", weights_only=False)
+    validate_checkpoint_provenance(checkpoint, cache)
+    return checkpoint
 
 
 # ==================================================================================================
@@ -874,6 +957,7 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
     on all sides, a gable on one), and a small convolutional net would otherwise spend capacity
     rediscovering it.
     """
+    region = int(validate_region_ids(np.asarray([region]))[0])
     m = np.asarray(fp, bool)
     edt = ndimage.distance_transform_edt(m).astype(np.float32) / 8.0
     ch = [m.astype(np.float32),
@@ -881,7 +965,7 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
           np.full(m.shape, float(np.log1p(max(height_m, 0.0))) / 4.0, np.float32),
           np.clip(edt, 0.0, 4.0)]
     for r in range(N_REGIONS):
-        ch.append(np.full(m.shape, 1.0 if int(region) == r else 0.0, np.float32))
+        ch.append(np.full(m.shape, 1.0 if region == r else 0.0, np.float32))
     return np.stack(ch).astype(np.float32)
 
 
@@ -973,12 +1057,14 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     with open_real_corpus(H5):
         pass
     if path.exists() and not force:
-        d = np.load(path)
-        return {k: d[k] for k in d.files}
+        with np.load(path) as d:
+            out = {k: d[k] for k in d.files}
+        cache_provenance(out)
+        return out
     with h5py.File(LATENTS, "r") as f:
         rows = f["row"][:].astype(np.int32)
         held = (f["held_out"][:] == 1).astype(np.uint8)
-        region = f["region"][:].astype(np.int8)
+        region = validate_region_ids(f["region"][:]).astype(np.int8)
         height_m = f["height_m"][:].astype(np.float32)
     n = len(rows)
     fps = np.zeros((n, RES, RES), np.uint8)
@@ -1002,6 +1088,7 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
                 print(f"  [cache] {k+1}/{n}  {time.time()-t0:.0f}s", flush=True)
     out = dict(row=rows, held=held, region=region, height_m=height_m,
                fp=fps, target=targets, y0=y0s, extent=extents, ok=ok)
+    cache_provenance(out)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(path, **out)
     print(f"[cache] {path}  n={int(ok.sum())}/{n}  {time.time()-t0:.0f}s", flush=True)
@@ -2164,6 +2251,7 @@ def train(cache: dict, args) -> Path:
                           val_symmetric=ve + vm))
         mark = ""
         snap = dict(state=model.state_dict(), objective=args.objective, width=args.width,
+                    **cache_provenance(cache),
                     quantile=args.quantile, k_planes=args.k_planes, k_hyp=args.k_hyp,
                     plane_head=args.plane_head, slope_weight=args.slope_weight,
                     slope_decode_quantile=SLOPE_DECODE_QUANTILE,
@@ -2261,7 +2349,7 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     """
     import torch
 
-    d = torch.load(ckpt, map_location="cpu", weights_only=False)
+    d = load_checkpoint(ckpt)
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
     # ⚠️ default "regress": #6's committed checkpoints predate the flag and must still load
     head = d.get("plane_head", "regress")
@@ -2511,7 +2599,7 @@ def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
     """
     import torch
 
-    d = torch.load(ckpt, map_location="cpu", weights_only=False)
+    d = load_checkpoint(ckpt)
     if d["objective"] != "program":
         raise ValueError(f"{ckpt} is a '{d['objective']}' arm; the program diagnostics need one")
     head = d.get("plane_head", "regress")
@@ -3211,6 +3299,7 @@ def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
     a training failure" case. On this project a number that cannot be re-derived from a committed
     code path is an anecdote, so they live here rather than in a notebook.
     """
+    load_checkpoint(ckpt, cache)
     pred = program_predictions(ckpt, held, cpu)
     k = np.array([{int(r): i for i, r in enumerate(program["row"])}[int(r)] for r in held["row"]])
     label = (program["assign"][k], program["types"][k], program["planes"][k])
@@ -3775,6 +3864,11 @@ def main() -> None:
             ckpts[name or Path(path).stem] = Path(path)
     else:
         ckpts[args.tag] = train(cache, args)
+
+    # Validate every selected checkpoint against the cache before any diagnostic, rendering, or
+    # scoring path can use it. The lower-level loaders repeat the channel check for library callers.
+    for path in ckpts.values():
+        load_checkpoint(path, cache)
 
     # ---- the pinned population, in the pinned order -------------------------------------------
     ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]
