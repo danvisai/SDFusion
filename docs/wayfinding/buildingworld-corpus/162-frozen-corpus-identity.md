@@ -30,9 +30,11 @@ heights are rejected rather than silently converted.
   715 rows; the recovered-surface/latent population historically used for evaluation
   contains 714. The vecset precompute and raw-corpus probes now name the frozen
   size explicitly rather than deriving the permutation from a larger corpus.
-- Standalone source datasets retain their original splits. `Bag3dDataset` recognizes
-  the combined corpus by the `real.h5` filename or multi-source `source_id` metadata,
-  and validates again when a worker opens its lazy file handle.
+- Standalone and multi-source smoke/custom datasets retain their original splits.
+  `Bag3dDataset` protects the canonical corpus path (including symlinks) and files
+  named `real.h5`. Renamed copies use `bag3d_frozen_corpus=True` in dataset options,
+  or `--bag3d_frozen_corpus` in the hybrid retraining and BAG SDEdit CLIs. Source count
+  alone does not identify the frozen corpus. Workers validate again on lazy opening.
 - Surface extraction, vecset precompute, program recovery, height-field cache
   construction/reuse, raw-corpus evaluation/probes, and #153/#181 split loading use
   the guard. Vecset training and voxel-cache training/evaluation also check the raw
@@ -40,8 +42,12 @@ heights are rejected rather than silently converted.
   codec loading or output creation.
 
 Cached training/evaluation therefore requires the raw corpus to remain available:
-the height-map paths use their configured `H5`, and vecset/voxel-cache training checks
-the repository's `data/real_massing_v1/real.h5`. A cache alone cannot establish the
+the height-map paths use their configured `H5`, and vecset training checks
+the repository's `data/real_massing_v1/real.h5`. New voxel caches record the absolute
+`--real` source path in `real_corpus_path`; training/evaluation validate that source.
+Both commands accept `--real` to override the path after relocation or identify the
+source of an older cache. A legacy cache without this attribute requires the explicit
+option, rather than silently selecting the default corpus. A cache alone cannot establish the
 current raw corpus's identity. This change does not stamp checkpoint provenance
 (#163), authenticate old cache contents, or check SDF/footprint geometry. Equal
 `(bag_id, height_m)` pairs have equal identity even if their geometry differs.
@@ -62,3 +68,12 @@ cache reuse, and failure before precompute can load a codec or create output.
 Acceptance tests copy only the live metadata into temporary files with placeholder
 geometry; they skip when the real corpus is unavailable. Synthetic rejection tests
 still run without it.
+
+Review follow-up regression tests additionally cover multi-source smoke datasets,
+explicitly protected renamed datasets, recorded voxel-cache source drift, relocation,
+and legacy caches that need an explicit source.
+
+Follow-up validation: all 19 focused tests passed; foundations discovery ran 620
+tests with four skipped and no failures. Python compilation and diff whitespace
+checks passed. Independent standards and spec reviews found no remaining issues
+in the follow-up changes.

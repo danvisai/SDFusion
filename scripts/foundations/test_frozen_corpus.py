@@ -114,6 +114,36 @@ class TestCorpusRejection(unittest.TestCase):
         ds.initialize(SimpleNamespace(bag3d_h5=self.path), "test")
         self.assertEqual(len(ds), 2)
 
+    def test_multi_source_smoke_dataset_keeps_its_own_split(self):
+        from datasets.bag3d_dataset import Bag3dDataset
+
+        write_corpus(self.path, np.full(100, b"smoke", "S64"), np.ones(100, "f4"))
+        with h5py.File(self.path, "a") as f:
+            f["source_id"][:] = np.arange(100) % 3
+        train, test = Bag3dDataset(), Bag3dDataset()
+        opt = SimpleNamespace(bag3d_h5=self.path)
+        train.initialize(opt, "train")
+        test.initialize(opt, "test")
+        self.assertEqual(len(train), 96)
+        self.assertEqual(len(test), 2)
+        self.assertFalse(np.isin(train.idxs, test.idxs).any())
+
+    def test_explicitly_frozen_renamed_corpus_cannot_bypass_guard(self):
+        from datasets.bag3d_dataset import Bag3dDataset
+
+        write_corpus(self.path, np.full(100, b"truncated", "S64"), np.ones(100, "f4"))
+        with self.assertRaisesRegex(ValueError, "frozen prefix"):
+            Bag3dDataset().initialize(SimpleNamespace(
+                bag3d_h5=self.path, bag3d_frozen_corpus=True), "train")
+
+    def test_legacy_voxel_cache_requires_an_explicit_source(self):
+        from scripts.foundations.prototype_voxel_editor import VoxelCache
+
+        with h5py.File(self.path, "w") as f:
+            f.create_dataset("split", data=[0, 1])
+        with self.assertRaisesRegex(ValueError, "pass --real"):
+            VoxelCache(self.path, split=0)
+
 
 @unittest.skipUnless(REAL_CORPUS_PATH.exists(), "real corpus metadata not available")
 class TestPinnedCorpus(unittest.TestCase):
@@ -191,6 +221,36 @@ class TestPinnedCorpus(unittest.TestCase):
             f["bag_id"][0] = b"changed-between-initialization-and-first-read"
         with self.assertRaisesRegex(ValueError, "identity mismatch"):
             ds[0]
+
+    def test_voxel_cache_validates_recorded_source_and_detects_its_changes(self):
+        from scripts.foundations.prototype_voxel_editor import VoxelCache
+
+        cache = Path(self.tmp.name) / "pairs.h5"
+        with h5py.File(cache, "w") as f:
+            f.attrs["real_corpus_path"] = str(self.path)
+            f.create_dataset("split", data=[0, 1, 0])
+        self.assertEqual(len(VoxelCache(cache, split=0)), 2)
+        self.assertEqual(len(VoxelCache(cache, split=1)), 1)
+        with h5py.File(self.path, "a") as f:
+            f["bag_id"][0] = b"changed-custom-source"
+        # The repository's default source is still valid; it must not mask this mutation.
+        with self.assertRaisesRegex(ValueError, "identity mismatch"):
+            VoxelCache(cache, split=0)
+
+    def test_voxel_source_override_supports_legacy_and_relocated_caches(self):
+        from scripts.foundations.prototype_voxel_editor import VoxelCache, parser
+
+        cache = Path(self.tmp.name) / "pairs.h5"
+        with h5py.File(cache, "w") as f:
+            f.create_dataset("split", data=[0, 1])
+        for command, split in (("train", 0), ("evaluate", 1)):
+            args = parser().parse_args([command, "--cache", str(cache), "--real", str(self.path)])
+            self.assertEqual(len(VoxelCache(Path(args.cache), split, real=args.real)), 1)
+        with h5py.File(cache, "a") as f:
+            f.attrs["real_corpus_path"] = str(Path(self.tmp.name) / "old-location.h5")
+        with self.assertRaises(FileNotFoundError):
+            VoxelCache(cache, split=0)
+        self.assertEqual(len(VoxelCache(cache, split=0, real=self.path)), 1)
 
 
 if __name__ == "__main__":

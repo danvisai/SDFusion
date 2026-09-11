@@ -281,13 +281,18 @@ class Example:
 
 class VoxelCache:
     """Small, single-process reader; HDF5 handles are never shared across DataLoader workers."""
-    def __init__(self, path: Path, split: int):
+    def __init__(self, path: Path, split: int, real: str | Path | None = None):
         import h5py
 
-        with open_real_corpus():
-            pass
         self.path = Path(path)
         with h5py.File(self.path, "r") as h:
+            source = real if real is not None else h.attrs.get("real_corpus_path")
+            if source is None:
+                raise ValueError("#162: voxel cache has no recorded raw corpus path; "
+                                 "pass --real to identify its source, or rebuild the cache")
+            self.real_path = Path(source).resolve()
+            with open_real_corpus(self.real_path):
+                pass
             self.indices = np.flatnonzero(h["split"][:] == split)
 
     def __len__(self):
@@ -446,6 +451,7 @@ def cache_command(args) -> None:
                            args.identity_fraction, args.seed)
     _create_cache(out, {
         "purpose": "throwaway authentic A2 -> real occupancy editor prototype",
+        "real_corpus_path": str(Path(args.real).resolve()),
         "a2_checkpoint": str(Path(args.a2).resolve()),
         "strength": args.strength,
         "steps": args.steps,
@@ -533,7 +539,7 @@ def train_command(args) -> None:
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     device = args.device if args.device else ("cuda" if torch.cuda.is_available() else "cpu")
-    ds = VoxelCache(Path(args.cache), split=0)
+    ds = VoxelCache(Path(args.cache), split=0, real=args.real)
     if not len(ds):
         raise SystemExit("cache has no training rows")
     model = build_model(args.base).to(device)
@@ -576,7 +582,7 @@ def train_command(args) -> None:
         "loss_last_20": float(np.mean(losses[-20:])),
     }, checkpoint)
     print(f"[train] wrote {checkpoint}")
-    evaluate_model(model, VoxelCache(Path(args.cache), split=1), device, args.mask, args.band,
+    evaluate_model(model, VoxelCache(Path(args.cache), split=1, real=args.real), device, args.mask, args.band,
                    args.roof_fraction, Path(args.report))
 
 
@@ -588,7 +594,7 @@ def evaluate_command(args) -> None:
     model = build_model(int(ck["base"]))
     model.load_state_dict(ck["model"])
     model.to(device).eval()
-    evaluate_model(model, VoxelCache(Path(args.cache), split=1), device,
+    evaluate_model(model, VoxelCache(Path(args.cache), split=1, real=args.real), device,
                    str(ck["mask"]), int(ck["band"]), float(ck["roof_fraction"]),
                    Path(args.report))
 
@@ -817,6 +823,9 @@ def parser() -> argparse.ArgumentParser:
 
     train = sub.add_parser("train", help="fit the deterministic action editor")
     train.add_argument("--cache", default=str(DEFAULT_OUT / "pairs.h5"))
+    train.add_argument("--real", default=None,
+                       help="raw corpus source override for relocated or legacy caches; "
+                            "defaults to the path recorded at cache creation")
     train.add_argument("--out", default=str(DEFAULT_OUT / "editor.pth"))
     train.add_argument("--report", default=str(DEFAULT_OUT / "validation.json"))
     train.add_argument("--steps", type=int, default=800)
@@ -833,6 +842,9 @@ def parser() -> argparse.ArgumentParser:
 
     evaluate = sub.add_parser("evaluate", help="score a checkpoint on cached held-out pairs")
     evaluate.add_argument("--cache", default=str(DEFAULT_OUT / "pairs.h5"))
+    evaluate.add_argument("--real", default=None,
+                          help="raw corpus source override for relocated or legacy caches; "
+                               "defaults to the path recorded at cache creation")
     evaluate.add_argument("--checkpoint", default=str(DEFAULT_OUT / "editor.pth"))
     evaluate.add_argument("--report", default=str(DEFAULT_OUT / "validation.json"))
     evaluate.add_argument("--device", default=None)

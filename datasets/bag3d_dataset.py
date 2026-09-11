@@ -19,7 +19,9 @@ import torch
 
 from datasets.base_dataset import BaseDataset
 from datasets.buildingnet_dataset import _augment_sdf_fp
-from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, assert_frozen_corpus, open_real_corpus
+from utils.frozen_corpus import (
+    FROZEN_SPLIT_N_TOTAL, REAL_CORPUS_PATH, assert_frozen_corpus, open_real_corpus,
+)
 
 STYLE_UNKNOWN_ID = 8
 
@@ -35,9 +37,11 @@ class Bag3dDataset(BaseDataset):
         self.trunc_thres = float(getattr(opt, "trunc_thres", 0.2))
         self.augment = bool(getattr(opt, "augment", False)) and phase == "train"
         with h5py.File(self.h5_path, "r") as f:
-            # Keep standalone source corpora usable; pin the combined corpus even if renamed.
+            # Source count does not identify the frozen corpus: smoke/custom sets can be mixed.
+            # Renamed copies opt in via bag3d_frozen_corpus; canonical paths stay protected.
             self.frozen_corpus = (self.h5_path.name == "real.h5" or
-                                  ("source_id" in f and len(np.unique(f["source_id"][:])) > 1))
+                                  self.h5_path.resolve() == REAL_CORPUS_PATH.resolve() or
+                                  bool(getattr(opt, "bag3d_frozen_corpus", False)))
             if self.frozen_corpus:
                 assert_frozen_corpus(f)
             self.n_total = int(f["sdf"].shape[0])
