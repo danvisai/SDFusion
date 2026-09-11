@@ -460,29 +460,29 @@
    "trace_dir": "outputs/void_semantic_traces/3855",
    "composite_trace_path": "outputs/void_semantic_traces/3855/op0_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A large sloped (hatched top) lower band spanning much of the footprint reads as a pitched roof plane, matching its recorded ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:18:42.607Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:38:19.393Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -497,29 +497,29 @@
    "trace_dir": "outputs/void_semantic_traces/3855",
    "composite_trace_path": "outputs/void_semantic_traces/3855/op1_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "low",
+    "label": "terrace_or_setback",
     "reasoning": "A narrow flat-topped strip cut down along one outer edge could be a setback channel or a light well; genuinely hard to distinguish at this scale."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:18:36.462Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:38:07.154Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -534,29 +534,29 @@
    "trace_dir": "outputs/void_semantic_traces/3855",
    "composite_trace_path": "outputs/void_semantic_traces/3855/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A narrow ridge strip down the center of an already-gabled roof silhouette reads as the second slope completing the pitched roof form."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:18:27.822Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:38:02.487Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -571,29 +571,29 @@
    "trace_dir": "outputs/void_semantic_traces/3984",
    "composite_trace_path": "outputs/void_semantic_traces/3984/op0_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "medium",
+    "label": "courtyard",
     "reasoning": "A ring/groove of changed columns surrounding a preserved inner block resembles a courtyard or moat cut into the massing."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:25:10.707Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:38:40.349Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -608,29 +608,29 @@
    "trace_dir": "outputs/void_semantic_traces/3984",
    "composite_trace_path": "outputs/void_semantic_traces/3984/op1_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "An L-shaped stepped block with a vertical carved face suggests separating a projecting wing from the main mass, though a terrace step is also plausible."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-11T02:24:51.801Z",
+    "annotator": "layer",
+    "label": "ambiguous",
+    "note": "roof and terrace too much volume",
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:38:26.921Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -645,29 +645,29 @@
    "trace_dir": "outputs/void_semantic_traces/3984",
    "composite_trace_path": "outputs/void_semantic_traces/3984/op2_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "low",
+    "label": "courtyard",
     "reasoning": "A similar ring-shaped cut to the building's first operation, likely extending the same courtyard void, though it could instead read as an open passage."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:25:03.724Z",
+    "annotator": "layer",
+    "label": "ambiguous",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:38:35.622Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -682,29 +682,29 @@
    "trace_dir": "outputs/void_semantic_traces/3984",
    "composite_trace_path": "outputs/void_semantic_traces/3984/op3_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "A small patch at one corner of an already-notched footprint is too slight to confidently name as a specific architectural feature."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:25:17.159Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:38:49.515Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -719,29 +719,29 @@
    "trace_dir": "outputs/void_semantic_traces/4049",
    "composite_trace_path": "outputs/void_semantic_traces/4049/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "A small corner cut on an L-shaped footprint plausibly trims a narrow wing/projection, but the change is small and could be minor massing noise."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:26:31.571Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:20.715Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -756,29 +756,29 @@
    "trace_dir": "outputs/void_semantic_traces/4049",
    "composite_trace_path": "outputs/void_semantic_traces/4049/op1_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "A large flat-topped rectangular block at one end of the L-shaped footprint, distinctly lower than the main mass, reads as a separate wing volume."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:26:48.031Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:29.781Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -793,29 +793,29 @@
    "trace_dir": "outputs/void_semantic_traces/4049",
    "composite_trace_path": "outputs/void_semantic_traces/4049/op2_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a tiny irregular sliver near one corner is highlighted; too small to confidently name as an architectural feature."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-11T02:26:25.808Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
+    "note": "a small setback",
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:02.863Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -830,29 +830,29 @@
    "trace_dir": "outputs/void_semantic_traces/4135",
    "composite_trace_path": "outputs/void_semantic_traces/4135/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "A clean rectangular end-section of the box, differing in height from the rest, reads as a distinct wing volume."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:29:30.849Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:50.113Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -867,29 +867,29 @@
    "trace_dir": "outputs/void_semantic_traces/4135",
    "composite_trace_path": "outputs/void_semantic_traces/4135/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large textured surface spanning one full gable slope clearly forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:29:27.315Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:45.449Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -904,29 +904,29 @@
    "trace_dir": "outputs/void_semantic_traces/4135",
    "composite_trace_path": "outputs/void_semantic_traces/4135/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A ridge-adjacent strip continues building out the pitched roof form alongside the prior slope operation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:29:22.845Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:39.594Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -941,29 +941,29 @@
    "trace_dir": "outputs/void_semantic_traces/4135",
    "composite_trace_path": "outputs/void_semantic_traces/4135/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A sloped band across the upper gable end continues completing the pitched roof volume."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:26:56.386Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:34.807Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -978,29 +978,29 @@
    "trace_dir": "outputs/void_semantic_traces/4141",
    "composite_trace_path": "outputs/void_semantic_traces/4141/op0_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "high",
+    "label": "terrace_or_setback",
     "reasoning": "A wide lower base surrounds a narrower, taller block rising from the middle -- a textbook stepped-back massing."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:29:53.746Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:40:12.480Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1015,29 +1015,29 @@
    "trace_dir": "outputs/void_semantic_traces/4141",
    "composite_trace_path": "outputs/void_semantic_traces/4141/op1_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "low",
+    "label": "terrace_or_setback",
     "reasoning": "A small additional edge strip continues the step-back pattern established by the prior operation on this building."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:29:34.298Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:39:55.235Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1052,29 +1052,29 @@
    "trace_dir": "outputs/void_semantic_traces/4141",
    "composite_trace_path": "outputs/void_semantic_traces/4141/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface covering one full roof slope, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:29:41.141Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:40:01.194Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1089,29 +1089,29 @@
    "trace_dir": "outputs/void_semantic_traces/4141",
    "composite_trace_path": "outputs/void_semantic_traces/4141/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A thin ridge-line strip completes the gable roof pitch alongside the prior slope operation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:29:46.462Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:40:07.559Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1126,29 +1126,29 @@
    "trace_dir": "outputs/void_semantic_traces/4233",
    "composite_trace_path": "outputs/void_semantic_traces/4233/op0_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "medium",
+    "label": "terrace_or_setback",
     "reasoning": "A large flat region cut across most of the footprint, with a small notch preserved at the back, reads as a broad stepped-down mass."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:00.076Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:40:18.707Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1163,29 +1163,29 @@
    "trace_dir": "outputs/void_semantic_traces/4233",
    "composite_trace_path": "outputs/void_semantic_traces/4233/op1_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "low",
+    "label": "terrace_or_setback",
     "reasoning": "A narrow strip along one edge continues the step-back cut from the prior operation on this building."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:32.710Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:40:38.753Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1200,29 +1200,29 @@
    "trace_dir": "outputs/void_semantic_traces/4233",
    "composite_trace_path": "outputs/void_semantic_traces/4233/op2_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "high",
+    "label": "courtyard",
     "reasoning": "A clear U-shaped channel cut around three sides of a preserved rectangular core reads as a courtyard/moat void."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:25.451Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:40:28.262Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1237,29 +1237,29 @@
    "trace_dir": "outputs/void_semantic_traces/4233",
    "composite_trace_path": "outputs/void_semantic_traces/4233/op3_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "high",
+    "label": "courtyard",
     "reasoning": "A wider continuation of the same U-shaped ring channel around the preserved core, deepening the courtyard void."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:19.189Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:40:23.662Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1274,29 +1274,29 @@
    "trace_dir": "outputs/void_semantic_traces/4242",
    "composite_trace_path": "outputs/void_semantic_traces/4242/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "A lower connecting band between two taller tower-like volumes in a complex irregular footprint; hard to pin down precisely."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:49.870Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:20:59.435Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1311,29 +1311,29 @@
    "trace_dir": "outputs/void_semantic_traces/4242",
    "composite_trace_path": "outputs/void_semantic_traces/4242/op1_composite.png",
    "ai_suggestion": {
-    "label": "ambiguous",
     "confidence": "low",
+    "label": "ambiguous",
     "reasoning": "A small lowered block sits between two larger volumes; could be a passage-like gap or a minor step, not clearly either."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:54.982Z",
+    "annotator": "layer",
+    "label": "ambiguous",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:11.843Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1348,29 +1348,29 @@
    "trace_dir": "outputs/void_semantic_traces/4242",
    "composite_trace_path": "outputs/void_semantic_traces/4242/op2_composite.png",
    "ai_suggestion": {
-    "label": "ambiguous",
     "confidence": "low",
+    "label": "ambiguous",
     "reasoning": "A similar small lowered segment in the same connector zone as the prior operation; genuinely unclear which named type it represents."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:44.678Z",
+    "annotator": "layer",
+    "label": "ambiguous",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:20:49.721Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1385,29 +1385,29 @@
    "trace_dir": "outputs/void_semantic_traces/4242",
    "composite_trace_path": "outputs/void_semantic_traces/4242/op3_composite.png",
    "ai_suggestion": {
-    "label": "ambiguous",
     "confidence": "low",
+    "label": "ambiguous",
     "reasoning": "Another small lowered segment along the same irregular footprint; too ambiguous to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:40.428Z",
+    "annotator": "layer",
+    "label": "ambiguous",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:20:41.139Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1422,29 +1422,29 @@
    "trace_dir": "outputs/void_semantic_traces/4449",
    "composite_trace_path": "outputs/void_semantic_traces/4449/op0_composite.png",
    "ai_suggestion": {
-    "label": "roof_cut",
     "confidence": "high",
+    "label": "roof_cut",
     "reasoning": "Nearly the entire textured top surface is highlighted, matching its cut_roof kind directly."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:55.811Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:17.784Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1459,29 +1459,29 @@
    "trace_dir": "outputs/void_semantic_traces/4449",
    "composite_trace_path": "outputs/void_semantic_traces/4449/op1_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin sliver near one corner is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:56.557Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:29.091Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1496,29 +1496,29 @@
    "trace_dir": "outputs/void_semantic_traces/4449",
    "composite_trace_path": "outputs/void_semantic_traces/4449/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A diagonal sloped strip along one edge continues shaping the pitched roof, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:56.402Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:24.345Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1533,29 +1533,29 @@
    "trace_dir": "outputs/void_semantic_traces/4449",
    "composite_trace_path": "outputs/void_semantic_traces/4449/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface spanning most of the top, matching its ramp kind, forms a pitched roof plane."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:57.549Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:34.491Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1570,29 +1570,29 @@
    "trace_dir": "outputs/void_semantic_traces/4607",
    "composite_trace_path": "outputs/void_semantic_traces/4607/op0_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:56.706Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:39.354Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1607,29 +1607,29 @@
    "trace_dir": "outputs/void_semantic_traces/4607",
    "composite_trace_path": "outputs/void_semantic_traces/4607/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A ridge-line band completes the pitched roof form alongside the prior slope operation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:30:57.016Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:46.212Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1644,29 +1644,29 @@
    "trace_dir": "outputs/void_semantic_traces/4954",
    "composite_trace_path": "outputs/void_semantic_traces/4954/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "A distinctly lower rectangular block at one end of the building, clearly separated from a taller adjoining volume, reads as a wing."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:14.171Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:57.992Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1681,29 +1681,29 @@
    "trace_dir": "outputs/void_semantic_traces/4954",
    "composite_trace_path": "outputs/void_semantic_traces/4954/op1_composite.png",
    "ai_suggestion": {
-    "label": "passage",
     "confidence": "low",
+    "label": "passage",
     "reasoning": "A small L-shaped lowered notch at the inner junction between two wings could be a passage gap, but is not entirely clear."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:10.616Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:21:52.353Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1718,29 +1718,29 @@
    "trace_dir": "outputs/void_semantic_traces/4954",
    "composite_trace_path": "outputs/void_semantic_traces/4954/op2_composite.png",
    "ai_suggestion": {
-    "label": "passage",
     "confidence": "low",
+    "label": "passage",
     "reasoning": "A similar small lowered band near the same inner junction continues the ambiguous connector cut."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:15.921Z",
+    "annotator": "layer",
+    "label": "passage",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:08.115Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1755,29 +1755,29 @@
    "trace_dir": "outputs/void_semantic_traces/4954",
    "composite_trace_path": "outputs/void_semantic_traces/4954/op3_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a tiny patch at the junction between two wings is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:15.011Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:03.189Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1792,29 +1792,29 @@
    "trace_dir": "outputs/void_semantic_traces/5027",
    "composite_trace_path": "outputs/void_semantic_traces/5027/op0_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "medium",
+    "label": "terrace_or_setback",
     "reasoning": "Most of the footprint is lowered, leaving only a small raised strip, reading as a broad stepped-down mass."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:16.312Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:12.371Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1829,29 +1829,29 @@
    "trace_dir": "outputs/void_semantic_traces/5027",
    "composite_trace_path": "outputs/void_semantic_traces/5027/op1_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "medium",
+    "label": "terrace_or_setback",
     "reasoning": "A similarly large lowered area continues the broad stepped-down reduction from the prior operation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:17.194Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:28.734Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1866,29 +1866,29 @@
    "trace_dir": "outputs/void_semantic_traces/5027",
    "composite_trace_path": "outputs/void_semantic_traces/5027/op2_composite.png",
    "ai_suggestion": {
-    "label": "ambiguous",
     "confidence": "low",
+    "label": "ambiguous",
     "reasoning": "A small chunk highlighted at a junction between two masses is too minor and unclear to name confidently."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:16.506Z",
+    "annotator": "layer",
+    "label": "ambiguous",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:36.386Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1903,29 +1903,29 @@
    "trace_dir": "outputs/void_semantic_traces/5027",
    "composite_trace_path": "outputs/void_semantic_traces/5027/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "low",
+    "label": "roof_volume",
     "reasoning": "Two separate top-edge strips on a ramp-kind operation suggest roof-plane shaping, though the extent is small."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:16.181Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:20.109Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1940,29 +1940,29 @@
    "trace_dir": "outputs/void_semantic_traces/5032",
    "composite_trace_path": "outputs/void_semantic_traces/5032/op0_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:17.559Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:01.909Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -1977,29 +1977,29 @@
    "trace_dir": "outputs/void_semantic_traces/5032",
    "composite_trace_path": "outputs/void_semantic_traces/5032/op1_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "low",
+    "label": "terrace_or_setback",
     "reasoning": "An L-shaped wedge cut along one edge and corner reads as a minor stepped-back trim."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:16.675Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:42.576Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2014,29 +2014,29 @@
    "trace_dir": "outputs/void_semantic_traces/5032",
    "composite_trace_path": "outputs/void_semantic_traces/5032/op2_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:17.644Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:54.216Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2051,29 +2051,29 @@
    "trace_dir": "outputs/void_semantic_traces/5032",
    "composite_trace_path": "outputs/void_semantic_traces/5032/op3_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "high",
+    "label": "courtyard",
     "reasoning": "A clear U-shaped channel cut around a preserved inner block reads as a courtyard/moat void."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:17.336Z",
+    "annotator": "layer",
+    "label": "courtyard",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:22:48.517Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2088,29 +2088,29 @@
    "trace_dir": "outputs/void_semantic_traces/5071",
    "composite_trace_path": "outputs/void_semantic_traces/5071/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "A distinctly lower rectangular block at one end of a stepped massing reads as a wing volume."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:17.955Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:19.427Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2125,29 +2125,29 @@
    "trace_dir": "outputs/void_semantic_traces/5071",
    "composite_trace_path": "outputs/void_semantic_traces/5071/op1_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "Another lower block segment in the same stepped sequence reads as part of the same wing articulation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:19.548Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:07.889Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2162,29 +2162,29 @@
    "trace_dir": "outputs/void_semantic_traces/5071",
    "composite_trace_path": "outputs/void_semantic_traces/5071/op2_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "Continues the same stepped sequence of lower block segments forming a wing."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:18.100Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:25.716Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2199,29 +2199,29 @@
    "trace_dir": "outputs/void_semantic_traces/5071",
    "composite_trace_path": "outputs/void_semantic_traces/5071/op3_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "The final segment in the stepped sequence of lower blocks completes the wing articulation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:17.803Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:14.084Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2236,29 +2236,29 @@
    "trace_dir": "outputs/void_semantic_traces/5176",
    "composite_trace_path": "outputs/void_semantic_traces/5176/op0_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin sliver along one edge of the roof-topped mass is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:18.600Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:47.746Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2273,29 +2273,29 @@
    "trace_dir": "outputs/void_semantic_traces/5176",
    "composite_trace_path": "outputs/void_semantic_traces/5176/op1_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "medium",
+    "label": "terrace_or_setback",
     "reasoning": "A solid band across the base/front reads as a stepped-down mass reduction."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:18.416Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:41.572Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2310,29 +2310,29 @@
    "trace_dir": "outputs/void_semantic_traces/5176",
    "composite_trace_path": "outputs/void_semantic_traces/5176/op2_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin sliver along one edge is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:18.271Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:35.004Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2347,29 +2347,29 @@
    "trace_dir": "outputs/void_semantic_traces/5241",
    "composite_trace_path": "outputs/void_semantic_traces/5241/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "An L-shaped corner cut trims a projecting portion of the footprint, plausibly separating a wing."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:18.991Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:58.721Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2384,29 +2384,29 @@
    "trace_dir": "outputs/void_semantic_traces/5241",
    "composite_trace_path": "outputs/void_semantic_traces/5241/op1_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "A similar L-shaped corner cut continues trimming the same projecting portion."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:19.705Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:24:42.808Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2421,29 +2421,29 @@
    "trace_dir": "outputs/void_semantic_traces/5241",
    "composite_trace_path": "outputs/void_semantic_traces/5241/op2_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a small notch at one corner is highlighted; too minor to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:20.946Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:24:47.657Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2458,29 +2458,29 @@
    "trace_dir": "outputs/void_semantic_traces/5241",
    "composite_trace_path": "outputs/void_semantic_traces/5241/op3_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a tiny strip at one corner edge is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:18.821Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:23:54.041Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2495,29 +2495,29 @@
    "trace_dir": "outputs/void_semantic_traces/5470",
    "composite_trace_path": "outputs/void_semantic_traces/5470/op0_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "medium",
+    "label": "terrace_or_setback",
     "reasoning": "Most of the footprint's top is lowered, leaving only a small raised strip, reading as a broad stepped-down mass."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:20.195Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:25:06.096Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2532,29 +2532,29 @@
    "trace_dir": "outputs/void_semantic_traces/5470",
    "composite_trace_path": "outputs/void_semantic_traces/5470/op1_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "medium",
+    "label": "courtyard",
     "reasoning": "A rectangular notch cut deep into the middle of the T-shaped mass, walled on three sides, reads as a courtyard void."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:19.869Z",
+    "annotator": "layer",
+    "label": "courtyard",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:24:52.465Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2569,29 +2569,29 @@
    "trace_dir": "outputs/void_semantic_traces/5470",
    "composite_trace_path": "outputs/void_semantic_traces/5470/op2_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "medium",
+    "label": "courtyard",
     "reasoning": "A similar enclosed notch elsewhere on the same footprint continues the courtyard-like carving pattern."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:20.358Z",
+    "annotator": "layer",
+    "label": "courtyard",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:25:13.208Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2606,29 +2606,29 @@
    "trace_dir": "outputs/void_semantic_traces/5470",
    "composite_trace_path": "outputs/void_semantic_traces/5470/op3_composite.png",
    "ai_suggestion": {
-    "label": "passage",
     "confidence": "low",
+    "label": "passage",
     "reasoning": "A small notch at one edge, not fully enclosed, could be a passage gap but is not entirely clear."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:20.030Z",
+    "annotator": "layer",
+    "label": "passage",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:24:58.862Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2643,29 +2643,29 @@
    "trace_dir": "outputs/void_semantic_traces/5698",
    "composite_trace_path": "outputs/void_semantic_traces/5698/op0_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin strip along one top edge is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:20.662Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:25:37.290Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2680,29 +2680,29 @@
    "trace_dir": "outputs/void_semantic_traces/5698",
    "composite_trace_path": "outputs/void_semantic_traces/5698/op1_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "An L-shaped lower block at one end reads as a possible wing, though the ramp kind suggests some slope not clearly visible here."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:20.510Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:25:28.323Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2717,29 +2717,29 @@
    "trace_dir": "outputs/void_semantic_traces/5698",
    "composite_trace_path": "outputs/void_semantic_traces/5698/op2_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "low",
+    "label": "terrace_or_setback",
     "reasoning": "A step-shaped lower section at the base reads as a minor stepped-back trim."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:21.498Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:25:53.345Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2754,29 +2754,29 @@
    "trace_dir": "outputs/void_semantic_traces/5698",
    "composite_trace_path": "outputs/void_semantic_traces/5698/op3_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "A lower band at one end continues the stepped massing established by prior operations on this building."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:20.807Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:25:47.178Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2791,29 +2791,29 @@
    "trace_dir": "outputs/void_semantic_traces/5713",
    "composite_trace_path": "outputs/void_semantic_traces/5713/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "A full lowered block at one part of the L-shaped footprint, distinctly separated from the taller mass, reads as a wing."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:21.103Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:03.578Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2828,29 +2828,29 @@
    "trace_dir": "outputs/void_semantic_traces/5713",
    "composite_trace_path": "outputs/void_semantic_traces/5713/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface covering one part of the mass forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:21.368Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:17.567Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2865,29 +2865,29 @@
    "trace_dir": "outputs/void_semantic_traces/5713",
    "composite_trace_path": "outputs/void_semantic_traces/5713/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A sloped triangular patch at a corner completes the pitched roof form alongside the prior slope operation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:57.034Z",
+    "annotator": "layer",
+    "label": "light_well",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:23.366Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2902,29 +2902,29 @@
    "trace_dir": "outputs/void_semantic_traces/5713",
    "composite_trace_path": "outputs/void_semantic_traces/5713/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "low",
+    "label": "roof_volume",
     "reasoning": "A small sloped strip near a corner continues minor roof shaping, though the extent is limited."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:21.243Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:10.925Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2939,29 +2939,29 @@
    "trace_dir": "outputs/void_semantic_traces/5774",
    "composite_trace_path": "outputs/void_semantic_traces/5774/op0_composite.png",
    "ai_suggestion": {
-    "label": "passage",
     "confidence": "low",
+    "label": "passage",
     "reasoning": "A thin vertical column wedged between two larger masses could be a narrow connector gap, but is not entirely clear."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:21.976Z",
+    "annotator": "layer",
+    "label": "passage",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:48.570Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -2976,29 +2976,29 @@
    "trace_dir": "outputs/void_semantic_traces/5774",
    "composite_trace_path": "outputs/void_semantic_traces/5774/op1_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin strip near a corner is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:21.638Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:31.557Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3013,29 +3013,29 @@
    "trace_dir": "outputs/void_semantic_traces/5774",
    "composite_trace_path": "outputs/void_semantic_traces/5774/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped triangular surface covering one gable slope forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:21.828Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:43.741Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3050,29 +3050,29 @@
    "trace_dir": "outputs/void_semantic_traces/5774",
    "composite_trace_path": "outputs/void_semantic_traces/5774/op3_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "low",
+    "label": "terrace_or_setback",
     "reasoning": "A thin band along the base reads as a minor stepped-down trim."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:22.121Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:26:57.327Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3087,29 +3087,29 @@
    "trace_dir": "outputs/void_semantic_traces/5785",
    "composite_trace_path": "outputs/void_semantic_traces/5785/op0_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "medium",
+    "label": "terrace_or_setback",
     "reasoning": "A large area at the base of the building is lowered, reading as a broad stepped-down mass."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:22.750Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:27:42.779Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3124,29 +3124,29 @@
    "trace_dir": "outputs/void_semantic_traces/5785",
    "composite_trace_path": "outputs/void_semantic_traces/5785/op1_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:22.450Z",
+    "annotator": "layer",
+    "label": "not_architectural",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:27:22.962Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3161,29 +3161,29 @@
    "trace_dir": "outputs/void_semantic_traces/5785",
    "composite_trace_path": "outputs/void_semantic_traces/5785/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_cut",
     "confidence": "high",
+    "label": "roof_cut",
     "reasoning": "A large textured roof surface with a ridge channel matches its cut_roof kind directly."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:22.593Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:27:36.776Z",
+    "annotator": "ramp",
+    "label": "ambiguous",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3198,29 +3198,29 @@
    "trace_dir": "outputs/void_semantic_traces/5785",
    "composite_trace_path": "outputs/void_semantic_traces/5785/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A U-shaped groove along the roof ridge continues shaping the roof mass from the prior cut_roof operation."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:22.295Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:27:16.652Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3235,29 +3235,29 @@
    "trace_dir": "outputs/void_semantic_traces/6042",
    "composite_trace_path": "outputs/void_semantic_traces/6042/op0_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:31:22.904Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": true
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T03:27:51.808Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3272,29 +3272,28 @@
    "trace_dir": "outputs/void_semantic_traces/11998",
    "composite_trace_path": "outputs/void_semantic_traces/11998/op0_composite.png",
    "ai_suggestion": {
-    "label": "not_architectural",
     "confidence": "low",
+    "label": "not_architectural",
     "reasoning": "Only a thin strip along one edge is highlighted; too small to confidently name."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T18:46:42.944Z",
+    "annotator": "ramp",
+    "label": "wing",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-10T22:45:38.242Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3309,29 +3308,28 @@
    "trace_dir": "outputs/void_semantic_traces/11998",
    "composite_trace_path": "outputs/void_semantic_traces/11998/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A sloped band along one edge begins shaping a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T18:47:18.923Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
+    "note": "ramp"
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-10T22:45:42.591Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3346,29 +3344,28 @@
    "trace_dir": "outputs/void_semantic_traces/11998",
    "composite_trace_path": "outputs/void_semantic_traces/11998/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T18:45:59.145Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-10T22:45:25.541Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3383,29 +3380,28 @@
    "trace_dir": "outputs/void_semantic_traces/11998",
    "composite_trace_path": "outputs/void_semantic_traces/11998/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "low",
+    "label": "roof_volume",
     "reasoning": "A thin ridge-line strip continues minor roof trimming after the prior slope operations."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T18:46:39.135Z",
+    "annotator": "ramp",
+    "label": "wing",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-10T22:45:32.363Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3420,29 +3416,28 @@
    "trace_dir": "outputs/void_semantic_traces/12018",
    "composite_trace_path": "outputs/void_semantic_traces/12018/op0_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "high",
+    "label": "terrace_or_setback",
     "reasoning": "A wide lower base surrounds a narrower, taller raised core -- a textbook stepped-back massing."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:09:58.981Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T22:46:33.894Z",
+    "annotator": "layer",
+    "label": "ambiguous",
+    "note": "roof and setback but flat ",
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3457,29 +3452,28 @@
    "trace_dir": "outputs/void_semantic_traces/12018",
    "composite_trace_path": "outputs/void_semantic_traces/12018/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_cut",
     "confidence": "high",
+    "label": "roof_cut",
     "reasoning": "A complex textured surface with a ridge groove matches its cut_roof kind directly."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:09:48.503Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": "wall setback"
    },
    "annotator_2": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T22:46:11.608Z",
+    "annotator": "layer",
+    "label": "ambiguous",
+    "note": "roof, and setbacks both",
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3494,29 +3488,28 @@
    "trace_dir": "outputs/void_semantic_traces/12018",
    "composite_trace_path": "outputs/void_semantic_traces/12018/op2_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "high",
+    "label": "terrace_or_setback",
     "reasoning": "A similar U-shaped groove around the preserved raised core continues the stepped-back massing from the prior operation."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:09:52.745Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-10T22:46:18.427Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3531,29 +3524,28 @@
    "trace_dir": "outputs/void_semantic_traces/12018",
    "composite_trace_path": "outputs/void_semantic_traces/12018/op3_composite.png",
    "ai_suggestion": {
-    "label": "terrace_or_setback",
     "confidence": "high",
+    "label": "terrace_or_setback",
     "reasoning": "Continues the same U-shaped stepped-back cut pattern around the preserved raised core."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T18:48:06.826Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-10T22:45:47.511Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3568,29 +3560,28 @@
    "trace_dir": "outputs/void_semantic_traces/15194",
    "composite_trace_path": "outputs/void_semantic_traces/15194/op0_composite.png",
    "ai_suggestion": {
-    "label": "courtyard",
     "confidence": "high",
+    "label": "courtyard",
     "reasoning": "A clear ring-shaped channel cut around a preserved raised rectangular core reads as a courtyard/moat void."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:10:21.525Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:00:53.707Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3605,29 +3596,28 @@
    "trace_dir": "outputs/void_semantic_traces/15194",
    "composite_trace_path": "outputs/void_semantic_traces/15194/op1_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "A small notch cut at one edge of a stepped footprint could trim a projecting wing, but the extent is minor."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:10:44.958Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:01:09.780Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3642,29 +3632,28 @@
    "trace_dir": "outputs/void_semantic_traces/15194",
    "composite_trace_path": "outputs/void_semantic_traces/15194/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A diagonal sloped band cutting through the middle of the footprint reads as roof-plane shaping, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:10:14.684Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:01:03.820Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3679,29 +3668,28 @@
    "trace_dir": "outputs/void_semantic_traces/15194",
    "composite_trace_path": "outputs/void_semantic_traces/15194/op3_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "A small notch cut at one edge could trim a projecting wing, but the extent is minor."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:10:07.711Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:00:47.948Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3716,29 +3704,28 @@
    "trace_dir": "outputs/void_semantic_traces/15310",
    "composite_trace_path": "outputs/void_semantic_traces/15310/op0_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "medium",
+    "label": "wing",
     "reasoning": "A distinctly lower block at one end, separated from the taller part of the footprint, reads as a wing."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:10:26.397Z",
+    "annotator": "ramp",
+    "label": "wing",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:01:20.108Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3753,29 +3740,28 @@
    "trace_dir": "outputs/void_semantic_traces/15310",
    "composite_trace_path": "outputs/void_semantic_traces/15310/op1_composite.png",
    "ai_suggestion": {
-    "label": "wing",
     "confidence": "low",
+    "label": "wing",
     "reasoning": "A stepped notch cut at a corner, leaving a small raised block, plausibly continues the wing articulation."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:11:08.720Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:02:49.114Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3790,29 +3776,28 @@
    "trace_dir": "outputs/void_semantic_traces/15310",
    "composite_trace_path": "outputs/void_semantic_traces/15310/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A sloped band covering a large section reads as roof-plane shaping, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:10:38.973Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:01:27.578Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3827,29 +3812,28 @@
    "trace_dir": "outputs/void_semantic_traces/15310",
    "composite_trace_path": "outputs/void_semantic_traces/15310/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A similar sloped band continues the roof-plane shaping from the prior operation."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:11:00.301Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:01:33.880Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3864,29 +3848,28 @@
    "trace_dir": "outputs/void_semantic_traces/15556",
    "composite_trace_path": "outputs/void_semantic_traces/15556/op0_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface covering roughly half the roof forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:11:13.031Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:02:54.858Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3901,29 +3884,28 @@
    "trace_dir": "outputs/void_semantic_traces/15556",
    "composite_trace_path": "outputs/void_semantic_traces/15556/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "The other half of the sloped roof surface continues the pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:11:17.075Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:03:00.275Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3938,29 +3920,28 @@
    "trace_dir": "outputs/void_semantic_traces/16041",
    "composite_trace_path": "outputs/void_semantic_traces/16041/op0_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped surface covering most of the roof forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:12:42.198Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:04:56.483Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -3975,29 +3956,28 @@
    "trace_dir": "outputs/void_semantic_traces/16041",
    "composite_trace_path": "outputs/void_semantic_traces/16041/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "low",
+    "label": "roof_volume",
     "reasoning": "A thin strip at the edge of the roof slope continues minor roof shaping from the prior operation."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:12:35.203Z",
+    "annotator": "ramp",
+    "label": "wing",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:03:06.889Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4012,29 +3992,28 @@
    "trace_dir": "outputs/void_semantic_traces/16041",
    "composite_trace_path": "outputs/void_semantic_traces/16041/op2_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "high",
+    "label": "roof_volume",
     "reasoning": "A large sloped band forms a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:12:47.283Z",
+    "annotator": "ramp",
+    "label": "ambiguous",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:05:04.266Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4049,29 +4028,28 @@
    "trace_dir": "outputs/void_semantic_traces/16041",
    "composite_trace_path": "outputs/void_semantic_traces/16041/op3_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A narrower sloped band continues shaping the pitched roof, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:13:11.102Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": "ramp on roof"
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:05:11.185Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4086,29 +4064,28 @@
    "trace_dir": "outputs/void_semantic_traces/16099",
    "composite_trace_path": "outputs/void_semantic_traces/16099/op0_composite.png",
    "ai_suggestion": {
-    "label": "ambiguous",
     "confidence": "low",
+    "label": "ambiguous",
     "reasoning": "A large flat cut across nearly the entire footprint looks like a foundational eave-height leveling rather than a specific named architectural feature."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:13:18.244Z",
+    "annotator": "ramp",
+    "label": "not_architectural",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:06:07.090Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4123,29 +4100,28 @@
    "trace_dir": "outputs/void_semantic_traces/16099",
    "composite_trace_path": "outputs/void_semantic_traces/16099/op1_composite.png",
    "ai_suggestion": {
-    "label": "roof_volume",
     "confidence": "medium",
+    "label": "roof_volume",
     "reasoning": "A sloped band along one edge shapes a pitched roof plane, matching its ramp kind."
    },
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:13:24.194Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:12:27.967Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4159,30 +4135,25 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16099",
    "composite_trace_path": "outputs/void_semantic_traces/16099/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "low",
-    "reasoning": "A thin sloped strip near the edge continues minor roof shaping, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:13:27.120Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:12:33.689Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4196,30 +4167,25 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16169",
    "composite_trace_path": "outputs/void_semantic_traces/16169/op0_composite.png",
-   "ai_suggestion": {
-    "label": "wing",
-    "confidence": "low",
-    "reasoning": "A small rectangular block protrusion cut at one corner plausibly trims a minor wing."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:13:33.472Z",
+    "annotator": "ramp",
+    "label": "wing",
+    "note": null
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:12:39.659Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4233,30 +4199,25 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16169",
    "composite_trace_path": "outputs/void_semantic_traces/16169/op1_composite.png",
-   "ai_suggestion": {
-    "label": "wing",
-    "confidence": "low",
-    "reasoning": "A similar small block protrusion at a different location continues minor wing trimming."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-10T19:13:41.409Z",
+    "annotator": "ramp",
+    "label": "roof_cut",
+    "note": "ramp"
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:12:52.344Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4270,30 +4231,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16169",
    "composite_trace_path": "outputs/void_semantic_traces/16169/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A large sloped roof surface forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:12:58.325Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:32:34.510Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4307,30 +4264,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16421",
    "composite_trace_path": "outputs/void_semantic_traces/16421/op0_composite.png",
-   "ai_suggestion": {
-    "label": "wing",
-    "confidence": "medium",
-    "reasoning": "A distinctly lower rectangular block adjacent to a taller volume reads as a wing."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:13:06.205Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:32:44.928Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4344,30 +4297,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16421",
    "composite_trace_path": "outputs/void_semantic_traces/16421/op1_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A large sloped band forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:13:33.483Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:32:54.291Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4381,30 +4330,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16421",
    "composite_trace_path": "outputs/void_semantic_traces/16421/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "medium",
-    "reasoning": "A sloped band along the same edge continues shaping the pitched roof, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:13:28.035Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:32:49.217Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4418,30 +4363,26 @@
    "op_count_bucket": "mid",
    "trace_dir": "outputs/void_semantic_traces/16626",
    "composite_trace_path": "outputs/void_semantic_traces/16626/op0_composite.png",
-   "ai_suggestion": {
-    "label": "terrace_or_setback",
-    "confidence": "medium",
-    "reasoning": "A large flat area covering most of the top is lowered, reading as a broad stepped-down mass."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:13:38.225Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:32:58.611Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4455,30 +4396,26 @@
    "op_count_bucket": "mid",
    "trace_dir": "outputs/void_semantic_traces/16626",
    "composite_trace_path": "outputs/void_semantic_traces/16626/op1_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A large sloped surface covering most of the top forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:13:42.994Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:04.881Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4492,30 +4429,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16747",
    "composite_trace_path": "outputs/void_semantic_traces/16747/op0_composite.png",
-   "ai_suggestion": {
-    "label": "terrace_or_setback",
-    "confidence": "medium",
-    "reasoning": "A flat band along the base of the mass reads as a minor stepped-down trim."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:14:15.331Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:30.531Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4529,30 +4462,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16747",
    "composite_trace_path": "outputs/void_semantic_traces/16747/op1_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A large sloped surface at one corner forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:14:09.896Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-11T02:33:25.413Z",
+    "annotator": "ramp",
+    "label": "ambiguous",
+    "note": "roof and wall",
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4566,30 +4495,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16747",
    "composite_trace_path": "outputs/void_semantic_traces/16747/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "medium",
-    "reasoning": "A sloped ridge-line strip continues shaping the pitched roof, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:14:22.213Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:36.058Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4603,30 +4528,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16747",
    "composite_trace_path": "outputs/void_semantic_traces/16747/op3_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "medium",
-    "reasoning": "Another sloped ridge strip continues the roof shaping from prior operations."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:13:59.600Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:10.694Z",
+    "annotator": "ramp",
+    "label": "ambiguous",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4640,30 +4561,26 @@
    "op_count_bucket": "mid",
    "trace_dir": "outputs/void_semantic_traces/16776",
    "composite_trace_path": "outputs/void_semantic_traces/16776/op0_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A large sloped surface covering the entire top forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:15:17.636Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:39.639Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4677,30 +4594,26 @@
    "op_count_bucket": "mid",
    "trace_dir": "outputs/void_semantic_traces/16776",
    "composite_trace_path": "outputs/void_semantic_traces/16776/op1_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "low",
-    "reasoning": "A thin strip along the ridge edge continues minor roof trimming after the prior slope operation."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:15:22.576Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:44.427Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4714,30 +4627,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16790",
    "composite_trace_path": "outputs/void_semantic_traces/16790/op0_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A large sloped section covering roughly half the roof forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:15:29.140Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:48.740Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4751,30 +4660,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16790",
    "composite_trace_path": "outputs/void_semantic_traces/16790/op1_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "low",
-    "reasoning": "A flat band along the ridge edge continues minor roof trimming after the prior slope operation."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:15:45.033Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:58.498Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4788,30 +4693,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16790",
    "composite_trace_path": "outputs/void_semantic_traces/16790/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "medium",
-    "reasoning": "A sloped strip on one side continues shaping the pitched roof, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:15:39.048Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:33:52.869Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4825,30 +4726,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16808",
    "composite_trace_path": "outputs/void_semantic_traces/16808/op0_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "medium",
-    "reasoning": "A sloped band on part of the roof forms pitched roof shaping, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:15:59.389Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:35:03.173Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4862,30 +4759,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16808",
    "composite_trace_path": "outputs/void_semantic_traces/16808/op1_composite.png",
-   "ai_suggestion": {
-    "label": "terrace_or_setback",
-    "confidence": "medium",
-    "reasoning": "A band along the base of the mass reads as a stepped-down trim."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:15:50.873Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:34:05.803Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4899,30 +4792,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/16808",
    "composite_trace_path": "outputs/void_semantic_traces/16808/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "medium",
-    "reasoning": "A sloped vertical strip along one edge of the complex footprint continues roof shaping, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:16:05.998Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:36:04.564Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4936,30 +4825,26 @@
    "op_count_bucket": "low",
    "trace_dir": "outputs/void_semantic_traces/17568",
    "composite_trace_path": "outputs/void_semantic_traces/17568/op0_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "The entire top is a sloped surface, forming a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:16:19.076Z",
+    "annotator": "layer",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:36:09.498Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -4973,30 +4858,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/17735",
    "composite_trace_path": "outputs/void_semantic_traces/17735/op0_composite.png",
-   "ai_suggestion": {
-    "label": "not_architectural",
-    "confidence": "low",
-    "reasoning": "Only a thin sliver at one edge of a complex footprint is highlighted; too small to confidently name."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:17:02.105Z",
+    "annotator": "layer",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:36:50.668Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -5010,30 +4891,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/17735",
    "composite_trace_path": "outputs/void_semantic_traces/17735/op1_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A large sloped band forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-11T02:16:56.709Z",
+    "annotator": "layer",
+    "label": "roof_cut",
+    "note": "roof cut and volume of house",
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:36:19.216Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -5047,30 +4924,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/17735",
    "composite_trace_path": "outputs/void_semantic_traces/17735/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "medium",
-    "reasoning": "A sloped vertical strip along one edge continues shaping the pitched roof, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-11T02:16:37.093Z",
+    "annotator": "layer",
+    "label": "ambiguous",
+    "note": "roof and volume of house",
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:36:14.213Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -5084,30 +4957,26 @@
    "op_count_bucket": "low",
    "trace_dir": "outputs/void_semantic_traces/17800",
    "composite_trace_path": "outputs/void_semantic_traces/17800/op0_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "The entire roof is a sloped surface, forming a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-11T02:17:20.563Z",
+    "annotator": "layer",
+    "label": "ambiguous",
+    "note": "entire house and roof cut on top in slant",
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:37:23.239Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -5121,30 +4990,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/17857",
    "composite_trace_path": "outputs/void_semantic_traces/17857/op0_composite.png",
-   "ai_suggestion": {
-    "label": "wing",
-    "confidence": "medium",
-    "reasoning": "A distinctly lower flat half of the mass, separated from a taller adjoining volume, reads as a wing."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:17:32.771Z",
+    "annotator": "layer",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:37:30.253Z",
+    "annotator": "ramp",
+    "label": "wing",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -5158,30 +5023,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/17857",
    "composite_trace_path": "outputs/void_semantic_traces/17857/op1_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A sloped half of the roof forms a pitched roof plane, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
-    "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "annotated_at": "2026-09-11T02:18:09.148Z",
+    "annotator": "layer",
+    "label": "ambiguous",
+    "note": "building and slant roof",
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:37:57.010Z",
+    "annotator": "ramp",
+    "label": "roof_volume",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   },
   {
@@ -5195,30 +5056,26 @@
    "op_count_bucket": "high",
    "trace_dir": "outputs/void_semantic_traces/17857",
    "composite_trace_path": "outputs/void_semantic_traces/17857/op2_composite.png",
-   "ai_suggestion": {
-    "label": "roof_volume",
-    "confidence": "high",
-    "reasoning": "A sloped strip along one edge continues shaping the pitched roof, matching its ramp kind."
-   },
+   "ai_suggestion": null,
    "annotator_1": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:17:44.045Z",
+    "annotator": "layer",
+    "label": "roof_cut",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "annotator_2": {
-    "label": null,
+    "annotated_at": "2026-09-11T02:37:41.782Z",
+    "annotator": "ramp",
+    "label": "terrace_or_setback",
     "note": null,
-    "annotated_at": null,
-    "annotator": null,
-    "used_ai_suggestion": null
+    "used_ai_suggestion": false
    },
    "adjudication": {
-    "label": null,
-    "note": null,
     "adjudicated_at": null,
-    "by": null
+    "by": null,
+    "label": null,
+    "note": null
    }
   }
  ]
