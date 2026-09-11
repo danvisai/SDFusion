@@ -2,7 +2,6 @@
  "schema_version": 1,
  "created": "2026-09-10T18:36:46",
  "labels": [
-  "courtyard",
   "passage",
   "arcade",
   "terrace_or_setback",
@@ -482,7 +481,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -519,7 +519,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -556,7 +557,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -593,7 +595,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -627,10 +630,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -664,10 +671,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -704,7 +715,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -741,7 +753,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -778,7 +791,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -812,10 +826,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -849,10 +867,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -889,7 +911,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -926,7 +949,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -963,7 +987,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1000,7 +1025,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1037,7 +1063,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1071,10 +1098,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1108,10 +1139,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1145,10 +1180,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1185,7 +1224,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1222,7 +1262,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1259,7 +1300,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1293,10 +1335,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1330,10 +1376,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1367,10 +1417,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1404,10 +1458,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1441,10 +1499,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1478,10 +1540,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1515,10 +1581,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1555,7 +1625,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1592,7 +1663,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1629,7 +1701,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1663,10 +1736,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1703,7 +1780,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1737,10 +1815,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "passage",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1774,10 +1856,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1811,10 +1897,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1851,7 +1941,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -1885,10 +1976,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1922,10 +2017,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1959,10 +2058,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -1996,10 +2099,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2033,10 +2140,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2070,10 +2181,11 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
-    "label": null,
-    "note": null
+    "label": "roof_volume",
+    "valid_labels": null,
+    "note": "courtyard removed from LABELS; other reading is the sole valid category",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2107,10 +2219,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2144,10 +2260,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2184,7 +2304,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -2218,10 +2339,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2255,10 +2380,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2295,7 +2424,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -2329,10 +2459,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2369,7 +2503,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -2403,10 +2538,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2440,10 +2579,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2477,10 +2620,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "roof_cut"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2514,10 +2661,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2551,10 +2702,11 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
-    "label": null,
-    "note": null
+    "label": "terrace_or_setback",
+    "valid_labels": null,
+    "note": "courtyard removed from LABELS; other reading is the sole valid category",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2588,10 +2740,11 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
-    "label": null,
-    "note": null
+    "label": "terrace_or_setback",
+    "valid_labels": null,
+    "note": "courtyard removed from LABELS; other reading is the sole valid category",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2625,10 +2778,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "passage",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2662,10 +2819,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2702,7 +2863,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -2736,10 +2898,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2773,10 +2939,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2810,10 +2980,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2847,10 +3021,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2884,10 +3062,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "light_well",
+     "roof_cut"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2921,10 +3103,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2958,10 +3144,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "passage",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -2995,10 +3185,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3032,10 +3226,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3069,10 +3267,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_volume",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3109,7 +3311,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3143,10 +3346,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3180,10 +3387,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_cut"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3220,7 +3431,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3257,7 +3469,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3280,7 +3493,8 @@
     "annotated_at": "2026-09-10T18:46:42.944Z",
     "annotator": "ramp",
     "label": "wing",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:45:38.242Z",
@@ -3293,7 +3507,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3316,7 +3531,8 @@
     "annotated_at": "2026-09-10T18:47:18.923Z",
     "annotator": "ramp",
     "label": "roof_volume",
-    "note": "ramp"
+    "note": "ramp",
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:45:42.591Z",
@@ -3326,10 +3542,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3352,7 +3572,8 @@
     "annotated_at": "2026-09-10T18:45:59.145Z",
     "annotator": "ramp",
     "label": "roof_volume",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:45:25.541Z",
@@ -3362,10 +3583,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3388,7 +3613,8 @@
     "annotated_at": "2026-09-10T18:46:39.135Z",
     "annotator": "ramp",
     "label": "wing",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:45:32.363Z",
@@ -3398,10 +3624,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3424,7 +3654,8 @@
     "annotated_at": "2026-09-10T19:09:58.981Z",
     "annotator": "ramp",
     "label": "terrace_or_setback",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:46:33.894Z",
@@ -3434,10 +3665,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3460,7 +3695,8 @@
     "annotated_at": "2026-09-10T19:09:48.503Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": "wall setback"
+    "note": "wall setback",
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:46:11.608Z",
@@ -3470,10 +3706,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_cut"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3496,7 +3736,8 @@
     "annotated_at": "2026-09-10T19:09:52.745Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:46:18.427Z",
@@ -3506,10 +3747,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3532,7 +3777,8 @@
     "annotated_at": "2026-09-10T18:48:06.826Z",
     "annotator": "ramp",
     "label": "roof_volume",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-10T22:45:47.511Z",
@@ -3545,7 +3791,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3568,7 +3815,8 @@
     "annotated_at": "2026-09-10T19:10:21.525Z",
     "annotator": "ramp",
     "label": "terrace_or_setback",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:00:53.707Z",
@@ -3578,10 +3826,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3604,7 +3856,8 @@
     "annotated_at": "2026-09-10T19:10:44.958Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:01:09.780Z",
@@ -3614,10 +3867,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3640,7 +3897,8 @@
     "annotated_at": "2026-09-10T19:10:14.684Z",
     "annotator": "ramp",
     "label": "roof_volume",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:01:03.820Z",
@@ -3653,7 +3911,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3676,7 +3935,8 @@
     "annotated_at": "2026-09-10T19:10:07.711Z",
     "annotator": "ramp",
     "label": "terrace_or_setback",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:00:47.948Z",
@@ -3686,10 +3946,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3712,7 +3976,8 @@
     "annotated_at": "2026-09-10T19:10:26.397Z",
     "annotator": "ramp",
     "label": "wing",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:01:20.108Z",
@@ -3725,7 +3990,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3748,7 +4014,8 @@
     "annotated_at": "2026-09-10T19:11:08.720Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:02:49.114Z",
@@ -3758,10 +4025,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3784,7 +4055,8 @@
     "annotated_at": "2026-09-10T19:10:38.973Z",
     "annotator": "ramp",
     "label": "roof_volume",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:01:27.578Z",
@@ -3797,7 +4069,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3820,7 +4093,8 @@
     "annotated_at": "2026-09-10T19:11:00.301Z",
     "annotator": "ramp",
     "label": "terrace_or_setback",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:01:33.880Z",
@@ -3833,7 +4107,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -3856,7 +4131,8 @@
     "annotated_at": "2026-09-10T19:11:13.031Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:02:54.858Z",
@@ -3866,10 +4142,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3892,7 +4172,8 @@
     "annotated_at": "2026-09-10T19:11:17.075Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:03:00.275Z",
@@ -3902,10 +4183,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3928,7 +4213,8 @@
     "annotated_at": "2026-09-10T19:12:42.198Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:04:56.483Z",
@@ -3938,10 +4224,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -3964,7 +4254,8 @@
     "annotated_at": "2026-09-10T19:12:35.203Z",
     "annotator": "ramp",
     "label": "wing",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:03:06.889Z",
@@ -3974,10 +4265,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4000,7 +4295,8 @@
     "annotated_at": "2026-09-10T19:12:47.283Z",
     "annotator": "ramp",
     "label": "ambiguous",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:05:04.266Z",
@@ -4010,10 +4306,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4036,7 +4336,8 @@
     "annotated_at": "2026-09-10T19:13:11.102Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": "ramp on roof"
+    "note": "ramp on roof",
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:05:11.185Z",
@@ -4046,10 +4347,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4072,7 +4377,8 @@
     "annotated_at": "2026-09-10T19:13:18.244Z",
     "annotator": "ramp",
     "label": "not_architectural",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:06:07.090Z",
@@ -4082,10 +4388,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "not_architectural",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4108,7 +4418,8 @@
     "annotated_at": "2026-09-10T19:13:24.194Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:12:27.967Z",
@@ -4118,10 +4429,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4140,7 +4455,8 @@
     "annotated_at": "2026-09-10T19:13:27.120Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:12:33.689Z",
@@ -4150,10 +4466,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4172,7 +4492,8 @@
     "annotated_at": "2026-09-10T19:13:33.472Z",
     "annotator": "ramp",
     "label": "wing",
-    "note": null
+    "note": null,
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:12:39.659Z",
@@ -4185,7 +4506,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4204,7 +4526,8 @@
     "annotated_at": "2026-09-10T19:13:41.409Z",
     "annotator": "ramp",
     "label": "roof_cut",
-    "note": "ramp"
+    "note": "ramp",
+    "used_ai_suggestion": null
    },
    "annotator_2": {
     "annotated_at": "2026-09-11T02:12:52.344Z",
@@ -4217,7 +4540,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4247,10 +4571,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4280,10 +4608,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4316,7 +4648,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4349,7 +4682,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4382,7 +4716,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4412,10 +4747,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4445,10 +4784,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4478,10 +4821,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4514,7 +4861,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4544,10 +4892,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4580,7 +4932,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4613,7 +4966,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4646,7 +5000,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4679,7 +5034,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4712,7 +5068,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4742,10 +5099,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4775,10 +5136,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4811,7 +5176,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4844,7 +5210,8 @@
     "adjudicated_at": null,
     "by": null,
     "label": null,
-    "note": null
+    "note": null,
+    "valid_labels": null
    }
   },
   {
@@ -4874,10 +5241,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4907,10 +5278,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4940,10 +5315,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -4973,10 +5352,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -5006,10 +5389,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "terrace_or_setback",
+     "wing"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -5039,10 +5426,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "ambiguous",
+     "roof_volume"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   },
   {
@@ -5072,10 +5463,14 @@
     "used_ai_suggestion": false
    },
    "adjudication": {
-    "adjudicated_at": null,
-    "by": null,
     "label": null,
-    "note": null
+    "valid_labels": [
+     "roof_cut",
+     "terrace_or_setback"
+    ],
+    "note": "non-identifiable geometry: both readings accepted as valid (NOVELTY_SURVEY risks #2/#4)",
+    "adjudicated_at": "2026-09-11T00:00:00.000Z",
+    "by": "ticket owner (policy, via GitHub issue #154 comment thread)"
    }
   }
  ]

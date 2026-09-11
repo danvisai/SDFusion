@@ -198,6 +198,8 @@ class TestBuildAnnotationSchema(unittest.TestCase):
         self.assertIsNone(op["annotator_1"]["label"])
         self.assertIsNone(op["annotator_2"]["label"])
         self.assertIsNone(op["adjudication"]["label"])
+        self.assertIsNone(op["adjudication"]["valid_labels"])
+        self.assertNotIn("courtyard", LABELS)  # dropped: better served by assets + empty plan area
         self.assertIsNone(op["ai_suggestion"])                  # no suggestions given -> None, not {}
         self.assertIsNone(op["annotator_1"]["used_ai_suggestion"])
 

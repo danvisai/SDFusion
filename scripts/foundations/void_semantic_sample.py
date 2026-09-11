@@ -59,9 +59,14 @@ RECOVERY_BRANCH = 10
 SAMPLE_N = 60
 SAMPLE_SEED = 154
 
-# #4's glossary, restated exactly as #154's own acceptance text names it.
+# #4's glossary, restated as #154's own acceptance text names it, minus `courtyard` -- dropped by
+# the ticket owner after the measured result below: real through-void courtyards are better served
+# by retrieved/procedural assets and left-empty plan area, not by naming a subtractive height-field
+# cut after them (0/129 operations had both annotators agree on it; every occurrence was one side of
+# a disagreement -- see `docs/wayfinding/solid-first-subtractive-modeling/
+# 154-void-semantic-annotation-schema.md`'s own field notes on `adjudication.valid_labels`).
 LABELS: Tuple[str, ...] = (
-    "courtyard", "passage", "arcade", "terrace_or_setback", "roof_cut", "wing", "roof_volume",
+    "passage", "arcade", "terrace_or_setback", "roof_cut", "wing", "roof_volume",
     "light_well", "ambiguous", "not_architectural",
 )
 SCHEMA_VERSION = 1
@@ -289,7 +294,7 @@ def build_annotation_schema(sample: Sequence[dict], composition: dict,
                 trace_dir=rel_trace_dir, composite_trace_path=rel_composite,
                 ai_suggestion=ai_suggestions.get(doc_id),
                 annotator_1=_empty_annotation(), annotator_2=_empty_annotation(),
-                adjudication=dict(label=None, note=None, adjudicated_at=None, by=None),
+                adjudication=dict(label=None, valid_labels=None, note=None, adjudicated_at=None, by=None),
             ))
     return dict(schema_version=SCHEMA_VERSION, created=time.strftime("%Y-%m-%dT%H:%M:%S"),
                labels=list(LABELS), sample_n=len(sample), sample_composition=composition,

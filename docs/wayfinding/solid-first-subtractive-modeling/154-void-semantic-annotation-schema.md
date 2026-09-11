@@ -18,7 +18,7 @@ note below) — the input to `--ai_suggestions` when regenerating the schema art
 {
   "schema_version": 1,
   "created": "2026-09-10T12:00:00",
-  "labels": ["courtyard", "passage", "arcade", "terrace_or_setback", "roof_cut", "wing",
+  "labels": ["passage", "arcade", "terrace_or_setback", "roof_cut", "wing",
              "roof_volume", "light_well", "ambiguous", "not_architectural"],
   "sample_n": 60,
   "sample_composition": {"NL/carve/low": 3, "NL/carve/mid": 3, "NL/carve/high": 5, "...": "..."},
@@ -41,7 +41,7 @@ note below) — the input to `--ai_suggestions` when regenerating the schema art
       "ai_suggestion": {"label": "roof_volume", "confidence": "medium", "reasoning": "..."},
       "annotator_1": {"label": null, "note": null, "annotated_at": null, "annotator": null, "used_ai_suggestion": null},
       "annotator_2": {"label": null, "note": null, "annotated_at": null, "annotator": null, "used_ai_suggestion": null},
-      "adjudication": {"label": null, "note": null, "adjudicated_at": null, "by": null}
+      "adjudication": {"label": null, "valid_labels": null, "note": null, "adjudicated_at": null, "by": null}
     }
   ]
 }
@@ -102,7 +102,23 @@ note below) — the input to `--ai_suggestions` when regenerating the schema art
 - **`adjudication`** is filled ONLY when `annotator_1["label"] != annotator_2["label"]` — the
   ticket's own decision that disagreements are adjudicated by the ticket owner, never silently
   averaged away. `compute_agreement`'s own `disagreements` list is exactly the set of operations
-  that need this filled in.
+  that need this filled in. Two distinct resolutions exist, and which one applies is itself the
+  ticket owner's call:
+  - **`label`** set, `valid_labels` left `None` — the ticket owner picked one of the two readings as
+    the single canonical answer (used when one reading is simply wrong, e.g. a category later
+    dropped from `LABELS` — see the `courtyard` removal below).
+  - **`label`** left `None`, **`valid_labels`** set to `[annotator_1_label, annotator_2_label]` — the
+    ticket owner determined BOTH readings are legitimate, not a labeling error. This is the expected
+    resolution for most of #154's own 83 measured disagreements: they cluster on genuine category
+    boundaries (`roof_cut`/`roof_volume`, `terrace_or_setback`/`wing`) that the underlying geometry
+    does not disambiguate (see the ticket's own comment thread on `NOVELTY_SURVEY.md` risks #2/#4) —
+    forcing a single winner there would manufacture false precision the data doesn't support.
+- **`courtyard` was removed from `LABELS`** after measurement: 0 of 129 operations had both
+  annotators agree on it, and every occurrence was one side of a disagreement — consistent with the
+  ticket owner's own call that real through-void courtyards are better represented by retrieved/
+  procedural assets and left-empty plan area than by naming a subtractive height-field cut after
+  them. The 3 affected disagreements were adjudicated with `label` set to the non-`courtyard` reading
+  (a category that no longer exists can't be one of two "valid" options).
 
 ## Reading it back
 
