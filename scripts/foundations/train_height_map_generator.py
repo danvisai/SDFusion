@@ -495,6 +495,7 @@ from scripts.foundations.recover_massing_programs import (       # noqa: E402
     CARVE_NEEDED, H5, K_OPS, SHIP714, SLOT_TYPES, FitBias, fit_program_beam, height_field,
     occupancy, plane_surface, program_to_slots, render_iso,
 )
+from scripts.foundations.source_provenance import region_mapping_sha256  # noqa: E402
 
 WORK = REPO / "outputs/height_map_generator"
 CACHE = WORK / "height_fields.npz"
@@ -699,16 +700,19 @@ def cache_provenance(cache: dict) -> dict:
         n_regions=N_REGIONS,
         conditioning_channels=list(CONDITIONING_CHANNELS),
         corpus_identity_sha256=cache_corpus_identity(cache),
-        # #167 will choose the authority and canonical serialization for this field.
-        region_mapping_sha256=None,
+        region_mapping_sha256=region_mapping_sha256(),
     )
 
 
 def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) -> None:
-    """Refuse new checkpoints whose channel/corpus meaning differs from the current runtime.
+    """Refuse new checkpoints whose channel/corpus/region-mapping meaning differs from the
+    current runtime.
 
-    Historical checkpoints predate #163. They remain loadable with an explicit warning; their
-    first-layer tensor still enforces channel count, but their corpus provenance is unknowable.
+    `region_mapping_sha256` (#167) needs no training cache to compute, so it is checked whether
+    or not `cache` is given; `corpus_identity_sha256` needs one and is only checked when `cache`
+    is not None. Historical checkpoints predate #163. They remain loadable with an explicit
+    warning; their first-layer tensor still enforces channel count, but their corpus and
+    region-mapping provenance are unknowable.
     """
     keys = ("n_regions", "conditioning_channels", "corpus_identity_sha256",
             "region_mapping_sha256")
@@ -723,10 +727,9 @@ def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) 
     expected = cache_provenance(cache) if cache is not None else {
         "n_regions": N_REGIONS,
         "conditioning_channels": list(CONDITIONING_CHANNELS),
+        "region_mapping_sha256": region_mapping_sha256(),
     }
     for key, value in expected.items():
-        if key == "region_mapping_sha256" and value is None:
-            continue
         if checkpoint[key] != value:
             raise ValueError(f"#163: checkpoint {key} mismatch: expected {value!r}, "
                              f"got {checkpoint[key]!r}")

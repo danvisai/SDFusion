@@ -9,8 +9,9 @@ Every newly saved best or final-epoch checkpoint records a compatibility contrac
 - `n_regions`: the region vocabulary size;
 - `conditioning_channels`: the ordered semantic names of every model input channel;
 - `corpus_identity_sha256`: SHA-256 of the sorted, unique cache row IDs; and
-- `region_mapping_sha256`: reserved as `None` until #167 defines the authoritative mapping and its
-  canonical serialization.
+- `region_mapping_sha256`: SHA-256 of the versioned pipeline-to-region-id mapping, per #167's
+  `scripts/foundations/source_provenance.py`. Checked on every load, cache or no cache, since the
+  mapping hash needs no training cache to compute.
 
 Training diagnostics and the generation service validate checkpoints through one loader. They
 compare the region count and channel order with the running code, and compare the corpus hash when

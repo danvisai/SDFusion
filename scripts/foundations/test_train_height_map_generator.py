@@ -30,6 +30,7 @@ from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E40
 from scripts.foundations.recover_massing_programs import (  # noqa: E402
     K_OPS, fit_program, occupancy, program_to_slots, replay_program,
 )
+from scripts.foundations.source_provenance import region_mapping_sha256  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     CONDITIONING_CHANNELS, COND_CHANNELS, DEPTH_CLASSES, N_REGIONS, PLANE_BINS,
     PROGRAM_TYPES, _d4, _d4_program,
@@ -584,7 +585,7 @@ class TestCheckpointProvenance(unittest.TestCase):
         metadata = cache_provenance(self._cache())
         self.assertEqual(metadata["n_regions"], N_REGIONS)
         self.assertEqual(metadata["conditioning_channels"], list(CONDITIONING_CHANNELS))
-        self.assertEqual(metadata["region_mapping_sha256"], None)
+        self.assertEqual(metadata["region_mapping_sha256"], region_mapping_sha256())
         self.assertEqual(metadata["corpus_identity_sha256"], cache_corpus_identity(self._cache()))
 
     def test_checkpoint_mismatches_fail_before_weights_are_used(self):
@@ -594,11 +595,23 @@ class TestCheckpointProvenance(unittest.TestCase):
             "n_regions": N_REGIONS + 1,
             "conditioning_channels": list(reversed(CONDITIONING_CHANNELS)),
             "corpus_identity_sha256": "different-corpus",
+            "region_mapping_sha256": "different-mapping",
         }
         for key, value in mutations.items():
             checkpoint = {**metadata, key: value}
             with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
                 validate_checkpoint_provenance(checkpoint, cache)
+
+    def test_region_mapping_is_also_checked_without_a_cache(self):
+        # #167: region_mapping_sha256 needs no cache to compute, so a checkpoint loaded before
+        # the cache exists on disk still has its region-mapping identity checked.
+        checkpoint = {"n_regions": N_REGIONS, "conditioning_channels": list(CONDITIONING_CHANNELS),
+                      "corpus_identity_sha256": "unverifiable-without-a-cache",
+                      "region_mapping_sha256": "different-mapping"}
+        with self.assertRaisesRegex(ValueError, "region_mapping_sha256"):
+            validate_checkpoint_provenance(checkpoint, cache=None)
+        checkpoint["region_mapping_sha256"] = region_mapping_sha256()
+        validate_checkpoint_provenance(checkpoint, cache=None)  # does not raise
 
     def test_partial_provenance_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "incomplete"):
