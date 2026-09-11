@@ -140,9 +140,9 @@ class TestCorpusRejection(unittest.TestCase):
         from scripts.foundations.prototype_voxel_editor import VoxelCache
 
         with h5py.File(self.path, "w") as f:
-            f.create_dataset("split", data=[0, 1])
+            f.create_dataset("row", data=[0, 1])
         with self.assertRaisesRegex(ValueError, "pass --real"):
-            VoxelCache(self.path, split=0)
+            VoxelCache(self.path)
 
 
 @unittest.skipUnless(REAL_CORPUS_PATH.exists(), "real corpus metadata not available")
@@ -228,29 +228,28 @@ class TestPinnedCorpus(unittest.TestCase):
         cache = Path(self.tmp.name) / "pairs.h5"
         with h5py.File(cache, "w") as f:
             f.attrs["real_corpus_path"] = str(self.path)
-            f.create_dataset("split", data=[0, 1, 0])
-        self.assertEqual(len(VoxelCache(cache, split=0)), 2)
-        self.assertEqual(len(VoxelCache(cache, split=1)), 1)
+            f.create_dataset("row", data=[0, 1, 2])
+        self.assertEqual(len(VoxelCache(cache)), 3)
         with h5py.File(self.path, "a") as f:
             f["bag_id"][0] = b"changed-custom-source"
         # The repository's default source is still valid; it must not mask this mutation.
         with self.assertRaisesRegex(ValueError, "identity mismatch"):
-            VoxelCache(cache, split=0)
+            VoxelCache(cache)
 
     def test_voxel_source_override_supports_legacy_and_relocated_caches(self):
         from scripts.foundations.prototype_voxel_editor import VoxelCache, parser
 
         cache = Path(self.tmp.name) / "pairs.h5"
         with h5py.File(cache, "w") as f:
-            f.create_dataset("split", data=[0, 1])
-        for command, split in (("train", 0), ("evaluate", 1)):
+            f.create_dataset("row", data=[0, 1])
+        for command in ("train", "evaluate"):
             args = parser().parse_args([command, "--cache", str(cache), "--real", str(self.path)])
-            self.assertEqual(len(VoxelCache(Path(args.cache), split, real=args.real)), 1)
+            self.assertEqual(len(VoxelCache(Path(args.cache), real=args.real)), 2)
         with h5py.File(cache, "a") as f:
             f.attrs["real_corpus_path"] = str(Path(self.tmp.name) / "old-location.h5")
         with self.assertRaises(FileNotFoundError):
-            VoxelCache(cache, split=0)
-        self.assertEqual(len(VoxelCache(cache, split=0, real=self.path)), 1)
+            VoxelCache(cache)
+        self.assertEqual(len(VoxelCache(cache, real=self.path)), 2)
 
 
 if __name__ == "__main__":
