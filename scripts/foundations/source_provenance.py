@@ -26,7 +26,15 @@ import hashlib
 import json
 import re
 
-SOURCE_KEY_RE = re.compile(r"^[a-z0-9_]+:[A-Za-z0-9_.-]+$")
+SOURCE_KEY_RE = re.compile(r"^[a-z0-9_]+:[A-Za-z0-9_.-]+\Z")
+
+# #167's own motivating problem was `class_label` (S16) truncating a per-city label like
+# 'BW_GreaterGeelong' (17 bytes) with no error. This is the storage width decision that closes it:
+# `bag_id` already uses a fixed-width S64 HDF5 field for a similar per-row identity string
+# (concat_real_massing.py), so source_key reuses that same width rather than inventing a new one --
+# #174 (the first writer of source_key) has a width to encode against instead of picking its own.
+SOURCE_KEY_DTYPE = "S64"
+SOURCE_KEY_MAX_BYTES = 64
 
 REGION_MAPPING_VERSION = "v1"
 
@@ -50,6 +58,12 @@ def parse_source_key(source_key: str) -> tuple[str, str]:
     if not SOURCE_KEY_RE.match(source_key):
         raise ValueError(f"#167: malformed source_key {source_key!r}; expected 'pipeline:place' "
                          f"with a lowercase pipeline (e.g. 'plateau:tokyo23ku')")
+    if len(source_key.encode("utf-8")) > SOURCE_KEY_MAX_BYTES:
+        raise ValueError(f"#167: source_key {source_key!r} is "
+                         f"{len(source_key.encode('utf-8'))} bytes, over the {SOURCE_KEY_MAX_BYTES}-"
+                         f"byte ({SOURCE_KEY_DTYPE}) storage width -- this is the truncation this "
+                         f"ticket exists to prevent, so it raises here rather than silently cutting "
+                         f"the key down to fit an HDF5 column")
     pipeline, _, place = source_key.partition(":")
     return pipeline, place
 

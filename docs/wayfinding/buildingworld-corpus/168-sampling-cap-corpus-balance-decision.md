@@ -13,7 +13,9 @@ larger and lopsided per city — Berlin ~523k, Calgary ~457k, Edmonton ~371k, Ca
 Greater Geelong ~887, Philadelphia ~2,938 pre-filter (populations per
 [#158](158-watertightness-extent-profile.md)'s profile). With no stated cap or
 reweighting, ingesting BuildingWorld swamps the existing prior, and the served arm's pinned bar
-(`extra`=0.0603 vs. 1-NN 0.1031 on the pinned 714) was measured under the old, balanced prior. Four
+(`extra`=0.0603 vs. 1-NN 0.1031 — measured on the pinned 714's **411 carve-needing** buildings, per
+127-height-map-generator.md; correction, code review: not all 714) was measured under the old,
+balanced prior. Four
 things needed deciding: (a) a per-city ingestion cap; (b) a corpus-wide total cap; (c) whether to
 reweight training sampling to preserve (or deliberately shift) the existing source balance; (d) how
 this interacts with the pinned 714 as an unchanged regression control versus a separate,
@@ -49,9 +51,10 @@ exactly as #178 already specifies — a fixed regression control, not something 
 #178 ("Rebuild a BuildingWorld-specific 1-NN baseline and pre-register its bar") builds a second,
 separate, honestly-new bar: the rebuilt 1-NN baseline scored only on the new BuildingWorld held-out
 set, with a per-roof-family breakdown, exactly as #178's own issue text already lays out. The served
-arm's already-measured pinned bar (`extra`=0.0603 vs. 1-NN 0.1031) keeps its meaning as the
-old-corpus regression check; it is not expected to describe the model's behavior on BuildingWorld's
-own held-out rows, which is precisely why #178's separate bar exists rather than reusing this one.
+arm's already-measured pinned bar (`extra`=0.0603 vs. 1-NN 0.1031, on the 411 carve-needing
+buildings within the pinned 714 — not all 714) keeps its meaning as the old-corpus regression
+check; it is not expected to describe the model's behavior on BuildingWorld's own held-out rows,
+which is precisely why #178's separate bar exists rather than reusing this one.
 
 ## Consequences for #174 and #178
 

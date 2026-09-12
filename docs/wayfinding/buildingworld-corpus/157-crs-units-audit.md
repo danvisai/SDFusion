@@ -252,6 +252,16 @@ place every Richmond building ~11.6 million metres away from the rest of the cit
 hemisphere numerically) unless the sign is corrected. Flagged as a concrete, file-identifiable
 defect for whoever writes `ingest_buildingworld.py`.
 
+⚠️ **Correction, code review:** negating y is not a harmless translation — it is a determinant−1
+**mirror transform**, which inverts every Richmond face's winding order along with its position. A
+fix that only negates y (without also reversing each face's vertex order back to outward-facing)
+ingests a geometrically inside-out mesh: still at the right location, but with flipped normals and
+winding. Richmond is 38% of all of Yarra's sampled meshes (10,019/26,050, #158's population count)
+and Yarra's own #158 profile is 0% watertight, dominated by `scattered` (non-manifold) defects
+(166-watertightness-standard-decision.md) — winding inversion is a plausible *direct* contributor
+to that, not an unrelated coincidence, and should be checked before `ingest_buildingworld.py` (#174)
+ships a bare sign flip for this tile.
+
 **Perth's subfolder names** (`3D_Buildings_Level_2_Dec_2024_WSL1`…`WSL5`) look like an official,
 dated Western Australian government release (Landgate mandates GDA2020 statewide for all published
 spatial data), but a specific metadata page for this exact dataset was not found — hence "medium"

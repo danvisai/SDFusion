@@ -114,12 +114,14 @@ def roof_family(ops: list, kinds: set) -> str:
         every fit rather than only the sampled bridge subset.
       * two or more `Ramp` ops with no `CutRoof` at all -> `gable`, per #129's own framing ("a
         gable is two opposing ramps ... not in reach until the assignment head commits to a
-        second").
+        second") -- regardless of how many `Layer` ops (if any) sit underneath. A `Layer` here
+        encodes WALL massing (a storey height, or a setback -- #4: "a setback *is* a Layer whose
+        polygon is the inward offset of the footprint"), an axis this classifier does not score;
+        two opposing `Ramp`s is a gable roof whether it sits on a plain box or a stepped one.
 
-    Everything else -- a lone `Ramp` (a shed: one plane, no second one to pair with) or a mixed
-    `Layer`+`Ramp` program that isn't a clean two-ramp gable -- is `complex`. A shed has no named
-    bucket among the four the ticket asks for; counted here as `complex` and disclosed separately
-    by the caller rather than silently folded in.
+    Everything else -- chiefly a lone `Ramp` (a shed: one plane, no second one to pair with) -- is
+    `complex`. A shed has no named bucket among the four the ticket asks for; counted here as
+    `complex` and disclosed separately by the caller rather than silently folded in.
     """
     if not ops:
         return "flat"

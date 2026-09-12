@@ -1,7 +1,7 @@
 {
   "meta": {
-    "git_rev": "3cdc757",
-    "created": "2026-09-06T16:41:39+00:00",
+    "git_rev": "9411489",
+    "created": "2026-09-12T16:12:43+00:00",
     "n_sample": 400,
     "seed": 158,
     "r": 32,
@@ -33,7 +33,7 @@
       "n_load_ok": 400,
       "n_load_fail": 0,
       "watertight_frac": 0.06,
-      "winding_consistent_frac": 0.6875,
+      "winding_consistent_frac": 0.685,
       "n_non_watertight": 376,
       "defect_breakdown": {
         "scattered": 293,
@@ -176,12 +176,12 @@
       "n_sampled": 400,
       "n_load_ok": 400,
       "n_load_fail": 0,
-      "watertight_frac": 0.1975,
+      "watertight_frac": 0.7875,
       "winding_consistent_frac": 1.0,
-      "n_non_watertight": 321,
+      "n_non_watertight": 85,
       "defect_breakdown": {
-        "scattered": 320,
-        "floor_open": 1
+        "scattered": 82,
+        "floor_open": 3
       },
       "n_sdf_ok": 400,
       "max_extent_p10": 7.5055499991765835,
@@ -414,9 +414,9 @@
       "winding_consistent_frac": 0.0375,
       "n_non_watertight": 395,
       "defect_breakdown": {
-        "scattered": 265,
+        "scattered": 264,
         "non_boundary_defect": 100,
-        "mixed": 15,
+        "mixed": 16,
         "floor_open": 15
       },
       "n_sdf_ok": 400,
@@ -2737,14 +2737,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 226,
+          "n_verts": 208,
           "n_faces": 288,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 0.027331757889985653,
           "raw_z_extent": 0.014074749661434627,
           "boundary": {
-            "n_boundary_edges": 161,
+            "n_boundary_edges": 147,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -2832,15 +2832,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 131,
+          "n_verts": 99,
           "n_faces": 166,
           "watertight": false,
-          "winding_consistent": true,
+          "winding_consistent": false,
           "max_extent": 20.258056640625,
           "raw_z_extent": 4.485038757324219,
           "boundary": {
-            "n_boundary_edges": 114,
-            "frac_near_zmin": 0.03508771929824561,
+            "n_boundary_edges": 68,
+            "frac_near_zmin": 0.058823529411764705,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -20225,15 +20225,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 915,
+          "n_verts": 913,
           "n_faces": 1261,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 49.48999999999978,
           "raw_z_extent": 16.38000000000011,
           "boundary": {
-            "n_boundary_edges": 961,
-            "frac_near_zmin": 0.06763787721123829,
+            "n_boundary_edges": 959,
+            "frac_near_zmin": 0.06777893639207508,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -24253,15 +24253,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 97,
+          "n_verts": 95,
           "n_faces": 135,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 20.93999999947846,
           "raw_z_extent": 10.819999999999936,
           "boundary": {
-            "n_boundary_edges": 102,
-            "frac_near_zmin": 0.17647058823529413,
+            "n_boundary_edges": 98,
+            "frac_near_zmin": 0.1836734693877551,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -39886,14 +39886,14 @@
       "records": [
         {
           "load_ok": true,
-          "n_verts": 29,
+          "n_verts": 21,
           "n_faces": 37,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 11.991800000003423,
           "raw_z_extent": 4.3700000000000045,
           "boundary": {
-            "n_boundary_edges": 19,
+            "n_boundary_edges": 3,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -39905,17 +39905,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 47,
+          "n_verts": 34,
           "n_faces": 60,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.4036000000051,
           "raw_z_extent": 6.25,
-          "boundary": {
-            "n_boundary_edges": 26,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.25,
           "fp_solidity": 0.421875,
@@ -39924,17 +39919,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.800499999895692,
           "raw_z_extent": 8.42999999999995,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.42999999999995,
           "fp_solidity": 0.4560546875,
@@ -39962,17 +39952,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 20.199999999254942,
           "raw_z_extent": 10.909999999999968,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 10.909999999999968,
           "fp_solidity": 0.3779296875,
@@ -39995,17 +39980,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.948200000450015,
           "raw_z_extent": 0.6535999999999831,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 0.6535999999999831,
           "fp_solidity": 0.703125,
@@ -40033,17 +40013,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.639499999997497,
           "raw_z_extent": 6.095100000000002,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.095100000000002,
           "fp_solidity": 0.5810546875,
@@ -40052,17 +40027,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 26,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 63.58689999952912,
           "raw_z_extent": 6.389999999999986,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.389999999999986,
           "fp_solidity": 0.4169921875,
@@ -40071,17 +40041,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 34,
+          "n_verts": 25,
           "n_faces": 46,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.981100000004517,
           "raw_z_extent": 8.757299999999987,
-          "boundary": {
-            "n_boundary_edges": 18,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.757299999999987,
           "fp_solidity": 0.3408203125,
@@ -40090,17 +40055,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.942500000004657,
           "raw_z_extent": 4.345900000000029,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.345900000000029,
           "fp_solidity": 0.525390625,
@@ -40109,17 +40069,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.500600000843406,
           "raw_z_extent": 6.740000000000009,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.740000000000009,
           "fp_solidity": 0.4150390625,
@@ -40128,17 +40083,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.168500000610948,
           "raw_z_extent": 5.265899999999988,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.265899999999988,
           "fp_solidity": 0.435546875,
@@ -40147,14 +40097,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 35,
           "n_faces": 64,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 23.624800000339746,
           "raw_z_extent": 5.5,
           "boundary": {
-            "n_boundary_edges": 24,
+            "n_boundary_edges": 4,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -40166,17 +40116,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.640299999999115,
           "raw_z_extent": 4.759999999999991,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.759999999999991,
           "fp_solidity": 0.546875,
@@ -40223,17 +40168,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.970100000500679,
           "raw_z_extent": 3.615099999999984,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.615099999999984,
           "fp_solidity": 0.703125,
@@ -40242,14 +40182,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 48,
+          "n_verts": 42,
           "n_faces": 60,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 19.62039999999979,
           "raw_z_extent": 9.169999999999959,
           "boundary": {
-            "n_boundary_edges": 28,
+            "n_boundary_edges": 16,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -40261,17 +40201,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.390900000929832,
           "raw_z_extent": 3.7200000000000273,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.7200000000000273,
           "fp_solidity": 0.703125,
@@ -40294,17 +40229,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 24,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.413499999791384,
           "raw_z_extent": 2.996399999999994,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.996399999999994,
           "fp_solidity": 0.4990234375,
@@ -40313,17 +40243,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.240299999713898,
           "raw_z_extent": 5.559999999999945,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.559999999999945,
           "fp_solidity": 0.52734375,
@@ -40332,17 +40257,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.407500000001164,
           "raw_z_extent": 7.420100000000048,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.420100000000048,
           "fp_solidity": 0.423828125,
@@ -40351,17 +40271,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 25.453700000420213,
           "raw_z_extent": 6.17999999999995,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.17999999999995,
           "fp_solidity": 0.6337890625,
@@ -40370,17 +40285,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 3.9171000000060303,
           "raw_z_extent": 2.062400000000025,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.062400000000025,
           "fp_solidity": 0.46484375,
@@ -40389,17 +40299,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 22.85329999960959,
           "raw_z_extent": 7.209899999999948,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.209899999999948,
           "fp_solidity": 0.4248046875,
@@ -40408,17 +40313,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.428999999996449,
           "raw_z_extent": 1.7527000000000044,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 1.7527000000000044,
           "fp_solidity": 0.552734375,
@@ -40427,17 +40327,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.19759999960661,
           "raw_z_extent": 5.855699999999956,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.855699999999956,
           "fp_solidity": 0.3232421875,
@@ -40446,17 +40341,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.8421999999991385,
           "raw_z_extent": 2.203999999999951,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.203999999999951,
           "fp_solidity": 0.423828125,
@@ -40465,17 +40355,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 42,
+          "n_verts": 31,
           "n_faces": 58,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.65599999949336,
           "raw_z_extent": 7.090000000000032,
-          "boundary": {
-            "n_boundary_edges": 22,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.090000000000032,
           "fp_solidity": 0.435546875,
@@ -40536,17 +40421,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.283299999995506,
           "raw_z_extent": 3.8099999999999454,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.8099999999999454,
           "fp_solidity": 0.8203125,
@@ -40555,17 +40435,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.981400000004214,
           "raw_z_extent": 2.8757000000000517,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.8757000000000517,
           "fp_solidity": 0.52734375,
@@ -40574,17 +40449,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.533099999651313,
           "raw_z_extent": 3.1959000000000515,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.1959000000000515,
           "fp_solidity": 0.470703125,
@@ -40593,14 +40463,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 50,
+          "n_verts": 37,
           "n_faces": 69,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 19.39539999999397,
           "raw_z_extent": 9.169999999999959,
           "boundary": {
-            "n_boundary_edges": 29,
+            "n_boundary_edges": 3,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -40640,17 +40510,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 62,
+          "n_verts": 46,
           "n_faces": 88,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 22.034400000004098,
           "raw_z_extent": 7.5499999999999545,
-          "boundary": {
-            "n_boundary_edges": 32,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.5499999999999545,
           "fp_solidity": 0.37890625,
@@ -40692,17 +40557,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.008699999998498,
           "raw_z_extent": 2.5054000000000087,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.5054000000000087,
           "fp_solidity": 0.642578125,
@@ -40725,17 +40585,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.717399999999998,
           "raw_z_extent": 6.717399999999998,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.717399999999998,
           "fp_solidity": 0.38671875,
@@ -40805,17 +40660,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 5.096299999997427,
           "raw_z_extent": 2.2939999999999827,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.2939999999999827,
           "fp_solidity": 0.462890625,
@@ -40824,17 +40674,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.920700000002398,
           "raw_z_extent": 8.419899999999984,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.419899999999984,
           "fp_solidity": 0.7724609375,
@@ -40843,17 +40688,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 11.628499999642372,
           "raw_z_extent": 4.190000000000055,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.190000000000055,
           "fp_solidity": 0.439453125,
@@ -40881,17 +40721,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.369599999859929,
           "raw_z_extent": 2.889599999999973,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.889599999999973,
           "fp_solidity": 0.76171875,
@@ -40914,17 +40749,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.148199999704957,
           "raw_z_extent": 6.029899999999998,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.029899999999998,
           "fp_solidity": 0.4853515625,
@@ -40933,17 +40763,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.804799999998068,
           "raw_z_extent": 4.779999999999973,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.779999999999973,
           "fp_solidity": 0.421875,
@@ -40971,17 +40796,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 5.715299999996205,
           "raw_z_extent": 2.296299999999974,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.296299999999974,
           "fp_solidity": 0.357421875,
@@ -40990,14 +40810,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 53,
+          "n_verts": 39,
           "n_faces": 73,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 15.16840000078082,
           "raw_z_extent": 5.539999999999964,
           "boundary": {
-            "n_boundary_edges": 31,
+            "n_boundary_edges": 3,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -41023,17 +40843,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.50290000066161,
           "raw_z_extent": 8.419999999999959,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.419999999999959,
           "fp_solidity": 0.3798828125,
@@ -41042,17 +40857,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 34,
+          "n_verts": 25,
           "n_faces": 46,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.721799999999348,
           "raw_z_extent": 9.470000000000027,
-          "boundary": {
-            "n_boundary_edges": 18,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.470000000000027,
           "fp_solidity": 0.5625,
@@ -41061,17 +40871,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 23.76640000000043,
           "raw_z_extent": 6.891300000000001,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.891300000000001,
           "fp_solidity": 0.3076171875,
@@ -41080,17 +40885,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.82589999999618,
           "raw_z_extent": 3.990000000000009,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.990000000000009,
           "fp_solidity": 0.81640625,
@@ -41099,17 +40899,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.079499999999825,
           "raw_z_extent": 4.909999999999968,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.909999999999968,
           "fp_solidity": 0.611328125,
@@ -41174,17 +40969,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.444799999997485,
           "raw_z_extent": 8.786899999999946,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.786899999999946,
           "fp_solidity": 0.392578125,
@@ -41193,17 +40983,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 24.936600000000908,
           "raw_z_extent": 7.9500000000000455,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.9500000000000455,
           "fp_solidity": 0.287109375,
@@ -41212,17 +40997,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.726199999997334,
           "raw_z_extent": 8.070100000000025,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.070100000000025,
           "fp_solidity": 0.6416015625,
@@ -41250,17 +41030,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.272200000006706,
           "raw_z_extent": 8.42999999999995,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.42999999999995,
           "fp_solidity": 0.5625,
@@ -41269,17 +41044,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.61460000090301,
           "raw_z_extent": 3.990000000000009,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.990000000000009,
           "fp_solidity": 0.73046875,
@@ -41307,17 +41077,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.393899999995483,
           "raw_z_extent": 2.9406999999999925,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.9406999999999925,
           "fp_solidity": 0.337890625,
@@ -41326,17 +41091,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 50,
+          "n_verts": 37,
           "n_faces": 70,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 22.602299999445677,
           "raw_z_extent": 6.929899999999975,
-          "boundary": {
-            "n_boundary_edges": 26,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.929899999999975,
           "fp_solidity": 0.580078125,
@@ -41364,17 +41124,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 35,
+          "n_verts": 25,
           "n_faces": 42,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.887099999934435,
           "raw_z_extent": 8.279999999999973,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.279999999999973,
           "fp_solidity": 0.443359375,
@@ -41383,14 +41138,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 53,
+          "n_verts": 39,
           "n_faces": 73,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 21.875099999830127,
           "raw_z_extent": 8.590000000000032,
           "boundary": {
-            "n_boundary_edges": 31,
+            "n_boundary_edges": 3,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -41402,14 +41157,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 37,
+          "n_verts": 27,
           "n_faces": 49,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 15.315499999996973,
           "raw_z_extent": 5.264699999999948,
           "boundary": {
-            "n_boundary_edges": 23,
+            "n_boundary_edges": 3,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -41421,17 +41176,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.608999999240041,
           "raw_z_extent": 4.497200000000021,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.497200000000021,
           "fp_solidity": 0.736328125,
@@ -41454,14 +41204,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 66,
+          "n_verts": 57,
           "n_faces": 84,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 20.399499999999534,
           "raw_z_extent": 10.400899999999979,
           "boundary": {
-            "n_boundary_edges": 36,
+            "n_boundary_edges": 18,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -41473,17 +41223,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.420599999997648,
           "raw_z_extent": 6.970000000000027,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.970000000000027,
           "fp_solidity": 0.634765625,
@@ -41492,17 +41237,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 27.67149999999674,
           "raw_z_extent": 7.6200000000000045,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.6200000000000045,
           "fp_solidity": 0.4111328125,
@@ -41525,14 +41265,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 392,
+          "n_verts": 384,
           "n_faces": 578,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 94.8471000008285,
           "raw_z_extent": 16.222600000000057,
           "boundary": {
-            "n_boundary_edges": 198,
+            "n_boundary_edges": 184,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -41563,17 +41303,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.402499999996508,
           "raw_z_extent": 8.152900000000045,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.152900000000045,
           "fp_solidity": 0.4345703125,
@@ -41582,14 +41317,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 34,
+          "n_verts": 30,
           "n_faces": 40,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 22.065099999308586,
           "raw_z_extent": 6.390099999999961,
           "boundary": {
-            "n_boundary_edges": 20,
+            "n_boundary_edges": 12,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -41601,17 +41336,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.63260000012815,
           "raw_z_extent": 5.289999999999964,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.289999999999964,
           "fp_solidity": 0.435546875,
@@ -41620,17 +41350,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.138199999928474,
           "raw_z_extent": 9.740099999999984,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.740099999999984,
           "fp_solidity": 0.3916015625,
@@ -41639,17 +41364,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.835999999195337,
           "raw_z_extent": 6.740099999999984,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.740099999999984,
           "fp_solidity": 0.64453125,
@@ -41658,17 +41378,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.176899999380112,
           "raw_z_extent": 3.5973999999999933,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.5973999999999933,
           "fp_solidity": 0.416015625,
@@ -41691,17 +41406,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.448899999260902,
           "raw_z_extent": 4.3700000000000045,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.3700000000000045,
           "fp_solidity": 0.3896484375,
@@ -41710,14 +41420,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 230,
+          "n_verts": 174,
           "n_faces": 340,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 94.25070000067353,
           "raw_z_extent": 15.840000000000032,
           "boundary": {
-            "n_boundary_edges": 116,
+            "n_boundary_edges": 6,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -41729,17 +41439,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.976700000464916,
           "raw_z_extent": 5.802999999999997,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.802999999999997,
           "fp_solidity": 0.6826171875,
@@ -41748,17 +41453,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 5.651900000870228,
           "raw_z_extent": 3.4723000000000184,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.4723000000000184,
           "fp_solidity": 0.42578125,
@@ -41767,17 +41467,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.489700000733137,
           "raw_z_extent": 0.08349999999995816,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 0.08349999999995816,
           "fp_solidity": 0.0,
@@ -41786,17 +41481,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.812000000849366,
           "raw_z_extent": 9.17999999999995,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.17999999999995,
           "fp_solidity": 0.439453125,
@@ -41805,17 +41495,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 20.57510000000184,
           "raw_z_extent": 7.6200000000000045,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.6200000000000045,
           "fp_solidity": 0.4814453125,
@@ -41824,17 +41509,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.1459000000031665,
           "raw_z_extent": 2.894999999999982,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.894999999999982,
           "fp_solidity": 0.671875,
@@ -41843,17 +41523,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 43,
+          "n_verts": 31,
           "n_faces": 54,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.814400000002934,
           "raw_z_extent": 8.279999999999973,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.279999999999973,
           "fp_solidity": 0.39453125,
@@ -41890,17 +41565,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.574200000613928,
           "raw_z_extent": 8.950000000000045,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.950000000000045,
           "fp_solidity": 0.328125,
@@ -41909,17 +41579,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 25.968399999997928,
           "raw_z_extent": 9.539999999999964,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.539999999999964,
           "fp_solidity": 0.2490234375,
@@ -41928,17 +41593,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.39949999935925,
           "raw_z_extent": 3.6000999999999976,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.6000999999999976,
           "fp_solidity": 0.83203125,
@@ -41947,17 +41607,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.776599999997416,
           "raw_z_extent": 4.0,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.0,
           "fp_solidity": 0.830078125,
@@ -41966,17 +41621,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 42,
+          "n_verts": 30,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.801000000006752,
           "raw_z_extent": 7.899999999999977,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.899999999999977,
           "fp_solidity": 0.3662109375,
@@ -41985,17 +41635,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 5.237399999998161,
           "raw_z_extent": 3.092800000000011,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.092800000000011,
           "fp_solidity": 0.39453125,
@@ -42018,17 +41663,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.70519999973476,
           "raw_z_extent": 3.7403000000000475,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.7403000000000475,
           "fp_solidity": 0.474609375,
@@ -42056,17 +41696,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.246999999508262,
           "raw_z_extent": 3.830100000000016,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.830100000000016,
           "fp_solidity": 0.75390625,
@@ -42075,17 +41710,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 21,
+          "n_verts": 14,
           "n_faces": 20,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.338400000706315,
           "raw_z_extent": 3.050299999999993,
-          "boundary": {
-            "n_boundary_edges": 14,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.050299999999993,
           "fp_solidity": 0.484375,
@@ -42155,17 +41785,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.864800000563264,
           "raw_z_extent": 3.740000000000009,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.740000000000009,
           "fp_solidity": 0.544921875,
@@ -42174,17 +41799,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.73279999999795,
           "raw_z_extent": 9.120000000000005,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.120000000000005,
           "fp_solidity": 0.4013671875,
@@ -42193,17 +41813,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.75329999999667,
           "raw_z_extent": 9.772000000000048,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.772000000000048,
           "fp_solidity": 0.3857421875,
@@ -42240,17 +41855,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 23.491900000721216,
           "raw_z_extent": 10.070100000000025,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 10.070100000000025,
           "fp_solidity": 0.361328125,
@@ -42259,17 +41869,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 32,
+          "n_verts": 23,
           "n_faces": 38,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.90430000051856,
           "raw_z_extent": 6.4401000000000295,
-          "boundary": {
-            "n_boundary_edges": 18,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.4401000000000295,
           "fp_solidity": 0.4423828125,
@@ -42278,17 +41883,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.524900000003981,
           "raw_z_extent": 5.900099999999952,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.900099999999952,
           "fp_solidity": 0.681640625,
@@ -42311,17 +41911,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 5.367899999999963,
           "raw_z_extent": 5.367899999999963,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.367899999999963,
           "fp_solidity": 0.318359375,
@@ -42387,17 +41982,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.363700000569224,
           "raw_z_extent": 4.0,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.0,
           "fp_solidity": 0.76171875,
@@ -42406,17 +41996,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.92479999922216,
           "raw_z_extent": 5.149999999999977,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.149999999999977,
           "fp_solidity": 0.6279296875,
@@ -42439,17 +42024,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.09429999999702,
           "raw_z_extent": 7.1422000000000025,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.1422000000000025,
           "fp_solidity": 0.337890625,
@@ -42458,17 +42038,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.28749999962747,
           "raw_z_extent": 6.990000000000009,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.990000000000009,
           "fp_solidity": 0.6640625,
@@ -42496,17 +42071,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.561900000000605,
           "raw_z_extent": 1.7341000000000122,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 1.7341000000000122,
           "fp_solidity": 0.375,
@@ -42515,17 +42085,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.507999999448657,
           "raw_z_extent": 9.460000000000036,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.460000000000036,
           "fp_solidity": 0.3310546875,
@@ -42534,17 +42099,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 24,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.046300000001793,
           "raw_z_extent": 7.850000000000023,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.850000000000023,
           "fp_solidity": 0.818359375,
@@ -42572,17 +42132,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 12.510499999996682,
           "raw_z_extent": 5.389999999999986,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.389999999999986,
           "fp_solidity": 0.689453125,
@@ -42591,17 +42146,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.585299999998824,
           "raw_z_extent": 8.931799999999953,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.931799999999953,
           "fp_solidity": 0.4150390625,
@@ -42638,17 +42188,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.563500000163913,
           "raw_z_extent": 4.8799999999999955,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.8799999999999955,
           "fp_solidity": 0.4638671875,
@@ -42671,17 +42216,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 26,
+          "n_verts": 19,
           "n_faces": 34,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.86490000039339,
           "raw_z_extent": 6.419999999999959,
-          "boundary": {
-            "n_boundary_edges": 14,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.419999999999959,
           "fp_solidity": 0.4091796875,
@@ -42718,17 +42258,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 27,
+          "n_verts": 19,
           "n_faces": 30,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.436200000345707,
           "raw_z_extent": 4.139999999999986,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.139999999999986,
           "fp_solidity": 0.42578125,
@@ -42756,17 +42291,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.105400000000373,
           "raw_z_extent": 4.419999999999959,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.419999999999959,
           "fp_solidity": 0.8203125,
@@ -42789,17 +42319,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.732499999925494,
           "raw_z_extent": 6.440000000000055,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.440000000000055,
           "fp_solidity": 0.5478515625,
@@ -42808,17 +42333,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.469499999657273,
           "raw_z_extent": 8.409999999999968,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.409999999999968,
           "fp_solidity": 0.404296875,
@@ -42846,17 +42366,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.481799999251962,
           "raw_z_extent": 2.821900000000028,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.821900000000028,
           "fp_solidity": 0.4599609375,
@@ -42865,17 +42380,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 68,
+          "n_verts": 46,
           "n_faces": 76,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 55.458700000002864,
           "raw_z_extent": 5.840000000000032,
-          "boundary": {
-            "n_boundary_edges": 44,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.840000000000032,
           "fp_solidity": 0.41015625,
@@ -42917,17 +42427,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 54,
+          "n_verts": 40,
           "n_faces": 76,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.950600000098348,
           "raw_z_extent": 10.17999999999995,
-          "boundary": {
-            "n_boundary_edges": 28,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 10.17999999999995,
           "fp_solidity": 0.37890625,
@@ -42950,14 +42455,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 50,
+          "n_verts": 37,
           "n_faces": 62,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 21.05580000000191,
           "raw_z_extent": 8.519999999999982,
           "boundary": {
-            "n_boundary_edges": 30,
+            "n_boundary_edges": 8,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -42988,17 +42493,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 206,
+          "n_verts": 154,
           "n_faces": 304,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 71.02500000037253,
           "raw_z_extent": 8.830000000000041,
-          "boundary": {
-            "n_boundary_edges": 104,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.830000000000041,
           "fp_solidity": 0.130859375,
@@ -43007,17 +42507,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 12.332499999552965,
           "raw_z_extent": 3.4400000000000546,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.4400000000000546,
           "fp_solidity": 0.46875,
@@ -43040,17 +42535,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 5.5825000000040745,
           "raw_z_extent": 2.887200000000007,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.887200000000007,
           "fp_solidity": 0.64453125,
@@ -43059,17 +42549,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.127399999648333,
           "raw_z_extent": 9.960000000000036,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.960000000000036,
           "fp_solidity": 0.419921875,
@@ -43078,17 +42563,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 48,
+          "n_verts": 34,
           "n_faces": 60,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.992499999993015,
           "raw_z_extent": 8.246599999999944,
-          "boundary": {
-            "n_boundary_edges": 28,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.246599999999944,
           "fp_solidity": 0.36328125,
@@ -43125,17 +42605,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 20.304199999198318,
           "raw_z_extent": 10.899999999999977,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 10.899999999999977,
           "fp_solidity": 0.3466796875,
@@ -43182,17 +42657,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 54,
+          "n_verts": 36,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 34.504100000005565,
           "raw_z_extent": 12.519999999999982,
-          "boundary": {
-            "n_boundary_edges": 36,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 12.519999999999982,
           "fp_solidity": 0.3984375,
@@ -43201,17 +42671,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.925799999997253,
           "raw_z_extent": 3.2560999999999467,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.2560999999999467,
           "fp_solidity": 0.64453125,
@@ -43234,17 +42699,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 50,
+          "n_verts": 36,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.493700000006356,
           "raw_z_extent": 8.5,
-          "boundary": {
-            "n_boundary_edges": 28,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.5,
           "fp_solidity": 0.3994140625,
@@ -43253,17 +42713,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.764900000001944,
           "raw_z_extent": 5.5,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.5,
           "fp_solidity": 0.609375,
@@ -43272,17 +42727,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.233899999409914,
           "raw_z_extent": 2.306100000000015,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.306100000000015,
           "fp_solidity": 0.478515625,
@@ -43291,17 +42741,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.52669999934733,
           "raw_z_extent": 5.980000000000018,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.980000000000018,
           "fp_solidity": 0.41015625,
@@ -43324,17 +42769,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.980100000277162,
           "raw_z_extent": 4.0,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.0,
           "fp_solidity": 0.443359375,
@@ -43362,17 +42802,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 28,
+          "n_verts": 20,
           "n_faces": 32,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.090299999996205,
           "raw_z_extent": 5.930100000000039,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.930100000000039,
           "fp_solidity": 0.3984375,
@@ -43395,17 +42830,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.798000000417233,
           "raw_z_extent": 6.039999999999964,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.039999999999964,
           "fp_solidity": 0.5537109375,
@@ -43414,17 +42844,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.690799999982119,
           "raw_z_extent": 6.245300000000043,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.245300000000043,
           "fp_solidity": 0.703125,
@@ -43433,17 +42858,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 63,
+          "n_verts": 42,
           "n_faces": 76,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 55.39090000092983,
           "raw_z_extent": 5.82000000000005,
-          "boundary": {
-            "n_boundary_edges": 42,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.82000000000005,
           "fp_solidity": 0.4013671875,
@@ -43452,17 +42872,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.454800000414252,
           "raw_z_extent": 9.370000000000005,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.370000000000005,
           "fp_solidity": 0.76171875,
@@ -43471,17 +42886,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.969100000336766,
           "raw_z_extent": 3.5,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.5,
           "fp_solidity": 0.740234375,
@@ -43490,17 +42900,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 57.238400000002,
           "raw_z_extent": 7.5,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.5,
           "fp_solidity": 0.14453125,
@@ -43509,17 +42914,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.834600000001956,
           "raw_z_extent": 2.793900000000008,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.793900000000008,
           "fp_solidity": 0.6015625,
@@ -43528,17 +42928,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.028800000000047,
           "raw_z_extent": 3.948099999999954,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.948099999999954,
           "fp_solidity": 0.76171875,
@@ -43561,17 +42956,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.065300000831485,
           "raw_z_extent": 3.9700000000000273,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.9700000000000273,
           "fp_solidity": 0.419921875,
@@ -43580,17 +42970,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.637400000006892,
           "raw_z_extent": 6.169999999999959,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.169999999999959,
           "fp_solidity": 0.5458984375,
@@ -43599,17 +42984,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 20.609700000000885,
           "raw_z_extent": 8.720000000000027,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.720000000000027,
           "fp_solidity": 0.3955078125,
@@ -43637,17 +43017,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.244800000000396,
           "raw_z_extent": 3.6317000000000235,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.6317000000000235,
           "fp_solidity": 0.703125,
@@ -43675,17 +43050,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 18,
+          "n_verts": 13,
           "n_faces": 22,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.919600000604987,
           "raw_z_extent": 8.200000000000045,
-          "boundary": {
-            "n_boundary_edges": 10,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.200000000000045,
           "fp_solidity": 0.65234375,
@@ -43708,17 +43078,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 36,
+          "n_verts": 24,
           "n_faces": 44,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 25.023699999997916,
           "raw_z_extent": 8.493299999999977,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.493299999999977,
           "fp_solidity": 0.3671875,
@@ -43727,17 +43092,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 60,
+          "n_verts": 40,
           "n_faces": 68,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 24.358000000000175,
           "raw_z_extent": 5.17999999999995,
-          "boundary": {
-            "n_boundary_edges": 40,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.17999999999995,
           "fp_solidity": 0.3271484375,
@@ -43779,17 +43139,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 59,
+          "n_verts": 43,
           "n_faces": 78,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.77529999986291,
           "raw_z_extent": 9.139999999999986,
-          "boundary": {
-            "n_boundary_edges": 32,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.139999999999986,
           "fp_solidity": 0.3955078125,
@@ -43845,17 +43200,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.511399999260902,
           "raw_z_extent": 5.089899999999943,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.089899999999943,
           "fp_solidity": 0.52734375,
@@ -43864,17 +43214,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.471799999999348,
           "raw_z_extent": 5.330000000000041,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.330000000000041,
           "fp_solidity": 0.556640625,
@@ -43883,17 +43228,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.625099999830127,
           "raw_z_extent": 8.675100000000043,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.675100000000043,
           "fp_solidity": 0.669921875,
@@ -43902,17 +43242,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.088799999997718,
           "raw_z_extent": 7.779999999999973,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.779999999999973,
           "fp_solidity": 0.3798828125,
@@ -43949,14 +43284,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 9,
           "n_faces": 12,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 9.50010000000475,
           "raw_z_extent": 3.3588999999999487,
           "boundary": {
-            "n_boundary_edges": 8,
+            "n_boundary_edges": 4,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -43968,17 +43303,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.188900000001013,
           "raw_z_extent": 8.889999999999986,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.889999999999986,
           "fp_solidity": 0.41015625,
@@ -43987,17 +43317,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.969699999317527,
           "raw_z_extent": 7.909999999999968,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.909999999999968,
           "fp_solidity": 0.41015625,
@@ -44006,17 +43331,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 23.93129999935627,
           "raw_z_extent": 6.480000000000018,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.480000000000018,
           "fp_solidity": 0.3232421875,
@@ -44058,17 +43378,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.185499999999593,
           "raw_z_extent": 7.07000000000005,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.07000000000005,
           "fp_solidity": 0.626953125,
@@ -44077,17 +43392,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.167300000000978,
           "raw_z_extent": 5.840000000000032,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.840000000000032,
           "fp_solidity": 0.5,
@@ -44096,17 +43406,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.52309999999852,
           "raw_z_extent": 9.490000000000009,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.490000000000009,
           "fp_solidity": 0.36328125,
@@ -44115,17 +43420,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.6731999999974505,
           "raw_z_extent": 3.7653000000000247,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.7653000000000247,
           "fp_solidity": 0.5234375,
@@ -44153,17 +43453,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.013399999588728,
           "raw_z_extent": 7.039899999999989,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.039899999999989,
           "fp_solidity": 0.3955078125,
@@ -44186,17 +43481,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.67399999999907,
           "raw_z_extent": 8.669999999999959,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.669999999999959,
           "fp_solidity": 0.3759765625,
@@ -44205,17 +43495,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.557900000363588,
           "raw_z_extent": 7.2999999999999545,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.2999999999999545,
           "fp_solidity": 0.78515625,
@@ -44243,17 +43528,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.869400000003225,
           "raw_z_extent": 4.390099999999961,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.390099999999961,
           "fp_solidity": 0.439453125,
@@ -44281,17 +43561,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 3.701700000092387,
           "raw_z_extent": 2.3093000000000075,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.3093000000000075,
           "fp_solidity": 0.642578125,
@@ -44300,17 +43575,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.4887000000017,
           "raw_z_extent": 7.970100000000002,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.970100000000002,
           "fp_solidity": 0.6298828125,
@@ -44333,14 +43603,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 40,
+          "n_verts": 33,
           "n_faces": 50,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 17.723400000002584,
           "raw_z_extent": 8.199899999999957,
           "boundary": {
-            "n_boundary_edges": 22,
+            "n_boundary_edges": 8,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -44352,17 +43622,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.010999999940395,
           "raw_z_extent": 2.5172000000000025,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.5172000000000025,
           "fp_solidity": 0.64453125,
@@ -44371,17 +43636,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 22.87430000000313,
           "raw_z_extent": 9.840000000000032,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.840000000000032,
           "fp_solidity": 0.3232421875,
@@ -44390,17 +43650,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 3.577000000004773,
           "raw_z_extent": 2.445600000000013,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.445600000000013,
           "fp_solidity": 0.76171875,
@@ -44423,17 +43678,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.29819999999745,
           "raw_z_extent": 3.519999999999982,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.519999999999982,
           "fp_solidity": 0.5859375,
@@ -44442,17 +43692,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 11.282999999821186,
           "raw_z_extent": 3.8577999999999975,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.8577999999999975,
           "fp_solidity": 0.55078125,
@@ -44475,17 +43720,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.403999999165535,
           "raw_z_extent": 6.590100000000007,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.590100000000007,
           "fp_solidity": 0.353515625,
@@ -44494,17 +43734,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 44,
+          "n_verts": 40,
           "n_faces": 76,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 26.315199999138713,
           "raw_z_extent": 4.5452999999999975,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.5452999999999975,
           "fp_solidity": 0.28515625,
@@ -44513,17 +43748,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.123400000855327,
           "raw_z_extent": 3.7776999999999816,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.7776999999999816,
           "fp_solidity": 0.478515625,
@@ -44532,17 +43762,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.869300000369549,
           "raw_z_extent": 3.7100000000000364,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.7100000000000364,
           "fp_solidity": 0.42578125,
@@ -44584,17 +43809,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 12.335100000724196,
           "raw_z_extent": 4.149999999999977,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.149999999999977,
           "fp_solidity": 0.501953125,
@@ -44603,17 +43823,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.150699999998324,
           "raw_z_extent": 8.120000000000005,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.120000000000005,
           "fp_solidity": 0.41015625,
@@ -44622,17 +43837,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 56,
+          "n_verts": 41,
           "n_faces": 74,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 22.065700000151992,
           "raw_z_extent": 9.210000000000036,
-          "boundary": {
-            "n_boundary_edges": 30,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.210000000000036,
           "fp_solidity": 0.3173828125,
@@ -44641,17 +43851,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.9595999997109175,
           "raw_z_extent": 7.014800000000037,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.014800000000037,
           "fp_solidity": 0.65625,
@@ -44679,17 +43884,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.021999999880791,
           "raw_z_extent": 2.5691000000000486,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.5691000000000486,
           "fp_solidity": 0.73828125,
@@ -44764,17 +43964,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.387000000002445,
           "raw_z_extent": 2.991700000000037,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.991700000000037,
           "fp_solidity": 0.41015625,
@@ -44802,17 +43997,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 22.73880000039935,
           "raw_z_extent": 7.697800000000029,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.697800000000029,
           "fp_solidity": 0.2861328125,
@@ -44821,17 +44011,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.13099999912083,
           "raw_z_extent": 7.2999999999999545,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.2999999999999545,
           "fp_solidity": 0.31640625,
@@ -44840,17 +44025,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.724600000306964,
           "raw_z_extent": 4.509999999999991,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.509999999999991,
           "fp_solidity": 0.484375,
@@ -44873,17 +44053,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.728100000000268,
           "raw_z_extent": 8.379999999999995,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.379999999999995,
           "fp_solidity": 0.421875,
@@ -44892,17 +44067,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 42,
+          "n_verts": 31,
           "n_faces": 58,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.32990000024438,
           "raw_z_extent": 8.061699999999973,
-          "boundary": {
-            "n_boundary_edges": 22,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.061699999999973,
           "fp_solidity": 0.3681640625,
@@ -44930,17 +44100,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.169800000003306,
           "raw_z_extent": 5.230000000000018,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.230000000000018,
           "fp_solidity": 0.6201171875,
@@ -44963,7 +44128,7 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 12,
           "n_faces": 16,
           "watertight": false,
           "winding_consistent": true,
@@ -45001,17 +44166,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.290599999949336,
           "raw_z_extent": 8.92999999999995,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.92999999999995,
           "fp_solidity": 0.46484375,
@@ -45039,17 +44199,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.090600000003178,
           "raw_z_extent": 4.179300000000012,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.179300000000012,
           "fp_solidity": 0.359375,
@@ -45058,17 +44213,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 165,
+          "n_verts": 110,
           "n_faces": 204,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 81.22320000000036,
           "raw_z_extent": 18.450000000000045,
-          "boundary": {
-            "n_boundary_edges": 110,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 18.450000000000045,
           "fp_solidity": 0.490234375,
@@ -45077,17 +44227,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.016100000590086,
           "raw_z_extent": 4.789999999999964,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.789999999999964,
           "fp_solidity": 0.7060546875,
@@ -45096,17 +44241,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.847300000001269,
           "raw_z_extent": 3.431100000000015,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.431100000000015,
           "fp_solidity": 0.76171875,
@@ -45134,17 +44274,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.454899999996996,
           "raw_z_extent": 4.57000000000005,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.57000000000005,
           "fp_solidity": 0.427734375,
@@ -45153,17 +44288,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.035900000482798,
           "raw_z_extent": 9.279999999999973,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.279999999999973,
           "fp_solidity": 0.349609375,
@@ -45172,17 +44302,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.067900000001828,
           "raw_z_extent": 5.6200000000000045,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.6200000000000045,
           "fp_solidity": 0.6513671875,
@@ -45191,17 +44316,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.185400000002119,
           "raw_z_extent": 5.9722000000000435,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.9722000000000435,
           "fp_solidity": 0.7763671875,
@@ -45210,17 +44330,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 12.953800000002957,
           "raw_z_extent": 7.059999999999945,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.059999999999945,
           "fp_solidity": 0.638671875,
@@ -45229,17 +44344,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 54,
+          "n_verts": 40,
           "n_faces": 76,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 14.153600000005099,
           "raw_z_extent": 5.1299999999999955,
-          "boundary": {
-            "n_boundary_edges": 28,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.1299999999999955,
           "fp_solidity": 0.6220703125,
@@ -45281,14 +44391,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 103,
+          "n_verts": 81,
           "n_faces": 122,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 22.221799999999348,
           "raw_z_extent": 11.230000000000018,
           "boundary": {
-            "n_boundary_edges": 60,
+            "n_boundary_edges": 16,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -45300,17 +44410,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 39,
+          "n_verts": 26,
           "n_faces": 44,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 66.06070000000182,
           "raw_z_extent": 7.909999999999968,
-          "boundary": {
-            "n_boundary_edges": 26,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.909999999999968,
           "fp_solidity": 0.626953125,
@@ -45319,17 +44424,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.39780000038445,
           "raw_z_extent": 3.3699000000000296,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.3699000000000296,
           "fp_solidity": 0.7265625,
@@ -45338,17 +44438,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 24,
+          "n_verts": 16,
           "n_faces": 24,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 34.14149999991059,
           "raw_z_extent": 6.1200000000000045,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.1200000000000045,
           "fp_solidity": 0.3388671875,
@@ -45390,17 +44485,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 31,
+          "n_verts": 22,
           "n_faces": 36,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 12.378299999982119,
           "raw_z_extent": 7.639999999999986,
-          "boundary": {
-            "n_boundary_edges": 18,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.639999999999986,
           "fp_solidity": 0.525390625,
@@ -45409,17 +44499,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.074899999424815,
           "raw_z_extent": 5.170100000000048,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.170100000000048,
           "fp_solidity": 0.4150390625,
@@ -45428,17 +44513,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.029200000004494,
           "raw_z_extent": 2.419300000000021,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.419300000000021,
           "fp_solidity": 0.3427734375,
@@ -45447,17 +44527,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 23.464200000002165,
           "raw_z_extent": 7.529899999999998,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.529899999999998,
           "fp_solidity": 0.326171875,
@@ -45532,17 +44607,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 48,
+          "n_verts": 35,
           "n_faces": 62,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.600400000810623,
           "raw_z_extent": 9.379999999999995,
-          "boundary": {
-            "n_boundary_edges": 26,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.379999999999995,
           "fp_solidity": 0.359375,
@@ -45551,16 +44621,16 @@
         },
         {
           "load_ok": true,
-          "n_verts": 64,
+          "n_verts": 46,
           "n_faces": 79,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 23.078900000080466,
           "raw_z_extent": 7.529999999999973,
           "boundary": {
-            "n_boundary_edges": 39,
-            "frac_near_zmin": 0.07692307692307693,
-            "defect_class": "scattered"
+            "n_boundary_edges": 3,
+            "frac_near_zmin": 1.0,
+            "defect_class": "floor_open"
           },
           "sdf_ok": true,
           "height_m": 7.529999999999973,
@@ -45570,17 +44640,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.9202999994158745,
           "raw_z_extent": 4.809999999999945,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.809999999999945,
           "fp_solidity": 0.79296875,
@@ -45608,17 +44673,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.176799999549985,
           "raw_z_extent": 2.8927999999999656,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.8927999999999656,
           "fp_solidity": 0.76171875,
@@ -45627,17 +44687,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 27,
+          "n_verts": 19,
           "n_faces": 30,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.379399999997986,
           "raw_z_extent": 5.420100000000048,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.420100000000048,
           "fp_solidity": 0.5859375,
@@ -45660,17 +44715,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 23.666999999433756,
           "raw_z_extent": 7.940000000000055,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.940000000000055,
           "fp_solidity": 0.349609375,
@@ -45679,17 +44729,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 23.631400000303984,
           "raw_z_extent": 5.389999999999986,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.389999999999986,
           "fp_solidity": 0.38671875,
@@ -45698,17 +44743,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.089200000002165,
           "raw_z_extent": 2.6263000000000147,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.6263000000000147,
           "fp_solidity": 0.5986328125,
@@ -45717,17 +44757,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.132500000006985,
           "raw_z_extent": 5.772000000000048,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.772000000000048,
           "fp_solidity": 0.43359375,
@@ -45736,17 +44771,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.153699999675155,
           "raw_z_extent": 9.789999999999964,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.789999999999964,
           "fp_solidity": 0.4453125,
@@ -45755,17 +44785,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.927300000563264,
           "raw_z_extent": 2.9827999999999975,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.9827999999999975,
           "fp_solidity": 0.458984375,
@@ -45774,17 +44799,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 36,
+          "n_verts": 26,
           "n_faces": 44,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 21.796900000423193,
           "raw_z_extent": 6.169899999999984,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.169899999999984,
           "fp_solidity": 0.3388671875,
@@ -45826,17 +44846,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 54,
+          "n_verts": 40,
           "n_faces": 76,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.185700000001816,
           "raw_z_extent": 9.57000000000005,
-          "boundary": {
-            "n_boundary_edges": 28,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.57000000000005,
           "fp_solidity": 0.544921875,
@@ -45845,17 +44860,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 18.64650000000256,
           "raw_z_extent": 5.659999999999968,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.659999999999968,
           "fp_solidity": 0.52734375,
@@ -45864,17 +44874,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 18,
+          "n_verts": 12,
           "n_faces": 20,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 5.482599999755621,
           "raw_z_extent": 3.014599999999973,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.014599999999973,
           "fp_solidity": 0.4189453125,
@@ -45883,14 +44888,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 40,
+          "n_verts": 33,
           "n_faces": 50,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 18.927600000053644,
           "raw_z_extent": 7.600099999999998,
           "boundary": {
-            "n_boundary_edges": 22,
+            "n_boundary_edges": 8,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -45902,17 +44907,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 11.074699999764562,
           "raw_z_extent": 5.830699999999979,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.830699999999979,
           "fp_solidity": 0.607421875,
@@ -45921,17 +44921,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 9.908299999995506,
           "raw_z_extent": 7.899999999999977,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.899999999999977,
           "fp_solidity": 0.763671875,
@@ -45940,17 +44935,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.072200000286102,
           "raw_z_extent": 8.05989999999997,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.05989999999997,
           "fp_solidity": 0.46875,
@@ -45978,14 +44968,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 34,
+          "n_verts": 26,
           "n_faces": 46,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 18.216599999999744,
           "raw_z_extent": 8.509999999999991,
           "boundary": {
-            "n_boundary_edges": 18,
+            "n_boundary_edges": 4,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -46016,16 +45006,16 @@
         },
         {
           "load_ok": true,
-          "n_verts": 50,
+          "n_verts": 35,
           "n_faces": 61,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 20.572699999436736,
           "raw_z_extent": 8.303300000000036,
           "boundary": {
-            "n_boundary_edges": 33,
-            "frac_near_zmin": 0.09090909090909091,
-            "defect_class": "scattered"
+            "n_boundary_edges": 3,
+            "frac_near_zmin": 1.0,
+            "defect_class": "floor_open"
           },
           "sdf_ok": true,
           "height_m": 8.303300000000036,
@@ -46049,14 +45039,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 67,
+          "n_verts": 61,
           "n_faces": 90,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 22.09539999999106,
           "raw_z_extent": 10.840000000000032,
           "boundary": {
-            "n_boundary_edges": 36,
+            "n_boundary_edges": 24,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -46068,17 +45058,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.9480000007897615,
           "raw_z_extent": 2.9219000000000506,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.9219000000000506,
           "fp_solidity": 0.6796875,
@@ -46087,17 +45072,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.577399999994668,
           "raw_z_extent": 8.748000000000047,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.748000000000047,
           "fp_solidity": 0.3720703125,
@@ -46120,14 +45100,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 57,
+          "n_verts": 42,
           "n_faces": 79,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 21.017699999996694,
           "raw_z_extent": 9.159999999999968,
           "boundary": {
-            "n_boundary_edges": 33,
+            "n_boundary_edges": 3,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -46153,17 +45133,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 20.649399999529123,
           "raw_z_extent": 8.730000000000018,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.730000000000018,
           "fp_solidity": 0.3310546875,
@@ -46186,17 +45161,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.95470000000205,
           "raw_z_extent": 4.860000000000014,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.860000000000014,
           "fp_solidity": 0.3994140625,
@@ -46205,17 +45175,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 22.065499999996973,
           "raw_z_extent": 8.92999999999995,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.92999999999995,
           "fp_solidity": 0.3271484375,
@@ -46224,17 +45189,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.641400000080466,
           "raw_z_extent": 3.5599999999999454,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.5599999999999454,
           "fp_solidity": 0.69921875,
@@ -46243,17 +45203,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 20.54699999999866,
           "raw_z_extent": 7.57000000000005,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.57000000000005,
           "fp_solidity": 0.421875,
@@ -46262,17 +45217,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 36,
+          "n_verts": 24,
           "n_faces": 44,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 23.04050000011921,
           "raw_z_extent": 4.526399999999967,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.526399999999967,
           "fp_solidity": 0.310546875,
@@ -46328,17 +45278,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.550900000002002,
           "raw_z_extent": 6.430100000000039,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.430100000000039,
           "fp_solidity": 0.5712890625,
@@ -46347,17 +45292,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.43779999949038,
           "raw_z_extent": 9.620000000000005,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.620000000000005,
           "fp_solidity": 0.3095703125,
@@ -46366,17 +45306,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 30,
+          "n_verts": 22,
           "n_faces": 40,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 11.502099999997881,
           "raw_z_extent": 6.031600000000026,
-          "boundary": {
-            "n_boundary_edges": 16,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.031600000000026,
           "fp_solidity": 0.615234375,
@@ -46437,17 +45372,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 54,
+          "n_verts": 36,
           "n_faces": 68,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 40.23420000076294,
           "raw_z_extent": 8.759999999999991,
-          "boundary": {
-            "n_boundary_edges": 36,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.759999999999991,
           "fp_solidity": 0.390625,
@@ -46475,17 +45405,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.860200000926852,
           "raw_z_extent": 4.792599999999993,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.792599999999993,
           "fp_solidity": 0.7763671875,
@@ -46494,17 +45419,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.769700000062585,
           "raw_z_extent": 8.830000000000041,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.830000000000041,
           "fp_solidity": 0.611328125,
@@ -46513,17 +45433,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 45,
+          "n_verts": 33,
           "n_faces": 62,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.308100000023842,
           "raw_z_extent": 7.679899999999975,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 7.679899999999975,
           "fp_solidity": 0.4794921875,
@@ -46532,17 +45447,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 13.641699999992852,
           "raw_z_extent": 5.66840000000002,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.66840000000002,
           "fp_solidity": 0.6845703125,
@@ -46551,17 +45461,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 11.50080000050366,
           "raw_z_extent": 4.289999999999964,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.289999999999964,
           "fp_solidity": 0.458984375,
@@ -46570,17 +45475,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 54,
+          "n_verts": 36,
           "n_faces": 68,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 26.43760000000475,
           "raw_z_extent": 9.177900000000022,
-          "boundary": {
-            "n_boundary_edges": 36,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.177900000000022,
           "fp_solidity": 0.49609375,
@@ -46589,17 +45489,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 8.04780000000028,
           "raw_z_extent": 3.9306000000000267,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.9306000000000267,
           "fp_solidity": 0.7783203125,
@@ -46608,17 +45503,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 3.555900000035763,
           "raw_z_extent": 2.671100000000024,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.671100000000024,
           "fp_solidity": 0.587890625,
@@ -46627,17 +45517,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.752099999997881,
           "raw_z_extent": 4.590000000000032,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 4.590000000000032,
           "fp_solidity": 0.421875,
@@ -46665,17 +45550,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 6.955800000578165,
           "raw_z_extent": 5.074399999999969,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.074399999999969,
           "fp_solidity": 0.5703125,
@@ -46698,17 +45578,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 4.800900000002002,
           "raw_z_extent": 2.8577000000000226,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.8577000000000226,
           "fp_solidity": 0.4423828125,
@@ -46736,17 +45611,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.765100000426173,
           "raw_z_extent": 2.866999999999962,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 2.866999999999962,
           "fp_solidity": 0.8515625,
@@ -46774,17 +45644,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 8,
           "n_faces": 12,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.960100000724196,
           "raw_z_extent": 6.526299999999992,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.526299999999992,
           "fp_solidity": 0.369140625,
@@ -46793,17 +45658,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 7.817900000001828,
           "raw_z_extent": 3.3999000000000024,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.3999000000000024,
           "fp_solidity": 0.791015625,
@@ -46812,17 +45672,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.4716000000044,
           "raw_z_extent": 8.399999999999977,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 8.399999999999977,
           "fp_solidity": 0.3876953125,
@@ -46831,17 +45686,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 22,
+          "n_verts": 16,
           "n_faces": 28,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 15.085800000000745,
           "raw_z_extent": 6.009900000000016,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.009900000000016,
           "fp_solidity": 0.6181640625,
@@ -46850,17 +45700,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 38,
+          "n_verts": 28,
           "n_faces": 52,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 19.764299999995274,
           "raw_z_extent": 9.259999999999991,
-          "boundary": {
-            "n_boundary_edges": 20,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.259999999999991,
           "fp_solidity": 0.3583984375,
@@ -46883,17 +45728,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 18,
+          "n_verts": 12,
           "n_faces": 20,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 20.093900000676513,
           "raw_z_extent": 6.807000000000016,
-          "boundary": {
-            "n_boundary_edges": 12,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 6.807000000000016,
           "fp_solidity": 0.3408203125,
@@ -46902,17 +45742,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 46,
+          "n_verts": 34,
           "n_faces": 64,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 17.517799999564886,
           "raw_z_extent": 10.50019999999995,
-          "boundary": {
-            "n_boundary_edges": 24,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 10.50019999999995,
           "fp_solidity": 0.6123046875,
@@ -46921,17 +45756,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14,
+          "n_verts": 10,
           "n_faces": 16,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 16.20339999999851,
           "raw_z_extent": 5.440000000000055,
-          "boundary": {
-            "n_boundary_edges": 8,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 5.440000000000055,
           "fp_solidity": 0.703125,
@@ -46940,14 +45770,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12,
+          "n_verts": 9,
           "n_faces": 12,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 5.163699999997334,
           "raw_z_extent": 3.25,
           "boundary": {
-            "n_boundary_edges": 8,
+            "n_boundary_edges": 4,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -46973,17 +45803,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 26,
+          "n_verts": 19,
           "n_faces": 34,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 10.232799999415874,
           "raw_z_extent": 3.4500000000000455,
-          "boundary": {
-            "n_boundary_edges": 14,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 3.4500000000000455,
           "fp_solidity": 0.466796875,
@@ -46992,14 +45817,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 641,
+          "n_verts": 598,
           "n_faces": 915,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 165.64130000025034,
           "raw_z_extent": 18.242899999999963,
           "boundary": {
-            "n_boundary_edges": 345,
+            "n_boundary_edges": 259,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -47011,17 +45836,12 @@
         },
         {
           "load_ok": true,
-          "n_verts": 94,
+          "n_verts": 70,
           "n_faces": 136,
-          "watertight": false,
+          "watertight": true,
           "winding_consistent": true,
           "max_extent": 31.560499999999593,
           "raw_z_extent": 9.690000000000055,
-          "boundary": {
-            "n_boundary_edges": 48,
-            "frac_near_zmin": 0.0,
-            "defect_class": "scattered"
-          },
           "sdf_ok": true,
           "height_m": 9.690000000000055,
           "fp_solidity": 0.3662109375,
@@ -47072,14 +45892,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 53,
+          "n_verts": 40,
           "n_faces": 74,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 26.631699999794364,
           "raw_z_extent": 8.179899999999975,
           "boundary": {
-            "n_boundary_edges": 28,
+            "n_boundary_edges": 4,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -72213,15 +71033,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 109,
+          "n_verts": 108,
           "n_faces": 172,
           "watertight": false,
           "winding_consistent": true,
           "max_extent": 12.298999999999069,
           "raw_z_extent": 10.759,
           "boundary": {
-            "n_boundary_edges": 57,
-            "frac_near_zmin": 0.2807017543859649,
+            "n_boundary_edges": 53,
+            "frac_near_zmin": 0.22641509433962265,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -108413,15 +107233,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 2818,
+          "n_verts": 2814,
           "n_faces": 9075,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 82.7373000010848,
           "raw_z_extent": 34.1,
           "boundary": {
-            "n_boundary_edges": 336,
-            "frac_near_zmin": 0.05952380952380952,
+            "n_boundary_edges": 320,
+            "frac_near_zmin": 0.0625,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -108527,15 +107347,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 204,
+          "n_verts": 196,
           "n_faces": 378,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 50.7,
           "raw_z_extent": 50.7,
           "boundary": {
-            "n_boundary_edges": 79,
-            "frac_near_zmin": 0.4810126582278481,
+            "n_boundary_edges": 15,
+            "frac_near_zmin": 0.4,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -109268,15 +108088,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 2234,
+          "n_verts": 2230,
           "n_faces": 7601,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 53.365100000053644,
           "raw_z_extent": 35.7,
           "boundary": {
-            "n_boundary_edges": 296,
-            "frac_near_zmin": 0.016891891891891893,
+            "n_boundary_edges": 280,
+            "frac_near_zmin": 0.017857142857142856,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -109572,7 +108392,7 @@
         },
         {
           "load_ok": true,
-          "n_verts": 4643,
+          "n_verts": 4642,
           "n_faces": 8790,
           "watertight": false,
           "winding_consistent": false,
@@ -109610,15 +108430,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 616,
+          "n_verts": 608,
           "n_faces": 1292,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 50.070099998265505,
           "raw_z_extent": 13.1,
           "boundary": {
-            "n_boundary_edges": 164,
-            "frac_near_zmin": 0.012195121951219513,
+            "n_boundary_edges": 145,
+            "frac_near_zmin": 0.013793103448275862,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -109914,15 +108734,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 20061,
+          "n_verts": 20055,
           "n_faces": 44042,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 98.91479999944568,
           "raw_z_extent": 87.89,
           "boundary": {
-            "n_boundary_edges": 10752,
-            "frac_near_zmin": 0.008835565476190476,
+            "n_boundary_edges": 10734,
+            "frac_near_zmin": 0.008850381963853177,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -109933,15 +108753,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 217,
+          "n_verts": 209,
           "n_faces": 487,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 123.4957999996841,
           "raw_z_extent": 11.6,
           "boundary": {
-            "n_boundary_edges": 50,
-            "frac_near_zmin": 0.34,
+            "n_boundary_edges": 25,
+            "frac_near_zmin": 0.4,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -110745,15 +109565,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12775,
+          "n_verts": 12771,
           "n_faces": 37626,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 127.51200000010431,
           "raw_z_extent": 41.68,
           "boundary": {
-            "n_boundary_edges": 4633,
-            "frac_near_zmin": 0.0830995035614073,
+            "n_boundary_edges": 4625,
+            "frac_near_zmin": 0.08151351351351352,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -110935,15 +109755,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 5132,
+          "n_verts": 5126,
           "n_faces": 12842,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 124.6752999983728,
           "raw_z_extent": 55.0,
           "boundary": {
-            "n_boundary_edges": 762,
-            "frac_near_zmin": 0.031496062992125984,
+            "n_boundary_edges": 744,
+            "frac_near_zmin": 0.03225806451612903,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -110992,15 +109812,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 3088,
+          "n_verts": 3086,
           "n_faces": 6890,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 57.78830000013113,
           "raw_z_extent": 51.9,
           "boundary": {
-            "n_boundary_edges": 961,
-            "frac_near_zmin": 0.060353798126951096,
+            "n_boundary_edges": 959,
+            "frac_near_zmin": 0.05943691345151199,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -111030,15 +109850,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 19472,
+          "n_verts": 19464,
           "n_faces": 42077,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 115.29659999907017,
           "raw_z_extent": 102.0,
           "boundary": {
-            "n_boundary_edges": 5906,
-            "frac_near_zmin": 0.17253640365729767,
+            "n_boundary_edges": 5886,
+            "frac_near_zmin": 0.17312266394835202,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -111467,15 +110287,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 12360,
+          "n_verts": 12358,
           "n_faces": 22721,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 187.99998,
           "raw_z_extent": 187.99998,
           "boundary": {
-            "n_boundary_edges": 6150,
-            "frac_near_zmin": 0.09804878048780488,
+            "n_boundary_edges": 6142,
+            "frac_near_zmin": 0.09817648974275481,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -111505,15 +110325,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 2479,
+          "n_verts": 2473,
           "n_faces": 5236,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 125.6414999999106,
           "raw_z_extent": 38.1,
           "boundary": {
-            "n_boundary_edges": 846,
-            "frac_near_zmin": 0.08865248226950355,
+            "n_boundary_edges": 833,
+            "frac_near_zmin": 0.09003601440576231,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -111961,15 +110781,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 6005,
+          "n_verts": 5999,
           "n_faces": 17206,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 553.33002,
           "raw_z_extent": 553.33002,
           "boundary": {
-            "n_boundary_edges": 1315,
-            "frac_near_zmin": 0.19391634980988592,
+            "n_boundary_edges": 1295,
+            "frac_near_zmin": 0.18146718146718147,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -112075,15 +110895,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 13827,
+          "n_verts": 13821,
           "n_faces": 32085,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 91.78,
           "raw_z_extent": 91.78,
           "boundary": {
-            "n_boundary_edges": 1789,
-            "frac_near_zmin": 0.29625489100055896,
+            "n_boundary_edges": 1765,
+            "frac_near_zmin": 0.3002832861189802,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -112716,15 +111536,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 14808,
+          "n_verts": 14800,
           "n_faces": 35740,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 178.1784000005573,
           "raw_z_extent": 39.7,
           "boundary": {
-            "n_boundary_edges": 5154,
-            "frac_near_zmin": 0.0640279394644936,
+            "n_boundary_edges": 5134,
+            "frac_near_zmin": 0.06427736657576938,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -113400,15 +112220,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 1139,
+          "n_verts": 1134,
           "n_faces": 2704,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 65.98660000041127,
           "raw_z_extent": 19.2,
           "boundary": {
-            "n_boundary_edges": 73,
-            "frac_near_zmin": 0.0273972602739726,
+            "n_boundary_edges": 47,
+            "frac_near_zmin": 0.0425531914893617,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -113419,15 +112239,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 5954,
+          "n_verts": 5952,
           "n_faces": 11736,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 57.611200001090765,
           "raw_z_extent": 40.2,
           "boundary": {
-            "n_boundary_edges": 2028,
-            "frac_near_zmin": 0.03698224852071006,
+            "n_boundary_edges": 2023,
+            "frac_near_zmin": 0.03707365299060801,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -113457,14 +112277,14 @@
         },
         {
           "load_ok": true,
-          "n_verts": 74,
+          "n_verts": 70,
           "n_faces": 134,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 50.08289999887347,
           "raw_z_extent": 13.9,
           "boundary": {
-            "n_boundary_edges": 26,
+            "n_boundary_edges": 14,
             "frac_near_zmin": 0.0,
             "defect_class": "scattered"
           },
@@ -115214,16 +114034,16 @@
         },
         {
           "load_ok": true,
-          "n_verts": 7737,
+          "n_verts": 7067,
           "n_faces": 16238,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 194.64999,
           "raw_z_extent": 194.64999,
           "boundary": {
-            "n_boundary_edges": 1827,
-            "frac_near_zmin": 0.009852216748768473,
-            "defect_class": "scattered"
+            "n_boundary_edges": 31,
+            "frac_near_zmin": 0.5806451612903226,
+            "defect_class": "mixed"
           },
           "sdf_ok": true,
           "height_m": 194.64999,
@@ -115537,15 +114357,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 10236,
+          "n_verts": 10232,
           "n_faces": 48315,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 135.82001,
           "raw_z_extent": 135.82001,
           "boundary": {
-            "n_boundary_edges": 775,
-            "frac_near_zmin": 0.14580645161290323,
+            "n_boundary_edges": 769,
+            "frac_near_zmin": 0.1469440832249675,
             "defect_class": "scattered"
           },
           "sdf_ok": true,
@@ -115708,15 +114528,15 @@
         },
         {
           "load_ok": true,
-          "n_verts": 491,
+          "n_verts": 485,
           "n_faces": 781,
           "watertight": false,
           "winding_consistent": false,
           "max_extent": 32.28510000184178,
           "raw_z_extent": 7.75,
           "boundary": {
-            "n_boundary_edges": 269,
-            "frac_near_zmin": 0.36059479553903345,
+            "n_boundary_edges": 252,
+            "frac_near_zmin": 0.38492063492063494,
             "defect_class": "scattered"
           },
           "sdf_ok": true,

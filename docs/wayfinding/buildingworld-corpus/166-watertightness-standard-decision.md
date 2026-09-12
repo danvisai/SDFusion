@@ -12,12 +12,15 @@ as genuinely unresolved.*
 `is_watertight` **or** its non-watertight defect classifies as `floor_open` (boundary edges
 concentrated within 5% of mesh height above z_min — a missing floor cap, the case igl's
 fast-winding-number SDF is specifically robust to, per #158's methodology). `scattered` and
-`mixed` (majority-scattered) meshes are rejected outright — real non-manifold damage, not proven
-FWN-safe.
+`mixed` (a majority — more than 50%, but short of `floor_open`'s ≥90% — of boundary edges near
+z_min; correction, code review: previously mis-described here as "majority-scattered", the
+opposite of #158's own definition) meshes are rejected outright — real non-manifold damage, not
+proven FWN-safe.
 
 **`non_boundary_defect` (is_watertight=False, zero open-boundary edges) is provisionally
 accepted under the same rule**, pending the validation below. This bucket is large enough to matter
-on its own — 54.5% of Melbourne's non-watertight population, 25% of Toronto's — and #158 explicitly
+on its own — 54.5% of ALL sampled Melbourne meshes, 25% of ALL sampled Toronto meshes
+(218/219 and 100/395 of their non-watertight subsets, respectively) — and #158 explicitly
 flagged it as outside the floor_open/scattered framing entirely, so it needed its own check before
 folding it into either side.
 
@@ -56,18 +59,20 @@ localized to it doesn't get lost inside an undifferentiated "real data" pool. If
 rows specifically, revisit this acceptance rather than assuming the 6-mesh check still holds at
 scale.
 
-## Net effect: per-city ingestable fraction
+## Sampled defect-gate pass fraction (arithmetic corrected 2026-09-09)
 
 Combining `watertight + floor_open` (+ `non_boundary_defect` provisionally) against #158's n=400
-profile:
+profile. These are NOT measured ingestion yields: CRS policy, exclusions, extent filters,
+deduplication and sampling caps still apply. In particular, Toronto remains excluded by #165;
+correcting this table does not reverse that decision.
 
-| Tier | Cities | Effective yield |
-|---|---|---|
-| High (>75%) | Tokyo (100%), Mississauga (97%), Berlin (96%), Cape Town (94%), Montreal (89%), Greater Geelong (76%) | |
-| Medium | Boston (81%), Melbourne (~46–100% depending on non_boundary_defect trust), New York (46%), Cambridge (45%), Calgary (33%) | |
-| Low (<20%) | Edmonton (20%), Philadelphia (18%), Perth (15%), Yarra (15%), San Francisco (8%), Adelaide (6%), Toronto (5%), Wellington (4%) | |
+| Tier | Cities and sampled pass fraction |
+|---|---|
+| High (>75%) | Tokyo 100%; Melbourne 99.75%; Cape Town 99%; Berlin 97.50%; Mississauga 97.25%; Montreal 89.50%; Boston 89.25%; Greater Geelong 75.75% |
+| Medium (20–75%) | New York 45.50%; Cambridge 44.50%; Calgary 33%; Toronto 30% (excluded); Adelaide 25.25%; Edmonton 20% |
+| Low (<20%) | Philadelphia 17.75%; Yarra 15.25%; Perth 15%; San Francisco 7.75%; Wellington 4% |
 
-The low-yield tier is **not** primarily a CRS story — Adelaide, Perth, San Francisco, Wellington,
+The poor-yield cities are **not** primarily a CRS story — Adelaide, Perth, San Francisco, Wellington,
 Yarra, and Edmonton have no confirmed CRS defect (per #157) and are still dominated by `scattered`
 damage. #165's decision reprojects the CRS-affected cities that are also high-yield; it does not
 attempt to rescue this low-yield tier, which is a separate, larger data-quality problem outside

@@ -61,8 +61,18 @@ class TestRoofFamily(unittest.TestCase):
     def test_a_lone_ramp_is_complex_not_a_fifth_bucket(self):
         self.assertEqual(roof_family(["Ramp"], set()), "complex")
 
-    def test_a_layer_ramp_mix_that_is_not_a_clean_gable_is_complex(self):
+    def test_a_lone_layer_ramp_mix_is_complex(self):
+        # A single Ramp has no second one to pair into a gable -- the Layer alongside it doesn't
+        # change that; falls through to `complex` same as a lone Ramp on its own.
         self.assertEqual(roof_family(["Layer", "Ramp"], set()), "complex")
+
+    def test_two_ramps_on_any_number_of_layers_is_still_gable(self):
+        # A `Layer` encodes wall massing (a storey, or a setback -- #4), an axis this classifier
+        # does not score; two opposing Ramps is a gable roof on a plain box or a stepped one alike.
+        # (Code review raised this as a possible docstring/code mismatch; investigated and
+        # confirmed the code is correct -- see roof_family's own docstring.)
+        self.assertEqual(roof_family(["Layer", "Ramp", "Ramp"], set()), "gable")
+        self.assertEqual(roof_family(["Layer", "Layer", "Ramp", "Ramp"], set()), "gable")
 
 
 class TestFitAndClassify(unittest.TestCase):

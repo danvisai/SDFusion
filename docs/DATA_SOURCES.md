@@ -29,7 +29,10 @@ ever added to `real.h5` without a matching entry here and in that dict.
 - Every ingester stamps its output `.h5` with `attrs["source"]` and `attrs["ingested_at"]` (an ISO
   timestamp of the ingestion run) — both 3D BAG and PLATEAU are living, periodically-republished
   datasets, so a per-run snapshot stamp is the fetch date, not a fixed dataset version number
-  neither source's own API exposes.
+  neither source's own API exposes. `scripts/foundations/concat_real_massing.py` reads each
+  source's stamp and aggregates them onto `real.h5` itself as `attrs["source_provenance"]` (a JSON
+  object keyed by `source_id`) — the ingesters' own files are intermediates nothing downstream
+  reads directly, so `real.h5` is the file that actually needs to carry this.
 - Any new `source_id` added to `real.h5` must get a matching row here and in
   `scripts/foundations/data_sources.py`'s `DATA_SOURCES` dict, or
   `test_data_sources.py::TestRealH5Coverage` fails the next time it runs.

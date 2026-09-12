@@ -443,7 +443,7 @@ program` run with no way to disable it, so `heightmap_program_assign_tau05` sile
 checkpoint. Caught by reading the saved checkpoint's own `type_prior` key rather than trusting this
 comment. `--no_type_prior` now exists so a run can actually claim this; the TRUE isolated arm is
 `heightmap_program_assign_tau05_only`, and the original (accidentally combined) checkpoint is
-written up on its own terms as #140. Re-run command for the corrected arm:
+written up as the combined assignment/type experiment (not GitHub #140). Re-run command:
 
     $P --objective program --plane_head class --tag heightmap_program_assign_tau05_only --epochs 40 \\
        --no_type_prior --montage 0 --no_form \\
@@ -455,7 +455,7 @@ The result is written up in `docs/wayfinding/solid-first-subtractive-modeling/
 139-assignment-temperature.md`.
 
 
-#140 -- THE ACCIDENTAL COMBINED ARM, WRITTEN UP RATHER THAN DISCARDED
+THE ACCIDENTAL COMBINED ARM, WRITTEN UP RATHER THAN DISCARDED
 ====================================================================================================
 `heightmap_program_assign_tau05` -- assign tau=0.5 AND #138's type_prior together, the checkpoint
 the bug above produced -- is a real 2x2 cell (assign tau x type fix) that #138 and #139 both named
@@ -724,6 +724,14 @@ def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) 
     if len(present) != len(keys):
         raise ValueError(f"#163: checkpoint provenance is incomplete; missing "
                          f"{sorted(set(keys) - set(present))}")
+    if cache is None:
+        # A serving path with no training cache on disk (town_generate_service.py routinely runs
+        # this way) cannot compute cache_corpus_identity, so corpus_identity_sha256 goes unchecked
+        # below -- this is the one operator-visible signal that verification was skipped, matching
+        # the legacy-checkpoint warning above rather than failing silently.
+        warnings.warn("#163: no training cache given; corpus_identity_sha256 cannot be verified "
+                      "for this checkpoint load (region_mapping_sha256 and channel count still "
+                      "are)", RuntimeWarning, stacklevel=2)
     expected = cache_provenance(cache) if cache is not None else {
         "n_regions": N_REGIONS,
         "conditioning_channels": list(CONDITIONING_CHANNELS),

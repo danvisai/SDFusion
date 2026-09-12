@@ -39,6 +39,15 @@ anisotropic pair and not every CRS-flagged city.
 Remaining nine: **Berlin, Boston, Cambridge, Cape Town, Edmonton, Melbourne, Montreal, New York,
 Tokyo.**
 
+*(Disclosure, code review: this inclusion list was built from the pre-#158 n=25 spot check, not
+#158's own later n=400 profile, and #158's n=400 Edmonton figure was itself wrong at the time this
+pilot ran — a `process=False` mesh-loading bug (since fixed) had inflated Edmonton's apparent
+non-watertight rate roughly 4x, to 19.8% watertight. The corrected #158 figure is 78.8% watertight,
+comparable to already-included Boston (75.7%) and Montreal (77.0%) — Edmonton's inclusion here
+holds up under the corrected data, it just wasn't actually checked against it at the time.
+Cambridge's inclusion is separately justified above on CRS grounds, independent of watertightness,
+per its own reasoning.)*
+
 ## Method
 
 `scripts/foundations/pilot_buildingworld_roof_families.py`. Per sampled BuildingWorld mesh (2,000
@@ -118,8 +127,9 @@ close to or above NL's own 0.281 gable+hip fraction, and Berlin/Cambridge/Cape T
 within reach of DE's 0.468. Hip alone is rare everywhere (0.2%–3.9% BuildingWorld, 0.8%–1.4%
 existing corpus) — that is consistent across both populations, not a BuildingWorld-specific gap.
 
-**Three cities — Boston, Melbourne, New York — are dominated by flat massing (72–84% `flat`), not by
-`complex`.** This tracks #158's own extent/solidity findings for exactly these cities: New York's
+**Three cities — Boston, Melbourne, New York — are dominated by flat massing (61–84% `flat`;
+correction, code review: previously misstated here as "72–84%", which excludes Melbourne's own
+61.1% shown in the table above), not by `complex`.** This tracks #158's own extent/solidity findings for exactly these cities: New York's
 median max-extent was already flagged there as far larger than every other city (44.8% of sampled
 meshes exceed the 90-unit multi-building cutoff) and its footprint solidity (0.264) was read as
 "consistent with dense high-rise urban form." A city sample skewed toward large downtown/CBD

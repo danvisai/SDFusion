@@ -113,6 +113,17 @@ note below) — the input to `--ai_suggestions` when regenerating the schema art
     boundaries (`roof_cut`/`roof_volume`, `terrace_or_setback`/`wing`) that the underlying geometry
     does not disambiguate (see the ticket's own comment thread on `NOVELTY_SURVEY.md` risks #2/#4) —
     forcing a single winner there would manufacture false precision the data doesn't support.
+- **Correction, code review:** the batch-adjudication commit (9fc5261) originally stamped all 83
+  `adjudicated_at` values with a placeholder midnight timestamp (`2026-09-11T00:00:00.000Z`) that
+  predated the `annotator_2` label it was adjudicating for 77/83 operations — an impossible
+  ordering, since adjudication cannot precede the disagreement it resolves. Corrected to that
+  commit's own real timestamp (`2026-09-11T03:48:27.000Z`, after every `annotator_2.annotated_at`
+  in the set) — still one shared value, since the 83 disagreements genuinely were adjudicated
+  together in one sitting, just the true time rather than a fabricated-looking placeholder.
+  Separately, 29 of 129 operations had lost their `ai_suggestion` field somewhere between the
+  schema build and the final artifact (present in the raw
+  `execution/artifacts/void_semantic_ai_suggestions.json` for all 129, but null in the merged file)
+  — backfilled from that raw file, restoring the AI-influence audit trail this field exists for.
 - **`courtyard` was removed from `LABELS`** after measurement: 0 of 129 operations had both
   annotators agree on it, and every occurrence was one side of a disagreement — consistent with the
   ticket owner's own call that real through-void courtyards are better represented by retrieved/

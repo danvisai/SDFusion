@@ -109,7 +109,13 @@ def boundary_defect(m) -> dict:
 def profile_one(data: bytes, r: int) -> dict:
     import trimesh
     try:
-        m = trimesh.load(io.BytesIO(data), file_type="obj", process=False)
+        # process=True (trimesh's default): merges coincident-but-differently-indexed vertices
+        # before watertightness/boundary-edge classification below. Skipping it (as most of this
+        # codebase's other BuildingWorld loaders deliberately do, for SDF voxelization where exact
+        # vertex indexing doesn't matter) makes topologically-shared edges look unshared, inflating
+        # the apparent defect rate several-fold (code review: Edmonton measured ~81% broken at
+        # process=False vs. the true ~21%).
+        m = trimesh.load(io.BytesIO(data), file_type="obj")
     except Exception as e:
         return dict(load_ok=False, error=f"load: {e!r}")
     if not hasattr(m, "faces") or len(m.faces) == 0 or len(m.vertices) == 0:

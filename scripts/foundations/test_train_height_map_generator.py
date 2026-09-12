@@ -613,6 +613,15 @@ class TestCheckpointProvenance(unittest.TestCase):
         checkpoint["region_mapping_sha256"] = region_mapping_sha256()
         validate_checkpoint_provenance(checkpoint, cache=None)  # does not raise
 
+    def test_a_cacheless_load_warns_that_corpus_identity_went_unchecked(self):
+        # A production serving path (town_generate_service.py) routinely loads with no training
+        # cache on disk; that must not look like a fully-verified load with nothing said about it.
+        checkpoint = {"n_regions": N_REGIONS, "conditioning_channels": list(CONDITIONING_CHANNELS),
+                      "corpus_identity_sha256": "unverifiable-without-a-cache",
+                      "region_mapping_sha256": region_mapping_sha256()}
+        with self.assertWarnsRegex(RuntimeWarning, "corpus_identity_sha256 cannot be verified"):
+            validate_checkpoint_provenance(checkpoint, cache=None)
+
     def test_partial_provenance_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "incomplete"):
             validate_checkpoint_provenance({"n_regions": N_REGIONS})

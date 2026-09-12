@@ -68,13 +68,23 @@ perimeter_sq_over_area 18.1 (15.9–25.8), vertex_count 6 (4–11).
 
 **`perimeter_sq_over_area` is the one candidate with a real, consistent signal**, on all three
 error metrics and by both correlation measures (|r| 0.17–0.30, every p ≤ 6e-6 at n=714). The scatter
-(`perimeter_sq_over_area.png`) shows why: it's an upper-bound-shaped relationship, not a linear
+(`perimeter_sq_over_area.png`) shows why: it's a shifted-median relationship, not a linear
 one — low-complexity footprints (perimeter²/area near the square's minimum of 16) span the model's
-*entire* error range from near-perfect to poor, but no building with a jagged/complex footprint
-(perimeter²/area > 30) ever reaches `vol_iou` much above 0.9. Complexity looks like it caps
-achievable accuracy without guaranteeing bad accuracy on its own — a pattern a linear correlation
-coefficient understates but a scatter shows directly, which is exactly why the ticket asked for
-both.
+*entire* error range from near-perfect to poor, while jagged/complex footprints
+(perimeter²/area > 30, n=38) skew markedly worse but are not capped by a hard ceiling: 12/38 still
+reach `vol_iou` > 0.9 (4/38 > 0.95, 2/38 exactly 1.0). *(Correction, code review: this was
+originally stated as "no building ... ever reaches `vol_iou` much above 0.9," which the artifact's
+own per-building records contradict.)* Complexity shifts the achievable-accuracy distribution
+downward without guaranteeing bad accuracy on its own — a pattern a linear correlation coefficient
+understates but a scatter shows directly, which is exactly why the ticket asked for both.
+
+*(Confound check, code review: `perimeter_sq_over_area` and raw footprint pixel area are themselves
+correlated (r=−0.57) — smaller footprints in this population tend to look more jagged by this
+formula — and `vol_iou` also correlates with area (r=+0.33). Residualizing both against footprint
+area and correlating the residuals gives a partial r=−0.146 (p=8.9e-5, n=714): still significant,
+but roughly half the raw r=−0.301 — a real signal, but one this population's footprint-size mix
+partly inflates, not the size-independent effect the headline number alone suggests. Region was not
+separately checked as a confound.)*
 
 **`solidity` shows a real but weaker signal** (|r| 0.09–0.22, all significant), same direction as
 expected (less convex → worse `missing`/`vol_iou`) and, being an inverse-flavored measure of the

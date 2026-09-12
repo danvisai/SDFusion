@@ -82,6 +82,21 @@ def spatial_bucket(xy: np.ndarray, cell_m: float) -> tuple[int, int]:
     return int(np.floor(x / cell_m)), int(np.floor(y / cell_m))
 
 
+def polygon_reach(polygon, centroid: np.ndarray) -> float:
+    """Max distance from a polygon's own centroid to any of its hull vertices.
+
+    Two polygons cannot possibly overlap (IoU > 0) if their centroids are farther apart than the
+    SUM of their own reaches: every point in a polygon is within `reach` of its own centroid, so by
+    the triangle inequality two centroids more than `reach_a + reach_b` apart cannot share a point.
+    This is the one sound geometric bound for the bucketing pre-filter's cell size -- unlike a fixed
+    cell size, it holds regardless of `iou_threshold` or how large a candidate building is.
+    """
+    pts = np.asarray(polygon.exterior.coords, dtype=float)
+    if len(pts) == 0:
+        return 0.0
+    return float(np.max(np.linalg.norm(pts - np.asarray(centroid, dtype=float), axis=1)))
+
+
 def bbox_overlaps(box_a, box_b, margin_m: float = 0.0) -> bool:
     """Whether two (xmin, ymin, xmax, ymax) world-frame boxes overlap after expanding both by
     margin_m -- the cheap city-level proof a candidate population can be run against an existing
@@ -99,16 +114,27 @@ def match_candidates(candidates: list, existing: list, cell_m: float = 15.0,
     extraction pipelines will not centre on the exact same point, so the 3x3 neighbourhood (not
     just the candidate's own cell) is required, not an optimisation.
 
+    `cell_m` is only a FLOOR on the bucket size actually used: a 3x3 neighbourhood only guarantees
+    catching every pair whose centroids are within `cell_m` of each other (in each axis), so a
+    fixed `cell_m` smaller than some pair's actual reach (see `polygon_reach`) would silently drop
+    it. The effective cell size is widened to at least twice the largest polygon reach seen in
+    `candidates`/`existing`, which by the triangle inequality guarantees every pair that could
+    possibly overlap shares a bucket or a neighbouring one -- independent of building size or
+    `iou_threshold`, not just true for the historical 15m default.
+
     Items: {id, polygon, height_m, centroid}. O(candidates x buildings-per-3x3-neighbourhood), not
     O(candidates x existing) -- the whole reason for the bucketing pre-filter.
     """
+    reaches = [polygon_reach(it["polygon"], it["centroid"]) for it in (*candidates, *existing)]
+    eff_cell_m = max(cell_m, 2.0 * max(reaches)) if reaches else cell_m
+
     buckets = defaultdict(list)
     for i, e in enumerate(existing):
-        buckets[spatial_bucket(e["centroid"], cell_m)].append(i)
+        buckets[spatial_bucket(e["centroid"], eff_cell_m)].append(i)
 
     matches = []
     for c in candidates:
-        cb = spatial_bucket(c["centroid"], cell_m)
+        cb = spatial_bucket(c["centroid"], eff_cell_m)
         seen = set()
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
@@ -372,7 +398,11 @@ def _run_pair(pair_name: str, existing_rows: list, world: dict, candidates: list
                          "parse likely failed. Refusing to report a 'safe' result off this.")
     unrelocated_bag_ids = sorted(wanted - set(world))
 
-    drift = height_consistency_mismatches(existing_rows, world)
+    # tol_m matches the gate's own height_tol_m: a disagreement the match rule itself would treat
+    # as "the same building" is not evidence of source drift, only a stricter threshold here would
+    # manufacture one (#160 code review: 0.05m excluded 1,296 NRW rows, 82.7% of which drifted
+    # under 2m and would have matched correctly under the gate's own rule).
+    drift = height_consistency_mismatches(existing_rows, world, tol_m=height_tol_m)
     drifted_ids = {d["bag_id"] for d in drift}
     if drifted_ids:
         print(f"[{pair_name}] excluding {len(drifted_ids)}/{len(world)} relocated rows from "

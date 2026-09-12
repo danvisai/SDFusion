@@ -39,6 +39,11 @@ Implemented as `scripts/foundations/source_provenance.py`:
   `validate_checkpoint_provenance` now also checks it on the no-cache load path, since the hash
   needs no training cache to compute — closing a gap in #163 where that path validated channel
   count and region count but not the mapping identity.
+- `SOURCE_KEY_MAX_BYTES = 64` (`SOURCE_KEY_DTYPE = "S64"`) — the storage-width decision this
+  ticket's own motivating example asked for and had not actually made (code review): reuses
+  `bag_id`'s existing S64 HDF5 width (`concat_real_massing.py`) rather than #174 inventing a new
+  one. `parse_source_key`/`make_source_key` raise on anything over that width instead of letting an
+  HDF5 write truncate it silently — the exact hazard `class_label` (S16) demonstrated.
 
 ## Scope: this ticket defines the authority; it does not yet populate it
 

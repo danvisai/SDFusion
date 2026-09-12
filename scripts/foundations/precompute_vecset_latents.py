@@ -538,6 +538,10 @@ def main() -> None:
                          "of --out (an existing vecset_latents.h5) into its own file at "
                          "corpus_ledger.LEDGER_PATH, and exit. One-time (or re-run to re-sync after "
                          "hand-editing the source file); does not touch latent/query_pos/footprint.")
+    ap.add_argument("--force_split_ledger", action="store_true",
+                    help="--split_ledger: overwrite corpus_ledger.LEDGER_PATH even if --out has "
+                         "fewer rows than the ledger already there (default: refuse, since that "
+                         "shape only occurs by pointing --out at a smoke/test file by mistake)")
     args = ap.parse_args()
 
     import h5py
@@ -547,6 +551,14 @@ def main() -> None:
 
     if args.split_ledger:
         ledger = extract_from_vecset_latents(Path(args.out))
+        if LEDGER_PATH.exists() and not args.force_split_ledger:
+            existing = read_ledger()
+            if len(ledger["row"]) < len(existing["row"]):
+                raise SystemExit(
+                    f"[split_ledger] refusing: {args.out} has {len(ledger['row'])} row(s), fewer "
+                    f"than the {len(existing['row'])} already in {LEDGER_PATH} -- this is what "
+                    f"pointing --out at a smoke/test vecset_latents.h5 by mistake looks like. Pass "
+                    f"--force_split_ledger if this shrink is actually intended.")
         write_ledger(**ledger, source=f"split from {args.out}")
         print(f"[split_ledger] {len(ledger['row'])} rows -> {LEDGER_PATH}")
         return

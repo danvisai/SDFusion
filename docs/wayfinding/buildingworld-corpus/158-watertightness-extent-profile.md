@@ -58,7 +58,7 @@ Run: `env -u LD_PRELOAD ./venv/bin/python3 scripts/foundations/profile_buildingw
 | Calgary | 457,474 | 0.0% | 48.0% | 131 | 252 | 16 | 1 | 16.8 | 23.6 | 0.0% | 0.428 |
 | Cambridge | 17,377 | 41.5% | 98.3% | 12 | 215 | 7 | 0 | 10.6 | 26.3 | 0.0% | 0.393 |
 | Cape Town | 274,598 | 94.0% | 100% | 0 | 4 | 0 | 20 | 14.1 | 32.2 | 2.0% | 0.390 |
-| Edmonton | 370,677 | 19.8% | 100% | 1 | 320 | 0 | 0 | 15.2 | 23.1 | 0.7% | 0.466 |
+| Edmonton | 370,677 | 78.8% | 100% | 3 | 82 | 0 | 0 | 15.2 | 23.1 | 0.7% | 0.466 |
 | Greater Geelong | 886 | 0.5% | 95.8% | 301 | 67 | 30 | 0 | 19.9 | 54.0 | 3.3% | 0.375 |
 | Melbourne | 8,934 | 45.3% | 95.3% | 0 | 1 | 0 | 218 | 23.0 | 80.2 | 7.7% | 0.358 |
 | Mississauga | 145,081 | 97.0% | 99.8% | 1 | 11 | 0 | 0 | 26.5 | 33.4 | 3.0% | 0.347 |
@@ -84,10 +84,17 @@ same set. No other city has more than one zip.
 ## Key findings
 
 **The n=25 spot-check was noisy enough to matter.** At n=400 several cities move well outside the
-prior estimate's ballpark: Cambridge 64%→41.5% watertight, Montreal 92%→77%, Edmonton 32%→19.8%.
+prior estimate's ballpark: Cambridge 64%→41.5% watertight, Montreal 92%→77%, Edmonton 32%→78.8%.
 Cities already flagged near-zero stay near-zero (Calgary, Perth, San Francisco, Wellington, Yarra
 all still 0%). This is exactly why the ticket asked for a larger sample before any standard gets
 decided on the smaller one.
+
+*(Correction, code review: Edmonton's mesh loader originally ran with `trimesh.load(...,
+process=False)`, which skips vertex-merging and made topologically-shared edges look unshared —
+inflating Edmonton's apparent defect rate to a reported 19.8% watertight. With `process`'s default
+restored, the true n=400 figure is 78.8%; no other city's numbers in this table changed, since
+Edmonton's raw export happened to have unusually heavy coincident-vertex duplication. See
+`profile_buildingworld_meshes.py::profile_one`.)*
 
 **`is_watertight` alone conflates two very different failure populations, and the mix is
 city-specific.** Greater Geelong fails `is_watertight` 99.5% of the time, but 75% of those failures
@@ -102,7 +109,9 @@ split no matter which way it's set.
 **A third, unexamined failure mode exists and is large in two cities.** `non_boundary_defect`
 (fails `is_watertight`, but has *zero* open-boundary edges — so it's neither a floor cap nor
 scattered surface damage; more likely duplicate/degenerate faces or a non-manifold-but-closed
-topology) is 54.5% of Melbourne's non-watertight meshes and 25% of Toronto's. Neither this ticket's
+topology) is 218/400 (54.5%) of all sampled Melbourne meshes and 100/400 (25%) of all sampled
+Toronto meshes. Within the non-watertight subsets, those are 218/219 (99.5%) and 100/395 (25.3%),
+respectively. Neither this ticket's
 z-heuristic nor the "benign vs. not" framing it was built on says anything about whether FWN handles
 this case safely. **This is a genuine open question for #166**, not a resolved one — the honest
 answer for Melbourne and Toronto specifically is "we don't yet know which bucket most of their
@@ -125,7 +134,9 @@ runs high (77.9 m median, 38.0% >90); correcting for the projection brings the m
 still large — Toronto likely has a genuine surplus of large/merged buildings beyond what the CRS bug
 explains, so its >90 m filter rate won't fully normalize even after reprojection.
 
-**Footprint solidity is unremarkable and fairly uniform** (0.26–0.47 median across cities). New
+**Footprint-grid fill fraction is fairly uniform** (0.26–0.47 median across cities). The artifact's
+`fp_solidity` is occupied grid fraction, NOT footprint area divided by convex-hull area as in the
+domain glossary; those measures must not be substituted for one another. New
 York (0.264) and Tokyo (0.300) sit lowest, consistent with dense high-rise urban form (more bounding
 volume, less solid mass) rather than a data defect.
 

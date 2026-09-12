@@ -222,6 +222,32 @@ class TestRunPairCompletenessFloor(unittest.TestCase):
             _run_pair("test_pair", rows, world, [], cell_m=15.0, iou_threshold=0.3,
                      height_tol_m=2.0, min_relocate_frac=0.98)
 
+    def test_a_match_against_a_frozen_held_out_row_is_annotated(self):
+        # #160's own stated highest-risk case: a BuildingWorld candidate duplicating a row in the
+        # FROZEN held-out set. `existing_held_out` on the match is the only signal that would ever
+        # surface it -- every other test here passes candidates=[], so this path (the `matches`
+        # loop body in `_run_pair`) had never actually executed before this test.
+        held_r, held_b = _existing_row_and_world_entry("held", 0, 0.0, 0.0, 8.0, 12.0)
+        train_r, train_b = _existing_row_and_world_entry("train", 1, 500.0, 500.0, 8.0, 12.0)
+        rows = [held_r, train_r]
+        world = {"held": held_b, "train": train_b}
+        dup_of_held = _building("bw_dup", cx=0.2, cy=0.1, size=8.1, height_m=12.2)
+        result = _run_pair("test_pair", rows, world, [dup_of_held], cell_m=15.0,
+                          iou_threshold=0.3, height_tol_m=2.0, held_out={0: True, 1: False})
+        self.assertEqual(result["n_matches"], 1)
+        match = result["matches"][0]
+        self.assertEqual(match["existing_id"], "held")
+        self.assertEqual(match["existing_row"], 0)
+        self.assertTrue(match["existing_held_out"])
+
+    def test_a_match_against_a_row_missing_from_the_held_out_map_is_none(self):
+        row, b = _existing_row_and_world_entry("row0", 0, 0.0, 0.0, 8.0, 12.0)
+        dup = _building("bw_dup", cx=0.2, cy=0.1, size=8.1, height_m=12.2)
+        result = _run_pair("test_pair", [row], {"row0": b}, [dup], cell_m=15.0,
+                          iou_threshold=0.3, height_tol_m=2.0)
+        self.assertEqual(result["n_matches"], 1)
+        self.assertIsNone(result["matches"][0]["existing_held_out"])
+
     def test_a_height_drifted_row_is_excluded_from_matching_not_a_hard_failure(self):
         drifted_r, drifted_b = _existing_row_and_world_entry("drifted", 0, 0.0, 0.0, 8.0, 10.0)
         drifted_r["height_m"] = 25.0                 # disagrees with the world-derived 10.0
