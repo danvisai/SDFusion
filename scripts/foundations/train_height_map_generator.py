@@ -488,6 +488,9 @@ from scripts.foundations.corpus_ledger import LEDGER_PATH, read_ledger  # noqa: 
 from scripts.foundations.eval_massing_arms import (              # noqa: E402
     COLLAPSE_MISSING, RES, fp_iou, footprint_split, volume_split, vs_input,
 )
+from scripts.foundations.measure_footprint_shape_correlation import (  # noqa: E402
+    footprint_shape_stats,
+)
 from scripts.foundations.measure_scoring_optimum import (        # noqa: E402
     compare_to_envelope, transplant_height,
 )
@@ -656,12 +659,40 @@ PLANE_DECODE = ("median", "q0.25", "argmax")
 PLANE_FLOOR_EPS = 1e-4
 
 N_REGIONS = 3          # source corpora: 0 NL / 1 DE / 2 JP, the `region` column of the latent cache
+# #173: the two footprint-shape statistics #164 measured a real error correlation for (jagged
+# outlines predict worse `extra`/`missing`/`vol_iou`; `aspect_ratio` and `vertex_count` did not and
+# are not offered here). Fixed canonical order -- CLI/checkpoint order never matters, only membership
+# does -- so `conditioning_channel_names` always appends them the same way regardless of how a caller
+# spelled the request.
+SHAPE_CHANNEL_STATS = ("perimeter_sq_over_area", "solidity")
+
+
+def validate_shape_channels(names) -> tuple[str, ...]:
+    """Canonicalise a requested shape-channel subset to `SHAPE_CHANNEL_STATS` order (#173)."""
+    requested = set(names)
+    bad = requested - set(SHAPE_CHANNEL_STATS)
+    if bad:
+        raise ValueError(f"#173: unknown shape channel(s) {sorted(bad)}; "
+                         f"choose from {SHAPE_CHANNEL_STATS}")
+    return tuple(s for s in SHAPE_CHANNEL_STATS if s in requested)
+
+
+def conditioning_channel_names(shape_channels: tuple[str, ...] = ()) -> tuple[str, ...]:
+    """Full ordered channel-name tuple for a shape-channel selection (#173).
+
+    The base footprint/extent/height/edt/region set is #127's original design and never reorders.
+    Shape-stat channels are always appended after it, in `SHAPE_CHANNEL_STATS` order, so the empty
+    selection reproduces the pre-#173 channel set exactly and every historical checkpoint's channel
+    meaning is unaffected. Pinned by `test_the_channel_count_matches_the_model_input` so the model's
+    input width and this tuple cannot drift apart.
+    """
+    shape_channels = validate_shape_channels(shape_channels)
+    return ("footprint", "extent_voxels", "log_height_m", "distance_to_footprint_edge",
+            *(f"region_{r}" for r in range(N_REGIONS)), *shape_channels)
+
+
 # footprint mask, conditioned extent, log height in metres, distance-to-edge, region one-hot.
-# Pinned by `test_the_channel_count_matches_the_model_input` so the two cannot drift apart.
-CONDITIONING_CHANNELS = (
-    "footprint", "extent_voxels", "log_height_m", "distance_to_footprint_edge",
-    *(f"region_{r}" for r in range(N_REGIONS)),
-)
+CONDITIONING_CHANNELS = conditioning_channel_names()
 COND_CHANNELS = len(CONDITIONING_CHANNELS)
 
 
@@ -691,14 +722,24 @@ def cache_corpus_identity(cache: dict) -> str:
     return hashlib.sha256(canonical.tobytes()).hexdigest()
 
 
-def cache_provenance(cache: dict) -> dict:
-    """The checkpoint compatibility contract derived from its training cache (#163)."""
+def cache_provenance(cache: dict, shape_channels: tuple[str, ...] = ()) -> dict:
+    """The checkpoint compatibility contract derived from its training cache (#163, #173).
+
+    Returns exactly #163's original four keys -- `shape_channels` itself is NOT one of them, on
+    purpose: every key here is checked unconditionally against `checkpoint[key]` by
+    `validate_checkpoint_provenance`, so adding a fifth would make a genuine pre-#173 checkpoint
+    (written before this key existed) fail that load with a `KeyError` instead of the legacy
+    warning it is supposed to get. `shape_channels` still travels with a checkpoint -- `train`
+    writes it directly onto the saved dict, the same way it already writes `k_hyp`/`plane_head` --
+    just not through this contract.
+    """
     validate_region_ids(cache["region"])
     if len(cache["region"]) != len(cache["row"]):
         raise ValueError("#163: cache region and row columns have different lengths")
+    shape_channels = validate_shape_channels(shape_channels)
     return dict(
         n_regions=N_REGIONS,
-        conditioning_channels=list(CONDITIONING_CHANNELS),
+        conditioning_channels=list(conditioning_channel_names(shape_channels)),
         corpus_identity_sha256=cache_corpus_identity(cache),
         region_mapping_sha256=region_mapping_sha256(),
     )
@@ -713,6 +754,12 @@ def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) 
     is not None. Historical checkpoints predate #163. They remain loadable with an explicit
     warning; their first-layer tensor still enforces channel count, but their corpus and
     region-mapping provenance are unknowable.
+
+    `shape_channels` (#173) is read from the CHECKPOINT itself, not assumed empty: the runtime
+    supports more than one valid channel selection now, so "expected" is what today's code would
+    produce for the selection this checkpoint claims, not for a single hardcoded default. A
+    checkpoint whose recorded `conditioning_channels` does not match its own claimed
+    `shape_channels` -- a stale save, a renamed statistic -- still fails exactly as before.
     """
     keys = ("n_regions", "conditioning_channels", "corpus_identity_sha256",
             "region_mapping_sha256")
@@ -732,9 +779,10 @@ def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) 
         warnings.warn("#163: no training cache given; corpus_identity_sha256 cannot be verified "
                       "for this checkpoint load (region_mapping_sha256 and channel count still "
                       "are)", RuntimeWarning, stacklevel=2)
-    expected = cache_provenance(cache) if cache is not None else {
+    shape_channels = validate_shape_channels(checkpoint.get("shape_channels", ()))
+    expected = cache_provenance(cache, shape_channels) if cache is not None else {
         "n_regions": N_REGIONS,
-        "conditioning_channels": list(CONDITIONING_CHANNELS),
+        "conditioning_channels": list(conditioning_channel_names(shape_channels)),
         "region_mapping_sha256": region_mapping_sha256(),
     }
     for key, value in expected.items():
@@ -954,7 +1002,8 @@ def envelope_depth(fp: np.ndarray) -> np.ndarray:
 # the conditioning -- footprint, conditioned height, region. Nothing else may enter.
 # ==================================================================================================
 
-def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int) -> np.ndarray:
+def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int,
+                       shape_channels: tuple[str, ...] = ()) -> np.ndarray:
     """[C, Z, X] network input built from #127's conditioning ONLY.
 
     The signature is the leakage guard: there is no argument through which the target height field
@@ -967,7 +1016,16 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
     supplied because #10 found the roof operations are functions of distance-to-edge (a hip erodes
     on all sides, a gable on one), and a small convolutional net would otherwise spend capacity
     rediscovering it.
+
+    `shape_channels` (#173, default empty -- every existing arm's input is byte-for-byte unchanged)
+    adds one more flat plane per requested statistic, computed FRESH from `fp` every call rather than
+    precomputed and cached per row: `_d4` augmentation rotates/flips `fp` before this function ever
+    sees it, and a cached statistic would silently describe the pre-augmentation footprint instead of
+    the one actually shown to the network. `perimeter_sq_over_area` and `solidity` are the two #164
+    found a real error correlation for; both are D4-invariant (area, hull area and a polygon's own
+    perimeter do not depend on the grid's orientation).
     """
+    shape_channels = validate_shape_channels(shape_channels)
     region = int(validate_region_ids(np.asarray([region]))[0])
     m = np.asarray(fp, bool)
     edt = ndimage.distance_transform_edt(m).astype(np.float32) / 8.0
@@ -977,6 +1035,21 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
           np.clip(edt, 0.0, 4.0)]
     for r in range(N_REGIONS):
         ch.append(np.full(m.shape, 1.0 if region == r else 0.0, np.float32))
+    if shape_channels:
+        # A degenerate mask (empty, or too few pixels for a hull) is never observed on real
+        # buildings -- #164 measured 0/714 skips -- so this fallback is defensive, not an exercised
+        # data path. It assumes the simplest/most convex shape rather than an extreme, so a bad read
+        # looks inert rather than alarming.
+        stats = footprint_shape_stats(m) or {}
+        for name in shape_channels:
+            if name == "perimeter_sq_over_area":
+                # 16 is the isoperimetric minimum (a square); #164 measured outliers past 80 on
+                # jagged plans, so shift-and-clip to the same [0, 4] range `edt` above already uses.
+                raw = stats.get("perimeter_sq_over_area", 16.0)
+                value = float(np.clip((raw - 16.0) / 16.0, 0.0, 4.0))
+            else:  # "solidity" -- already bounded in [0, 1], no rescale needed
+                value = float(stats.get("solidity", 1.0))
+            ch.append(np.full(m.shape, value, np.float32))
     return np.stack(ch).astype(np.float32)
 
 
@@ -1150,23 +1223,28 @@ def head_channels(objective: str) -> int:
 
 
 def make_model(objective: str, width: int, k_planes: int, plane_head: str = "regress",
-              k_hyp: int = 1):
+              k_hyp: int = 1, shape_channels: tuple[str, ...] = ()):
     """The one place an objective chooses an architecture.
 
     `k_hyp` (#8) only widens the 'ce' head's final 1x1 conv to `k_hyp` independent copies of the
     same `DEPTH_CLASSES`-channel posterior -- the 4M-parameter U-Net backbone is untouched, so a
     `k_hyp=1` model is bit-for-bit what every prior arm on this file already built.
+
+    `shape_channels` (#173) only widens the trunk's FIRST layer, by the same amount
+    `conditioning_channel_names` widens the input; a `shape_channels=()` model is bit-for-bit what
+    every arm before #173 already built.
     """
     if k_hyp > 1 and objective != "ce":
         raise ValueError(f"k_hyp > 1 needs a distribution per hypothesis; "
                          f"'{objective}' has no per-column posterior to multiply")
+    in_channels = len(conditioning_channel_names(shape_channels))
     if objective == "program":
-        return build_program_model(K_OPS, width, plane_head)
+        return build_program_model(K_OPS, width, plane_head, in_channels)
     if objective == "planes":
-        return build_plane_model(k_planes, width)
+        return build_plane_model(k_planes, width, in_channels)
     if k_hyp > 1:
-        return build_model(head_channels(objective) * k_hyp, width)
-    return build_model(head_channels(objective), width)
+        return build_model(head_channels(objective) * k_hyp, width, in_channels)
+    return build_model(head_channels(objective), width, in_channels)
 
 
 def forward_heights(model, x, ext, objective: str):
@@ -1382,13 +1460,16 @@ def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective:
     return apply_depth(fp, extent, np.rint(out_k[0] * extent))
 
 
-def build_model(out_channels: int, width: int = 64):
+def build_model(out_channels: int, width: int = 64, in_channels: int = COND_CHANNELS):
     """A small U-Net over the 64x64 plan. ~4M parameters against A2's 49M and map-24's 947M.
 
     Depth is chosen so the bottleneck is 8x8 -- one cell there sees an eighth of the plan, which is
     the scale a setback or a ridge line lives at. Nothing here is novel and nothing needs to be:
     #127 is a question about the output space, so the network is the cheapest thing that can answer
     it, and a bigger one would confound the answer.
+
+    `in_channels` (#173) only ever widens the first layer's input side; the default is the pre-#173
+    channel count, so every existing caller that does not pass it builds the identical network.
     """
     import torch
     import torch.nn as nn
@@ -1402,7 +1483,7 @@ def build_model(out_channels: int, width: int = 64):
         def __init__(self):
             super().__init__()
             w = width
-            self.e1, self.e2, self.e3 = block(COND_CHANNELS, w), block(w, 2 * w), block(2 * w, 4 * w)
+            self.e1, self.e2, self.e3 = block(in_channels, w), block(w, 2 * w), block(2 * w, 4 * w)
             self.bot = block(4 * w, 4 * w)
             self.d3, self.d2, self.d1 = block(8 * w, 2 * w), block(4 * w, w), block(2 * w, w)
             self.head = nn.Conv2d(w, out_channels, 1)
@@ -1460,7 +1541,7 @@ def compose_planes(logits, params, extent, hard: bool = True):
     return (w * planes).sum(1)
 
 
-def build_plane_model(k_planes: int, width: int = 64):
+def build_plane_model(k_planes: int, width: int = 64, in_channels: int = COND_CHANNELS):
     """The same U-Net trunk, with two heads: a per-column assignment and K global plane parameters.
 
     The planes are **global per building** and the assignment is **spatial**, which is the split the
@@ -1472,7 +1553,7 @@ def build_plane_model(k_planes: int, width: int = 64):
     import torch
     import torch.nn as nn
 
-    trunk = build_model(width, width)          # reuse the tested U-Net; its head becomes features
+    trunk = build_model(width, width, in_channels)  # reuse the tested U-Net; its head becomes features
 
     class PlaneNet(nn.Module):
         def __init__(self):
@@ -1891,7 +1972,8 @@ def program_loss(out, labels, mask, plane_head: str = "regress", assign_prior=No
             PROGRAM_TERM_WEIGHTS["param"] * l_param)
 
 
-def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"):
+def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress",
+                        in_channels: int = COND_CHANNELS):
     """The same U-Net trunk, with an assignment head and a slot head. ~3.6M parameters.
 
     The split is the vocabulary's own: an operation is **one plane over one region**, so the plane
@@ -1912,7 +1994,7 @@ def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"
     import torch
     import torch.nn as nn
 
-    trunk = build_model(width, width)             # the tested U-Net; its head becomes features
+    trunk = build_model(width, width, in_channels)  # the tested U-Net; its head becomes features
     n_type = len(SLOT_TYPES)
     n_quant = len(PLANE_QUANTITIES)
     n_plane = n_quant * PLANE_BINS if plane_head == "class" else n_quant
@@ -2076,8 +2158,10 @@ class HeightFieldSet:
     """
 
     def __init__(self, cache: dict, idx: np.ndarray, augment: bool, seed: int = 0,
-                 program: dict | None = None, plane_head: str = "regress"):
+                 program: dict | None = None, plane_head: str = "regress",
+                 shape_channels: tuple[str, ...] = ()):
         self.plane_head = plane_head
+        self.shape_channels = validate_shape_channels(shape_channels)
         self.fp = cache["fp"][idx] > 0
         self.target = cache["target"][idx].astype(np.int16)
         self.extent = cache["extent"][idx].astype(np.int32)
@@ -2101,7 +2185,7 @@ class HeightFieldSet:
             if self.augment:
                 fp, target = _d4(fp, target, k, flip)
             xs.append(condition_channels(fp, int(self.extent[i]), float(self.height_m[i]),
-                                         int(self.region[i])))
+                                         int(self.region[i]), self.shape_channels))
             ys.append(carve_depth(target, fp, int(self.extent[i])))
             if self.program is not None:
                 # ⚠️ the SAME symmetry as the footprint above, drawn once: a program augmented
@@ -2164,11 +2248,14 @@ def train(cache: dict, args) -> Path:
     val_idx, tr_idx = pool[perm[:VAL_BUILDINGS]], pool[perm[VAL_BUILDINGS:]]
     prog = (build_program_cache(cache, force=args.rebuild_program_cache)
             if args.objective == "program" else None)
+    shape_channels = validate_shape_channels(args.shape_channels)
     tr = HeightFieldSet(cache, tr_idx, augment=not args.no_aug, seed=args.seed, program=prog,
-                        plane_head=args.plane_head)
-    va = HeightFieldSet(cache, val_idx, augment=False, program=prog, plane_head=args.plane_head)
+                        plane_head=args.plane_head, shape_channels=shape_channels)
+    va = HeightFieldSet(cache, val_idx, augment=False, program=prog, plane_head=args.plane_head,
+                        shape_channels=shape_channels)
     print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}"
           + (f", plane_head={args.plane_head}" if args.objective == "program" else "")
+          + (f", shape_channels={list(shape_channels)}" if shape_channels else "")
           + f", device={dev}", flush=True)
 
     # 🔑 #132's logit adjustment, from the TRAINING split's labels only and computed once. It is a
@@ -2200,7 +2287,7 @@ def train(cache: dict, args) -> Path:
               + f"   (tau={TYPE_TEMPERATURE})", flush=True)
 
     model = make_model(args.objective, args.width, args.k_planes, args.plane_head,
-                       args.k_hyp).to(dev)
+                       args.k_hyp, shape_channels).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
@@ -2264,7 +2351,8 @@ def train(cache: dict, args) -> Path:
                           val_symmetric=ve + vm))
         mark = ""
         snap = dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                    **cache_provenance(cache),
+                    **cache_provenance(cache, shape_channels),
+                    shape_channels=list(shape_channels),
                     quantile=args.quantile, k_planes=args.k_planes, k_hyp=args.k_hyp,
                     plane_head=args.plane_head, slope_weight=args.slope_weight,
                     slope_decode_quantile=SLOPE_DECODE_QUANTILE,
@@ -2367,7 +2455,9 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     # ⚠️ default "regress": #6's committed checkpoints predate the flag and must still load
     head = d.get("plane_head", "regress")
     k_hyp = d.get("k_hyp", 1)
-    model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head, k_hyp).to(dev)
+    shape_channels = validate_shape_channels(d.get("shape_channels", ()))  # #173, default legacy ()
+    model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head, k_hyp,
+                       shape_channels).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     out = np.zeros((len(held["fp"]), RES, RES), np.int16)
@@ -2375,7 +2465,8 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
         for s in range(0, len(out), batch):
             sel = range(s, min(s + batch, len(out)))
             x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
-                                             float(held["height_m"][i]), int(held["region"][i]))
+                                             float(held["height_m"][i]), int(held["region"][i]),
+                                             shape_channels)
                           for i in sel])
             xt = torch.from_numpy(x).to(dev)
             if d["objective"] == "planes":
@@ -2617,7 +2708,9 @@ def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
         raise ValueError(f"{ckpt} is a '{d['objective']}' arm; the program diagnostics need one")
     head = d.get("plane_head", "regress")
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
-    model = make_model("program", d["width"], d.get("k_planes", 6), head).to(dev)
+    shape_channels = validate_shape_channels(d.get("shape_channels", ()))  # #173, default legacy ()
+    model = make_model("program", d["width"], d.get("k_planes", 6), head,
+                       shape_channels=shape_channels).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     A, T, P = [], [], []
@@ -2625,7 +2718,8 @@ def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
         for s in range(0, len(held["fp"]), 64):
             sel = range(s, min(s + 64, len(held["fp"])))
             x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
-                                             float(held["height_m"][i]), int(held["region"][i]))
+                                             float(held["height_m"][i]), int(held["region"][i]),
+                                             shape_channels)
                           for i in sel])
             al, tl, pr = model(torch.from_numpy(x).to(dev))
             A.append(al.cpu().numpy())
@@ -3768,6 +3862,14 @@ def main() -> None:
                     help="with --k_hyp > 1: the gradient share given to each LOSING hypothesis "
                          "(Rupprecht et al. 2017's relaxed WTA), so an early-losing hypothesis "
                          "still learns something instead of dying")
+    ap.add_argument("--shape_channels", nargs="*", default=[], choices=SHAPE_CHANNEL_STATS,
+                    help="#173: footprint-shape flat-plane conditioning channels to add, on top of "
+                         "#127's footprint/extent/height/edt/region set. Default none -- every arm "
+                         "before #173 is bit-for-bit unchanged. #164 found perimeter_sq_over_area a "
+                         "real (if partly area-confounded) error correlate and solidity a weaker, "
+                         "likely-redundant one; aspect_ratio and vertex_count are not offered here "
+                         "because #164 found no signal for either. Ship as its own single-variable "
+                         "arm -- never combine with a --objective, corpus or region change")
     ap.add_argument("--tag", default=None, help="run name; defaults to the objective")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=64)

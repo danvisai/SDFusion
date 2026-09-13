@@ -33,9 +33,9 @@ from scripts.foundations.recover_massing_programs import (  # noqa: E402
 from scripts.foundations.source_provenance import region_mapping_sha256  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
     CONDITIONING_CHANNELS, COND_CHANNELS, DEPTH_CLASSES, N_REGIONS, PLANE_BINS,
-    PROGRAM_TYPES, _d4, _d4_program,
+    PROGRAM_TYPES, SHAPE_CHANNEL_STATS, _d4, _d4_program,
     apply_depth, bins_to_plane, carve_depth, compile_program,
-    condition_channels, decode_logits, decode_plane_logits,
+    condition_channels, conditioning_channel_names, decode_logits, decode_plane_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
     differentiable_depth, height_rgb, normal_rgb,
     per_column_loss, decode_prediction, PLANE_DECODE, PLANE_QUANTITIES, plane_to_bins,
@@ -50,7 +50,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     roof_shape_stats, summarise, verdict, fit_decode, FitBias, smooth_heightmap,
     wta_ce_loss, decode_wta, bank_eligibility,
     cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
-    validate_region_ids,
+    validate_region_ids, validate_shape_channels,
 )
 
 
@@ -223,6 +223,40 @@ class TestMakeModelKHyp(unittest.TestCase):
             make_model("mse", 8, 6, k_hyp=2)
         with self.assertRaises(ValueError):
             make_model("planes", 8, 6, k_hyp=2)
+
+
+class TestMakeModelShapeChannels(unittest.TestCase):
+    """#173: `shape_channels` widens the trunk's first layer only, and only when requested."""
+
+    def test_no_shape_channels_matches_every_prior_arm(self):
+        import torch
+
+        m = make_model("ce", 8, 6)
+        y = m(torch.zeros(2, COND_CHANNELS, RES, RES))
+        self.assertEqual(y.shape, (2, DEPTH_CLASSES, RES, RES))
+
+    def test_shape_channels_widen_the_first_layer_to_match(self):
+        import torch
+
+        m = make_model("ce", 8, 6, shape_channels=SHAPE_CHANNEL_STATS)
+        y = m(torch.zeros(2, COND_CHANNELS + len(SHAPE_CHANNEL_STATS), RES, RES))
+        self.assertEqual(y.shape, (2, DEPTH_CLASSES, RES, RES))
+
+    def test_an_unknown_shape_channel_is_rejected(self):
+        with self.assertRaises(ValueError):
+            make_model("ce", 8, 6, shape_channels=("not_a_real_stat",))
+
+    def test_shape_channels_also_widen_the_planes_and_program_trunks(self):
+        import torch
+
+        planes_model = make_model("planes", 8, 6, shape_channels=SHAPE_CHANNEL_STATS)
+        logits, params = planes_model(torch.zeros(2, COND_CHANNELS + len(SHAPE_CHANNEL_STATS),
+                                                   RES, RES))
+        self.assertEqual(logits.shape[0], 2)
+        program_model = make_model("program", 8, 6, shape_channels=SHAPE_CHANNEL_STATS)
+        assign, *_ = program_model(torch.zeros(2, COND_CHANNELS + len(SHAPE_CHANNEL_STATS),
+                                               RES, RES))
+        self.assertEqual(assign.shape[0], 2)
 
 
 class TestWtaCeLoss(unittest.TestCase):
@@ -557,6 +591,96 @@ class TestConditioningCarriesNoAnswer(unittest.TestCase):
                 condition_channels(fp, 9, 12.0, region)
 
 
+class TestShapeChannels(unittest.TestCase):
+    """#173: opt-in footprint-shape flat-plane channels. Default empty leaves every prior arm's
+    input byte-for-byte unchanged; the two offered stats must be canonically ordered, D4-invariant
+    (computed fresh from the already-augmented mask, never cached), and bounded."""
+
+    def test_canonical_order_is_independent_of_request_order(self):
+        self.assertEqual(validate_shape_channels(("solidity", "perimeter_sq_over_area")),
+                         validate_shape_channels(("perimeter_sq_over_area", "solidity")))
+
+    def test_empty_selection_reproduces_the_pre_173_channel_set(self):
+        self.assertEqual(conditioning_channel_names(()), CONDITIONING_CHANNELS)
+
+    def test_unknown_names_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "unknown shape channel"):
+            validate_shape_channels(("not_a_real_stat",))
+
+    def test_shape_channels_widen_the_input_by_exactly_their_count(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        c = condition_channels(fp, 9, 12.0, 1, shape_channels=SHAPE_CHANNEL_STATS)
+        self.assertEqual(c.shape[0], COND_CHANNELS + len(SHAPE_CHANNEL_STATS))
+
+    def test_request_order_does_not_change_the_appended_channels(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        a = condition_channels(fp, 9, 12.0, 1,
+                               shape_channels=("solidity", "perimeter_sq_over_area"))
+        b = condition_channels(fp, 9, 12.0, 1,
+                               shape_channels=("perimeter_sq_over_area", "solidity"))
+        np.testing.assert_array_equal(a, b)
+
+    def test_an_unknown_shape_channel_is_rejected(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        with self.assertRaisesRegex(ValueError, "unknown shape channel"):
+            condition_channels(fp, 9, 12.0, 1, shape_channels=("not_a_real_stat",))
+
+    def test_shape_channels_are_finite_and_bounded(self):
+        fp = _rect(16, 0, 16, 0, 16)
+        c = condition_channels(fp, 64, 300.0, 2, shape_channels=SHAPE_CHANNEL_STATS)
+        self.assertTrue(np.isfinite(c).all())
+        self.assertLessEqual(float(np.abs(c).max()), 4.0)
+
+    def test_shape_channel_values_are_d4_invariant(self):
+        """The invariance #173 requires: a channel that secretly depended on orientation would fight
+        the corpus's own D4 augmentation. An L-shape is NOT symmetric under D4, so this is a real
+        check, not one every mask would pass trivially.
+
+        `solidity` (hull area / pixel area) is exact to float32 rounding under every one of the 8
+        transforms. `perimeter_sq_over_area` is only approximately so: it goes through
+        `_simplify_corners`'s Douglas-Peucker simplification, which walks the traced contour in a
+        fixed direction, so a REFLECTED contour is walked starting from a different point and can
+        simplify to a very slightly different vertex set than the unflipped/rotated-only case
+        (measured here: up to ~3.5% of the channel's own value, comfortably inside the statistic's
+        own disclosed DP-tolerance sensitivity, docs/wayfinding/buildingworld-corpus/
+        164-footprint-shape-error-correlation.md). The tolerance below is wide enough to pass that
+        known wobble but far too tight for a channel that actually depended on orientation, which
+        would differ by O(0.1-1.0), not O(0.01).
+        """
+        fp = np.zeros((16, 16), bool)
+        fp[2:12, 2:8] = True
+        fp[2:6, 8:12] = True
+        base = condition_channels(fp, 9, 12.0, 1, shape_channels=SHAPE_CHANNEL_STATS)[-2:, 0, 0]
+        for k in range(4):
+            for flip in (False, True):
+                with self.subTest(k=k, flip=flip):
+                    rotated, _ = _d4(fp, fp.astype(np.int16), k, flip)
+                    c = condition_channels(rotated, 9, 12.0, 1,
+                                           shape_channels=SHAPE_CHANNEL_STATS)[-2:, 0, 0]
+                    np.testing.assert_allclose(c, base, atol=0.02)
+
+    def test_a_more_jagged_footprint_reads_a_higher_perimeter_sq_over_area_than_a_square(self):
+        square = _rect(16, 4, 12, 4, 12)                      # 8x8, the isoperimetric minimum
+        crenellated = _rect(16, 4, 12, 4, 12).copy()
+        # carve four notches from the top of the same bounding square, 3 rows deep -- area shrinks,
+        # perimeter grows, and rows 7:12 stay solid across every column so the shape stays connected.
+        for x in range(4, 12, 2):
+            crenellated[4:7, x] = False
+        square_val = condition_channels(square, 9, 12.0, 1,
+                                        shape_channels=("perimeter_sq_over_area",))[-1, 0, 0]
+        jagged_val = condition_channels(crenellated, 9, 12.0, 1,
+                                        shape_channels=("perimeter_sq_over_area",))[-1, 0, 0]
+        self.assertGreater(jagged_val, square_val)
+
+    def test_solidity_of_a_square_is_higher_than_a_re_entrant_staple_shape(self):
+        square = _rect(16, 2, 12, 2, 12)
+        staple = _rect(16, 2, 12, 2, 12).copy()
+        staple[2:8, 4:10] = False    # carve a deep notch from the top -- a U/staple, re-entrant
+        square_val = condition_channels(square, 9, 12.0, 1, shape_channels=("solidity",))[-1, 0, 0]
+        staple_val = condition_channels(staple, 9, 12.0, 1, shape_channels=("solidity",))[-1, 0, 0]
+        self.assertGreater(square_val, staple_val)
+
+
 class TestCheckpointProvenance(unittest.TestCase):
     """#163's compatibility contract: channel meaning and corpus identity travel with weights."""
 
@@ -629,6 +753,43 @@ class TestCheckpointProvenance(unittest.TestCase):
     def test_legacy_checkpoint_load_is_explicitly_unverifiable(self):
         with self.assertWarnsRegex(RuntimeWarning, "cannot be verified"):
             validate_checkpoint_provenance({"state": {}})
+
+    def test_cache_provenance_widens_conditioning_channels_but_does_not_carry_shape_channels(self):
+        # `shape_channels` must NOT be a key `cache_provenance` returns: every key it returns is
+        # checked unconditionally against `checkpoint[key]`, so a 5th key here would make a genuine
+        # pre-#173 checkpoint (saved before `shape_channels` existed) fail with a KeyError instead
+        # of the legacy-checkpoint warning it is supposed to get.
+        metadata = cache_provenance(self._cache(), shape_channels=("solidity",
+                                                                    "perimeter_sq_over_area"))
+        self.assertNotIn("shape_channels", metadata)
+        self.assertEqual(metadata["conditioning_channels"],
+                         list(CONDITIONING_CHANNELS) + ["perimeter_sq_over_area", "solidity"])
+
+    def test_a_legacy_checkpoint_with_no_shape_channels_field_still_loads(self):
+        # The exact regression the finding above describes: a checkpoint saved before #173, with
+        # only #163's original four provenance keys and no `shape_channels` field at all.
+        cache = self._cache()
+        checkpoint = cache_provenance(cache)
+        self.assertNotIn("shape_channels", checkpoint)
+        validate_checkpoint_provenance(checkpoint, cache)  # does not raise
+
+    def test_a_checkpoint_is_validated_against_its_own_claimed_shape_channels_not_a_fixed_default(self):
+        # #173: the runtime now supports more than one valid channel selection, so "expected" must
+        # be derived from what THIS checkpoint claims (its own `shape_channels` field, written by
+        # `train` alongside `cache_provenance`'s output, the same way `k_hyp`/`plane_head` are),
+        # not from the pre-#173 global default.
+        cache = self._cache()
+        shape_channels = ("solidity",)
+        checkpoint = {**cache_provenance(cache, shape_channels), "shape_channels": list(shape_channels)}
+        validate_checkpoint_provenance(checkpoint, cache)  # does not raise
+
+    def test_a_checkpoint_whose_channel_list_disagrees_with_its_own_shape_channels_is_rejected(self):
+        cache = self._cache()
+        checkpoint = {**cache_provenance(cache, shape_channels=("solidity",)),
+                     "shape_channels": ["solidity"],
+                     "conditioning_channels": list(CONDITIONING_CHANNELS)}  # stale: missing solidity
+        with self.assertRaisesRegex(ValueError, "conditioning_channels"):
+            validate_checkpoint_provenance(checkpoint, cache)
 
 
 class TestDecode(unittest.TestCase):
