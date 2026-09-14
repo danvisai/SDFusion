@@ -49,7 +49,7 @@ if str(REPO) not in sys.path:
 
 from utils.frozen_corpus import open_real_corpus  # noqa: E402
 
-SOURCE_NAMES = {0: "NL", 1: "DE", 2: "JP"}
+SOURCE_NAMES = {0: "NL", 1: "DE", 2: "JP", -1: "BW"}
 NL_PREFIX = "NL.IMBAG.Pand."
 
 

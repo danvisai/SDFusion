@@ -15,6 +15,7 @@ ever added to `real.h5` without a matching entry here and in that dict.
 | 0 | NL | [3D BAG](https://docs.3dbag.nl/en/copyright/) | CC BY 4.0 | `© 3DBAG by tudelft3d and 3DGI` | `scripts/ingest_3dbag.py` |
 | 1 | DE | [NRW LoD2 CityGML](https://www.govdata.de/dl-de/zero-2-0) (source data at opengeodata.nrw.de) | `dl-de/zero-2-0` | none required | `scripts/foundations/ingest_citygml_lod2.py --source nrw` |
 | 2 | JP | [PLATEAU](https://www.mlit.go.jp/plateau/) (MLIT) | CC BY 4.0 | `Data source: Project PLATEAU by MLIT (Ministry of Land, Infrastructure, Transport and Tourism, Japan)` | `scripts/foundations/ingest_citygml_lod2.py --source plateau` |
+| -1 | BW | [BuildingWorld (region not yet assigned; see source_key per row)](https://arxiv.org/abs/2511.06337) | see per-city source_key; #171 decides region-conditioning granularity before training conditions on these rows | `BuildingWorld: A Structured 3D Building Dataset for Urban Foundation Models (arXiv:2511.06337)` | `scripts/foundations/ingest_buildingworld.py` |
 
 ## Notes
 
@@ -36,3 +37,10 @@ ever added to `real.h5` without a matching entry here and in that dict.
 - Any new `source_id` added to `real.h5` must get a matching row here and in
   `scripts/foundations/data_sources.py`'s `DATA_SOURCES` dict, or
   `test_data_sources.py::TestRealH5Coverage` fails the next time it runs.
+- **`source_id=-1` (BW) is not a region** — it is [#174](https://github.com/danvisai/SDFusion/issues/174)'s
+  explicit, disclosed sentinel for "BuildingWorld row, region-conditioning granularity not yet
+  decided" ([#171](https://github.com/danvisai/SDFusion/issues/171)). Every BuildingWorld row's
+  real per-row provenance is `source_key` (`'bw:<CitySlug>'`, [#167](https://github.com/danvisai/SDFusion/issues/167)'s
+  authority field), not this legacy column. This row exists only so the sentinel itself has a
+  manifest entry, not because `-1` identifies an actual region — see
+  `docs/wayfinding/buildingworld-corpus/174-ingest-buildingworld.md`.

@@ -51,6 +51,22 @@ _LICENSES: Dict[int, dict] = {
         url="https://www.mlit.go.jp/plateau/",
         ingester="scripts/foundations/ingest_citygml_lod2.py --source plateau",
     ),
+    # #174: BuildingWorld rows. -1 is a deliberate, disclosed "region not yet assigned" sentinel
+    # (#167: region_id_of raises rather than guesses for an unregistered pipeline; #171 has not
+    # yet decided BuildingWorld's region-conditioning granularity). Per-row provenance is carried
+    # by `source_key` ('bw:<CitySlug>'), the actual #167 authority field -- this entry exists only
+    # so `test_data_sources.py::TestRealH5Coverage` has a manifest row for the sentinel itself, not
+    # because -1 identifies a real region. See
+    # docs/wayfinding/buildingworld-corpus/174-ingest-buildingworld.md.
+    -1: dict(
+        name="BuildingWorld (region not yet assigned; see source_key per row)",
+        license="see per-city source_key; #171 decides region-conditioning granularity before "
+                "training conditions on these rows",
+        credit="BuildingWorld: A Structured 3D Building Dataset for Urban Foundation Models "
+              "(arXiv:2511.06337)",
+        url="https://arxiv.org/abs/2511.06337",
+        ingester="scripts/foundations/ingest_buildingworld.py",
+    ),
 }
 DATA_SOURCES: Dict[int, dict] = {
     sid: dict(region=SOURCE_NAMES[sid], **fields) for sid, fields in _LICENSES.items()
