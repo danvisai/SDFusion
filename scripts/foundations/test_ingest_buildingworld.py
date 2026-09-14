@@ -417,6 +417,106 @@ class TestStageCityEndToEnd(unittest.TestCase):
                 self.assertEqual(f["bag_id"].shape[0], 1)
                 self.assertEqual(f["bag_id"][0], b"Testville#mesh/good_1.obj")
 
+    def test_stage_city_pool_batches_tasks_rather_than_submitting_all_at_once(self):
+        """#174 postmortem: submitting a whole city's tasks to one `imap_unordered` call let a
+        multiprocessing.Pool's result cache grow past a 250 GB memory cgroup while the consumer
+        (h5py writes under filesystem contention) fell behind the 28 workers -- the kernel OOM-
+        killed the run partway through Berlin. `pool_batch_size` bounds how many tasks are ever
+        in flight at once; this pins that every row still lands correctly across multiple batches
+        (9 buildings, batch size 2 -> 5 batches), not just within a single batch."""
+        with tempfile.TemporaryDirectory() as d:
+            city_dir = Path(d) / "mesh_root" / "Testville" / "mesh"
+            city_dir.mkdir(parents=True)
+            zpath = city_dir / "mesh.zip"
+            with zipfile.ZipFile(zpath, "w") as zf:
+                for i in range(9):
+                    zf.writestr(f"mesh/good_{i}.obj", _box_obj_bytes(size=(6, 6, 8 + i)))
+
+            import scripts.foundations.ingest_buildingworld as ibw
+            import scripts.foundations.profile_buildingworld_meshes as pbm
+            ibw.CITY_SLUG["Testville"] = "Testville"
+            ibw.CITY_Z_REFERENCE["Testville"] = ("undocumented", None)
+            old_root = pbm.MESH_ROOT
+            pbm.MESH_ROOT = Path(d) / "mesh_root"
+            try:
+                summary = ibw.stage_city("Testville", r=16, limit=0, min_h=2.5, max_ext=90.0,
+                                        min_fp=1, dedup_excluded={}, z_sanity_sample=10,
+                                        out_dir=Path(d) / "staging_batched", workers=3,
+                                        pool_batch_size=2)
+            finally:
+                pbm.MESH_ROOT = old_root
+
+            self.assertEqual(summary["counters"].get("kept"), 9)
+            self.assertEqual(summary["n_seen"], 9)
+            with h5py.File(summary["out_path"], "r") as f:
+                self.assertEqual(f["bag_id"].shape[0], 9)
+                self.assertEqual(sorted(b.decode() for b in f["bag_id"][:]),
+                                 sorted(f"Testville#mesh/good_{i}.obj" for i in range(9)))
+
+    def test_stage_city_with_a_worker_pool_matches_the_sequential_result(self):
+        """workers>1 dispatches per-mesh processing through a fork pool; the kept/skip outcome
+        and every stored field must be identical to the sequential (workers=1) path -- only the
+        wall-clock strategy differs."""
+        with tempfile.TemporaryDirectory() as d:
+            city_dir = Path(d) / "mesh_root" / "Testville" / "mesh"
+            city_dir.mkdir(parents=True)
+            zpath = city_dir / "mesh.zip"
+            with zipfile.ZipFile(zpath, "w") as zf:
+                for i in range(6):
+                    zf.writestr(f"mesh/good_{i}.obj", _box_obj_bytes(size=(6, 6, 8 + i)))
+                zf.writestr("mesh/too_flat.obj", _box_obj_bytes(size=(6, 6, 0.5)))
+
+            import scripts.foundations.ingest_buildingworld as ibw
+            import scripts.foundations.profile_buildingworld_meshes as pbm
+            ibw.CITY_SLUG["Testville"] = "Testville"
+            ibw.CITY_Z_REFERENCE["Testville"] = ("undocumented", None)
+            old_root = pbm.MESH_ROOT
+            pbm.MESH_ROOT = Path(d) / "mesh_root"
+            try:
+                summary = ibw.stage_city("Testville", r=16, limit=0, min_h=2.5, max_ext=90.0,
+                                        min_fp=1, dedup_excluded={}, z_sanity_sample=10,
+                                        out_dir=Path(d) / "staging_parallel", workers=3)
+            finally:
+                pbm.MESH_ROOT = old_root
+
+            self.assertEqual(summary["counters"].get("kept"), 6)
+            self.assertEqual(summary["counters"].get("extent"), 1)
+            with h5py.File(summary["out_path"], "r") as f:
+                self.assertEqual(f["bag_id"].shape[0], 6)
+                self.assertEqual(sorted(b.decode() for b in f["bag_id"][:]),
+                                 sorted(f"Testville#mesh/good_{i}.obj" for i in range(6)))
+
+    def test_stage_city_resume_works_across_a_worker_pool_run(self):
+        with tempfile.TemporaryDirectory() as d:
+            city_dir = Path(d) / "mesh_root" / "Testville" / "mesh"
+            city_dir.mkdir(parents=True)
+            zpath = city_dir / "mesh.zip"
+            with zipfile.ZipFile(zpath, "w") as zf:
+                for i in range(4):
+                    zf.writestr(f"mesh/good_{i}.obj", _box_obj_bytes(size=(6, 6, 8 + i)))
+
+            import scripts.foundations.ingest_buildingworld as ibw
+            import scripts.foundations.profile_buildingworld_meshes as pbm
+            ibw.CITY_SLUG["Testville"] = "Testville"
+            ibw.CITY_Z_REFERENCE["Testville"] = ("undocumented", None)
+            old_root = pbm.MESH_ROOT
+            pbm.MESH_ROOT = Path(d) / "mesh_root"
+            out_dir = Path(d) / "staging_resume"
+            try:
+                ibw.stage_city("Testville", r=16, limit=0, min_h=2.5, max_ext=90.0, min_fp=1,
+                              dedup_excluded={}, z_sanity_sample=10, out_dir=out_dir, workers=2)
+                # A second run over the SAME zip must see every row already committed and add
+                # nothing new -- the resume check runs before tasks are even dispatched.
+                summary2 = ibw.stage_city("Testville", r=16, limit=0, min_h=2.5, max_ext=90.0,
+                                         min_fp=1, dedup_excluded={}, z_sanity_sample=10,
+                                         out_dir=out_dir, workers=2)
+            finally:
+                pbm.MESH_ROOT = old_root
+
+            self.assertEqual(summary2["n_seen"], 0)
+            with h5py.File(summary2["out_path"], "r") as f:
+                self.assertEqual(f["bag_id"].shape[0], 4)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

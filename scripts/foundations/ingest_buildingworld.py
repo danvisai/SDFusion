@@ -172,6 +172,13 @@ DEDUP_PAIR_FOR_CITY = {"Tokyo": "tokyo_vs_plateau", "Berlin": "berlin_vs_nrw"}
 
 STAGING_COLUMNS = ("sdf", "footprint", "height_m", "style_id", "source_id", "class_label",
                    "bag_id", "source_key", "defect_class")
+# A `multiprocessing.Pool`'s result cache buffers EVERY completed result in the main process's
+# memory regardless of how fast the consumer drains it -- submitting a whole city's tasks (Berlin:
+# 523,213) to one `imap_unordered` call let that cache grow past this job's 250 GB cgroup while a
+# slow h5py flush (Lustre contention) fell behind the 28 workers, and the kernel OOM-killed the
+# main process (postmortem: `dmesg` showed anon-rss 238.9 GB on the pid). Capping how many tasks
+# are in flight at once bounds the cache to ~POOL_BATCH_SIZE results regardless of consumer speed.
+POOL_BATCH_SIZE = 2000
 STAGING_DTYPES = {"height_m": np.float32, "style_id": np.int32, "source_id": np.int32,
                   "class_label": "S16", "bag_id": "S64", "source_key": "S64",
                   "defect_class": "S32"}
@@ -427,13 +434,51 @@ class IncrementalCityWriter:
 
 # ---- per-city staging driver --------------------------------------------------------------
 
+# Per-worker-process zip handle cache (fork pool only): a zipfile.ZipFile's read position is not
+# safe to share across processes via an inherited fd, so each worker reopens its own handle --
+# the same pattern pilot_buildingworld_roof_families.py already uses for this exact reason.
+_ZF_CACHE: dict = {}
+
+
+def _zf_for(zpath: str):
+    zf = _ZF_CACHE.get(zpath)
+    if zf is None:
+        zf = zipfile.ZipFile(zpath)
+        _ZF_CACHE[zpath] = zf
+    return zf
+
+
+def _member_task(task: tuple) -> dict:
+    """Picklable, module-level worker body for the parallel path: (city, zpath, member_name, r,
+    min_h, max_ext, min_fp, excluded) -> process_member's result, annotated with member_name."""
+    city, zpath, member_name, r, min_h, max_ext, min_fp, excluded = task
+    data = _zf_for(zpath).read(member_name)
+    rec = process_member(city, member_name, data, r, excluded, min_h, max_ext, min_fp)
+    rec["member_name"] = member_name
+    return rec
+
+
 def stage_city(city: str, r: int, limit: int, min_h: float, max_ext: float, min_fp: int,
-              dedup_excluded: dict, z_sanity_sample: int, out_dir: Path = STAGING_DIR) -> dict:
+              dedup_excluded: dict, z_sanity_sample: int, out_dir: Path = STAGING_DIR,
+              workers: int = 1, pool_batch_size: int = POOL_BATCH_SIZE) -> dict:
+    """`workers=1` (default): sequential, single zip handle -- what every test exercises.
+    `workers>1`: a fork pool computes `process_member` in parallel (CPU-bound: mesh load, defect
+    classification, `building_to_sdf`); the `IncrementalCityWriter` itself stays single-process,
+    fed sequentially from the pool's results in the main process, since h5py writes are not
+    safe to parallelize. Tasks are submitted in `pool_batch_size` chunks, each fully drained
+    before the next is submitted, so a consumer that falls behind (slow disk, not slow CPU)
+    bounds memory instead of growing without limit -- see POOL_BATCH_SIZE's own comment for the
+    incident that made this necessary."""
     zpath, other_zip_counts = canonical_zip(city)
     zpath = Path(zpath)
     slug = city_slug(city)
     out_path = out_dir / f"{slug}.h5"
     excluded = dedup_excluded.get(city, set())
+
+    with zipfile.ZipFile(zpath) as zf:
+        names = sorted(n for n in zf.namelist() if n.lower().endswith(".obj"))
+    if limit:
+        names = names[:limit]
 
     counters: dict = {}
     z_sample: list = []
@@ -442,17 +487,12 @@ def stage_city(city: str, r: int, limit: int, min_h: float, max_ext: float, min_
     t0 = time.time()
     z_checked = False
 
-    with zipfile.ZipFile(zpath) as zf, IncrementalCityWriter(out_path, r) as writer:
-        names = sorted(n for n in zf.namelist() if n.lower().endswith(".obj"))
-        if limit:
-            names = names[:limit]
-        for member_name in names:
-            bag_id = bag_id_for(city, member_name)
-            if writer.already_done(bag_id):
-                continue
+    with IncrementalCityWriter(out_path, r) as writer:
+        pending = [n for n in names if not writer.already_done(bag_id_for(city, n))]
+
+        def handle(rec: dict) -> None:
+            nonlocal n_extent_gt_90, n_seen, z_checked
             n_seen += 1
-            rec = process_member(city, member_name, zf.read(member_name), r, excluded,
-                                min_h, max_ext, min_fp)
             if rec.get("extent_gt_90"):
                 n_extent_gt_90 += 1
             if rec["status"] == "kept":
@@ -466,8 +506,24 @@ def stage_city(city: str, r: int, limit: int, min_h: float, max_ext: float, min_
                 z_reference_check(city, z_sample)
                 z_checked = True
             if n_seen % 2000 == 0:
-                print(f"  [{city}] seen={n_seen}/{len(names)} kept={counters.get('kept', 0)} "
+                print(f"  [{city}] seen={n_seen}/{len(pending)} kept={counters.get('kept', 0)} "
                      f"({time.time() - t0:.0f}s)", flush=True)
+
+        if workers > 1 and pending:
+            import multiprocessing as mp
+
+            with mp.get_context("fork").Pool(workers) as pool:
+                for i in range(0, len(pending), pool_batch_size):
+                    batch = pending[i:i + pool_batch_size]
+                    tasks = [(city, str(zpath), n, r, min_h, max_ext, min_fp, excluded)
+                            for n in batch]
+                    for rec in pool.imap_unordered(_member_task, tasks, chunksize=8):
+                        handle(rec)
+        else:
+            with zipfile.ZipFile(zpath) as zf:
+                for member_name in pending:
+                    handle(process_member(city, member_name, zf.read(member_name), r, excluded,
+                                         min_h, max_ext, min_fp))
         writer.flush()
 
     if not z_checked and z_sample:
@@ -569,6 +625,10 @@ def main() -> None:
     ap.add_argument("--max_ext", type=float, default=DEFAULT_MAX_EXT)
     ap.add_argument("--min_fp", type=int, default=DEFAULT_MIN_FP)
     ap.add_argument("--z_sanity_sample", type=int, default=200)
+    ap.add_argument("--workers", type=int, default=1,
+                    help="parallel workers for per-mesh processing within a city (fork pool); "
+                         "1 = sequential (default, what every test exercises). 0 = auto "
+                         "(cpu_count() - 2, min 1)")
     ap.add_argument("--dedup_artifact", default=str(DEDUP_ARTIFACT))
     ap.add_argument("--staging_dir", default=str(STAGING_DIR))
     ap.add_argument("--real", default=str(REAL_H5), help="corpus to combine ONTO (read-only)")
@@ -584,6 +644,11 @@ def main() -> None:
     unknown = set(cities) - set(INGESTABLE_CITIES)
     if unknown:
         raise SystemExit(f"#174: not ingestable (excluded by #165, or misspelled): {sorted(unknown)}")
+
+    workers = args.workers
+    if workers == 0:
+        import multiprocessing as mp
+        workers = max(mp.cpu_count() - 2, 1)
 
     staging_dir = Path(args.staging_dir)
     real_path = Path(args.real)
@@ -604,7 +669,8 @@ def main() -> None:
         for city in cities:
             print(f"[stage] {city}", flush=True)
             s = stage_city(city, args.res, args.limit, args.min_h, args.max_ext,
-                          args.min_fp, dedup_excluded, args.z_sanity_sample, staging_dir)
+                          args.min_fp, dedup_excluded, args.z_sanity_sample, staging_dir,
+                          workers=workers)
             print(f"[stage:done] {s['city']}: kept={s['counters'].get('kept', 0)}/"
                  f"{s['n_seen']} seen, extent_gt_90={s['n_extent_gt_90']} "
                  f"reasons={s['counters']} ({s['elapsed_s']}s)", flush=True)

@@ -186,6 +186,71 @@ Both are disclosed here as deferred follow-up, not silently dropped.
   a deliberate, monitored operation, not something to launch unattended as part of writing the
   script.
 
+## The production run (2026-09-13/14)
+
+Run for real across all 18 non-Toronto cities, no cap, `--workers 28` (a fork-pool parallelization
+added after the initial smoke-testing above showed the single-threaded rate would take roughly a day;
+`stage_city`'s `workers`/`pool_batch_size` parameters and `IncrementalCityWriter`'s resumability exist
+because of this run, not speculatively).
+
+**Mid-run incident, real and disclosed rather than smoothed over**: about 2 hours in (partway through
+Berlin, the largest city), the kernel OOM-killed the main process --
+`dmesg`: `Memory cgroup out of memory: Killed process ... anon-rss:238894500kB` against this job's
+250 GB cgroup. Root cause: `multiprocessing.Pool.imap_unordered` buffers every completed result in
+the main process regardless of consumer speed; submitting a whole city's tasks (Berlin: 523,213) to
+one call let that buffer grow unbounded when disk writes temporarily fell behind the 28 workers under
+Lustre contention from another job sharing the node. Fixed by submitting tasks in bounded batches
+(`POOL_BATCH_SIZE = 2000`, each batch fully drained before the next is submitted), which caps
+outstanding buffered results regardless of consumer speed -- tested
+(`test_stage_city_pool_batches_tasks_rather_than_submitting_all_at_once`) before relaunching. Thanks
+to `IncrementalCityWriter`'s per-city resumability, only ~31,600 unflushed Berlin rows were lost to
+the crash, not the ~2 hours of prior work. Both run logs are kept under
+`data/real_massing_v1/buildingworld_staging/`: `_ingest_run_1_oom_crash.log` (the crashed attempt,
+kept as the postmortem record) and `_ingest_run.log` (the full run that completed).
+
+**Result**: `real.h5` grew from 35,776 to **1,562,554 rows** (1,526,778 new BuildingWorld rows,
+~1.56 TB). Verified directly via h5py after completion: row 0 (historical) still carries its original
+`bag_id`/`height_m` with `source_key`/`defect_class` empty as designed; spot-checked rows across the
+new range (Adelaide, Berlin, Boston, Cape Town, Montreal, and the very last row -- a Yarra `richmond/`
+mesh that landed as `floor_open`, confirming the winding-fix worked rather than producing a
+`scattered` inside-out mesh) all carry correct `source_key`/`source_id=-1`/`defect_class`. The
+script's own internal `assert_frozen_corpus` re-verification on the rebuilt file (run before the
+atomic replace) passed -- `real.h5`'s fresh mtime is the evidence, since a failure there would have
+left the original file untouched.
+
+Per-city kept/seen (`[stage:done]` lines, `_ingest_run.log`; Adelaide's total below includes the
+1,104 kept before the crash, which the resumed run's own summary line doesn't repeat since those rows
+were already committed):
+
+| City | Kept | Seen | Yield |
+|---|---:|---:|---:|
+| Adelaide | 1,104 | 4,580 | 24% |
+| Berlin | 456,569 | 523,213 | 87% |
+| Boston | 114,494 | 167,418 | 68% |
+| Calgary | 165,688 | 457,474 | 36% |
+| Cambridge | 182 | 17,377 | 1% |
+| Cape Town | 243,932 | 274,598 | 89% |
+| Edmonton | 281,211 | 370,677 | 76% |
+| Greater Geelong | 604 | 886 | 68% |
+| Melbourne | 7,742 | 8,934 | 87% |
+| Mississauga | 139,063 | 145,081 | 96% |
+| Montreal | 54,058 | 60,528 | 89% |
+| New York | 20,650 | 47,815 | 43% |
+| Perth | 418 | 4,136 | 10% |
+| Philadelphia | 276 | 2,938 | 9% |
+| San Francisco | 4,248 | 91,360 | 5% |
+| Tokyo | 33,315 | 35,577 | 94% |
+| Wellington | 530 | 17,368 | 3% |
+| Yarra | 2,694 | 26,050 | 10% |
+
+Low-yield cities (Cambridge, Perth, Philadelphia, San Francisco, Wellington, Calgary, Yarra, Adelaide)
+are dominated by `defect:scattered` rejections, matching #166's own sampled pass-fraction predictions
+for these cities almost exactly. High-yield cities (Berlin, Boston, Cape Town, Edmonton, Mississauga,
+Montreal, Tokyo) confirm the CRS corrections and watertightness gate work correctly at full scale, not
+just on the smoke sample -- Mississauga's 96% yield in particular is strong evidence the Web-Mercator
+-> UTM17N reprojection (#165) is landing extents correctly, since a wrong reprojection would show up
+as a spike in `extent` rejections instead.
+
 ## Running it for real
 
 ```bash
@@ -203,4 +268,7 @@ env -u LD_PRELOAD -u LD_LIBRARY_PATH ./sdfusion/bin/python \
   scripts/foundations/ingest_buildingworld.py --no_stage --combine
 ```
 
-## Status: implemented, unit-tested, smoke-tested against real data; full production ingest not yet run (2026-09-13)
+## Status: implemented, unit-tested, and run to completion in production (2026-09-13/14)
+
+`real.h5` now holds 1,562,554 rows (35,776 historical + 1,526,778 new BuildingWorld rows). #175
+(extract isosurfaces for the new rows and register the source in the surfaces pipeline) is unblocked.
