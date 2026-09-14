@@ -192,11 +192,31 @@ def run(source: str, max_tiles: int, limit: int) -> None:
           f"-> {path}  ({time.time()-t0:.0f}s)")
 
 
+def revoxelize_iou_l1(v: np.ndarray, fc: np.ndarray, ref_sdf: np.ndarray,
+                      pts: np.ndarray) -> tuple:
+    """Re-voxelise a recovered mesh with the SAME fast-winding-number signing #62's ingests use,
+    and compare against a stored sdf slice -- (IoU, L1) of occupancy, the alignment check every
+    surfaces-file `verify()` in this pipeline (#175's BuildingWorld one included) shares.
+
+    `ref_sdf` must already be in the query's [x,y,z] index frame: `building_to_sdf` grids as
+    meshgrid(ZZ,YY,XX) -> the STORED array is indexed [z,y,x], while `grid_points()` queries in
+    [x,y,z] -- the caller transposes before passing it in. (#63 was unaffected: its mesh and
+    query were both in the array's own index frame.)
+    """
+    import igl
+    FWN = igl.SignedDistanceType.SIGNED_DISTANCE_TYPE_FAST_WINDING_NUMBER
+    from scripts.foundations.vecset_ceiling_probe import RES, TRUNC
+    got = np.asarray(igl.signed_distance(pts, v, fc, FWN)[0], np.float32).reshape(RES, RES, RES)
+    ga, ra = got <= 0, ref_sdf <= 0
+    iou = float((ga & ra).sum() / max((ga | ra).sum(), 1))
+    err = float(np.abs(np.clip(got, -TRUNC, TRUNC) - np.clip(ref_sdf, -TRUNC, TRUNC)).mean())
+    return iou, err
+
+
 def verify(source: str, n: int) -> None:
     """Re-voxelise recovered meshes and compare against the stored SDF -- the alignment proof."""
-    import h5py, igl
-    FWN = igl.SignedDistanceType.SIGNED_DISTANCE_TYPE_FAST_WINDING_NUMBER
-    from scripts.foundations.vecset_ceiling_probe import RES, TRUNC, grid_points
+    import h5py
+    from scripts.foundations.vecset_ceiling_probe import grid_points
     pts = grid_points()
     with h5py.File(OUT / f"surfaces_{source}.h5", "r") as s, open_real_corpus(H5) as f:
         k = min(n, len(s["row"]))
@@ -207,18 +227,12 @@ def verify(source: str, n: int) -> None:
             c, d = int(s["face_offset"][i]), int(s["face_offset"][i + 1])
             v = np.asarray(s["verts"][a:b], np.float64)
             fc = np.ascontiguousarray(np.asarray(s["faces"][c:d]), np.int32)
-            got = np.asarray(igl.signed_distance(pts, v, fc, FWN)[0], np.float32).reshape(RES, RES, RES)
-            # building_to_sdf grids as meshgrid(ZZ,YY,XX) -> the STORED array is indexed [z,y,x],
-            # while grid_points() queries in [x,y,z]. Transpose the reference to compare. (#63 was
-            # unaffected: its mesh and query were both in the array's own index frame.)
             ref = np.asarray(f["sdf"][int(s["row"][i])], np.float32).transpose(2, 1, 0)
-            ga, ra = got <= 0, ref <= 0
-            iou = float((ga & ra).sum() / max((ga | ra).sum(), 1))
-            err = float(np.abs(np.clip(got, -TRUNC, TRUNC) - np.clip(ref, -TRUNC, TRUNC)).mean())
+            iou, err = revoxelize_iou_l1(v, fc, ref, pts)
             ious.append(iou); errs.append(err)
             print(f"   {s['bag_id'][i].decode()[:44]:44s} IoU={iou:.4f}  L1={err:.5f}")
         print(f"  MEAN IoU={np.mean(ious):.4f}  L1={np.mean(errs):.5f}   "
-              f"{'ALIGNED' if np.mean(ious) > 0.95 else 'MISALIGNED — do not use'}")
+              f"{'ALIGNED' if np.mean(ious) > 0.95 else 'MISALIGNED - do not use'}")
 
 
 if __name__ == "__main__":

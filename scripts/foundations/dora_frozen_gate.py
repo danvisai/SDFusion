@@ -49,7 +49,10 @@ from scripts.foundations.dora_roundtrip_probe import (                       # n
 
 SURF = REPO / "data/real_massing_v1"
 TRIPO_VAE = REPO / "external/triposg_vae"
-SOURCES = {"bag3d": "NL", "nrw": "DE", "plateau": "JP"}
+# #175: "buildingworld" -> "BW" is a pipeline label, not a country code -- unlike bag3d/nrw/
+# plateau, BuildingWorld's 18 cities span many countries, and #171 (its region-conditioning
+# granularity) has not landed, so this does not claim a single region for it.
+SOURCES = {"bag3d": "NL", "nrw": "DE", "plateau": "JP", "buildingworld": "BW"}
 
 
 def _revoxel(v: np.ndarray, f: np.ndarray, pts: np.ndarray) -> np.ndarray:
@@ -67,7 +70,7 @@ def _rough(field: np.ndarray) -> float:
 
 
 def load_surfaces():
-    """row -> (verts, faces) for every recovered building, across all three sources."""
+    """row -> (verts, faces) for every recovered building, across every registered source."""
     import h5py
     out = {}
     for src in SOURCES:
@@ -112,7 +115,10 @@ def main() -> None:
     surf = load_surfaces()
     with open_real_corpus(H5) as f:
         held = [int(i) for i in test_indices(FROZEN_SPLIT_N_TOTAL)]
-    # stratify: take round-robin across sources so all three regions are represented
+    # stratify: take round-robin across sources so bag3d/nrw/plateau are all represented. `held`
+    # only ever holds rows < FROZEN_SPLIT_N_TOTAL, so buildingworld (all rows appended after that
+    # prefix, #175) never contributes a pick here -- registering it in SOURCES only makes
+    # load_surfaces() findable for OTHER consumers, not this gate's own held-out sample.
     by_src = {s: [r for r in held if r in surf and surf[r][2] == s] for s in SOURCES}
     print("held-out with surfaces per source:", {SOURCES[s]: len(v) for s, v in by_src.items()})
     picks, i = [], 0
