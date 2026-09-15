@@ -69,11 +69,22 @@ def _rough(field: np.ndarray) -> float:
     return surface_roughness(torch.from_numpy(np.clip(field, -TRUNC, TRUNC)))
 
 
-def load_surfaces():
-    """row -> (verts, faces) for every recovered building, across every registered source."""
+def load_surfaces(sources=None):
+    """row -> (verts, faces, src) for every recovered building, across `sources` (default: every
+    registered `SOURCES` key).
+
+    Code-review finding on #175: registering `"buildingworld"` in `SOURCES` silently grew this
+    function's default row set from 35,776 to 1,562,554 -- ~1.5M extra verts/faces materialised
+    into RAM, plus a `trimesh.Trimesh(...).volume` build per row for the winding check, for EVERY
+    caller that takes the default. `sources` lets a caller that isn't ready for BuildingWorld's
+    rows (`precompute_vecset_latents.py`'s default path, this module's own `main()` -- see their
+    own call sites) say so explicitly, rather than paying that cost or crashing on a #161 ledger
+    that doesn't cover those rows yet (#177's job). The default stays "every registered source" so
+    a caller that DOES want everything (or is written before this parameter existed) is unaffected.
+    """
     import h5py
     out = {}
-    for src in SOURCES:
+    for src in (sources if sources is not None else SOURCES):
         p = SURF / f"surfaces_{src}.h5"
         if not p.exists():
             print(f"[warn] missing {p.name}"); continue
@@ -112,7 +123,11 @@ def main() -> None:
     rng = np.random.default_rng(0)
     import h5py, trimesh
 
-    surf = load_surfaces()
+    # `held` only ever holds rows < FROZEN_SPLIT_N_TOTAL, so buildingworld (all rows appended after
+    # that prefix, #175) could never contribute a pick below regardless -- scoping this call to the
+    # three historical sources skips ~1.5M rows' worth of verts/faces and winding checks for a
+    # source this gate structurally cannot select from (code-review finding on #175).
+    surf = load_surfaces(sources=[s for s in SOURCES if s != "buildingworld"])
     with open_real_corpus(H5) as f:
         held = [int(i) for i in test_indices(FROZEN_SPLIT_N_TOTAL)]
     # stratify: take round-robin across sources so bag3d/nrw/plateau are all represented. `held`

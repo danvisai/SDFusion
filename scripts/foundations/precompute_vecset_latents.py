@@ -573,7 +573,15 @@ def main() -> None:
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     codec = DoraCodec(load_dora(dev), n_coarse=args.n_coarse, n_sharp=args.n_sharp)
 
-    surf = load_surfaces()
+    # Code-review finding on #175: `load_surfaces()`'s default grew to include BuildingWorld's
+    # ~1.5M rows the moment #175 registered it, but vecset-latent encoding of BuildingWorld is
+    # explicitly out of #175/#176's scope (#174's own doc: "a much more expensive, separate step
+    # this arm does not require") and #161's ledger has no entries for those rows yet (#177's job)
+    # -- so the unscoped default made this script's own default invocation (no --limit/--stratify)
+    # raise SystemExit on ~1.5M "missing ledger entry" rows instead of encoding the historical
+    # corpus it always has. Scoped back to the three sources this script could ever succeed against
+    # today; revisit once #177 extends the ledger.
+    surf = load_surfaces(sources=("bag3d", "nrw", "plateau"))
     rows = sorted(surf)
     if args.stratify:
         rows = _stratified_rows(surf, rows, args.stratify)

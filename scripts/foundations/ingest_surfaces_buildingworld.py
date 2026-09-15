@@ -36,6 +36,27 @@ Usage:
     ingest_surfaces_buildingworld.py --cities Berlin,Tokyo   # a subset
     ingest_surfaces_buildingworld.py --limit 20 --cities Cambridge   # smoke
     ingest_surfaces_buildingworld.py --verify                # alignment check against real.h5
+    ingest_surfaces_buildingworld.py --no_resume             # start --out fresh (default resumes)
+
+POST-PRODUCTION FIXES (code review, this ticket)
+-------------------------------------------------
+Two correctness/robustness gaps surfaced reviewing the committed version, after the full
+production run had already completed successfully -- disclosed here rather than silently patched:
+
+  * `run()` used to buffer every city's verts/faces in plain Python lists and write once at the
+    end: no resume, unbounded memory over the full ~1.5M-row population. `IncrementalSurfaceWriter`
+    (below) replaces that with the periodic, `committed_rows`-gated flush
+    `ingest_buildingworld.IncrementalCityWriter` (#174) already established for this exact class of
+    job -- same zips, same scale. The already-committed `surfaces_buildingworld.h5` did not need
+    rewriting for this (it finished; see `--verify`'s own numbers), but a future re-run (a new
+    city, a bug fix) now gets the same robustness #174's own OOM postmortem earned.
+  * `_resolve_collision` claimed to keep only "confident" matches but enforced no threshold --
+    greedy nearest-pairing would accept whatever candidate was left, however poor the fit. Fixed
+    with an occupancy-IoU floor (`COLLISION_MIN_IOU`, the same 0.95 bar `ingest_surfaces.
+    revoxelize_iou_l1` uses as "ALIGNED" elsewhere in this pipeline); a pairing below it is now left
+    unresolved rather than accepted. Checked directly against the shipped file rather than assumed
+    safe: every one of Perth's already-committed collision rows independently re-verified at
+    IoU=1.0000 under the new floor, so the production artifact needed no changes either.
 """
 from __future__ import annotations
 
@@ -103,14 +124,26 @@ def _load_corrected_mesh(city: str, member_name: str, zf: zipfile.ZipFile):
     return mesh
 
 
+# The occupancy-IoU bar `_resolve_collision` requires before calling a pairing "confident" --
+# the SAME 0.95 "ALIGNED" threshold `ingest_surfaces.revoxelize_iou_l1` uses everywhere else in
+# this pipeline (code-review finding on #175: the greedy pairing below had no threshold at all
+# before this, so "confident" was this function's own docstring claim, not an enforced property --
+# any candidate could pair with any row just for being the least-bad option left).
+COLLISION_MIN_IOU = 0.95
+
+
 def _resolve_collision(city: str, bag_id: bytes, member_names: list, rows: list,
-                       zf: zipfile.ZipFile, real_sdf, r: int) -> dict:
+                       zf: zipfile.ZipFile, real_sdf, r: int,
+                       min_iou: float = COLLISION_MIN_IOU) -> dict:
     """`member_names` (>1) share `bag_id`'s truncated identity, and/or `rows` (>1) were stamped
     with it. Disambiguate by recomputing each candidate's SDF at resolution `r` -- the SAME
     `building_to_sdf` #174 used to write `real_sdf` -- and greedily pairing the globally closest
-    (candidate, row) by L1 error first, so a genuine match (near-zero error) is claimed before a
-    false one can be. Returns {row: mesh} for whichever rows found a confident match; logs and
-    drops the rest rather than risk mis-pairing geometry to the wrong row."""
+    (candidate, row) by L1 error first, so a genuine match (near-zero error, IoU 1.0) is claimed
+    before a false one can be. A pairing is only accepted once its occupancy IoU against the
+    stored SDF reaches `min_iou`; the closest remaining candidate for a row that never clears it is
+    left unpaired rather than accepted as a last resort. Returns {row: mesh} for whichever rows
+    cleared the bar; logs and drops the rest rather than risk mis-pairing geometry to the wrong
+    row."""
     candidates = []
     for name in member_names:
         try:
@@ -121,35 +154,174 @@ def _resolve_collision(city: str, bag_id: bytes, member_names: list, rows: list,
             print(f"  [collision:skip] {city}#{name}: {type(e).__name__}: {str(e)[:70]}",
                  flush=True)
 
+    ref_sdf = {row: np.asarray(real_sdf[row]) for row in rows}  # read each stored row once, not
+                                                                # once per candidate
     edges = []
     for ci, (_, _, sdf) in enumerate(candidates):
         for row in rows:
-            err = float(np.abs(sdf - np.asarray(real_sdf[row])).mean())
-            edges.append((err, ci, row))
+            ref = ref_sdf[row]
+            err = float(np.abs(sdf - ref).mean())
+            ga, ra = sdf <= 0, ref <= 0
+            iou = float((ga & ra).sum() / max((ga | ra).sum(), 1))
+            edges.append((err, iou, ci, row))
     edges.sort(key=lambda t: t[0])
 
     out, used_c, used_r = {}, set(), set()
-    for err, ci, row in edges:
-        if ci in used_c or row in used_r:
+    for err, iou, ci, row in edges:
+        if ci in used_c or row in used_r or iou < min_iou:
             continue
         used_c.add(ci); used_r.add(row)
         out[row] = candidates[ci][1]
         print(f"  [collision:resolved] {bag_id!r} row {row} <- {candidates[ci][0]} "
-             f"(L1={err:.5f})", flush=True)
+             f"(IoU={iou:.4f} L1={err:.5f})", flush=True)
     for row in rows:
         if row not in out:
-            print(f"  [collision:unresolved] {bag_id!r} row {row}: no confident match among "
-                 f"{len(member_names)} candidate(s)", flush=True)
+            print(f"  [collision:unresolved] {bag_id!r} row {row}: no candidate reached "
+                 f"IoU>={min_iou} among {len(member_names)} candidate(s)", flush=True)
     return out
 
 
-def run(cities: list, limit: int, out_path: Path = OUT / OUT_NAME) -> dict:
-    import h5py
+POOL_BATCH_SIZE = 2000  # unused today (see IncrementalSurfaceWriter's docstring); kept named and
+                        # exported so a future worker-pool addition to run() reaches for the same
+                        # constant `ingest_buildingworld.POOL_BATCH_SIZE` -- and this ticket's own
+                        # fix -- established, rather than picking a fresh number.
 
-    keys, source_keys, rows_out, verts, faces, vo, fo = [], [], [], [], [], [0], [0]
+
+class IncrementalSurfaceWriter:
+    """Resizable, resumable h5 writer for `surfaces_buildingworld.h5`'s ragged per-row mesh data.
+
+    Code-review finding on #175: `run()` used to accumulate EVERY city's verts/faces in plain
+    Python lists and write once at the end -- no flush, no resume, unbounded memory over ~1.5M
+    rows. `ingest_buildingworld.IncrementalCityWriter` (#174) established the fix for the identical
+    class of job on these same zips (a `committed_rows`-gated periodic flush); this reuses that
+    shape, adapted for RAGGED data. `bag_id`/`source_key`/`row`/`vert_offset`/`face_offset` grow one
+    entry per row, but `verts`/`faces` grow by a variable count per row, so resuming needs to know
+    both boundaries -- `vert_offset[committed_rows]`/`face_offset[committed_rows]` (the last
+    committed cumulative offset) gives the second one without a separate persisted counter.
+
+    Parallelism (a worker pool computing meshes, like `ingest_buildingworld.stage_city`'s
+    `workers>1` path) is deliberately NOT added here in the same pass as this fix, matching #174's
+    own history of landing the sequential/robust version first and adding a pool separately once
+    that baseline worked: the concrete, reproduced risk this fixes is unbounded memory + no resume,
+    not wall-clock speed -- #175's own production run already completed single-process. A future
+    pool would reuse `POOL_BATCH_SIZE` above rather than inventing a second bound.
+    """
+    SCHEMA_VERSION = 1
+
+    def __init__(self, path: Path, resume: bool = True, flush_every: int = 5000):
+        import h5py
+
+        self.path, self.flush_every = Path(path), flush_every
+        self.buf: dict = dict(bag_id=[], source_key=[], row=[], verts=[], faces=[])
+        self.done: set = set()
+        self.closed = False
+        mode = "a" if (resume and self.path.exists()) else "w"
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.f = h5py.File(self.path, mode)
+        if mode == "w":
+            self.f.attrs["schema_version"] = self.SCHEMA_VERSION
+            self.f.attrs["committed_rows"] = 0
+            self.f.flush()
+        else:
+            version = int(self.f.attrs.get("schema_version", 0))
+            if version != self.SCHEMA_VERSION:
+                self.f.close()
+                raise SystemExit(f"#175: cannot resume {path}: schema {version}, need "
+                                f"{self.SCHEMA_VERSION}")
+            cr = int(self.f.attrs.get("committed_rows", 0))
+            cv = int(self.f["vert_offset"][cr]) if "vert_offset" in self.f else 0
+            cf = int(self.f["face_offset"][cr]) if "face_offset" in self.f else 0
+            for k, n in (("bag_id", cr), ("source_key", cr), ("row", cr),
+                        ("vert_offset", cr + 1), ("face_offset", cr + 1),
+                        ("verts", cv), ("faces", cf)):
+                if k in self.f and self.f[k].shape[0] > n:
+                    self.f[k].resize(n, axis=0)
+            self.f.flush()
+            if "bag_id" in self.f:
+                self.done = {bytes(b) for b in self.f["bag_id"][:cr]}
+
+    def already_done(self, bag_id: bytes) -> bool:
+        return bag_id in self.done
+
+    def add(self, bag_id: bytes, source_key: bytes, row: int, verts: np.ndarray,
+           faces: np.ndarray) -> None:
+        """Buffers one row. Deliberately does NOT auto-flush here -- `_resolve_collision` can make
+        one `bag_id` emit several rows in a row (one call each), and `already_done` is keyed on
+        `bag_id` alone. A flush landing BETWEEN two of that bag_id's own rows would mark the whole
+        `bag_id` done after committing only the first, so a resume would skip re-deriving the rest
+        -- silently dropping a row forever. `maybe_flush()` -- called by a caller once it has
+        finished emitting everything for one `bag_id`, never mid-group -- is what makes flush
+        boundaries and `bag_id` group boundaries coincide, so `already_done` stays accurate."""
+        self.buf["bag_id"].append(bag_id)
+        self.buf["source_key"].append(source_key)
+        self.buf["row"].append(row)
+        self.buf["verts"].append(verts)
+        self.buf["faces"].append(faces)
+
+    def maybe_flush(self) -> None:
+        """Flush if the buffer has grown past `flush_every`. Call only at a `bag_id` group
+        boundary (see `add`'s docstring) -- never between two `add()` calls for the same `bag_id`."""
+        if len(self.buf["bag_id"]) >= self.flush_every:
+            self.flush()
+
+    def _extend(self, name: str, data: np.ndarray) -> None:
+        if name not in self.f:
+            maxshape = (None,) + data.shape[1:]
+            self.f.create_dataset(name, data=data, maxshape=maxshape,
+                                  compression="lzf" if name in ("verts", "faces") else None)
+        else:
+            d = self.f[name]
+            old = d.shape[0]
+            d.resize(old + len(data), axis=0)
+            d[old:old + len(data)] = data
+
+    def flush(self) -> None:
+        n = len(self.buf["bag_id"])
+        if not n:
+            return
+        cr = int(self.f.attrs["committed_rows"])
+        cv = int(self.f["vert_offset"][cr]) if "vert_offset" in self.f else 0
+        cf = int(self.f["face_offset"][cr]) if "face_offset" in self.f else 0
+        vcounts = np.array([len(v) for v in self.buf["verts"]], np.int64)
+        fcounts = np.array([len(fc) for fc in self.buf["faces"]], np.int64)
+
+        if "vert_offset" not in self.f:
+            self.f.create_dataset("vert_offset", data=np.array([0], np.int64), maxshape=(None,))
+        if "face_offset" not in self.f:
+            self.f.create_dataset("face_offset", data=np.array([0], np.int64), maxshape=(None,))
+        self._extend("vert_offset", cv + np.cumsum(vcounts))
+        self._extend("face_offset", cf + np.cumsum(fcounts))
+        self._extend("verts", np.concatenate(self.buf["verts"]))
+        self._extend("faces", np.concatenate(self.buf["faces"]))
+        self._extend("bag_id", np.array(self.buf["bag_id"], dtype="S64"))
+        self._extend("source_key", np.array(self.buf["source_key"], dtype="S64"))
+        self._extend("row", np.array(self.buf["row"], np.int32))
+
+        self.f.flush()
+        self.f.attrs.modify("committed_rows", cr + n)
+        self.f.flush()
+        self.done.update(self.buf["bag_id"])
+        for v in self.buf.values():
+            v.clear()
+
+    def close(self) -> None:
+        if self.closed:
+            return
+        self.flush()
+        self.f.close()
+        self.closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+
+def run(cities: list, limit: int, out_path: Path = OUT / OUT_NAME, resume: bool = True) -> dict:
     per_city = {}
     t0 = time.time()
-    with open_real_corpus(H5) as f:
+    with open_real_corpus(H5) as f, IncrementalSurfaceWriter(out_path, resume=resume) as writer:
         source_key_col = f["source_key"][:]
         bag_id_col = f["bag_id"][:]
         real_sdf = f["sdf"]
@@ -173,13 +345,13 @@ def run(cities: list, limit: int, out_path: Path = OUT / OUT_NAME) -> dict:
                     nonlocal n_city
                     vn = to_frame_n(mesh)
                     fn = fix_winding(vn, mesh.faces)
-                    keys.append(bag_id); source_keys.append(sk); rows_out.append(row)
-                    verts.append(vn); faces.append(fn)
-                    vo.append(vo[-1] + len(vn)); fo.append(fo[-1] + len(fn))
+                    writer.add(bag_id, sk, row, vn, fn)
                     n_city += 1
 
                 for bag_id, member_names in groups.items():
                     rows = want[bag_id]
+                    if writer.already_done(bag_id):
+                        continue                            # a resumed run's earlier flush
                     if len(member_names) == 1 and len(rows) == 1:
                         try:
                             mesh = _load_corrected_mesh(city, member_names[0], zf)
@@ -193,6 +365,7 @@ def run(cities: list, limit: int, out_path: Path = OUT / OUT_NAME) -> dict:
                                                             zf, real_sdf,
                                                             real_sdf.shape[-1]).items():
                             _emit(bag_id, row, mesh)
+                    writer.maybe_flush()                    # only ever at a bag_id boundary
                     if n_city % 20000 < len(rows):
                         print(f"  [{city}] recovered {n_city}/{n_want} ({time.time()-t0:.0f}s)",
                              flush=True)
@@ -202,19 +375,16 @@ def run(cities: list, limit: int, out_path: Path = OUT / OUT_NAME) -> dict:
             print(f"[{city}] recovered {n_city}/{n_want} ({100*n_city/max(n_want,1):.1f}%)",
                  flush=True)
 
-    if not keys:
+    # Read back rather than sum `per_city` (which only counts THIS session's newly-processed rows
+    # on a resumed run -- already-`already_done` bag_ids are skipped and never reach `_emit`).
+    import h5py
+
+    with h5py.File(out_path, "r") as f:
+        n_total = f["row"].shape[0] if "row" in f else 0
+    if not n_total:
         raise SystemExit("#175: recovered nothing")
-    with h5py.File(out_path, "w") as f:
-        f.create_dataset("verts", data=np.concatenate(verts), compression="lzf")
-        f.create_dataset("faces", data=np.concatenate(faces), compression="lzf")
-        f.create_dataset("vert_offset", data=np.asarray(vo, np.int64))
-        f.create_dataset("face_offset", data=np.asarray(fo, np.int64))
-        f.create_dataset("row", data=np.asarray(rows_out, np.int32))
-        f.create_dataset("bag_id", data=np.array(keys, dtype="S64"))
-        f.create_dataset("source_key", data=np.array(source_keys, dtype="S64"))
-    print(f"recovered {len(keys)} total  verts={vo[-1]:,} faces={fo[-1]:,}  -> {out_path}  "
-         f"({time.time()-t0:.0f}s)", flush=True)
-    return dict(per_city=per_city, n_total=len(keys), out_path=str(out_path))
+    print(f"recovered {n_total} total  -> {out_path}  ({time.time()-t0:.0f}s)", flush=True)
+    return dict(per_city=per_city, n_total=n_total, out_path=str(out_path))
 
 
 def verify(n: int, path: Path = OUT / OUT_NAME) -> None:
@@ -258,6 +428,8 @@ if __name__ == "__main__":
     ap.add_argument("--out", default=str(OUT / OUT_NAME))
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--verify_n", type=int, default=24)
+    ap.add_argument("--no_resume", action="store_true",
+                    help="start --out fresh instead of resuming a partially-written file")
     args = ap.parse_args()
 
     cities = args.cities.split(",") if args.cities else INGESTABLE_CITIES
@@ -265,4 +437,7 @@ if __name__ == "__main__":
     if unknown:
         raise SystemExit(f"#175: not ingestable (excluded by #165, or misspelled): {sorted(unknown)}")
 
-    verify(args.verify_n, Path(args.out)) if args.verify else run(cities, args.limit, Path(args.out))
+    if args.verify:
+        verify(args.verify_n, Path(args.out))
+    else:
+        run(cities, args.limit, Path(args.out), resume=not args.no_resume)

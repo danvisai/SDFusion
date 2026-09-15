@@ -136,7 +136,12 @@ def roof_family(ops: list, kinds: set) -> str:
 
 def fit_and_classify(fp: np.ndarray, y0: int, y1: int, target: np.ndarray) -> dict:
     """Run `fit_program_beam` at its own defaults and read the family/dl_ops/dl_planar_fraction
-    diagnostics directly off the program it returns."""
+    diagnostics directly off the program it returns.
+
+    `ops` (#176: the semicolon-joined op-type sequence, e.g. `"Layer;Ramp;Ramp"`) is included so a
+    caller wanting the raw vocabulary -- not just this function's own flat/gable/hip/complex/shed
+    summary of it -- does not need to re-run `fit_program_beam` a second time to get it.
+    """
     program, _fitted = fit_program_beam(fp, y0, y1, target)
     ops = [o["op"] for o in program]
     kinds = {o["kind"] for o in program if o["op"] == "CutRoof"}
@@ -147,6 +152,7 @@ def fit_and_classify(fp: np.ndarray, y0: int, y1: int, target: np.ndarray) -> di
         dl_ops=len(ops),
         dl_planar_fraction=(planar / len(ops)) if ops else 0.0,
         is_shed=(ops == ["Ramp"]),
+        ops=";".join(ops),
     )
 
 

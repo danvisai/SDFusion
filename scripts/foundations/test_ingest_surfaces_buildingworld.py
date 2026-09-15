@@ -115,6 +115,45 @@ class TestResolveCollision(unittest.TestCase):
         self.assertAlmostEqual(float(out[20].extents.max() / out[20].extents.min()), 1.0,
                                places=3)
 
+    def test_a_low_confidence_pairing_is_rejected_not_accepted_as_a_last_resort(self):
+        """Code-review finding on #175: the greedy match had no error threshold, so a candidate
+        that was merely the LEAST-bad option left would still be accepted and logged as
+        `[collision:resolved]`, contradicting this function's own "confident match" docstring
+        claim. Here the only candidate in the zip is nothing like the row's stored geometry -- a
+        threshold-free match would still "resolve" it (it's the only option); with the IoU floor
+        it must be left unresolved instead."""
+        r = 8
+        cube = trimesh.creation.box(extents=(3.0, 3.0, 3.0))
+        cube.apply_translation((1.5, 1.5, 1.5))
+        with tempfile.TemporaryDirectory() as d:
+            zpath = Path(d) / "mesh.zip"
+            with zipfile.ZipFile(zpath, "w") as zf:
+                zf.writestr("mesh/cube.obj", trimesh.exchange.obj.export_obj(cube)
+                           .encode("ascii"))
+            # a constant, all-outside sdf: zero occupancy overlap with any real mesh candidate.
+            real_sdf = {99: np.full((r, r, r), 5.0, np.float32)}
+            with zipfile.ZipFile(zpath) as zf:
+                out = isb._resolve_collision("Berlin", b"Berlin#lowconf", ["mesh/cube.obj"],
+                                             [99], zf, real_sdf, r)
+        self.assertNotIn(99, out)
+
+    def test_min_iou_is_configurable_and_a_lenient_bar_accepts_the_same_pairing(self):
+        """Same scenario as the rejection test above, but with `min_iou=0.0` -- confirms the
+        rejection is actually the threshold firing, not some other reason the pairing failed."""
+        r = 8
+        cube = trimesh.creation.box(extents=(3.0, 3.0, 3.0))
+        cube.apply_translation((1.5, 1.5, 1.5))
+        with tempfile.TemporaryDirectory() as d:
+            zpath = Path(d) / "mesh.zip"
+            with zipfile.ZipFile(zpath, "w") as zf:
+                zf.writestr("mesh/cube.obj", trimesh.exchange.obj.export_obj(cube)
+                           .encode("ascii"))
+            real_sdf = {99: np.full((r, r, r), 5.0, np.float32)}
+            with zipfile.ZipFile(zpath) as zf:
+                out = isb._resolve_collision("Berlin", b"Berlin#lowconf", ["mesh/cube.obj"],
+                                             [99], zf, real_sdf, r, min_iou=0.0)
+        self.assertIn(99, out)
+
     def test_a_row_with_no_candidate_left_is_dropped_not_guessed(self):
         """Two rows share a bag_id but only ONE physical candidate is in the zip -- the second
         row must be reported as unresolved, not silently paired with a mesh that isn't its own."""
@@ -132,6 +171,89 @@ class TestResolveCollision(unittest.TestCase):
                                              [10, 20], zf, real_sdf, r)
         self.assertEqual(set(out), {10})
         self.assertNotIn(20, out)
+
+
+class TestIncrementalSurfaceWriter(unittest.TestCase):
+    """Code-review finding on #175: `run()` used to buffer everything in memory and write once,
+    with no resume. Mirrors `test_ingest_buildingworld.py::TestIncrementalCityWriterAndStaging`'s
+    coverage shape, adapted for ragged verts/faces."""
+
+    def _row(self, bag_id: bytes, row: int, n_verts: int = 4, n_faces: int = 2):
+        verts = np.arange(n_verts * 3, dtype=np.float32).reshape(n_verts, 3)
+        faces = np.arange(n_faces * 3, dtype=np.int32).reshape(n_faces, 3) % n_verts
+        return dict(bag_id=bag_id, source_key=b"bw:Test", row=row, verts=verts, faces=faces)
+
+    def test_write_flush_and_read_back(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "surfaces.h5"
+            with isb.IncrementalSurfaceWriter(path, flush_every=2) as w:
+                for i in range(5):
+                    r = self._row(f"bag{i}".encode(), i, n_verts=3 + i, n_faces=1 + i)
+                    w.add(**r)
+                    w.maybe_flush()
+            with h5py.File(path, "r") as f:
+                self.assertEqual(f["row"].shape[0], 5)
+                self.assertEqual(int(f.attrs["committed_rows"]), 5)
+                self.assertEqual(f["vert_offset"][:].tolist(), [0, 3, 7, 12, 18, 25])
+                self.assertEqual(f["face_offset"][:].tolist(), [0, 1, 3, 6, 10, 15])
+                self.assertEqual(f["verts"].shape[0], 25)
+                self.assertEqual(f["faces"].shape[0], 15)
+
+    def test_resume_skips_already_committed_bag_ids_and_appends_correctly(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "surfaces.h5"
+            with isb.IncrementalSurfaceWriter(path, flush_every=100) as w:
+                for i in range(3):
+                    w.add(**self._row(f"bag{i}".encode(), i))
+                    w.maybe_flush()
+            with isb.IncrementalSurfaceWriter(path, resume=True) as w2:
+                self.assertTrue(w2.already_done(b"bag0"))
+                self.assertFalse(w2.already_done(b"bag3"))
+                for i in range(3, 6):
+                    w2.add(**self._row(f"bag{i}".encode(), i))
+                    w2.maybe_flush()
+            with h5py.File(path, "r") as f:
+                self.assertEqual(f["row"].shape[0], 6)
+                self.assertEqual(sorted(int(r) for r in f["row"][:]), list(range(6)))
+                # offsets stay one contiguous cumulative sequence across the resume boundary
+                vo = f["vert_offset"][:]
+                self.assertTrue((np.diff(vo) > 0).all())
+                self.assertEqual(vo[-1], f["verts"].shape[0])
+
+    def test_no_resume_overwrites(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "surfaces.h5"
+            with isb.IncrementalSurfaceWriter(path) as w:
+                w.add(**self._row(b"bag0", 0))
+            with isb.IncrementalSurfaceWriter(path, resume=False) as w2:
+                w2.add(**self._row(b"bag1", 1))
+            with h5py.File(path, "r") as f:
+                self.assertEqual(f["row"].shape[0], 1)
+                self.assertEqual(int(f["row"][0]), 1)
+
+    def test_schema_mismatch_refuses_to_resume(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "surfaces.h5"
+            with h5py.File(path, "w") as f:
+                f.attrs["schema_version"] = 999
+                f.attrs["committed_rows"] = 0
+            with self.assertRaises(SystemExit):
+                isb.IncrementalSurfaceWriter(path, resume=True)
+
+    def test_a_flush_mid_call_never_splits_one_bag_ids_rows_across_it(self):
+        """The bug this fix closes: `add()` alone used to auto-flush, so a flush landing between
+        two `add()` calls for the SAME bag_id (a multi-row collision group) would mark that
+        bag_id `already_done` after committing only the first row -- a resume would then skip the
+        group entirely and the rest of its rows would be lost forever. `flush_every=1` is the
+        worst case: if `add()` still auto-flushed, this would fail immediately."""
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "surfaces.h5"
+            with isb.IncrementalSurfaceWriter(path, flush_every=1) as w:
+                w.add(**self._row(b"shared", 10))
+                w.add(**self._row(b"shared", 20))   # no maybe_flush() between these two calls
+                w.maybe_flush()                      # only now, at the group boundary
+            with h5py.File(path, "r") as f:
+                self.assertEqual(sorted(int(r) for r in f["row"][:]), [10, 20])
 
 
 @unittest.skipUnless(REAL_CORPUS_PATH.exists(), "real corpus metadata not available")
@@ -291,6 +413,42 @@ class TestRunEndToEnd(unittest.TestCase):
                 isb.run(["Berlin"], limit=0, out_path=self.d / "out.h5")
         finally:
             pbm.MESH_ROOT, isb.H5 = old_root, old_h5
+
+    def test_run_resumes_a_partial_run_without_dropping_or_duplicating_rows(self):
+        """Code-review finding on #175: `run()` used to write once at the end with no resume --
+        an interrupted run lost everything. `--limit` (a per-CALL cap on newly-processed rows)
+        simulates a run that stopped partway; a second call with the same `--out` must pick up
+        exactly where it left off."""
+        real_path = self.d / "real.h5"
+        member_names = ["mesh/a.obj", "mesh/b.obj", "mesh/c.obj"]
+        extra_bag_ids = [bag_id_for("Berlin", n) for n in member_names]
+        self._write_synthetic_real_h5(real_path, extra_bag_ids)
+
+        city_dir = self.d / "mesh_root" / "Berlin" / "mesh"
+        city_dir.mkdir(parents=True)
+        with zipfile.ZipFile(city_dir / "mesh.zip", "w") as zf:
+            for n in member_names:
+                zf.writestr(n, _box_obj_bytes())
+
+        out_path = self.d / "surfaces_buildingworld.h5"
+        import scripts.foundations.profile_buildingworld_meshes as pbm
+        old_root, old_h5 = pbm.MESH_ROOT, isb.H5
+        pbm.MESH_ROOT, isb.H5 = self.d / "mesh_root", real_path
+        try:
+            first = isb.run(["Berlin"], limit=1, out_path=out_path)
+            self.assertEqual(first["n_total"], 1)
+            second = isb.run(["Berlin"], limit=0, out_path=out_path, resume=True)
+        finally:
+            pbm.MESH_ROOT, isb.H5 = old_root, old_h5
+
+        self.assertEqual(second["n_total"], 3)
+        with h5py.File(out_path, "r") as f:
+            self.assertEqual(f["row"].shape[0], 3)
+            self.assertEqual(sorted(int(r) for r in f["row"][:]),
+                             list(range(FROZEN_SPLIT_N_TOTAL, FROZEN_SPLIT_N_TOTAL + 3)))
+            self.assertEqual(len(set(bytes(b) for b in f["bag_id"][:])), 3)  # no duplicates
+            self.assertEqual(f["vert_offset"][-1], f["verts"].shape[0])
+            self.assertEqual(f["face_offset"][-1], f["faces"].shape[0])
 
 
 class TestDoraFrozenGateRegistration(unittest.TestCase):

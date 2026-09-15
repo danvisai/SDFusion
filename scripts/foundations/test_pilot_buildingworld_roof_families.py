@@ -104,6 +104,16 @@ class TestFitAndClassify(unittest.TestCase):
         self.assertEqual(rec["dl_planar_fraction"], 0.0)
         self.assertEqual(rec["family"], "flat")
 
+    def test_ops_is_the_semicolon_joined_op_type_sequence(self):
+        """#176: added so a caller wanting the raw vocabulary doesn't have to re-run the fit."""
+        program = [dict(op="CutRoof", kind="gable_x"), dict(op="Ramp")]
+        rec = self._run(program)
+        self.assertEqual(rec["ops"], "CutRoof;Ramp")
+
+    def test_ops_is_empty_string_for_an_already_flat_building(self):
+        rec = self._run([])
+        self.assertEqual(rec["ops"], "")
+
 
 class TestSummarize(unittest.TestCase):
     def test_empty_population_reports_zero_without_a_family_table(self):
