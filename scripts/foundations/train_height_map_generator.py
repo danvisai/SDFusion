@@ -483,7 +483,7 @@ from scipy import ndimage
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from utils.frozen_corpus import open_real_corpus  # noqa: E402
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 from scripts.foundations.corpus_ledger import LEDGER_PATH, read_ledger  # noqa: E402
 from scripts.foundations.eval_massing_arms import (              # noqa: E402
     COLLAPSE_MISSING, RES, fp_iou, footprint_split, volume_split, vs_input,
@@ -502,7 +502,27 @@ from scripts.foundations.source_provenance import region_mapping_sha256  # noqa:
 
 WORK = REPO / "outputs/height_map_generator"
 CACHE = WORK / "height_fields.npz"
+CACHE_ALL = WORK / "height_fields_all.npz"
 PROGRAM_CACHE = WORK / "program_labels.npz"
+CORPUS_SCOPES = ("legacy", "all")
+
+
+def scope_mask_for(rows: np.ndarray, corpus_scope: str) -> np.ndarray:
+    """Which ledger rows `corpus_scope` selects (#183 arm 1).
+
+    `"legacy"` is every row the historical, pre-BuildingWorld corpus had (`row <
+    FROZEN_SPLIT_N_TOTAL`) -- every existing checkpoint's training population, `heightmap_ce.pt`
+    included. `"all"` is every ledger row, BuildingWorld included; nothing downstream of this
+    function currently supplies BuildingWorld rows a valid `region` id (#171's style-bucket
+    scheme is not wired in yet), so `"all"` is not usable by this arm today, but the selector
+    itself does not need to know that.
+    """
+    rows = np.asarray(rows)
+    if corpus_scope not in CORPUS_SCOPES:
+        raise ValueError(f"#183: corpus_scope must be one of {CORPUS_SCOPES}, got {corpus_scope!r}")
+    if corpus_scope == "legacy":
+        return rows < FROZEN_SPLIT_N_TOTAL
+    return np.ones(len(rows), bool)
 
 # One class per voxel of carve depth. Measured over all 35,623 corpus rows: the deepest carve is
 # 59 voxels of a 60-voxel extent, and no column is ever cut below 1, so depth lies in [0, 63] and 64
@@ -1173,7 +1193,8 @@ def retrieve_nn(query_fps: np.ndarray, bank_fps: np.ndarray, chunk: int = 512,
 # the corpus as height fields, cached once
 # ==================================================================================================
 
-def build_cache(path: Path = CACHE, force: bool = False) -> dict:
+def build_cache(path: Path | None = None, force: bool = False,
+                corpus_scope: str = "legacy") -> dict:
     """Every corpus row as (footprint, base level, extent, target height map) + its conditioning.
 
     Keyed by the **ledger**'s rows (#161: `row`/`region`/`held_out`/`height_m`, split out of
@@ -1183,7 +1204,21 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     been scored against; it just no longer lives beside the latents. Reading the 64^3 SDFs once and
     keeping only the height field turns 37 GB into 165 MB, which is the whole reason this task trains
     in minutes.
+
+    `corpus_scope` (#183 arm 1): the ledger has grown from 35,776 legacy (NL/DE/JP) rows to
+    1,562,401 rows since #174-#177 folded BuildingWorld in. BuildingWorld rows carry the #171
+    style-bucket scheme's `region` sentinel (-1) since that scheme is not wired into this arm yet
+    -- an unfiltered read fails loudly at `validate_region_ids` rather than silently training on a
+    40x larger, differently-conditioned corpus, but that failure is not a *scope selector*.
+    `"legacy"` (default -- matches every existing checkpoint's training population, `heightmap_
+    ce.pt` included) restricts to the frozen `row < FROZEN_SPLIT_N_TOTAL` prefix. `"all"` takes
+    every ledger row and requires a region scheme that actually covers BuildingWorld's rows (not
+    yet true here; #183 arms 2-3 are the reason this choice exists, not something this arm uses).
     """
+    if corpus_scope not in CORPUS_SCOPES:
+        raise ValueError(f"#183: corpus_scope must be one of {CORPUS_SCOPES}, got {corpus_scope!r}")
+    if path is None:
+        path = CACHE if corpus_scope == "legacy" else CACHE_ALL
     # #162: cached training/evaluation must not bypass the raw corpus identity check.
     with open_real_corpus(H5):
         pass
@@ -1193,10 +1228,11 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
         cache_provenance(out)
         return out
     ledger = read_ledger(LEDGER_PATH)
-    rows = ledger["row"].astype(np.int32)
-    held = (ledger["held_out"] == 1).astype(np.uint8)
-    region = validate_region_ids(ledger["region"]).astype(np.int8)
-    height_m = ledger["height_m"].astype(np.float32)
+    scope_mask = scope_mask_for(ledger["row"], corpus_scope)
+    rows = ledger["row"][scope_mask].astype(np.int32)
+    held = (ledger["held_out"][scope_mask] == 1).astype(np.uint8)
+    region = validate_region_ids(ledger["region"][scope_mask]).astype(np.int8)
+    height_m = ledger["height_m"][scope_mask].astype(np.float32)
     n = len(rows)
     fps = np.zeros((n, RES, RES), np.uint8)
     targets = np.zeros((n, RES, RES), np.uint8)
@@ -3930,6 +3966,11 @@ def main() -> None:
                          "`assign_prior` has no equivalent switch: it has never been run isolated "
                          "from anything, so there is nothing yet for it to be confounded with.")
     ap.add_argument("--cpu", action="store_true")
+    ap.add_argument("--corpus_scope", default="legacy", choices=CORPUS_SCOPES,
+                    help="#183: 'legacy' (default) trains on the frozen pre-BuildingWorld "
+                         "35,776-row prefix, matching every existing checkpoint. 'all' includes "
+                         "every ledger row and requires a region scheme covering BuildingWorld "
+                         "(not implemented by this arm -- see build_cache's docstring)")
     ap.add_argument("--rebuild_cache", action="store_true")
     ap.add_argument("--rebuild_program_cache", action="store_true",
                     help="re-fit #6's slot labels over the whole corpus (56 s on 48 cores)")
@@ -3992,7 +4033,7 @@ def main() -> None:
                             + ("_class" if args.objective == "program"
                                and args.plane_head == "class" else ""))
 
-    cache = build_cache(force=args.rebuild_cache)
+    cache = build_cache(force=args.rebuild_cache, corpus_scope=args.corpus_scope)
 
     if args.diagnose_program:
         ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]

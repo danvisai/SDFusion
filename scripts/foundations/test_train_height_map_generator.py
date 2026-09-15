@@ -51,8 +51,9 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     roof_shape_stats, summarise, verdict, fit_decode, FitBias, smooth_heightmap,
     wta_ce_loss, decode_wta, bank_eligibility,
     cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
-    validate_region_ids, validate_shape_channels,
+    validate_region_ids, validate_shape_channels, scope_mask_for, CORPUS_SCOPES,
 )
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL
 
 
 def _rect(res, z0, z1, x0, x1):
@@ -791,6 +792,32 @@ class TestCheckpointProvenance(unittest.TestCase):
                      "conditioning_channels": list(CONDITIONING_CHANNELS)}  # stale: missing solidity
         with self.assertRaisesRegex(ValueError, "conditioning_channels"):
             validate_checkpoint_provenance(checkpoint, cache)
+
+
+class TestCorpusScope(unittest.TestCase):
+    """#183 arm 1: the ledger grew 40x when BuildingWorld folded in; `build_cache` must not
+    silently widen an existing arm's training population underneath it."""
+
+    def test_legacy_scope_keeps_only_the_frozen_prefix(self):
+        rows = np.array([0, 35_775, 35_776, 1_562_553])
+        np.testing.assert_array_equal(scope_mask_for(rows, "legacy"),
+                                      [True, True, False, False])
+
+    def test_all_scope_keeps_every_row(self):
+        rows = np.array([0, 35_776, 1_562_553])
+        np.testing.assert_array_equal(scope_mask_for(rows, "all"), [True, True, True])
+
+    def test_boundary_is_exclusive_at_frozen_split_n_total(self):
+        rows = np.array([FROZEN_SPLIT_N_TOTAL - 1, FROZEN_SPLIT_N_TOTAL])
+        np.testing.assert_array_equal(scope_mask_for(rows, "legacy"), [True, False])
+
+    def test_unknown_scope_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "corpus_scope"):
+            scope_mask_for(np.array([0]), "buildingworld_only")
+
+    def test_every_declared_scope_is_actually_selectable(self):
+        for scope in CORPUS_SCOPES:
+            scope_mask_for(np.array([0]), scope)  # must not raise
 
 
 class TestDecode(unittest.TestCase):
