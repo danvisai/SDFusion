@@ -52,7 +52,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     wta_ce_loss, decode_wta, bank_eligibility,
     cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
     validate_region_ids, validate_shape_channels, scope_mask_for, CORPUS_SCOPES,
-    N_REGIONS_ALL, cache_batch_size,
+    N_REGIONS_ALL, cache_batch_size, prefetch_iter,
 )
 from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL
 
@@ -882,6 +882,67 @@ class TestCorpusScope(unittest.TestCase):
     def test_every_declared_scope_is_actually_selectable(self):
         for scope in CORPUS_SCOPES:
             scope_mask_for(np.array([0]), scope)  # must not raise
+
+
+class TestPrefetchIter(unittest.TestCase):
+    """#183: train()'s hot loop overlaps CPU batch prep with GPU compute via one background
+    thread. Must preserve exact call order (so a stateful worker like HeightFieldSet.batch, which
+    advances its own rng per call, sees an identical sequence to a plain synchronous loop) and
+    never drop or reorder an exception."""
+
+    def test_yields_worker_results_in_order(self):
+        seen = []
+        def worker(i):
+            seen.append(i)
+            return i * i
+        result = list(prefetch_iter(range(20), worker))
+        self.assertEqual(result, [i * i for i in range(20)])
+        self.assertEqual(seen, list(range(20)))  # worker called in strict item order
+
+    def test_every_item_is_processed_exactly_once(self):
+        counts = {}
+        def worker(i):
+            counts[i] = counts.get(i, 0) + 1
+            return i
+        list(prefetch_iter(range(50), worker))
+        self.assertEqual(counts, {i: 1 for i in range(50)})
+
+    def test_empty_input_yields_nothing(self):
+        self.assertEqual(list(prefetch_iter([], lambda i: i)), [])
+
+    def test_a_worker_exception_propagates_to_the_consumer_not_silently(self):
+        def worker(i):
+            if i == 3:
+                raise ValueError("boom")
+            return i
+        got = []
+        with self.assertRaisesRegex(ValueError, "boom"):
+            for x in prefetch_iter(range(10), worker):
+                got.append(x)
+        self.assertEqual(got, [0, 1, 2])  # items before the failing one were still delivered
+
+    def test_breaking_out_early_does_not_hang(self):
+        def worker(i):
+            return i
+        got = []
+        for x in prefetch_iter(range(1000), worker, depth=2):
+            got.append(x)
+            if x == 5:
+                break
+        self.assertEqual(got, list(range(6)))
+
+    def test_a_stateful_worker_sees_the_same_sequence_as_a_plain_loop(self):
+        """The property `train()`'s rng-advancing HeightFieldSet.batch depends on."""
+        class Counter:
+            def __init__(self):
+                self.n = 0
+            def next(self, _):
+                self.n += 1
+                return self.n
+        plain, threaded = Counter(), Counter()
+        expected = [plain.next(i) for i in range(30)]
+        actual = list(prefetch_iter(range(30), threaded.next))
+        self.assertEqual(actual, expected)
 
 
 class TestCacheBatchSize(unittest.TestCase):

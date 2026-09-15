@@ -2367,6 +2367,78 @@ class HeightFieldSet:
                 self.extent[sel].astype(np.float32), prog)
 
 
+def prefetch_iter(items, worker, depth: int = 2):
+    """Yield `worker(item)` for each `item`, one call running ahead of consumption in a background
+    thread, so a slow CPU-bound `worker` overlaps with whatever the consumer does with its result.
+
+    #183: `train()`'s hot loop called `HeightFieldSet.batch` (CPU-bound: `_d4` augmentation, then
+    `condition_channels`'s per-row `distance_transform_edt`) synchronously, immediately followed by
+    the GPU forward/backward -- fine at the legacy 35,623-row scale (near-100% measured GPU
+    utilization there), but a real ping-pong once BuildingWorld's ~1.5M rows made each batch's CPU
+    prep and GPU compute comparably expensive (measured 52% GPU utilization: the GPU sits idle for
+    roughly half of every step waiting on single-threaded CPU work).
+
+    Deliberately ONE background thread, not a worker pool: `worker` is called in strict `items`
+    order from that single thread, so any state it mutates (e.g. `HeightFieldSet`'s own per-call
+    `self.rng` advancement) sees the EXACT same call sequence a plain `for item in items:
+    worker(item)` loop would produce -- this changes wall-clock only, never which random draws an
+    augmented batch gets, unlike a multi-process/multi-worker split (each worker holding its own
+    forked, independently-advancing copy of `self.rng`) would. A `depth`-item queue holds the
+    result;`worker` runs one call ahead of the consumer, which is enough for a Python thread to
+    overlap real work whenever the GIL is released -- true for both `worker`'s own numpy/scipy calls
+    and every CUDA kernel launch/sync the consumer does with the previous result.
+
+    An exception in `worker` is re-raised here, in the consumer, once its item is reached -- not
+    silently dropped, and not raised out of order.
+
+    A consumer that stops early (`break`, an exception of its own, or simply dropping the
+    generator) must not deadlock the producer thread blocked on a full queue with nowhere left to
+    put its next result -- `stop` and the drain loop below exist for exactly that: signal, then
+    keep unblocking `put` until the thread notices and exits.
+    """
+    import queue
+    import threading
+
+    q: queue.Queue = queue.Queue(maxsize=max(1, depth))
+    SENTINEL = object()
+    stop = threading.Event()
+
+    def run():
+        try:
+            for item in items:
+                if stop.is_set():
+                    return
+                result = worker(item)
+                if stop.is_set():
+                    return
+                q.put((True, result))
+        except BaseException as exc:                       # noqa: BLE001 -- re-raised, not eaten
+            if not stop.is_set():
+                q.put((False, exc))
+        finally:
+            q.put(SENTINEL)
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    try:
+        while True:
+            got = q.get()
+            if got is SENTINEL:
+                return
+            ok, payload = got
+            if not ok:
+                raise payload
+            yield payload
+    finally:
+        stop.set()
+        while t.is_alive():
+            try:
+                q.get(timeout=0.1)
+            except queue.Empty:
+                pass
+        t.join()
+
+
 def train(cache: dict, args) -> Path:
     """Train one arm and return its selected checkpoint.
 
@@ -2494,9 +2566,11 @@ def train(cache: dict, args) -> Path:
     for ep in range(args.epochs):
         model.train()
         order = rng.permutation(len(tr))
-        run = 0.0
-        for s in range(0, len(order) - args.batch + 1, args.batch):
-            x, y, e, p = to_dev(tr.batch(order[s:s + args.batch]))
+        slices = [order[s:s + args.batch]
+                 for s in range(0, len(order) - args.batch + 1, args.batch)]
+        run, n_batches = 0.0, 0
+        for batch in prefetch_iter(slices, tr.batch):
+            x, y, e, p = to_dev(batch)
             loss = loss_of(x, y, e, p)
             opt.zero_grad(set_to_none=True)
             loss.backward()
@@ -2504,7 +2578,8 @@ def train(cache: dict, args) -> Path:
             opt.step()
             sched.step()
             run += float(loss.detach())
-        run /= max(len(order) // args.batch, 1)
+            n_batches += 1
+        run /= max(n_batches, 1)
         model.eval()
         vl, ve, vm = _validate(model, va, val_carve, args.objective, args.quantile, dev,
                                args.plane_head, a_prior, t_prior, args.k_hyp)
