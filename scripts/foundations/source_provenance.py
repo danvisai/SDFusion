@@ -36,7 +36,7 @@ SOURCE_KEY_RE = re.compile(r"^[a-z0-9_]+:[A-Za-z0-9_.-]+\Z")
 SOURCE_KEY_DTYPE = "S64"
 SOURCE_KEY_MAX_BYTES = 64
 
-REGION_MAPPING_VERSION = "v1"
+REGION_MAPPING_VERSION = "v2"
 
 # pipeline -> region id. Unchanged from today's `source_id` convention (#163's N_REGIONS comment:
 # "source corpora: 0 NL / 1 DE / 2 JP", matching `stratified_split.SOURCE_NAMES` and
@@ -44,12 +44,48 @@ REGION_MAPPING_VERSION = "v1"
 # derive region ids from `source_key` rather than inventing their own. This ticket does not
 # retrofit `stratified_split.py`/`dora_frozen_gate.py` to read from this table -- they keep their
 # own copies for now; only new, `source_key`-based consumers are guaranteed to agree with this one.
-# New pipelines (BuildingWorld's) are added by a future, separately versioned entry once #171
-# decides their region-conditioning granularity.
 PIPELINE_REGION_ID: dict[str, int] = {
     "bag3d": 0,
     "nrw": 1,
     "plateau": 2,
+}
+
+# #171 (2026-09-13, project-owner-approved via /grilling): BuildingWorld's region channel is
+# "broad style buckets," explicitly NOT per-city and NOT per-source_key -- a narrow, low-population
+# flag can silently absorb a data-quality quirk specific to that population and present it as "the
+# style" (#171 point 3). "region" is a style knob a real generation-time caller picks by hand
+# ("Berlin-style roof"), not a geography lookup -- the retired "cross-cultural conditioning" framing
+# does not apply; use "style bucket" / "source-style id" in new code and docs.
+#
+# Grouped by country/continent and sized against each bucket's actual row count (measured against
+# the production `real.h5` at ingestion) so no bucket is a single thin city wearing a "diversity"
+# label: the smallest bucket here (Oceania, 13,092 rows) is still comparable to a legacy pipeline's
+# own ~11-12k rows, and the largest single city (Berlin, 456,569) keeps its own bucket rather than
+# diluting a nominal "Europe" bucket it would swamp anyway.
+#
+# New ids (3-8), never merged into the existing NL/DE/JP ids (0-2): BuildingWorld is a different
+# capture pipeline throughout, and #160's exhaustive geometric dedup gate already found BuildingWorld
+# Tokyo/Berlin geographically distinct from the existing PLATEAU/NRW rows (nearest match 6,258 m /
+# 454,075 m away) -- #171 dropped the same-country/different-pipeline arm specifically because that
+# comparison can no longer cleanly separate "pipeline artifact" from "genuine architectural
+# difference," so folding BuildingWorld's rows into the SAME learned region id as PLATEAU/NRW would
+# quietly reintroduce exactly the confound #171 ruled untestable. Keys are the `source_key` "place"
+# component -- BuildingWorld's own `CITY_SLUG` convention (`ingest_buildingworld.py`: the city name
+# with spaces stripped), not the display name; not imported from there to avoid a circular import
+# (`ingest_buildingworld.py` imports `make_source_key` from this module).
+BUILDINGWORLD_CITY_BUCKET: dict[str, int] = {
+    "Berlin": 3,                                                          # Germany (456,569 rows)
+    "Tokyo": 4,                                                           # Japan (33,315 rows)
+    "CapeTown": 5,                                                        # South Africa (243,932)
+    "Edmonton": 6, "Calgary": 6, "Mississauga": 6, "Montreal": 6,         # Canada (640,020)
+    "Boston": 7, "NewYork": 7, "SanFrancisco": 7,                        # USA (139,850)
+    "Philadelphia": 7, "Cambridge": 7,
+    "Melbourne": 8, "Yarra": 8, "Adelaide": 8,                            # Oceania: AU + NZ (13,092)
+    "GreaterGeelong": 8, "Wellington": 8, "Perth": 8,
+}
+BUILDINGWORLD_BUCKET_NAMES: dict[int, str] = {
+    3: "bw_germany", 4: "bw_japan", 5: "bw_south_africa",
+    6: "bw_canada", 7: "bw_usa", 8: "bw_oceania",
 }
 
 
@@ -76,12 +112,22 @@ def make_source_key(pipeline: str, place: str) -> str:
 
 
 def region_id_of(source_key: str) -> int:
-    """The region id a `source_key` belongs to, per the versioned `PIPELINE_REGION_ID` table.
+    """The region id a `source_key` belongs to.
 
-    Raises for any pipeline not yet in the table rather than guessing -- BuildingWorld's pipelines
-    are deliberately absent until #171 decides their granularity (see module docstring).
+    Every legacy pipeline (bag3d/nrw/plateau) maps 1:1 to a region id via `PIPELINE_REGION_ID`,
+    regardless of place -- `region_id_of(make_source_key("plateau", "tokyo23ku"))` and
+    `region_id_of(make_source_key("plateau", "osaka"))` agree. `"bw"` (BuildingWorld) is the one
+    pipeline where place matters: #171 decided a broad style-bucket granularity, so the id comes
+    from `BUILDINGWORLD_CITY_BUCKET[place]` instead. Any other unregistered pipeline, or an
+    unregistered BuildingWorld place, raises rather than guessing.
     """
-    pipeline, _ = parse_source_key(source_key)
+    pipeline, place = parse_source_key(source_key)
+    if pipeline == "bw":
+        if place not in BUILDINGWORLD_CITY_BUCKET:
+            raise ValueError(f"#171: BuildingWorld place {place!r} (from {source_key!r}) has no "
+                             f"style-bucket entry in BUILDINGWORLD_CITY_BUCKET "
+                             f"{REGION_MAPPING_VERSION}")
+        return BUILDINGWORLD_CITY_BUCKET[place]
     if pipeline not in PIPELINE_REGION_ID:
         raise ValueError(f"#167: pipeline {pipeline!r} (from {source_key!r}) has no region-id "
                          f"entry in PIPELINE_REGION_ID {REGION_MAPPING_VERSION}; #171 decides "
@@ -94,8 +140,10 @@ def region_mapping_sha256() -> str:
     """SHA-256 of the versioned mapping's canonical serialization.
 
     Stamped into height-map-generator checkpoints (#163) so a checkpoint silently trained against
-    one version of this mapping can never be loaded as if it means another.
+    one version of this mapping can never be loaded as if it means another. Covers both tables --
+    a BuildingWorld bucket reassignment changes this hash exactly as a legacy pipeline remap would.
     """
-    manifest = {"version": REGION_MAPPING_VERSION, "pipeline_region_id": PIPELINE_REGION_ID}
+    manifest = {"version": REGION_MAPPING_VERSION, "pipeline_region_id": PIPELINE_REGION_ID,
+               "buildingworld_city_bucket": BUILDINGWORLD_CITY_BUCKET}
     canonical = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
