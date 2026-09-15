@@ -52,7 +52,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     wta_ce_loss, decode_wta, bank_eligibility,
     cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
     validate_region_ids, validate_shape_channels, scope_mask_for, CORPUS_SCOPES,
-    N_REGIONS_ALL,
+    N_REGIONS_ALL, cache_batch_size,
 )
 from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL
 
@@ -882,6 +882,39 @@ class TestCorpusScope(unittest.TestCase):
     def test_every_declared_scope_is_actually_selectable(self):
         for scope in CORPUS_SCOPES:
             scope_mask_for(np.array([0]), scope)  # must not raise
+
+
+class TestCacheBatchSize(unittest.TestCase):
+    """#183 arms 2-3: build_cache's parallel dispatch, sized without needing a real corpus fixture
+    (every worker opens its own file, which is the one part genuinely untestable without one)."""
+
+    def test_batch_covers_every_row_exactly_once(self):
+        for n, workers in ((1, 1), (19, 1), (20, 1), (1000, 8), (1_562_401, 48)):
+            with self.subTest(n=n, workers=workers):
+                batch = cache_batch_size(n, workers)
+                self.assertGreaterEqual(batch, 1)
+                covered = sum(min(batch, n - i) for i in range(0, n, batch))
+                self.assertEqual(covered, n)
+
+    def test_roughly_twenty_jobs_per_worker_at_buildingworld_scale(self):
+        n, workers = 1_562_401, 48
+        batch = cache_batch_size(n, workers)
+        n_jobs = -(-n // batch)  # ceil division
+        self.assertTrue(15 <= n_jobs / workers <= 25)
+
+    def test_rejects_nonpositive_n_or_workers(self):
+        for n, workers in ((0, 8), (-1, 8), (100, 0), (100, -1)):
+            with self.subTest(n=n, workers=workers), self.assertRaises(ValueError):
+                cache_batch_size(n, workers)
+
+    def test_job_slices_reconstruct_the_original_row_order_exactly(self):
+        rows = np.arange(1000, 1500)
+        batch = cache_batch_size(len(rows), 4)
+        jobs = [rows[i:i + batch] for i in range(0, len(rows), batch)]
+        np.testing.assert_array_equal(np.concatenate(jobs), rows)
+
+    def test_a_single_worker_still_produces_at_least_one_job(self):
+        self.assertEqual(cache_batch_size(3, 1), 1)
 
 
 class TestDecode(unittest.TestCase):

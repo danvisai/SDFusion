@@ -1220,8 +1220,39 @@ def retrieve_nn(query_fps: np.ndarray, bank_fps: np.ndarray, chunk: int = 512,
 # the corpus as height fields, cached once
 # ==================================================================================================
 
+def cache_batch_size(n: int, workers: int) -> int:
+    """Rows per `_build_cache_batch` job: ~20 jobs/worker, amortising `open_real_corpus`'s own
+    identity-hash cost (paid once per job, not once per row) without making any one job so large
+    that a slow worker stalls the whole pool near the end of a run."""
+    if n < 1 or workers < 1:
+        raise ValueError(f"#183: n and workers must be positive, got n={n} workers={workers}")
+    return max(1, n // (workers * 20))
+
+
+def _build_cache_batch(job: tuple) -> list:
+    """One worker's slice of `build_cache`'s per-row height-field extraction (#183).
+
+    Opens its own corpus handle -- inheriting one across `fork` is unsafe with h5py, the same
+    reason `buildingworld_baseline._score_batch` does the same; `spawn` (used by the caller) is
+    what makes that safe rather than accidental.
+    """
+    path, rows = job
+    with open_real_corpus(path) as g:
+        out = []
+        for b in rows:
+            gt = np.asarray(g["sdf"][int(b)], np.float32) <= 0
+            fp = np.asarray(g["footprint"][int(b)]) > 0
+            hf = height_field(gt, fp)
+            if hf is None:
+                out.append(None)
+                continue
+            y0, y1, target = hf
+            out.append((fp, y0, y1 - y0 + 1, np.clip(target, 0, 255).astype(np.uint8)))
+        return out
+
+
 def build_cache(path: Path | None = None, force: bool = False,
-                corpus_scope: str = "legacy") -> dict:
+                corpus_scope: str = "legacy", workers: int = 0) -> dict:
     """Every corpus row as (footprint, base level, extent, target height map) + its conditioning.
 
     Keyed by the **ledger**'s rows (#161: `row`/`region`/`held_out`/`height_m`, split out of
@@ -1230,7 +1261,8 @@ def build_cache(path: Path | None = None, force: bool = False,
     before it can be trained on. `held_out` is still the one split all of this project's arms have
     been scored against; it just no longer lives beside the latents. Reading the 64^3 SDFs once and
     keeping only the height field turns 37 GB into 165 MB, which is the whole reason this task trains
-    in minutes.
+    in minutes -- **at the legacy 35,623-row scale**; see `workers` below for why that stopped being
+    true once BuildingWorld's ~1.56M rows entered the ledger.
 
     `corpus_scope` (#183 arm 1): the ledger has grown from 35,776 legacy (NL/DE/JP) rows to
     1,562,401 rows since #174-#177 folded BuildingWorld in. BuildingWorld rows carry the #171
@@ -1239,9 +1271,21 @@ def build_cache(path: Path | None = None, force: bool = False,
     40x larger, differently-conditioned corpus, but that failure is not a *scope selector*.
     `"legacy"` (default -- matches every existing checkpoint's training population, `heightmap_
     ce.pt` included) restricts to the frozen `row < FROZEN_SPLIT_N_TOTAL` prefix. `"all"` takes
-    every ledger row and requires a region scheme that actually covers BuildingWorld's rows (not
-    yet true here; #183 arms 2-3 are the reason this choice exists, not something this arm uses).
+    every ledger row and requires a region scheme that actually covers BuildingWorld's rows (#171
+    landed it -- see `source_provenance.BUILDINGWORLD_CITY_BUCKET`).
+
+    `workers` (#183 arms 2-3): a random 500-row sample of `corpus_scope="all"`'s ~1.56M rows,
+    read serially, measured 73 ms/row -- ~32 hours for the full build, a cost the legacy
+    35,623-row scale never had to pay (that cache predates BuildingWorld and was built once,
+    seriallly, in the minutes the docstring above describes). `0` (default) auto-selects
+    `min(mp.cpu_count(), 48)`, matching `build_program_cache`'s own established convention on
+    this file -- pass `1` for the old strictly-serial path (e.g. under a debugger, or wherever
+    `spawn`-based multiprocessing itself is unavailable). Parallelism changes wall-clock only:
+    each row's own footprint/height-field extraction is independent and order-preserving here,
+    so the written cache is byte-for-byte what the serial loop would have produced.
     """
+    import multiprocessing as mp
+
     if corpus_scope not in CORPUS_SCOPES:
         raise ValueError(f"#183: corpus_scope must be one of {CORPUS_SCOPES}, got {corpus_scope!r}")
     if path is None:
@@ -1268,19 +1312,20 @@ def build_cache(path: Path | None = None, force: bool = False,
     extents = np.zeros(n, np.int16)
     ok = np.zeros(n, np.uint8)
     t0 = time.time()
-    with open_real_corpus(H5) as g:
-        for k, b in enumerate(rows):
-            gt = np.asarray(g["sdf"][int(b)], np.float32) <= 0
-            fp = np.asarray(g["footprint"][int(b)]) > 0
-            hf = height_field(gt, fp)
-            if hf is None:
-                continue
-            y0, y1, target = hf
-            fps[k] = fp
-            targets[k] = np.clip(target, 0, 255)
-            y0s[k], extents[k], ok[k] = y0, y1 - y0 + 1, 1
-            if (k + 1) % 5000 == 0:
-                print(f"  [cache] {k+1}/{n}  {time.time()-t0:.0f}s", flush=True)
+    workers = workers or min(mp.cpu_count(), 48)
+    batch = cache_batch_size(n, workers)
+    jobs = [(H5, rows[i:i + batch]) for i in range(0, n, batch)]
+    k = 0
+    with mp.get_context("spawn").Pool(workers) as pool:
+        for results in pool.imap(_build_cache_batch, jobs):
+            for r in results:
+                if r is not None:
+                    fp, y0, extent, target = r
+                    fps[k], targets[k], y0s[k], extents[k], ok[k] = fp, target, y0, extent, 1
+                k += 1
+                if k % 20000 == 0:
+                    print(f"  [cache] {k}/{n}  {time.time()-t0:.0f}s", flush=True)
+    assert k == n, f"#183: processed {k} rows, expected {n} -- job splitting dropped/duplicated rows"
     out = dict(row=rows, held=held, region=region, height_m=height_m,
                fp=fps, target=targets, y0=y0s, extent=extents, ok=ok, n_regions=n_regions)
     cache_provenance(out)
@@ -4006,8 +4051,12 @@ def main() -> None:
     ap.add_argument("--corpus_scope", default="legacy", choices=CORPUS_SCOPES,
                     help="#183: 'legacy' (default) trains on the frozen pre-BuildingWorld "
                          "35,776-row prefix, matching every existing checkpoint. 'all' includes "
-                         "every ledger row and requires a region scheme covering BuildingWorld "
-                         "(not implemented by this arm -- see build_cache's docstring)")
+                         "every ledger row with #171's style-bucket region scheme (9-wide)")
+    ap.add_argument("--cache_workers", type=int, default=0,
+                    help="#183: worker processes for build_cache's per-row extraction; 0 (default) "
+                         "auto-selects min(cpu_count, 48). Only matters on a cache miss -- "
+                         "'legacy' has a committed cache and rarely rebuilds; 'all' does not and "
+                         "this is what makes a ~1.56M-row build tractable")
     ap.add_argument("--rebuild_cache", action="store_true")
     ap.add_argument("--rebuild_program_cache", action="store_true",
                     help="re-fit #6's slot labels over the whole corpus (56 s on 48 cores)")
@@ -4070,7 +4119,8 @@ def main() -> None:
                             + ("_class" if args.objective == "program"
                                and args.plane_head == "class" else ""))
 
-    cache = build_cache(force=args.rebuild_cache, corpus_scope=args.corpus_scope)
+    cache = build_cache(force=args.rebuild_cache, corpus_scope=args.corpus_scope,
+                       workers=args.cache_workers)
 
     if args.diagnose_program:
         ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]
