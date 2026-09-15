@@ -23,6 +23,7 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+import torch
 from scipy import ndimage
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -872,6 +873,18 @@ class TestRetrievalBaseline(unittest.TestCase):
         q = _rect(16, 2, 10, 2, 10)
         bank = np.stack([_rect(16, 0, 3, 0, 3), _rect(16, 12, 16, 12, 16)])
         self.assertIn(int(retrieve_nn(q[None], bank)[0]), (0, 1))
+
+    @unittest.skipUnless(torch.cuda.is_available(), "no CUDA device for this test")
+    def test_the_gpu_device_path_matches_cpu_exactly_including_ties(self):
+        """#178: only the matmul moves to the device; tie-break argmax stays on CPU numpy, so a
+        chunked, multi-tie case (not just one query) must come back bit-identical either way."""
+        rng = np.random.default_rng(178)
+        bank = rng.random((37, 16, 16)) > 0.55
+        bank[5], bank[19] = bank[2], bank[2]                # forces cross-chunk IoU ties
+        query = rng.random((11, 16, 16)) > 0.55
+        cpu = retrieve_nn(query, bank, chunk=3, bank_chunk=6)
+        gpu = retrieve_nn(query, bank, chunk=3, bank_chunk=6, device="cuda")
+        np.testing.assert_array_equal(gpu, cpu)
 
 
 class TestBankEligibility(unittest.TestCase):

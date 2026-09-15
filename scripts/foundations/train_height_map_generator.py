@@ -1104,23 +1104,68 @@ def mean_roof_height(profile: np.ndarray, fp: np.ndarray, extent: int) -> np.nda
     return apply_depth(fp, extent, np.rint(np.asarray(profile, np.float32) * int(extent)))
 
 
-def retrieve_nn(query_fps: np.ndarray, bank_fps: np.ndarray, chunk: int = 512) -> np.ndarray:
+def retrieve_nn(query_fps: np.ndarray, bank_fps: np.ndarray, chunk: int = 512,
+                bank_chunk: int | None = None, device: str | None = None) -> np.ndarray:
     """Index into `bank_fps` of the footprint-IoU-nearest bank row, for each query.
 
     Hyper-parameter free on purpose. The footprint is the shape half of the conditioning, and the
     height half is supplied exactly by `transplant_height`'s rescale, so a distance that mixed the
     two would need a weight -- and a *baseline* with a tuned weight is not a baseline. The bank is
     built from training rows only, so a held-out building can never retrieve itself.
+
+    `bank_chunk` bounds memory by scanning the bank in blocks instead of holding the full
+    query-chunk x bank IoU matrix at once. The result is identical to the unchunked call, including
+    tie-breaking: the first (lowest-index) bank row wins, exactly as a single `np.argmax` would.
+
+    `device` (e.g. "cuda") moves the intersection matmul -- the one part that dominates cost at
+    BuildingWorld's bank size -- onto that device. The CPU-side float32 cast of the full bank
+    (the expensive step at ~1.5M rows) is skipped entirely when a device is given: the compact
+    bool bank is transferred once and cast on-device instead. Every chunk's IoU is brought back
+    to CPU before the numpy tie-break argmax below, so the result is bit-identical to the
+    CPU-only path regardless of device, and CPU-only callers (no torch import triggered) are
+    unaffected.
     """
-    q = np.asarray(query_fps, bool).reshape(len(query_fps), -1).astype(np.float32)
-    b = np.asarray(bank_fps, bool).reshape(len(bank_fps), -1).astype(np.float32)
-    qa, ba = q.sum(1), b.sum(1)
-    out = np.zeros(len(q), np.int64)
-    for s in range(0, len(q), chunk):
-        inter = q[s:s + chunk] @ b.T
-        union = qa[s:s + chunk, None] + ba[None, :] - inter
-        iou = np.divide(inter, union, out=np.zeros_like(inter), where=union > 0)
-        out[s:s + chunk] = np.argmax(iou, axis=1)
+    q_bool = np.asarray(query_fps, bool).reshape(len(query_fps), -1)
+    b_bool = np.asarray(bank_fps, bool).reshape(len(bank_fps), -1)
+    qa, ba = q_bool.sum(1).astype(np.float32), b_bool.sum(1).astype(np.float32)
+    out = np.zeros(len(q_bool), np.int64)
+    bank_chunk = bank_chunk or len(b_bool)
+    b = b_dev = ba_dev = None
+    if device:
+        import torch
+        b_dev = torch.from_numpy(b_bool).to(device).float()
+        ba_dev = torch.from_numpy(ba).to(device)
+    else:
+        b = b_bool.astype(np.float32)
+    for s in range(0, len(q_bool), chunk):
+        qas = qa[s:s + chunk]
+        best_iou = np.full(len(qas), -1.0, np.float32)
+        best_idx = np.zeros(len(qas), np.int64)
+        if device:
+            qs_dev = torch.from_numpy(q_bool[s:s + chunk]).to(device).float()
+            qas_dev = torch.from_numpy(qas).to(device)
+        else:
+            qs = q_bool[s:s + chunk].astype(np.float32)
+        for t in range(0, len(b_bool), bank_chunk):
+            if device:
+                bt_dev = b_dev[t:t + bank_chunk]
+                bat_dev = ba_dev[t:t + bank_chunk]
+                inter_dev = qs_dev @ bt_dev.T
+                union_dev = qas_dev[:, None] + bat_dev[None, :] - inter_dev
+                iou_dev = torch.where(union_dev > 0, inter_dev / union_dev,
+                                      torch.zeros_like(inter_dev))
+                iou = iou_dev.cpu().numpy()
+            else:
+                bt, bat = b[t:t + bank_chunk], ba[t:t + bank_chunk]
+                inter = qs @ bt.T
+                union = qas[:, None] + bat[None, :] - inter
+                iou = np.divide(inter, union, out=np.zeros_like(inter), where=union > 0)
+            local_idx = np.argmax(iou, axis=1)
+            local_best = iou[np.arange(len(qas)), local_idx]
+            better = local_best > best_iou
+            best_iou[better] = local_best[better]
+            best_idx[better] = local_idx[better] + t
+        out[s:s + chunk] = best_idx
     return out
 
 
