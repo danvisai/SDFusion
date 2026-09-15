@@ -52,6 +52,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     wta_ce_loss, decode_wta, bank_eligibility,
     cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
     validate_region_ids, validate_shape_channels, scope_mask_for, CORPUS_SCOPES,
+    N_REGIONS_ALL,
 )
 from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL
 
@@ -591,6 +592,69 @@ class TestConditioningCarriesNoAnswer(unittest.TestCase):
         for region in (-1, N_REGIONS):
             with self.subTest(region=region), self.assertRaisesRegex(ValueError, r"in \[0, 3\)"):
                 condition_channels(fp, 9, 12.0, region)
+
+
+class TestConditioningNRegions(unittest.TestCase):
+    """#183 arms 2-3: the region one-hot band widens for corpus_scope="all", every default
+    (n_regions=N_REGIONS) must stay byte-for-byte what every legacy arm already trained on."""
+
+    def test_default_n_regions_reproduces_the_legacy_channel_count(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        self.assertEqual(condition_channels(fp, 9, 12.0, 1).shape[0], COND_CHANNELS)
+
+    def test_a_wider_n_regions_widens_the_input_by_exactly_the_extra_regions(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        wide = condition_channels(fp, 9, 12.0, 1, n_regions=N_REGIONS_ALL)
+        self.assertEqual(wide.shape[0], COND_CHANNELS + (N_REGIONS_ALL - N_REGIONS))
+
+    def test_a_region_only_valid_under_the_wider_scheme_is_accepted_there_and_only_there(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        region = N_REGIONS  # invalid at the legacy width, valid once buckets exist
+        condition_channels(fp, 9, 12.0, region, n_regions=N_REGIONS_ALL)  # must not raise
+        with self.assertRaises(ValueError):
+            condition_channels(fp, 9, 12.0, region)  # legacy default still rejects it
+
+    def test_conditioning_channel_names_count_matches_condition_channels_at_every_width(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        for n_regions in (N_REGIONS, N_REGIONS_ALL):
+            with self.subTest(n_regions=n_regions):
+                names = conditioning_channel_names(n_regions=n_regions)
+                self.assertEqual(len(names), condition_channels(fp, 9, 12.0, 0,
+                                                                 n_regions=n_regions).shape[0])
+
+    def test_make_model_builds_a_first_layer_matching_the_wider_input(self):
+        legacy = make_model("ce", 8, 6)
+        wide = make_model("ce", 8, 6, n_regions=N_REGIONS_ALL)
+        self.assertEqual(wide.e1[0].in_channels,
+                         legacy.e1[0].in_channels + (N_REGIONS_ALL - N_REGIONS))
+
+    def test_cache_provenance_derives_n_regions_from_the_cache_not_the_legacy_default(self):
+        cache = {"row": np.array([1, 2], np.int32), "region": np.array([0, 5], np.int8),
+                 "n_regions": N_REGIONS_ALL}
+        prov = cache_provenance(cache)
+        self.assertEqual(prov["n_regions"], N_REGIONS_ALL)
+        self.assertEqual(len(prov["conditioning_channels"]), COND_CHANNELS + (N_REGIONS_ALL - N_REGIONS))
+
+    def test_cache_without_an_n_regions_key_defaults_to_legacy(self):
+        cache = {"row": np.array([1, 2], np.int32), "region": np.array([0, 1], np.int8)}
+        self.assertEqual(cache_provenance(cache)["n_regions"], N_REGIONS)
+
+    def test_checkpoint_provenance_with_no_cache_trusts_the_checkpoints_own_claimed_n_regions(self):
+        checkpoint = dict(n_regions=N_REGIONS_ALL,
+                          conditioning_channels=list(conditioning_channel_names(
+                              n_regions=N_REGIONS_ALL)),
+                          corpus_identity_sha256="whatever -- unchecked when cache is None",
+                          region_mapping_sha256=region_mapping_sha256())
+        validate_checkpoint_provenance(checkpoint, cache=None)  # must not raise
+
+    def test_checkpoint_provenance_with_no_cache_still_catches_a_genuinely_stale_channel_list(self):
+        checkpoint = dict(n_regions=N_REGIONS_ALL,
+                          conditioning_channels=list(conditioning_channel_names(
+                              n_regions=N_REGIONS)),  # stale: claims wide but lists legacy-width
+                          corpus_identity_sha256="whatever -- unchecked when cache is None",
+                          region_mapping_sha256=region_mapping_sha256())
+        with self.assertRaisesRegex(ValueError, "conditioning_channels mismatch"):
+            validate_checkpoint_provenance(checkpoint, cache=None)
 
 
 class TestShapeChannels(unittest.TestCase):

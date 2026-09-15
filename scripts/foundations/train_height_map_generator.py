@@ -498,7 +498,9 @@ from scripts.foundations.recover_massing_programs import (       # noqa: E402
     CARVE_NEEDED, H5, K_OPS, SHIP714, SLOT_TYPES, FitBias, fit_program_beam, height_field,
     occupancy, plane_surface, program_to_slots, render_iso,
 )
-from scripts.foundations.source_provenance import region_mapping_sha256  # noqa: E402
+from scripts.foundations.source_provenance import (  # noqa: E402
+    BUILDINGWORLD_CITY_BUCKET, region_mapping_sha256,
+)
 
 WORK = REPO / "outputs/height_map_generator"
 CACHE = WORK / "height_fields.npz"
@@ -679,6 +681,10 @@ PLANE_DECODE = ("median", "q0.25", "argmax")
 PLANE_FLOOR_EPS = 1e-4
 
 N_REGIONS = 3          # source corpora: 0 NL / 1 DE / 2 JP, the `region` column of the latent cache
+# #183 arms 2-3: ids 3-8, #171's BuildingWorld style buckets (source_provenance.
+# BUILDINGWORLD_CITY_BUCKET) -- derived, not hardcoded, so the two tables cannot silently drift
+# apart. Only meaningful under corpus_scope="all"; every legacy call site keeps using N_REGIONS.
+N_REGIONS_ALL = max(BUILDINGWORLD_CITY_BUCKET.values()) + 1
 # #173: the two footprint-shape statistics #164 measured a real error correlation for (jagged
 # outlines predict worse `extra`/`missing`/`vol_iou`; `aspect_ratio` and `vertex_count` did not and
 # are not offered here). Fixed canonical order -- CLI/checkpoint order never matters, only membership
@@ -697,7 +703,8 @@ def validate_shape_channels(names) -> tuple[str, ...]:
     return tuple(s for s in SHAPE_CHANNEL_STATS if s in requested)
 
 
-def conditioning_channel_names(shape_channels: tuple[str, ...] = ()) -> tuple[str, ...]:
+def conditioning_channel_names(shape_channels: tuple[str, ...] = (),
+                               n_regions: int = N_REGIONS) -> tuple[str, ...]:
     """Full ordered channel-name tuple for a shape-channel selection (#173).
 
     The base footprint/extent/height/edt/region set is #127's original design and never reorders.
@@ -705,10 +712,15 @@ def conditioning_channel_names(shape_channels: tuple[str, ...] = ()) -> tuple[st
     selection reproduces the pre-#173 channel set exactly and every historical checkpoint's channel
     meaning is unaffected. Pinned by `test_the_channel_count_matches_the_model_input` so the model's
     input width and this tuple cannot drift apart.
+
+    `n_regions` (#183 arms 2-3): defaults to the legacy 3-region scheme, so every existing caller
+    (including every call with no cache/checkpoint in scope, like `town_generate_service.py`'s
+    serving path) is byte-for-byte unaffected. Pass `N_REGIONS_ALL` only for a corpus_scope="all"
+    run's own model/channel construction.
     """
     shape_channels = validate_shape_channels(shape_channels)
     return ("footprint", "extent_voxels", "log_height_m", "distance_to_footprint_edge",
-            *(f"region_{r}" for r in range(N_REGIONS)), *shape_channels)
+            *(f"region_{r}" for r in range(n_regions)), *shape_channels)
 
 
 # footprint mask, conditioned extent, log height in metres, distance-to-edge, region one-hot.
@@ -716,16 +728,16 @@ CONDITIONING_CHANNELS = conditioning_channel_names()
 COND_CHANNELS = len(CONDITIONING_CHANNELS)
 
 
-def validate_region_ids(regions: np.ndarray) -> np.ndarray:
+def validate_region_ids(regions: np.ndarray, n_regions: int = N_REGIONS) -> np.ndarray:
     """Return int64 region ids after rejecting values the one-hot cannot represent (#163)."""
     values = np.asarray(regions)
     if values.ndim != 1 or values.dtype.kind not in "iu":
         raise ValueError(f"#163: region must be a one-dimensional integer column, got "
                          f"shape={values.shape} dtype={values.dtype}")
     values = values.astype(np.int64, copy=False)
-    bad = values[(values < 0) | (values >= N_REGIONS)]
+    bad = values[(values < 0) | (values >= n_regions)]
     if len(bad):
-        raise ValueError(f"#163: region ids must be in [0, {N_REGIONS}); found "
+        raise ValueError(f"#163: region ids must be in [0, {n_regions}); found "
                          f"{np.unique(bad).tolist()}")
     return values
 
@@ -752,14 +764,19 @@ def cache_provenance(cache: dict, shape_channels: tuple[str, ...] = ()) -> dict:
     warning it is supposed to get. `shape_channels` still travels with a checkpoint -- `train`
     writes it directly onto the saved dict, the same way it already writes `k_hyp`/`plane_head` --
     just not through this contract.
+
+    `n_regions` (#183 arms 2-3) comes from the CACHE itself (`build_cache` stamps it from
+    `corpus_scope`), defaulting to the legacy 3-region scheme for any cache built before this key
+    existed -- so a pre-#183 cache dict validates exactly as before.
     """
-    validate_region_ids(cache["region"])
+    n_regions = int(cache.get("n_regions", N_REGIONS))
+    validate_region_ids(cache["region"], n_regions=n_regions)
     if len(cache["region"]) != len(cache["row"]):
         raise ValueError("#163: cache region and row columns have different lengths")
     shape_channels = validate_shape_channels(shape_channels)
     return dict(
-        n_regions=N_REGIONS,
-        conditioning_channels=list(conditioning_channel_names(shape_channels)),
+        n_regions=n_regions,
+        conditioning_channels=list(conditioning_channel_names(shape_channels, n_regions=n_regions)),
         corpus_identity_sha256=cache_corpus_identity(cache),
         region_mapping_sha256=region_mapping_sha256(),
     )
@@ -800,11 +817,20 @@ def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) 
                       "for this checkpoint load (region_mapping_sha256 and channel count still "
                       "are)", RuntimeWarning, stacklevel=2)
     shape_channels = validate_shape_channels(checkpoint.get("shape_channels", ()))
-    expected = cache_provenance(cache, shape_channels) if cache is not None else {
-        "n_regions": N_REGIONS,
-        "conditioning_channels": list(conditioning_channel_names(shape_channels)),
-        "region_mapping_sha256": region_mapping_sha256(),
-    }
+    if cache is not None:
+        expected = cache_provenance(cache, shape_channels)
+    else:
+        # #183: no cache to derive n_regions from, so trust the CHECKPOINT's own claim -- this is
+        # still a real check (does today's code reproduce what a checkpoint claiming this many
+        # regions and this shape_channels selection would look like?), just not a re-derivation
+        # from scratch. A legacy checkpoint with no claim at all defaults to N_REGIONS, unchanged.
+        claimed_n_regions = checkpoint.get("n_regions", N_REGIONS)
+        expected = {
+            "n_regions": claimed_n_regions,
+            "conditioning_channels": list(conditioning_channel_names(
+                shape_channels, n_regions=claimed_n_regions)),
+            "region_mapping_sha256": region_mapping_sha256(),
+        }
     for key, value in expected.items():
         if checkpoint[key] != value:
             raise ValueError(f"#163: checkpoint {key} mismatch: expected {value!r}, "
@@ -1023,7 +1049,8 @@ def envelope_depth(fp: np.ndarray) -> np.ndarray:
 # ==================================================================================================
 
 def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int,
-                       shape_channels: tuple[str, ...] = ()) -> np.ndarray:
+                       shape_channels: tuple[str, ...] = (),
+                       n_regions: int = N_REGIONS) -> np.ndarray:
     """[C, Z, X] network input built from #127's conditioning ONLY.
 
     The signature is the leakage guard: there is no argument through which the target height field
@@ -1046,14 +1073,14 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
     perimeter do not depend on the grid's orientation).
     """
     shape_channels = validate_shape_channels(shape_channels)
-    region = int(validate_region_ids(np.asarray([region]))[0])
+    region = int(validate_region_ids(np.asarray([region]), n_regions=n_regions)[0])
     m = np.asarray(fp, bool)
     edt = ndimage.distance_transform_edt(m).astype(np.float32) / 8.0
     ch = [m.astype(np.float32),
           np.full(m.shape, float(extent) / RES, np.float32),
           np.full(m.shape, float(np.log1p(max(height_m, 0.0))) / 4.0, np.float32),
           np.clip(edt, 0.0, 4.0)]
-    for r in range(N_REGIONS):
+    for r in range(n_regions):
         ch.append(np.full(m.shape, 1.0 if region == r else 0.0, np.float32))
     if shape_channels:
         # A degenerate mask (empty, or too few pixels for a hull) is never observed on real
@@ -1227,11 +1254,12 @@ def build_cache(path: Path | None = None, force: bool = False,
             out = {k: d[k] for k in d.files}
         cache_provenance(out)
         return out
+    n_regions = N_REGIONS if corpus_scope == "legacy" else N_REGIONS_ALL
     ledger = read_ledger(LEDGER_PATH)
     scope_mask = scope_mask_for(ledger["row"], corpus_scope)
     rows = ledger["row"][scope_mask].astype(np.int32)
     held = (ledger["held_out"][scope_mask] == 1).astype(np.uint8)
-    region = validate_region_ids(ledger["region"][scope_mask]).astype(np.int8)
+    region = validate_region_ids(ledger["region"][scope_mask], n_regions=n_regions).astype(np.int8)
     height_m = ledger["height_m"][scope_mask].astype(np.float32)
     n = len(rows)
     fps = np.zeros((n, RES, RES), np.uint8)
@@ -1254,7 +1282,7 @@ def build_cache(path: Path | None = None, force: bool = False,
             if (k + 1) % 5000 == 0:
                 print(f"  [cache] {k+1}/{n}  {time.time()-t0:.0f}s", flush=True)
     out = dict(row=rows, held=held, region=region, height_m=height_m,
-               fp=fps, target=targets, y0=y0s, extent=extents, ok=ok)
+               fp=fps, target=targets, y0=y0s, extent=extents, ok=ok, n_regions=n_regions)
     cache_provenance(out)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(path, **out)
@@ -1304,7 +1332,8 @@ def head_channels(objective: str) -> int:
 
 
 def make_model(objective: str, width: int, k_planes: int, plane_head: str = "regress",
-              k_hyp: int = 1, shape_channels: tuple[str, ...] = ()):
+              k_hyp: int = 1, shape_channels: tuple[str, ...] = (),
+              n_regions: int = N_REGIONS):
     """The one place an objective chooses an architecture.
 
     `k_hyp` (#8) only widens the 'ce' head's final 1x1 conv to `k_hyp` independent copies of the
@@ -1314,11 +1343,14 @@ def make_model(objective: str, width: int, k_planes: int, plane_head: str = "reg
     `shape_channels` (#173) only widens the trunk's FIRST layer, by the same amount
     `conditioning_channel_names` widens the input; a `shape_channels=()` model is bit-for-bit what
     every arm before #173 already built.
+
+    `n_regions` (#183 arms 2-3) does the same for the region one-hot band; the default reproduces
+    every model built before this parameter existed.
     """
     if k_hyp > 1 and objective != "ce":
         raise ValueError(f"k_hyp > 1 needs a distribution per hypothesis; "
                          f"'{objective}' has no per-column posterior to multiply")
-    in_channels = len(conditioning_channel_names(shape_channels))
+    in_channels = len(conditioning_channel_names(shape_channels, n_regions=n_regions))
     if objective == "program":
         return build_program_model(K_OPS, width, plane_head, in_channels)
     if objective == "planes":
@@ -2248,6 +2280,7 @@ class HeightFieldSet:
         self.extent = cache["extent"][idx].astype(np.int32)
         self.height_m = cache["height_m"][idx]
         self.region = cache["region"][idx].astype(np.int32)
+        self.n_regions = int(cache.get("n_regions", N_REGIONS))
         self.augment, self.rng = augment, np.random.default_rng(seed)
         self.program = None
         if program is not None:
@@ -2266,7 +2299,8 @@ class HeightFieldSet:
             if self.augment:
                 fp, target = _d4(fp, target, k, flip)
             xs.append(condition_channels(fp, int(self.extent[i]), float(self.height_m[i]),
-                                         int(self.region[i]), self.shape_channels))
+                                         int(self.region[i]), self.shape_channels,
+                                         n_regions=self.n_regions))
             ys.append(carve_depth(target, fp, int(self.extent[i])))
             if self.program is not None:
                 # ⚠️ the SAME symmetry as the footprint above, drawn once: a program augmented
@@ -2368,7 +2402,8 @@ def train(cache: dict, args) -> Path:
               + f"   (tau={TYPE_TEMPERATURE})", flush=True)
 
     model = make_model(args.objective, args.width, args.k_planes, args.plane_head,
-                       args.k_hyp, shape_channels).to(dev)
+                       args.k_hyp, shape_channels,
+                       n_regions=int(cache.get("n_regions", N_REGIONS))).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
@@ -2537,8 +2572,9 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     head = d.get("plane_head", "regress")
     k_hyp = d.get("k_hyp", 1)
     shape_channels = validate_shape_channels(d.get("shape_channels", ()))  # #173, default legacy ()
+    n_regions = int(d.get("n_regions", N_REGIONS))  # #183: default legacy for a pre-#183 checkpoint
     model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head, k_hyp,
-                       shape_channels).to(dev)
+                       shape_channels, n_regions=n_regions).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     out = np.zeros((len(held["fp"]), RES, RES), np.int16)
@@ -2547,7 +2583,7 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
             sel = range(s, min(s + batch, len(out)))
             x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
                                              float(held["height_m"][i]), int(held["region"][i]),
-                                             shape_channels)
+                                             shape_channels, n_regions=n_regions)
                           for i in sel])
             xt = torch.from_numpy(x).to(dev)
             if d["objective"] == "planes":
@@ -2790,8 +2826,9 @@ def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
     head = d.get("plane_head", "regress")
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
     shape_channels = validate_shape_channels(d.get("shape_channels", ()))  # #173, default legacy ()
+    n_regions = int(d.get("n_regions", N_REGIONS))  # #183: default legacy for a pre-#183 checkpoint
     model = make_model("program", d["width"], d.get("k_planes", 6), head,
-                       shape_channels=shape_channels).to(dev)
+                       shape_channels=shape_channels, n_regions=n_regions).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     A, T, P = [], [], []
@@ -2800,7 +2837,7 @@ def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
             sel = range(s, min(s + 64, len(held["fp"])))
             x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
                                              float(held["height_m"][i]), int(held["region"][i]),
-                                             shape_channels)
+                                             shape_channels, n_regions=n_regions)
                           for i in sel])
             al, tl, pr = model(torch.from_numpy(x).to(dev))
             A.append(al.cpu().numpy())
