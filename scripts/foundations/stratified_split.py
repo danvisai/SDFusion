@@ -47,14 +47,36 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from utils.frozen_corpus import open_real_corpus  # noqa: E402
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 
 SOURCE_NAMES = {0: "NL", 1: "DE", 2: "JP", -1: "BW"}
 NL_PREFIX = "NL.IMBAG.Pand."
+# #174: the sentinel BuildingWorld rows carry in `source_id`. Rejected explicitly by `tile_key`
+# below, not silently mis-tiled -- see that function's own docstring.
+BUILDINGWORLD_SOURCE_ID = -1
 
 
 def tile_key(source_id: int, bag_id: str) -> str:
-    """The spatial grouping key a row's own source already encodes in its id."""
+    """The spatial grouping key a row's own source already encodes in its id.
+
+    Explicitly rejects `source_id == -1` (BuildingWorld, #174): its `bag_id` is
+    `'<City>#<member>'`, which WOULD match the generic "split on the first '#'" branch below and
+    silently produce one giant tile per city (Berlin alone: ~450k rows under one key) -- not a
+    real spatial grouping, and not what this function's callers (`make_split`'s shared-target
+    subset-sum search) are built to handle. #177 built its own separate held-out split for
+    BuildingWorld rows (`buildingworld_stratified_split.py`) rather than extending this one -- see
+    that module's own docstring for why a whole-tile key here doesn't generalize to BuildingWorld's
+    row-per-city bag_id shape. Every caller of `make_split` against the real corpus must restrict
+    to `real.h5[:FROZEN_SPLIT_N_TOTAL]` first; this raise is the backstop for the caller who
+    forgets, not the primary mechanism.
+    """
+    if int(source_id) == BUILDINGWORLD_SOURCE_ID:
+        raise ValueError(
+            f"#153/#177: tile_key does not support source_id={BUILDINGWORLD_SOURCE_ID} "
+            f"(BuildingWorld, bag_id={bag_id!r}) -- its '<City>#<member>' bag_id would collapse "
+            f"onto one giant per-city tile under this function's generic branch below. Restrict "
+            f"the caller to real.h5[:FROZEN_SPLIT_N_TOTAL] (utils.frozen_corpus) before calling "
+            f"make_split, or use buildingworld_stratified_split.py for BuildingWorld's own split.")
     name = SOURCE_NAMES.get(int(source_id), str(source_id))
     if source_id == 0:
         if not bag_id.startswith(NL_PREFIX) or len(bag_id) < len(NL_PREFIX) + 4:
@@ -221,9 +243,13 @@ def main() -> None:
     ap.add_argument("--out", default=None, help="write the full report json here")
     args = ap.parse_args()
 
+    # Restricted to the frozen NL/DE/JP prefix (#162): this split was built and recorded against
+    # that historical population, not against whatever real.h5 has grown to since (#177's
+    # BuildingWorld rows have no whole-tile structure tile_key can use -- see materialize_split's
+    # own docstring in five_arm_scorecard.py for the same reasoning).
     with open_real_corpus(args.h5) as f:
-        source_id = f["source_id"][:]
-        bag_id = f["bag_id"][:]
+        source_id = f["source_id"][:FROZEN_SPLIT_N_TOTAL]
+        bag_id = f["bag_id"][:FROZEN_SPLIT_N_TOTAL]
 
     split, report = make_split(source_id, bag_id, args.val_frac, args.test_frac, args.seed)
     assert_no_tile_crosses_boundary(source_id, bag_id, split)

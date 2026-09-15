@@ -208,30 +208,44 @@ def _path_segment_matches(member_name: str, segment: str) -> bool:
     return segment in member_name.split("/")
 
 
-def apply_geometric_correction(mesh, city: str, member_name: str):
-    """Mutate `mesh` in place per #165's per-city CRS/units decision; return it for chaining.
+def correct_vertices(city: str, member_name: str, vertices: np.ndarray) -> np.ndarray:
+    """The vertex half of #165's per-city CRS/units decision, as a pure array transform.
+
+    Factored out of `apply_geometric_correction` (#177) so a caller that only needs corrected
+    XY positions -- not a full trimesh mesh -- can reuse the exact same CRS policy rather than
+    re-deriving it: `buildingworld_spatial_keys.py` needs a row's corrected centroid, never its
+    faces or winding, and duplicating this table a second time would risk the two silently
+    drifting apart. `apply_geometric_correction` below now calls this rather than owning the
+    transform itself; its own behavior (and every existing test of it) is unchanged.
 
     Order matters for Philadelphia (per-subfolder) and Yarra (per-subfolder): the whole-city checks
     run first and are mutually exclusive with the per-subfolder ones (no city needs both).
     """
+    v = np.asarray(vertices, dtype=np.float64)
     if city in FEET_CITIES:
-        mesh.vertices = mesh.vertices * FEET_TO_M
-    elif city == "Philadelphia" and _path_segment_matches(member_name, PHILADELPHIA_FEET_SEGMENT):
-        mesh.vertices = mesh.vertices * FEET_TO_M
-    elif city == "Mississauga":
+        return v * FEET_TO_M
+    if city == "Philadelphia" and _path_segment_matches(member_name, PHILADELPHIA_FEET_SEGMENT):
+        return v * FEET_TO_M
+    if city == "Mississauga":
         import pyproj
 
         transformer = pyproj.Transformer.from_crs(MISSISSAUGA_SRC_CRS, MISSISSAUGA_DST_CRS,
                                                    always_xy=True)
-        x, y = transformer.transform(mesh.vertices[:, 0], mesh.vertices[:, 1])
-        v = mesh.vertices.copy()
-        v[:, 0], v[:, 1] = x, y
-        mesh.vertices = v
-
+        x, y = transformer.transform(v[:, 0], v[:, 1])
+        out = v.copy()
+        out[:, 0], out[:, 1] = x, y
+        v = out
     if city == "Yarra" and _path_segment_matches(member_name, YARRA_RICHMOND_SEGMENT):
-        v = mesh.vertices.copy()
-        v[:, 1] = -v[:, 1]
-        mesh.vertices = v
+        out = v.copy()
+        out[:, 1] = -out[:, 1]
+        v = out
+    return v
+
+
+def apply_geometric_correction(mesh, city: str, member_name: str):
+    """Mutate `mesh` in place per #165's per-city CRS/units decision; return it for chaining."""
+    mesh.vertices = correct_vertices(city, member_name, mesh.vertices)
+    if city == "Yarra" and _path_segment_matches(member_name, YARRA_RICHMOND_SEGMENT):
         mesh.faces = mesh.faces[:, ::-1]
     return mesh
 

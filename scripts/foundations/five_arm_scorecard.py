@@ -53,7 +53,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from utils.frozen_corpus import open_real_corpus  # noqa: E402
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 from scripts.foundations.recover_massing_programs import CARVE_NEEDED, H5  # noqa: E402
 from scripts.foundations.stratified_split import make_split  # noqa: E402
 from scripts.foundations.train_height_map_generator import CACHE, build_cache  # noqa: E402
@@ -90,10 +90,17 @@ ORACLE_REFERENCE = {
 def materialize_split(h5_path: Path = H5, val_frac: float = VAL_FRAC, test_frac: float = TEST_FRAC,
                       seed: int = SPLIT_SEED) -> dict:
     """Runs #153's `make_split` and returns real.h5 ROW INDICES for val/test -- the same id space
-    `cache["row"]`/every other arm on this map already uses."""
+    `cache["row"]`/every other arm on this map already uses.
+
+    Restricted to the frozen NL/DE/JP prefix (`FROZEN_SPLIT_N_TOTAL` rows) -- #177's BuildingWorld
+    rows appended after it (`source_id == -1`) have no whole-tile structure `tile_key` can use
+    (their `bag_id`s are `'<City>#<member>'`, so every BuildingWorld row from one city would
+    collapse onto a single giant "tile"), and #153's own split was scoped to the historical
+    population it was built and recorded against, not to whatever `real.h5` has grown to since.
+    """
     with open_real_corpus(h5_path) as f:
-        source_id = f["source_id"][:]
-        bag_id = f["bag_id"][:]
+        source_id = f["source_id"][:FROZEN_SPLIT_N_TOTAL]
+        bag_id = f["bag_id"][:FROZEN_SPLIT_N_TOTAL]
     split, report = make_split(source_id, bag_id, val_frac, test_frac, seed)
     return dict(test_ids=np.nonzero(split == "test")[0], val_ids=np.nonzero(split == "val")[0],
                n_total=len(split), report=report)

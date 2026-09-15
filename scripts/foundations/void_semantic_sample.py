@@ -47,7 +47,7 @@ from scene.sdf_edit import footprint_envelope_sdf, layer_program_to_ops  # noqa:
 from scripts.foundations.carving_trace import render_carving_trace, save_carving_trace  # noqa: E402
 from scripts.foundations.recover_massing_programs import CARVE_NEEDED, H5, height_field  # noqa: E402
 from scripts.foundations.stratified_split import SOURCE_NAMES, make_split  # noqa: E402
-from utils.frozen_corpus import open_real_corpus  # noqa: E402
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 
 ARTIFACTS = REPO / "execution/artifacts"
 TRACES_DIR = REPO / "outputs/void_semantic_traces"
@@ -96,10 +96,14 @@ BUCKET_ORDER = ("low", "mid", "high")
 
 def materialize_test_ids(seed: int = 0) -> np.ndarray:
     """#153's own TEST split -- real.h5 row indices, matching every other consumer of this split
-    this session (#181's own `materialize_split`)."""
+    this session (#181's own `materialize_split`).
+
+    Restricted to the frozen NL/DE/JP prefix -- see `five_arm_scorecard.materialize_split`'s own
+    docstring for why #177's appended BuildingWorld rows must not reach `make_split`.
+    """
     with open_real_corpus(H5) as f:
-        source_id = f["source_id"][:]
-        bag_id = f["bag_id"][:]
+        source_id = f["source_id"][:FROZEN_SPLIT_N_TOTAL]
+        bag_id = f["bag_id"][:FROZEN_SPLIT_N_TOTAL]
     split, _report = make_split(source_id, bag_id, seed=seed)
     return np.sort(np.nonzero(split == "test")[0])
 

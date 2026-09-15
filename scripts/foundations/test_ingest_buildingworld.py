@@ -23,7 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.foundations.ingest_buildingworld import (  # noqa: E402
     CITY_Z_REFERENCE, IncrementalCityWriter, STAGING_COLUMNS, apply_geometric_correction,
     bag_id_for, city_slug, class_label_for, classify_defect, combine_into_real,
-    load_dedup_excluded_ids, process_member, source_key_for, stage_city, z_reference_check,
+    correct_vertices, load_dedup_excluded_ids, process_member, source_key_for, stage_city,
+    z_reference_check,
 )
 from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, REAL_CORPUS_PATH, row_identity_sha256
 
@@ -128,6 +129,38 @@ class TestGeometricCorrection(unittest.TestCase):
         v_before = m.vertices.copy()
         apply_geometric_correction(m, "Yarra", "mesh/burnley/burnley_00001.obj")
         np.testing.assert_allclose(m.vertices, v_before)
+
+
+class TestCorrectVertices(unittest.TestCase):
+    """#177: `correct_vertices` (the array-only half `apply_geometric_correction` now delegates
+    to) must produce bit-identical vertices to the mesh-based path for every city/subfolder case
+    -- proving the refactor changed nothing about #165's policy."""
+
+    def _cases(self):
+        return [
+            ("Boston", "mesh/x.obj"),
+            ("Philadelphia", "mesh/2010_ph_downtown/1.obj"),
+            ("Philadelphia", "mesh/2015_scene/1.obj"),
+            ("Mississauga", "mesh/x.obj"),
+            ("Berlin", "mesh/x.obj"),
+            ("Yarra", "mesh/richmond/richmond_00001.obj"),
+            ("Yarra", "mesh/burnley/burnley_00001.obj"),
+        ]
+
+    def test_matches_apply_geometric_correction_vertex_output_exactly(self):
+        for city, member in self._cases():
+            m = trimesh.creation.box(extents=(2.0, 2.0, 2.0))
+            m.apply_translation((100.0, 200.0, 5.0))
+            v_before = m.vertices.copy()
+            apply_geometric_correction(m, city, member)
+            out = correct_vertices(city, member, v_before)
+            np.testing.assert_allclose(out, m.vertices, atol=1e-9, err_msg=f"{city}/{member}")
+
+    def test_does_not_mutate_its_input(self):
+        v_before = trimesh.creation.box(extents=(2.0, 2.0, 2.0)).vertices.copy()
+        v_in = v_before.copy()
+        correct_vertices("Boston", "mesh/x.obj", v_in)
+        np.testing.assert_array_equal(v_in, v_before)
 
 
 class TestDefectClassification(unittest.TestCase):

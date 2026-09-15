@@ -51,6 +51,12 @@ class TileKeyTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             tile_key(1, "no-hash-separator")
 
+    def test_buildingworld_source_id_is_rejected_not_collapsed_into_one_giant_tile(self):
+        """#177: BuildingWorld's 'City#member' bag_id would otherwise match the generic '#'
+        branch and silently merge every one of a city's rows onto a single tile key."""
+        with self.assertRaises(ValueError):
+            tile_key(-1, "Berlin#mesh/x.obj")
+
 
 def _synthetic_corpus(seed=0):
     """3 regions shaped like the real corpus's actual coarseness asymmetry: one region
@@ -135,9 +141,14 @@ class RealCorpusRegressionTest(unittest.TestCase):
     def test_achieved_proportions_match_the_recorded_baseline(self):
         import h5py
 
+        from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL
+
+        # #177 appended BuildingWorld rows after the frozen NL/DE/JP prefix; this regression pins
+        # #153's own recorded baseline, computed against that historical prefix, not whatever
+        # real.h5 has grown to since (see five_arm_scorecard.materialize_split's own docstring).
         with h5py.File(REAL_H5, "r") as f:
-            source_id = f["source_id"][:]
-            bag_id = f["bag_id"][:]
+            source_id = f["source_id"][:FROZEN_SPLIT_N_TOTAL]
+            bag_id = f["bag_id"][:FROZEN_SPLIT_N_TOTAL]
         split, report = make_split(source_id, bag_id, seed=0)
         assert_no_tile_crosses_boundary(source_id, bag_id, split)
 
