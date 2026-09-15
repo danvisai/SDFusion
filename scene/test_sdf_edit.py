@@ -1,11 +1,14 @@
-"""Contract tests for the layer-program bridge into the SDF edit stack (#128).
+"""Contract tests for the layer-program bridge into the SDF edit stack (#128), and #151's
+group-id tagging / independent per-footprint commit on top of it.
 
 The recovered massing programs of #10 compile to a 64^3 voxel grid through their own deterministic
 compiler.  These tests pin the *other* path -- the same program expressed as `EditOp`s and composed
 through `scene/sdf_primitives.py` -- and assert the two agree exactly, because a program that only
 exists as voxels is geometry evidence, not a recipe.
 
-Pure CPU, no model, no GPU, no corpus.  Same shape as `scene/test_surface_sampling.py`.
+Pure CPU, no GPU, no corpus. #151's own tests need `scripts.foundations.recover_massing_programs`'
+`BlockProgram` (a model-free, CPU-only object -- see that module's own test file) so "no model"
+no longer holds file-wide, but nothing here trains or loads a checkpoint.
 
 Run: env -u LD_PRELOAD ./sdfusion/bin/python scene/test_sdf_edit.py
 """
@@ -15,7 +18,9 @@ import itertools
 import json
 import sys
 import unittest
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -25,11 +30,14 @@ sys.path.insert(0, str(REPO))
 
 from scene.sdf_edit import (  # noqa: E402
     ALGEBRA, ARCHITECTURAL_VOCABULARY, CORE, PALETTE, PROGRAM_KINDS, VOLUMETRIC,
-    EditableBuilding, EditOp, canonical_form, commutes, equivalent, footprint_envelope_sdf,
-    is_height_map_representable, layer_program_to_ops,
-    mask_components_rings, mask_to_rings, op_problems, program_problems,
+    EditableBuilding, EditOp, _current_target, canonical_form, commit_block_program, commutes,
+    containment_problems, equivalent, finalize_problems, footprint_envelope_sdf,
+    is_height_map_representable, layer_program_to_ops, mask_components_rings, mask_to_rings,
+    op_problems, program_problems, snap_to_grid,
 )
 from scene.sdf_primitives import sdf_plane_halfspace  # noqa: E402
+from scripts.foundations import recover_massing_programs  # noqa: E402
+from scripts.foundations.recover_massing_programs import BlockProgram  # noqa: E402
 
 RES = 32                      # the corpus grid is 64^3; the contract is resolution-agnostic and a
                               # smaller grid keeps these tests a few seconds on CPU.
@@ -293,6 +301,7 @@ class TestEditOpRoundTrip(unittest.TestCase):
         back = EditOp.from_dict(json.loads(json.dumps(op.to_dict())))
         self.assertEqual(back.kind, op.kind)
         self.assertEqual(back.mode, op.mode)
+        self.assertEqual(back.id, op.id, "#141: the id must survive the JSON round trip")
         np.testing.assert_allclose(np.asarray(back.size), np.asarray(op.size))
         for a, b in zip(back.polygon or [], op.polygon or []):
             np.testing.assert_allclose(np.asarray(a), np.asarray(b))
@@ -319,9 +328,20 @@ class TestEditOpRoundTrip(unittest.TestCase):
         self.assertEqual(len(back.planes), 2)
         self.assertEqual(len(back.planes[0]), 2, "a clause is intersected, clauses are unioned")
 
-    def test_unknown_kind_is_refused(self):
+    def test_unknown_kind_is_refused_by_add(self):
+        """#143: `.add()` validates before appending, so this is refused right there -- it never
+        reaches the stack in the first place."""
         eb = EditableBuilding(footprint_envelope_sdf(np.ones((4, 4), bool), 0, 1, res=4))
-        eb.add(EditOp(kind="zigzag"))
+        with self.assertRaises(ValueError):
+            eb.add(EditOp(kind="zigzag"))
+        self.assertEqual(eb.ops, [], "a refused add must not touch the stack")
+
+    def test_unknown_kind_is_also_refused_by_composed(self):
+        """`composed()`'s own defense in depth: a building assembled directly from a malformed op
+        list (bypassing `.add()`, e.g. by loading old state) still fails loudly rather than
+        compiling garbage."""
+        eb = EditableBuilding(footprint_envelope_sdf(np.ones((4, 4), bool), 0, 1, res=4),
+                              [EditOp(kind="zigzag")])
         with self.assertRaises(ValueError):
             eb.composed()
 
@@ -332,6 +352,15 @@ class TestEditOpRoundTrip(unittest.TestCase):
         self.assertEqual(op.kind, "box")
         self.assertIsNone(op.polygon)
         self.assertIsNone(op.planes)
+
+    def test_old_state_with_no_id_is_assigned_a_fresh_one(self):
+        """#141: `legacy` above predates the id field entirely -- loading it must not fail, and
+        the loaded op must come out addressable rather than id-less."""
+        legacy = {"kind": "box", "center": [0, 0, 0], "size": [1, 1, 1], "mode": "add",
+                  "smooth": 0.0, "rot_y": 0.0, "round_r": 0.0, "lib_id": -1}
+        self.assertNotIn("id", legacy)
+        op = EditOp.from_dict(legacy)
+        self.assertTrue(op.id, "a legacy op must still come out with a usable id")
 
 
 class TestComposedMatchesVoxelCompiler(unittest.TestCase):
@@ -575,7 +604,14 @@ class TestOntology(unittest.TestCase):
             spec = ALGEBRA[kind]
             self.assertEqual(spec.tier, CORE)
             self.assertTrue(spec.height_map, f"{kind} must be height-map representable")
-            self.assertTrue(spec.subtractive_only, "#10 measured missing=0 on 714/714")
+
+    def test_layer_and_ramp_are_bidirectional_but_cut_roof_stays_subtract_only(self):
+        """#140: `layer`/`ramp` gain a real additive mode; `cut_roof`'s additive mirror already
+        exists as the volumetric tier's `gable`/`hip`, so it keeps the subtract-only rule #10
+        measured (`missing` = 0 on 714/714 -- real massing is only ever cut from its envelope)."""
+        self.assertFalse(ALGEBRA["layer"].subtractive_only)
+        self.assertFalse(ALGEBRA["ramp"].subtractive_only)
+        self.assertTrue(ALGEBRA["cut_roof"].subtractive_only, "#10 measured missing=0 on 714/714")
 
     def test_the_csg_primitives_are_volumetric_and_not_height_map_representable(self):
         for kind in ("box", "sphere", "cylinder", "cone"):
@@ -636,10 +672,29 @@ class TestOpValidity(unittest.TestCase):
         probs = op_problems(EditOp(kind="buttress"))
         self.assertTrue(any("buttress" in p for p in probs))
 
-    def test_a_core_operation_may_not_be_additive(self):
-        """The core is subtract-only by measurement, so an additive `layer` is a spec violation and
-        not merely unusual -- it would also break commutativity, which everything below relies on."""
-        self.assertTrue(any("subtract" in p for p in op_problems(self._layer(mode="add"))))
+    def test_layer_now_accepts_additive_mode(self):
+        """#140: raising a column is validated exactly like lowering one."""
+        self.assertEqual(op_problems(self._layer(mode="add")), [])
+
+    def test_ramp_now_accepts_additive_mode(self):
+        r = dict(kind="ramp", mode="add", size=(-0.5, 0.5),
+                 polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]],
+                 planes=[[[0.0, 1.0, 0.0, 0.0]]])
+        self.assertEqual(op_problems(EditOp(**r)), [])
+
+    def test_cut_roof_may_not_be_additive(self):
+        """#140 keeps `cut_roof` subtract-only -- its additive mirror is the volumetric tier's
+        `gable`/`hip`, unlike `layer`/`ramp`, which #140 makes bidirectional above."""
+        roof = dict(kind="cut_roof", mode="add", size=(-0.5, 0.5),
+                    polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]],
+                    roof=[0.5, 0.1])
+        self.assertTrue(any("subtract" in p for p in op_problems(EditOp(**roof))))
+
+    def test_a_volumetric_kind_is_unaffected_by_140(self):
+        """`box` was never subtract-only and stays that way -- pins that the kind table's other
+        entries did not move when `layer`/`ramp` flipped."""
+        self.assertFalse(ALGEBRA["box"].subtractive_only)
+        self.assertEqual(op_problems(EditOp(kind="box", mode="add", size=(1.0, 1.0, 1.0))), [])
 
     def test_mode_must_be_add_or_subtract(self):
         self.assertTrue(any("mode" in p for p in op_problems(self._layer(mode="sideways"))))
@@ -792,6 +847,817 @@ class TestHeightMapRepresentable(unittest.TestCase):
 
     def test_the_empty_program_is(self):
         self.assertTrue(is_height_map_representable([]))
+
+
+# ================================================================================================
+# #140 -- layer and ramp become bidirectional
+# ================================================================================================
+
+
+class TestBidirectionalCore(unittest.TestCase):
+    """#140: `layer`/`ramp` gain a real, learnable `mode="add"` mirroring the lower-only
+    `mode="subtract"` they already had. `cut_roof` and the volumetric tier are unaffected --
+    `layer_program_to_ops` still hard-codes `mode="subtract"`, so this exercises a hand-built
+    additive op, the only way one can exist today (#5 owns the training signal for it).
+
+    Mixing add and subtract on overlapping regions reopens exactly the ordering #4 proved away for
+    an all-subtractive program (`union` does not commute with `subtract`) -- #3's grilling decision,
+    made knowingly. `commutes`/`canonical_form` needed no code change for this (they already key off
+    `op.mode`, not `op.kind`); what follows pins that against a REAL additive `layer`/`ramp`, not
+    only the synthetic `box` used elsewhere in this file.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+        m = np.zeros((RES, RES), bool)
+        m[14:24, 6:26] = True
+        m &= self.fx.fp
+        self.region = m
+        program = [self.fx.layer(m.copy(), 9)]
+        self.sub_op = layer_program_to_ops(program, self.fx.fp, self.fx.y0, self.fx.y1, res=RES)[0]
+        self.add_op = replace(self.sub_op, mode="add")
+
+    def _heights(self, ops):
+        return EditableBuilding(self.base, ops).to_occupancy(res=RES).sum(axis=1)   # [z, x]
+
+    def test_add_and_subtract_both_pass_validation_on_layer(self):
+        self.assertEqual(op_problems(self.sub_op), [])
+        self.assertEqual(op_problems(self.add_op), [])
+
+    def test_add_then_subtract_differs_from_subtract_then_add(self):
+        """🔑 The trade #3 made knowingly, made concrete: subtract-then-add REFILLS the region
+        (add is the last word), add-then-subtract CUTS it (subtract is the last word) -- the
+        mirror-image outcome of insertion order, not an arbitrary difference."""
+        sub_then_add = self._heights([self.sub_op, self.add_op])
+        add_then_sub = self._heights([self.add_op, self.sub_op])
+        self.assertFalse(np.array_equal(sub_then_add[self.region], add_then_sub[self.region]))
+        self.assertTrue(np.all(sub_then_add[self.region] > add_then_sub[self.region]))
+        full = self.fx.y1 - self.fx.y0 + 1
+        np.testing.assert_array_equal(sub_then_add[self.region], full)
+
+    def test_replay_is_deterministic_and_stable_across_repeated_calls(self):
+        ops = [self.sub_op, self.add_op]
+        first = self._heights(ops)
+        second = self._heights(ops)
+        third = self._heights(list(ops))          # a fresh list, same ops in the same order
+        np.testing.assert_array_equal(first, second)
+        np.testing.assert_array_equal(first, third)
+
+    def test_non_overlapping_add_and_subtract_still_compose_order_free(self):
+        """#3's locality invariant: two ops whose regions do not overlap compose identically
+        regardless of order -- free, inherited from #4, unchanged by mixing modes."""
+        other = np.zeros((RES, RES), bool)
+        other[8:14, 6:14] = True
+        other &= self.fx.fp
+        self.assertFalse((other & self.region).any(), "fixture must be disjoint from self.region")
+        other_program = [self.fx.layer(other.copy(), 12)]
+        other_sub = layer_program_to_ops(other_program, self.fx.fp, self.fx.y0, self.fx.y1,
+                                         res=RES)[0]
+        other_add = replace(other_sub, mode="add")
+        forward = self._heights([self.sub_op, other_add])
+        backward = self._heights([other_add, self.sub_op])
+        np.testing.assert_array_equal(forward, backward)
+
+    def test_a_program_with_a_real_additive_layer_does_not_commute(self):
+        self.assertFalse(commutes([self.sub_op, self.add_op]))
+
+    def test_commutes_stays_conservative_on_an_all_additive_program(self):
+        """`commutes` checks `op.mode == "subtract"` for every op -- #140's own acceptance
+        criterion pins that reading unchanged ('false for any program containing an additive
+        operation'), even though a pure union is mathematically order-free too. #3's write-up
+        notes that case only in passing ('incidentally'); it is not a claim this predicate makes,
+        and this test is here so nobody 'fixes' it into a silent behaviour change."""
+        other = np.zeros((RES, RES), bool)
+        other[8:14, 6:14] = True
+        other &= self.fx.fp
+        other_program = [self.fx.layer(other.copy(), 12)]
+        other_add = replace(
+            layer_program_to_ops(other_program, self.fx.fp, self.fx.y0, self.fx.y1, res=RES)[0],
+            mode="add")
+        self.assertFalse(commutes([self.add_op, other_add]))
+
+    def test_canonical_form_refuses_a_program_with_a_real_additive_ramp(self):
+        r = EditOp(kind="ramp", mode="add", size=self.sub_op.size, polygon=self.sub_op.polygon,
+                   planes=[[[0.0, 1.0, 0.0, 0.0]]])
+        with self.assertRaises(ValueError):
+            canonical_form([self.sub_op, r])
+
+
+class TestRecoveredProgramsStillCommute(unittest.TestCase):
+    """#140's regression clause: real recovered programs must still report as commuting now that
+    the kind table stops forbidding `add` on `layer`/`ramp`.
+
+    #10's fitter never emits an additive op -- `_op_for` hard-codes `mode="subtract"` for every
+    recovered kind, untouched by this ticket -- so this is a property of the DATA that this pins
+    against the artifact rather than trusting it stays true as the kind table changes underneath.
+    """
+
+    ARTIFACT = REPO / "execution/artifacts/program_recovery_714.json"
+
+    def test_every_recovered_program_still_commutes(self):
+        data = json.loads(self.ARTIFACT.read_text())
+        rows = data["per_building"]
+        res = 64
+        # only a CutRoof entry with no region of its own falls back to this mask (11/714 rows);
+        # every op's MODE -- what `commutes` checks -- is "subtract" regardless of footprint shape.
+        fp = np.ones((res, res), bool)
+        tested = 0
+        for building_id, row in rows.items():
+            program = row.get("program") or []
+            if not program:
+                continue
+            ops = layer_program_to_ops(program, fp, 0, res - 1, res=res)
+            self.assertTrue(commutes(ops), f"building {building_id} no longer commutes")
+            tested += 1
+        self.assertGreater(tested, 400, "the artifact should carry real recovered programs")
+
+
+# ================================================================================================
+# #141 -- every edit operation gets a stable identity
+# ================================================================================================
+
+
+class TestOperationIdentity(unittest.TestCase):
+    """#141: an `EditOp` carries a stable id, auto-assigned when the caller doesn't supply one, so
+    "reroll this decision" is a lookup rather than a recomputed list position. `TestEditOpRoundTrip`
+    above already pins the JSON round trip and the legacy-state (no id) load; this covers the rest
+    of #141's contract: uniqueness, an explicit override, and that `canonical_form` -- #4/#140's
+    content-only equivalence test -- does not start treating id as content.
+    """
+
+    def test_a_new_op_has_a_usable_id_without_being_supplied(self):
+        self.assertTrue(EditOp(kind="box").id)
+
+    def test_two_independently_constructed_ops_get_distinct_ids(self):
+        self.assertNotEqual(EditOp(kind="box").id, EditOp(kind="box").id)
+
+    def test_an_explicit_id_is_honored_not_overwritten(self):
+        self.assertEqual(EditOp(kind="box", id="my-stable-id").id, "my-stable-id")
+
+    def test_canonical_form_ignores_id(self):
+        """Two ops built separately, describing the same edit, must still denote the same building
+        as far as `canonical_form` is concerned -- it is a proxy for `equivalent()`, which never
+        reads `id` because `composed()` never does."""
+        x = EditOp(kind="box", mode="subtract", size=(0.2, 0.2, 0.2))
+        y = EditOp(kind="box", mode="subtract", size=(0.2, 0.2, 0.2))
+        self.assertNotEqual(x.id, y.id)
+        self.assertEqual(canonical_form([x]), canonical_form([y]))
+        self.assertNotIn("id", canonical_form([x])[0])
+
+
+class TestRemoveById(unittest.TestCase):
+    """#141: an id-addressed removal path alongside the existing index-based `remove`."""
+
+    def test_removes_the_right_operation_regardless_of_position(self):
+        ops = [EditOp(kind="box"), EditOp(kind="sphere"), EditOp(kind="cone")]
+        eb = EditableBuilding(None, list(ops))
+        removed = eb.remove_by_id(ops[1].id)
+        self.assertEqual(removed.kind, "sphere")
+        self.assertEqual([o.kind for o in eb.ops], ["box", "cone"])
+
+    def test_survives_other_edits_shifting_its_position(self):
+        """#141's own motivating case: reroll "the operation I just added" without recomputing its
+        current index after later edits inserted around it."""
+        target = EditOp(kind="sphere")
+        eb = EditableBuilding(None, [target])
+        eb.add(EditOp(kind="box"))
+        eb.add(EditOp(kind="cone"))
+        removed = eb.remove_by_id(target.id)
+        self.assertIs(removed, target)
+        self.assertEqual([o.kind for o in eb.ops], ["box", "cone"])
+
+    def test_an_unknown_id_is_refused_not_a_silent_no_op(self):
+        eb = EditableBuilding(None, [EditOp(kind="box")])
+        with self.assertRaises(KeyError):
+            eb.remove_by_id("does-not-exist")
+        self.assertEqual(len(eb.ops), 1, "a failed removal must not silently drop any operation")
+
+    def test_the_index_based_path_is_unchanged(self):
+        """#141 adds a sibling path; it must not alter `remove`'s own behaviour, negative-index
+        refusal included."""
+        eb = EditableBuilding(None, [EditOp(kind="box"), EditOp(kind="sphere")])
+        with self.assertRaises(IndexError):
+            eb.remove(-1)
+        removed = eb.remove(0)
+        self.assertEqual(removed.kind, "box")
+        self.assertEqual([o.kind for o in eb.ops], ["sphere"])
+
+
+# ================================================================================================
+# #142 -- snap new operation geometry to the working grid
+# ================================================================================================
+
+
+class TestSnapToGrid(unittest.TestCase):
+    """#142: a pure function that rounds a NEW op's region geometry onto the module's own voxel
+    pitch, so it meets existing geometry at a clean edge instead of an arbitrary sub-voxel jitter.
+
+    `self.grid_op` is real recovered geometry (via `layer_program_to_ops`) -- already exactly on
+    the grid `snap_to_grid` targets -- used as ground truth for what "the same edge" means.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        m = np.zeros((RES, RES), bool)
+        m[14:24, 6:26] = True
+        m &= self.fx.fp
+        program = [self.fx.layer(m, 9)]
+        self.grid_op = layer_program_to_ops(program, self.fx.fp, self.fx.y0, self.fx.y1,
+                                            res=RES)[0]
+
+    def _jitter(self, op, dx, dz, dy_lo, dy_hi):
+        return replace(op, polygon=[[[x + dx, z + dz] for x, z in ring] for ring in op.polygon],
+                       size=(op.size[0] + dy_lo, op.size[1] + dy_hi))
+
+    def test_jittered_geometry_snaps_onto_the_grid(self):
+        jittered = self._jitter(self.grid_op, 2e-4, -1.5e-4, 1e-4, -3e-5)
+        snapped = snap_to_grid(jittered, res=RES)
+        np.testing.assert_allclose(np.asarray(snapped.polygon), np.asarray(self.grid_op.polygon))
+        np.testing.assert_allclose(np.asarray(snapped.size), np.asarray(self.grid_op.size))
+
+    def test_two_ops_at_different_subvoxel_offsets_meet_at_the_same_edge(self):
+        a = snap_to_grid(self._jitter(self.grid_op, 2e-4, -1.5e-4, 1e-4, -3e-5), res=RES)
+        b = snap_to_grid(self._jitter(self.grid_op, -1e-4, 2e-4, -2e-4, 1e-4), res=RES)
+        np.testing.assert_allclose(np.asarray(a.polygon), np.asarray(b.polygon))
+        np.testing.assert_allclose(np.asarray(a.size), np.asarray(b.size))
+
+    def test_an_already_grid_aligned_op_is_unchanged(self):
+        """The module's own recovered geometry already sits on this grid (⚠️ 'half-voxel
+        offsets', the section header above `_snap_scalar`); snapping it must be a no-op."""
+        snapped = snap_to_grid(self.grid_op, res=RES)
+        np.testing.assert_allclose(np.asarray(snapped.polygon), np.asarray(self.grid_op.polygon))
+        np.testing.assert_allclose(np.asarray(snapped.size), np.asarray(self.grid_op.size))
+
+    def test_smooth_is_untouched_and_keeps_its_default(self):
+        self.assertEqual(self.grid_op.smooth, 0.0, "the hard-edge default")
+        default = snap_to_grid(self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4), res=RES)
+        self.assertEqual(default.smooth, 0.0)
+        blended = replace(self.grid_op, smooth=0.4)
+        self.assertEqual(snap_to_grid(blended, res=RES).smooth, 0.4)
+
+    def test_the_input_is_not_mutated(self):
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        before_polygon = json.loads(json.dumps(jittered.polygon))
+        before_size = tuple(jittered.size)
+        snap_to_grid(jittered, res=RES)
+        self.assertEqual(jittered.polygon, before_polygon)
+        self.assertEqual(jittered.size, before_size)
+
+    def test_id_is_preserved_snapping_does_not_mint_a_new_operation(self):
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        self.assertEqual(snap_to_grid(jittered, res=RES).id, jittered.id)
+
+    def test_an_op_with_no_polygon_passes_through_unchanged(self):
+        """Volumetric CSG kinds (`box`, `sphere`, ...) have no region geometry to snap."""
+        box = EditOp(kind="box", size=(0.3, 0.3, 0.3))
+        self.assertIs(snap_to_grid(box, res=RES), box)
+
+    def test_from_dict_does_not_snap_stored_state(self):
+        """#3's opt-in decision, from the load path: `EditOp.from_dict` reproduces stored geometry
+        exactly -- jitter and all -- until a caller explicitly calls `snap_to_grid`."""
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        loaded = EditOp.from_dict(json.loads(json.dumps(jittered.to_dict())))
+        np.testing.assert_array_equal(np.asarray(loaded.polygon), np.asarray(jittered.polygon))
+        self.assertFalse(np.allclose(np.asarray(loaded.polygon), np.asarray(self.grid_op.polygon)),
+                         "the fixture's jitter must be large enough to actually move the vertices")
+
+    def test_adding_a_jittered_op_to_a_building_does_not_snap_it(self):
+        """#142's own acceptance criterion: snapping is opt-in, not automatic on authorship."""
+        jittered = self._jitter(self.grid_op, 3e-4, -3e-4, 2e-4, -2e-4)
+        eb = EditableBuilding(None)
+        eb.add(jittered)
+        np.testing.assert_array_equal(np.asarray(eb.ops[-1].polygon), np.asarray(jittered.polygon))
+
+
+# ================================================================================================
+# #143 -- refuse to commit an invalid operation to a building
+# ================================================================================================
+
+
+class TestAddValidatesBeforeAppending(unittest.TestCase):
+    """#143: `EditableBuilding.add` runs the candidate through `op_problems` -- the same
+    per-operation predicate `program_problems`/`canonical_form` already use -- BEFORE touching the
+    stack, so a malformed op can never silently enter a building's state.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_a_well_formed_operation_is_appended_exactly_as_before(self):
+        op = EditOp(kind="box", mode="subtract", size=(0.1, 0.1, 0.1))
+        eb = EditableBuilding(self.base)
+        result = eb.add(op)
+        self.assertIs(result, eb, "add still returns self for chaining")
+        self.assertEqual(eb.ops, [op])
+
+    def test_a_missing_required_field_is_refused_with_a_clear_message(self):
+        eb = EditableBuilding(self.base)
+        with self.assertRaises(ValueError) as ctx:
+            eb.add(EditOp(kind="layer", mode="subtract"))          # no polygon
+        self.assertIn("polygon", str(ctx.exception))
+        self.assertEqual(eb.ops, [])
+
+    def test_the_wrong_mode_for_a_kind_is_refused_with_a_clear_message(self):
+        """#140's cut_roof-stays-subtract-only rule is exactly the case the ticket says this
+        closes automatically, with no further work needed."""
+        eb = EditableBuilding(self.base)
+        roof = EditOp(kind="cut_roof", mode="add", size=(-0.5, 0.5),
+                      polygon=[[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]],
+                      roof=[0.5, 0.1])
+        with self.assertRaises(ValueError) as ctx:
+            eb.add(roof)
+        self.assertIn("subtract", str(ctx.exception))
+
+    def test_an_invalid_mode_string_is_refused_with_a_clear_message(self):
+        eb = EditableBuilding(self.base)
+        with self.assertRaises(ValueError) as ctx:
+            eb.add(EditOp(kind="box", mode="sideways"))
+        self.assertIn("mode", str(ctx.exception))
+
+    def test_a_rejected_append_leaves_the_stack_byte_for_byte_unchanged(self):
+        kept = EditOp(kind="box", mode="subtract", size=(0.2, 0.2, 0.2))
+        eb = EditableBuilding(self.base, [kept])
+        before = json.dumps([op.to_dict() for op in eb.ops], sort_keys=True)
+        with self.assertRaises(ValueError):
+            eb.add(EditOp(kind="layer", mode="subtract"))
+        after = json.dumps([op.to_dict() for op in eb.ops], sort_keys=True)
+        self.assertEqual(before, after)
+        self.assertEqual(eb.ops, [kept])
+
+
+# ================================================================================================
+# #144 -- prove the edit-locality invariant on a mixed program
+# ================================================================================================
+
+
+class TestEditLocalityInvariant(unittest.TestCase):
+    """#3's actual crux, made checkable rather than left as a stated intention: `composed()` folds
+    operations left to right, so one operation's COMPILED CONTRIBUTION -- the set of voxels its own
+    application toggles, given whatever the ops before it already built -- can only be changed by
+    an operation inserted BEFORE it in the list, never one inserted after, and never anything
+    elsewhere on the building. Removing operation X by id (#141) is the case this ticket pins: it
+    must leave every operation before X untouched, leave every later operation whose region does
+    NOT overlap X's untouched, and it MAY change a later operation whose region does overlap X's --
+    on a program that genuinely mixes add and subtract (#140), where #4's free commutativity no
+    longer covers the whole space.
+
+    Four regions on one footprint, in insertion order:
+      `r_before`   -- BEFORE the removed op: a SUBTRACT that lowers a broad region (containing
+                      `r_removed`) first, so the later ADD has real material to raise back up.
+                      ⚠️ It DELIBERATELY overlaps the removed op's region too, so "unaffected"
+                      here proves the invariant is about POSITION, not about overlap.
+      `r_removed`  -- the op that gets removed by id: an ADD, raising `r_before`'s lowered column
+                      back up within its own (smaller) region. This is the one real add-mode
+                      operation, mixing with the three subtracts around it (#140).
+      `r_disjoint` -- AFTER the removed op, region disjoint from it (though it may sit inside
+                      `r_before`'s broad lowered area -- irrelevant, since `r_before` is present
+                      either way; only overlap with `r_removed` itself can matter here).
+      `r_overlap`  -- AFTER the removed op, region overlapping it (and contained in `r_before`'s
+                      lowered area outside the intersection, so the ONLY thing that differs
+                      with/without `r_removed` is the raised sub-patch this op then cuts back down).
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+        def region(z0, z1, x0, x1):
+            m = np.zeros((RES, RES), bool)
+            m[z0:z1, x0:x1] = True
+            m &= self.fx.fp
+            self.assertTrue(m.any(), "fixture region must actually intersect the footprint")
+            return m
+
+        self.r_before = region(10, 22, 8, 22)
+        self.r_removed = region(12, 18, 10, 18)
+        self.r_disjoint = region(8, 14, 6, 10)
+        self.r_overlap = region(15, 21, 15, 21)
+
+        self.assertTrue((self.r_before & self.r_removed).any(),
+                        "deliberately overlapping, to sharpen the 'before is unaffected' claim")
+        self.assertFalse((self.r_disjoint & self.r_removed).any())
+        self.assertTrue((self.r_overlap & self.r_removed).any())
+
+        def op_for(mask, height):
+            return layer_program_to_ops([self.fx.layer(mask, height)], self.fx.fp, self.fx.y0,
+                                        self.fx.y1, res=RES)[0]
+
+        op_before = op_for(self.r_before, 5)                          # SUBTRACT: lower it first
+        op_removed = replace(op_for(self.r_removed, 15), mode="add")  # ADD: raise it back, partly
+        op_disjoint = op_for(self.r_disjoint, 10)
+        op_overlap = op_for(self.r_overlap, 8)
+
+        self.ops = [op_before, op_removed, op_disjoint, op_overlap]
+        self.removed_id = op_removed.id
+
+    def _contribution(self, ops, index):
+        """The voxels operation `ops[index]`'s own application toggles: the occupancy delta
+        between compiling everything through it and everything up to (not including) it."""
+        up_to = EditableBuilding(self.base, ops[:index + 1]).to_occupancy(res=RES)
+        before = EditableBuilding(self.base, ops[:index]).to_occupancy(res=RES)
+        return up_to ^ before
+
+    def _after_removal(self):
+        eb = EditableBuilding(self.base, list(self.ops))
+        removed = eb.remove_by_id(self.removed_id)
+        self.assertEqual(removed.id, self.removed_id)
+        return eb.ops                      # [op_before, op_disjoint, op_overlap]
+
+    def test_the_fixture_actually_mixes_modes_with_an_overlapping_pair(self):
+        """Sanity check against the ticket's own precondition, not the invariant itself."""
+        self.assertEqual({op.mode for op in self.ops}, {"add", "subtract"})
+        self.assertFalse(commutes(self.ops))
+
+    def test_every_operation_before_the_removed_one_is_unaffected(self):
+        after_ops = self._after_removal()
+        before = self._contribution(self.ops, 0)          # op_before, index 0 in both lists
+        after = self._contribution(after_ops, 0)
+        np.testing.assert_array_equal(before, after)
+
+    def test_a_non_overlapping_later_operation_is_unaffected(self):
+        after_ops = self._after_removal()
+        before = self._contribution(self.ops, 2)          # op_disjoint: index 2, then 1
+        after = self._contribution(after_ops, 1)
+        np.testing.assert_array_equal(before, after)
+
+    def test_an_overlapping_later_operation_does_change(self):
+        after_ops = self._after_removal()
+        before = self._contribution(self.ops, 3)          # op_overlap: index 3, then 2
+        after = self._contribution(after_ops, 2)
+        self.assertFalse(np.array_equal(before, after),
+                         "an overlapping later op's contribution must be free to change")
+
+    def test_deterministic_and_repeatable_across_runs(self):
+        def run():
+            after_ops = self._after_removal()
+            return ([self._contribution(self.ops, i) for i in range(len(self.ops))]
+                    + [self._contribution(after_ops, i) for i in range(len(after_ops))])
+        first, second = run(), run()
+        self.assertEqual(len(first), len(second))
+        for a, b in zip(first, second):
+            np.testing.assert_array_equal(a, b)
+
+
+# ================================================================================================
+# #145 -- bundle the architectural-program gate into a finalize-time check
+# ================================================================================================
+
+
+class TestFinalizeProblems(unittest.TestCase):
+    """#145/#7: `finalize_problems` bundles `program_problems`, `commutes`, and
+    `is_height_map_representable` -- three checks that existed separately, nothing ran together --
+    into one finalize-time report. Unlike #143's `op_problems`-in-`add` gate, it never raises.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        m = np.zeros((RES, RES), bool)
+        m[14:24, 6:26] = True
+        m &= self.fx.fp
+        program = [self.fx.layer(m, 9)]
+        self.core_ops = layer_program_to_ops(program, self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def test_a_well_formed_program_produces_an_empty_report(self):
+        self.assertEqual(finalize_problems(self.core_ops), [])
+
+    def test_the_empty_program_produces_an_empty_report(self):
+        self.assertEqual(finalize_problems([]), [])
+
+    def test_a_syntax_problem_is_named_in_the_report(self):
+        bad = [EditOp(kind="layer", mode="subtract")]        # no polygon
+        report = finalize_problems(bad)
+        self.assertTrue(any("polygon" in p for p in report))
+
+    def test_a_non_commuting_mixed_program_is_named_without_a_height_map_complaint(self):
+        """Isolates the commutativity message: `layer`/`ramp` are height-map representable
+        regardless of mode, so a mixed add/subtract program built from them only trips this one
+        check, not the other."""
+        mixed = self.core_ops + [replace(self.core_ops[0], mode="add")]
+        report = finalize_problems(mixed)
+        self.assertTrue(any("commute" in p for p in report), report)
+        self.assertFalse(any("height-map" in p for p in report), report)
+
+    def test_a_non_height_map_representable_program_is_named_without_a_commute_complaint(self):
+        """Isolates the height-map message: a subtract-mode volumetric op still commutes with an
+        all-subtract core program, so this only trips the other check."""
+        volumetric = self.core_ops + [EditOp(kind="box", mode="subtract", size=(0.1, 0.1, 0.1))]
+        report = finalize_problems(volumetric)
+        self.assertTrue(any("height-map" in p for p in report), report)
+        self.assertFalse(any("commute" in p for p in report), report)
+
+    def test_the_gate_never_raises_on_a_severely_malformed_program(self):
+        try:
+            report = finalize_problems([EditOp(kind="zigzag")])
+        except Exception as e:                                # noqa: BLE001
+            self.fail(f"finalize_problems raised {e!r} instead of reporting")
+        self.assertTrue(report)
+
+    def test_the_gate_is_not_wired_into_add_or_the_preview_path(self):
+        """#7's decision: preview/fast-edit stays on #143's per-op gate alone. A program that would
+        fail `finalize_problems` (not height-map representable) must still `.add()` cleanly, since
+        `add` only runs `op_problems` on the one op being appended."""
+        eb = EditableBuilding(None)
+        box = EditOp(kind="box", mode="subtract", size=(0.1, 0.1, 0.1))
+        eb.add(box)                                            # must not raise
+        self.assertEqual(eb.ops, [box])
+        self.assertTrue(finalize_problems(eb.ops), "the fixture must genuinely fail the gate")
+
+
+# ================================================================================================
+# #146 -- generalize containment into a footprint-boundary gate
+# ================================================================================================
+
+
+class TestContainmentProblems(unittest.TestCase):
+    """#146/#7: containment against the footprint's OWN envelope -- not a GT target (#10/#131's
+    guarantee only applies when fitting against a real building). Two rules: stay inside the
+    footprint's plan+height bounds, and the exterior must claim the entire boundary at ground
+    level. Runs against compiled occupancy, never any one operation's own region.
+    """
+
+    def setUp(self):
+        self.fx = ProgramFixture()
+        self.base = footprint_envelope_sdf(self.fx.fp, self.fx.y0, self.fx.y1, res=RES)
+
+    def _occ(self, ops):
+        return EditableBuilding(self.base, ops).to_occupancy(res=RES)
+
+    def test_the_untouched_envelope_passes(self):
+        self.assertEqual(containment_problems(self._occ([]), self.fx.fp, self.fx.y0, self.fx.y1),
+                         [])
+
+    def test_material_outside_the_footprint_plan_fails(self):
+        outside = EditOp(kind="box", mode="add", center=(0.9, 0.0, 0.9), size=(0.05, 0.05, 0.05))
+        report = containment_problems(self._occ([outside]), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("envelope" in p for p in report), report)
+
+    def test_material_above_the_declared_height_range_fails(self):
+        step = 2.0 / (RES - 1)
+        above = (self.fx.y1 + 5) * step - 1.0                  # 5 voxels above y1, world units
+        tall = EditOp(kind="box", mode="add", center=(0.0, above, 0.0), size=(0.3, 0.05, 0.3))
+        report = containment_problems(self._occ([tall]), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("envelope" in p for p in report), report)
+
+    def test_material_below_the_declared_height_range_fails(self):
+        step = 2.0 / (RES - 1)
+        # 2 voxels below y0 -- still inside the sampled [-1, 1] grid (fixture y0 = 4), unlike a
+        # larger offset which would fall off the grid entirely and never register as occupied.
+        below = (self.fx.y0 - 2) * step - 1.0
+        low = EditOp(kind="box", mode="add", center=(0.0, below, 0.0), size=(0.3, 0.05, 0.3))
+        report = containment_problems(self._occ([low]), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("envelope" in p for p in report), report)
+
+    def test_a_gap_in_the_ground_level_perimeter_fails(self):
+        """Carving away a chunk of the footprint's own edge, down through ground level, pulls the
+        exterior away from the boundary -- fails even though nothing left the envelope."""
+        boundary_chunk = np.zeros((RES, RES), bool)
+        boundary_chunk[8:11, 6:10] = True                      # touches the top-left edge
+        boundary_chunk &= self.fx.fp
+        self.assertTrue(boundary_chunk.any())
+        ops = layer_program_to_ops([self.fx.layer(boundary_chunk, 0)], self.fx.fp, self.fx.y0,
+                                   self.fx.y1, res=RES)
+        report = containment_problems(self._occ(ops), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("perimeter" in p for p in report), report)
+
+    def test_a_gap_on_the_opposite_edge_of_the_perimeter_also_fails(self):
+        """The same check, at the bottom-right edge instead of the top-left -- the underlying rule
+        must not be hardcoded to whichever side the first test happened to pick."""
+        boundary_chunk = np.zeros((RES, RES), bool)
+        boundary_chunk[20:24, 21:26] = True                    # touches the bottom-right edge
+        boundary_chunk &= self.fx.fp
+        self.assertTrue(boundary_chunk.any())
+        ops = layer_program_to_ops([self.fx.layer(boundary_chunk, 0)], self.fx.fp, self.fx.y0,
+                                   self.fx.y1, res=RES)
+        report = containment_problems(self._occ(ops), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertTrue(any("perimeter" in p for p in report), report)
+
+    def test_an_interior_void_not_touching_the_boundary_passes(self):
+        interior = np.zeros((RES, RES), bool)
+        interior[14:18, 14:18] = True                          # well inside, touches no edge
+        interior &= self.fx.fp
+        self.assertTrue(interior.any())
+        ops = layer_program_to_ops([self.fx.layer(interior, 0)], self.fx.fp, self.fx.y0,
+                                   self.fx.y1, res=RES)
+        report = containment_problems(self._occ(ops), self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertEqual(report, [])
+
+    def test_a_free_standing_interior_element_passes(self):
+        """An added interior element, well within the envelope, is exempt from touching the
+        boundary -- it only has to obey the outer bound, which it does here."""
+        interior_add = EditOp(kind="box", mode="add", center=(0.0, 0.0, 0.0),
+                              size=(0.05, 0.05, 0.05))
+        report = containment_problems(self._occ([interior_add]), self.fx.fp, self.fx.y0,
+                                      self.fx.y1)
+        self.assertEqual(report, [])
+
+    def test_the_check_depends_only_on_compiled_occupancy_not_op_history(self):
+        """#146's own criterion: the check runs against the FINAL compiled occupancy, not any
+        operation's own region. Two different op sequences that compile to the same envelope
+        must report identically."""
+        empty_report = containment_problems(self._occ([]), self.fx.fp, self.fx.y0, self.fx.y1)
+        add_then_subtract_same_spot = [
+            EditOp(kind="box", mode="add", center=(0.0, 0.0, 0.0), size=(0.02, 0.02, 0.02)),
+            EditOp(kind="box", mode="subtract", center=(0.0, 0.0, 0.0), size=(0.02, 0.02, 0.02)),
+        ]
+        cancelled_report = containment_problems(self._occ(add_then_subtract_same_spot),
+                                                self.fx.fp, self.fx.y0, self.fx.y1)
+        self.assertEqual(empty_report, cancelled_report)
+        self.assertEqual(empty_report, [])
+
+
+def _tiny_building(res: int):
+    """A minimal `EditableBuilding` with a small square footprint and no ops yet -- the cheapest
+    valid prior state `commit_block_program` can be pointed at."""
+    fp = np.zeros((res, res), bool)
+    fp[2:6, 2:6] = True
+    y0, y1 = 0, 3
+    return fp, y0, y1, EditableBuilding(footprint_envelope_sdf(fp, y0, y1, res=res))
+
+
+def _layer_entry(fp: np.ndarray, height: int) -> dict:
+    """A recovered-program `Layer` entry over the whole of `fp`, in `recover_massing_programs`'
+    own format -- what `BlockProgram.apply` would actually hand back for a trivial flat fit."""
+    return dict(op="Layer", height=int(height), area=int(fp.sum()), components=1,
+               region=[r.tolist() for r in mask_to_rings(fp)])
+
+
+class TestCurrentTarget(unittest.TestCase):
+    """`_current_target`'s own contract, isolated from `commit_block_program` entirely."""
+
+    def test_a_fully_occupied_column_reports_full_height(self):
+        res = 4
+        occ = np.zeros((res, res, res), bool)
+        occ[1, :, 1] = True
+        fp = np.zeros((res, res), bool)
+        fp[1, 1] = True
+        target = _current_target(occ, fp, 0, res - 1)
+        self.assertEqual(int(target[1, 1]), res)
+
+    def test_a_column_with_no_occupancy_at_all_reports_zero_not_full_height(self):
+        """The bug review caught: `np.argmax` on an all-`False` slice returns index 0, which the
+        raw top-of-column formula reads as the FULL envelope height -- the opposite of empty. A
+        `Layer` cut to height 0 (or any edit that empties a column outright) must not come back
+        looking like the tallest possible column."""
+        res = 4
+        occ = np.zeros((res, res, res), bool)          # nothing occupied anywhere
+        fp = np.zeros((res, res), bool)
+        fp[0, 0] = True
+        target = _current_target(occ, fp, 0, res - 1)
+        self.assertEqual(int(target[0, 0]), 0)
+
+    def test_off_footprint_columns_are_always_zero_regardless_of_occupancy(self):
+        res = 4
+        occ = np.zeros((res, res, res), bool)
+        occ[2, :, 2] = True                            # occupied, but outside fp below
+        fp = np.zeros((res, res), bool)
+        target = _current_target(occ, fp, 0, res - 1)
+        self.assertEqual(int(target[2, 2]), 0)
+
+
+def _fake_flat_fit(fp, y0, y1, target, bias=None):
+    """Stands in for `recover_massing_programs.fit_program_beam`: whatever footprint it is
+    actually handed, it returns one trivial `Layer` program over it -- fast, deterministic, and
+    correct for ANY `fp` passed in, so one fake serves any number of footprints without having to
+    know in advance which ids `BlockProgram.apply` will ask it to fit.
+
+    Patching `fit_program_beam` itself (the same seam `test_recover_massing_programs.py`'s own
+    `TestBlockProgramApply.test_a_missing_footprint_id_prevents_any_fit_at_all` patches) rather
+    than `BlockProgram.apply` as a whole means `BlockProgram`'s own real logic -- the missing-id
+    check, `to_bias()` -- still runs for real here; only the expensive search underneath is faked.
+    """
+    return [_layer_entry(fp, 1)], None
+
+
+class TestCommitBlockProgramGroupId(unittest.TestCase):
+    """#151 acceptance criterion 1, isolated from the real fitter's search cost via a mocked
+    `fit_program_beam` (see `_fake_flat_fit`)."""
+
+    def setUp(self):
+        self.res = 8
+        self.fp_a, self.y0_a, self.y1_a, self.building_a = _tiny_building(self.res)
+        self.fp_b, self.y0_b, self.y1_b, self.building_b = _tiny_building(self.res)
+        self.buildings = {"a": self.building_a, "b": self.building_b}
+        self.envelopes = {"a": (self.fp_a, self.y0_a, self.y1_a),
+                          "b": (self.fp_b, self.y0_b, self.y1_b)}
+
+    def test_every_op_across_every_footprint_shares_one_group_id(self):
+        program = BlockProgram(footprint_ids=("a", "b"), height_rhythm=1)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit):
+            reports = commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+        self.assertEqual(reports, {"a": [], "b": []})
+        all_ops = [op for b in self.buildings.values() for op in b.ops]
+        self.assertTrue(all_ops)
+        ids = {op.group_id for op in all_ops}
+        self.assertEqual(len(ids), 1)
+        self.assertIsNotNone(next(iter(ids)))
+
+    def test_a_second_call_gets_a_different_group_id(self):
+        program = BlockProgram(footprint_ids=("a", "b"), height_rhythm=1)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit):
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+            first = self.buildings["a"].ops[0].group_id
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+            second = self.buildings["a"].ops[0].group_id
+        self.assertIsNotNone(first)
+        self.assertNotEqual(first, second)
+
+    def test_group_id_does_not_affect_canonical_form(self):
+        """#151's own docstring claim on `EditOp.group_id`: stripped by `canonical_form` for the
+        same reason `id` is."""
+        program = BlockProgram(footprint_ids=("a",), height_rhythm=1)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit):
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+        tagged = self.buildings["a"].ops
+        untagged = [replace(op, group_id=None) for op in tagged]
+        self.assertEqual(canonical_form(tagged), canonical_form(untagged))
+
+
+class TestCommitBlockProgramIndependentCommit(unittest.TestCase):
+    """#151 acceptance criteria 2, 3, and 4: one footprint's #7 gate failure is reported against
+    that footprint specifically, its prior program is left untouched, and it never blocks the
+    others' commit in the same call -- isolated from #7's OWN gate correctness (already #145/#146's
+    coverage) via a mocked `finalize_problems`, so this tests only the commit orchestration."""
+
+    def setUp(self):
+        self.res = 8
+        self.fps, self.buildings, self.envelopes, self.prior_ids = {}, {}, {}, {}
+        for fid, height in (("a", 1), ("b", 2), ("c", 3)):
+            fp, y0, y1, building = _tiny_building(self.res)
+            ops = layer_program_to_ops([_layer_entry(fp, height)], fp, y0, y1, res=self.res)
+            building.ops = ops
+            self.fps[fid], self.buildings[fid] = fp, building
+            self.envelopes[fid] = (fp, y0, y1)
+            self.prior_ids[fid] = [op.id for op in ops]
+
+    def test_one_failure_does_not_block_the_others_and_is_reported_by_id(self):
+        program = BlockProgram(footprint_ids=("a", "b", "c"), height_rhythm=9)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit), \
+             patch("scene.sdf_edit.finalize_problems",
+                   side_effect=[[], ["forced failure for b"], []]):
+            reports = commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+
+        self.assertEqual(reports["a"], [])
+        self.assertEqual(reports["b"], ["forced failure for b"])
+        self.assertEqual(reports["c"], [])
+        # a and c committed the new program; b kept its exact prior ops (same ids, untouched)
+        self.assertNotEqual([op.id for op in self.buildings["a"].ops], self.prior_ids["a"])
+        self.assertEqual([op.id for op in self.buildings["b"].ops], self.prior_ids["b"])
+        self.assertNotEqual([op.id for op in self.buildings["c"].ops], self.prior_ids["c"])
+
+    def test_the_gate_is_called_once_per_footprint_and_nothing_else_gates(self):
+        """#151 acceptance criterion 4: no new block-level validity gate -- #7's own is called
+        exactly once per footprint, with no additional gating layer of #151's own."""
+        program = BlockProgram(footprint_ids=("a", "b", "c"), height_rhythm=9)
+        with patch.object(recover_massing_programs, "fit_program_beam", _fake_flat_fit), \
+             patch("scene.sdf_edit.finalize_problems", side_effect=[[], [], []]) as mock_gate:
+            commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+        self.assertEqual(mock_gate.call_count, 3)
+
+
+class TestCommitBlockProgramRealFit(unittest.TestCase):
+    """One real, unmocked pass through #150's fitter and #7's gate together -- the actual
+    pipeline #151 wires, not just its own orchestration logic in isolation.
+
+    ⚠️ Uses `res=64`, not this file's usual `RES=32`: `fit_program_beam` (via `BlockProgram.apply`)
+    hardcodes `recover_massing_programs`'s own module-level `RES` internally (e.g. `_ramp_candidates`'
+    meshgrid), so a smaller footprint array would shape-mismatch inside it. The envelope (`y1=9`)
+    is deliberately taller than either building's initial carved height (6 and 4), so there is real
+    surplus for the re-fit to work with -- an envelope equal to the current height would leave
+    `_current_target` reporting zero surplus and the bias would have nothing to act on.
+    """
+
+    def setUp(self):
+        self.res = 64
+
+        def make(row0, col0, size, height):
+            fp = np.zeros((self.res, self.res), bool)
+            fp[row0:row0 + size, col0:col0 + size] = True
+            y0, y1 = 0, 9
+            base = footprint_envelope_sdf(fp, y0, y1, res=self.res)
+            ops = layer_program_to_ops([_layer_entry(fp, height)], fp, y0, y1, res=self.res)
+            return fp, y0, y1, EditableBuilding(base, ops)
+
+        self.fp_a, self.y0_a, self.y1_a, self.building_a = make(4, 4, 6, 6)
+        self.fp_b, self.y0_b, self.y1_b, self.building_b = make(40, 40, 6, 4)
+        self.buildings = {"a": self.building_a, "b": self.building_b}
+        self.envelopes = {"a": (self.fp_a, self.y0_a, self.y1_a),
+                          "b": (self.fp_b, self.y0_b, self.y1_b)}
+
+    def test_a_real_coordinated_bias_commits_a_valid_program_to_both(self):
+        program = BlockProgram(footprint_ids=("a", "b"), roof_family="flat")
+        reports = commit_block_program(program, self.buildings, self.envelopes, res=self.res)
+
+        self.assertEqual(reports, {"a": [], "b": []})
+        group_ids = set()
+        for fid in ("a", "b"):
+            ops = self.buildings[fid].ops
+            self.assertTrue(ops)
+            self.assertEqual(finalize_problems(ops), [])
+            self.assertTrue(all(op.group_id is not None for op in ops))
+            group_ids.update(op.group_id for op in ops)
+        self.assertEqual(len(group_ids), 1)
 
 
 if __name__ == "__main__":

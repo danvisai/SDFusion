@@ -329,14 +329,152 @@ axis can be applied to the comparison arms without a second run, under the same 
 
 The baselines #6 named, the set-diffusion position and this one are written up in
 `docs/wayfinding/solid-first-subtractive-modeling/130-baselines-diffusion-curriculum.md`.
+
+
+#138 -- THE TYPE HEAD, THE OTHER BINDING CONSTRAINT #132 NAMED AND DID NOT TOUCH
+===================================================================================
+#132 changed the assignment head and the pitch decode, and left the type head alone by design --
+"one change per head was the whole design of this arm". Its own KILL points straight at what it
+left: 61% of the arm's used slots are typed `Layer` and 59.2% compile flat, `planar` reaches only
+0.12, and that is now the binding constraint on the fourth clause of `PROGRAM_BAR`.
+
+THE FREE QUESTION FIRST, THE SAME ORDER #132 ASKED IT OF THE ASSIGNMENT HEAD. `type_prior` shows
+the LABEL itself is steeply slot-index-conditional -- slots are canonicalised by AREA, so a
+building's biggest region is a pitch more often than not and its smallest is almost always a flat
+setback: slot 0 is Ramp 59.4% of the time over the 34,909 training rows, slot 1 52.3%, slot 2
+32.3%, slot 3 13.4%. `type_collapse`, run on `heightmap_program_adj.pt` (#132's checkpoint,
+BEFORE this fix was written) asks whether the type head is diffuse, confidently wrong, or tracking
+that gradient correctly and just being read at the wrong threshold:
+
+    overall            confidence 0.785   accuracy argmax 0.7576
+    slot0 (Ramp 55.5%) recall(Ramp) 0.741   recall(Layer) 0.721   p(Ramp|Ramp label) 0.691
+    slot1 (Ramp 50.1%) recall(Ramp) 0.626   recall(Layer) 0.757   p(Ramp|Ramp label) 0.611
+    slot2 (Ramp 29.9%) recall(Ramp) 0.357   recall(Layer) 0.939   p(Ramp|Ramp label) 0.421
+    slot3 (Ramp 10.5%) recall(Ramp) 0.087   recall(Layer) 0.995   p(Ramp|Ramp label) 0.235
+
+🔑 THE HEAD IS NOT BLIND. `p(Ramp | Ramp label)` exceeds `p(Ramp | Layer label)` at every slot
+(slot 3: 0.235 vs 0.128) -- the information is there. It is a plain argmax at a fixed 0.5 threshold
+that is the wrong decision rule for a base rate that low, which is a calibration failure and not a
+representational one.
+
+⚠️ AND THE DECODE-SIDE FIX IS REFUTED, THE SAME WAY AND FOR THE SAME REASON #132 REFUTED IT ON THE
+ASSIGNMENT HEAD. Dividing each slot's posterior by its own label prior before the argmax --
+`type_collapse`'s `balanced` column -- recovers slot 3's Ramp recall 0.087 -> 0.957, and pays for it
+with Layer recall 0.995 -> 0.413 at that slot and overall accuracy 0.7576 -> 0.6757. It mostly
+relabels the building's flat regions as pitched, which is `decode_assignment`'s failure mode
+arriving at the second head. `TestTypeStats.test_the_balanced_read_can_flip_a_slot_the_argmax_loses`
+pins the mechanism; the served decode stays a plain argmax.
+
+🔑 SO THE FIX GOES WHERE #132'S DID: `tau * log(prior[k, c])` added to slot k's class-c TYPE logit
+during training (`TYPE_TEMPERATURE`, fixed a priori at 1.0, the full adjustment, not swept -- the
+same reason `ASSIGN_TEMPERATURE` is not swept), decode left as the plain argmax. `type_prior` is
+computed once from the TRAINING split's labels, exactly like `assignment_prior`, and travels with
+the checkpoint (`type_prior`, `type_temperature`) so a re-scored old checkpoint cannot present
+itself as having trained under a correction it did not have.
+
+NOTHING ELSE MOVES: same 40 epochs, same seed, same `plane_head class`, same `PLANE_DECODE`
+(pitch q0.25), same `assign_prior` at `ASSIGN_TEMPERATURE` 1.0, same selection rule (validation
+`missing + extra`), same 411 carve-needing buildings, same `PROGRAM_BAR`, unchanged for the fourth
+time.
+
+⚠️ PRE-REGISTERED PREDICTION, so this is falsifiable: the type fix should raise `planar_fraction`
+and the Ramp-typed share of used slots without moving `extra`/`missing`/collapse by much, because
+the assignment head and the pitch decode are untouched -- mirroring #132's own assignment fix, which
+moved `slots_used_by_arm` and left the surplus pair roughly where it was. If `extra` or the collapse
+rate move by more than a rounding amount instead, that is a result about the two heads' losses
+interacting, not about either head read in isolation.
+
+    $P --objective program --plane_head class --tag heightmap_program_typeadj --epochs 40 \\
+       --montage 0 --no_form --out execution/artifacts/height_map_generator_typeadj_train.json
+    $P --diagnose_program outputs/height_map_generator/heightmap_program_typeadj.pt \\
+       --out execution/artifacts/height_map_generator_typeadj_714.json
+
+The result is written up in `docs/wayfinding/solid-first-subtractive-modeling/
+138-type-head-imbalance.md`.
+
+
+#139 -- HALVE THE ASSIGNMENT CORRECTION BEFORE STACKING ANOTHER HEAD FIX ON TOP OF A DIFFUSE ONE
+====================================================================================================
+#138 fixed the type head's own imbalance and it worked exactly as diagnosed -- and its own write-up
+named the reason the win cost so much surplus: the (unchanged) assignment head is still diffuse,
+confidence 0.34 on a 5-way posterior, and every extra region the type fix makes genuinely planar is
+a region the diffuse assignment head may have placed on the wrong columns. Fixing the type head a
+second time cannot fix that. This ticket asks the question #138's own "what follows" section named:
+does the assignment head's diffuseness have a cheaper fix than a type-temperature sweep?
+
+THE FREE QUESTION FIRST. `assignment_prior`'s pooled `slot0:slot3` skew is 11.9x -- the number
+`ASSIGN_TEMPERATURE` = 1.0 is calibrated against. Recomputing the SAME prior restricted to buildings
+whose label actually uses >= 2 / >= 3 / exactly 4 slots gives 9.13x / 6.42x / 4.71x. The pooled
+figure is not a measurement of how rare a real slot 3 is; it is inflated by 1/2/3-slot buildings
+that always own slot 0 and structurally never reach slot 3 at all, pooled in as if their absence
+were evidence of rarity rather than of low complexity.
+
+🔑 The standard logit-adjustment recipe (`tau * log(prior)`, plain-argmax decode) targets a UNIFORM
+decision boundary at tau=1.0, which is the right target when training and deployment class balance
+differ. They do not differ here -- the pinned 714 are drawn from the same distribution as training
+-- so tau=1.0 asks the head to hit a balance the corpus does not have. That is a candidate mechanism
+for why #132's own disclosed cost (confidence 0.43 -> 0.34, dominant-slot accuracy 0.8251 -> 0.2677)
+was so much larger than the recall it bought (0.0000 -> 0.28).
+
+THE CHANGE, in one line: `ASSIGN_TEMPERATURE` 1.0 -> 0.5. Nothing else moves -- same `plane_head
+class`, same `PLANE_DECODE` (pitch q0.25), same TYPE head as #132 (no `type_prior`; #138's fix is
+deliberately NOT stacked on this run, so the two heads' effects stay separable), same selection
+rule, same 411 carve-needing buildings, same `PROGRAM_BAR`.
+
+⚠️ 0.5 is the untuned midpoint between no correction (0.0) and #132's full one (1.0), chosen before
+the run and not swept -- this ticket runs exactly one new value. Sweeping tau after seeing where
+0.5 lands would be the same near-miss this map has made three times already.
+
+⚠️ PRE-REGISTERED PREDICTION, so this is falsifiable: a smaller tau should recover some dominant-
+slot confidence and accuracy, at the cost of giving back some of the minor-slot recall #132 bought
+-- a smoother point on the same trade, not a free lunch. If collapse and `extra` fall by more than
+that trade would predict, or if minor-slot recall falls to zero, that is a different finding this
+ticket did not expect.
+
+    $P --objective program --plane_head class --tag heightmap_program_assign_tau05 --epochs 40 \\
+       --montage 0 --no_form --out execution/artifacts/height_map_generator_assign_tau05_train.json
+    $P --diagnose_program outputs/height_map_generator/heightmap_program_assign_tau05.pt \\
+       --out execution/artifacts/height_map_generator_assign_tau05_714.json
+
+⚠️⚠️ CORRECTION, added after the run above was scored and read. "No `type_prior`" was FALSE: at the
+time this ran, #138's type-head correction was wired unconditionally into every `--objective
+program` run with no way to disable it, so `heightmap_program_assign_tau05` silently trained WITH
+#138's fix stacked on, not without it -- the two heads' effects were never separable in that
+checkpoint. Caught by reading the saved checkpoint's own `type_prior` key rather than trusting this
+comment. `--no_type_prior` now exists so a run can actually claim this; the TRUE isolated arm is
+`heightmap_program_assign_tau05_only`, and the original (accidentally combined) checkpoint is
+written up as the combined assignment/type experiment (not GitHub #140). Re-run command:
+
+    $P --objective program --plane_head class --tag heightmap_program_assign_tau05_only --epochs 40 \\
+       --no_type_prior --montage 0 --no_form \\
+       --out execution/artifacts/height_map_generator_assign_tau05_only_train.json
+    $P --diagnose_program outputs/height_map_generator/heightmap_program_assign_tau05_only.pt \\
+       --out execution/artifacts/height_map_generator_assign_tau05_only_714.json
+
+The result is written up in `docs/wayfinding/solid-first-subtractive-modeling/
+139-assignment-temperature.md`.
+
+
+THE ACCIDENTAL COMBINED ARM, WRITTEN UP RATHER THAN DISCARDED
+====================================================================================================
+`heightmap_program_assign_tau05` -- assign tau=0.5 AND #138's type_prior together, the checkpoint
+the bug above produced -- is a real 2x2 cell (assign tau x type fix) that #138 and #139 both named
+as the natural next arm and neither had actually run on purpose yet. `missing` and collapse compound
+favourably (collapse 0.1727, the best on this route); `extra` and `planar_fraction` compound
+UNFAVOURABLY (planar 0.33, lower than either single fix alone: 0.50 type-only, 0.67 assign-only).
+Not pre-registered as a combined-arm hypothesis before running -- reported because the checkpoint
+and its numbers are real, not because the experiment was designed to produce them. Written up in
+`docs/wayfinding/solid-first-subtractive-modeling/140-combined-assignment-and-type.md`.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -345,18 +483,23 @@ from scipy import ndimage
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
+from scripts.foundations.corpus_ledger import LEDGER_PATH, read_ledger  # noqa: E402
 from scripts.foundations.eval_massing_arms import (              # noqa: E402
     COLLAPSE_MISSING, RES, fp_iou, footprint_split, volume_split, vs_input,
+)
+from scripts.foundations.measure_footprint_shape_correlation import (  # noqa: E402
+    footprint_shape_stats,
 )
 from scripts.foundations.measure_scoring_optimum import (        # noqa: E402
     compare_to_envelope, transplant_height,
 )
 from scripts.foundations.recover_massing_programs import (       # noqa: E402
-    CARVE_NEEDED, H5, K_OPS, SHIP714, SLOT_TYPES, fit_program_beam, height_field,
+    CARVE_NEEDED, H5, K_OPS, SHIP714, SLOT_TYPES, FitBias, fit_program_beam, height_field,
     occupancy, plane_surface, program_to_slots, render_iso,
 )
+from scripts.foundations.source_provenance import region_mapping_sha256  # noqa: E402
 
-LATENTS = REPO / "data/real_massing_v1/vecset_latents.h5"
 WORK = REPO / "outputs/height_map_generator"
 CACHE = WORK / "height_fields.npz"
 PROGRAM_CACHE = WORK / "program_labels.npz"
@@ -434,8 +577,58 @@ PITCH_FLAT_BIN = 0
 # ⚠️ TEMPERATURE 1.0 is the full adjustment and is deliberately NOT swept: sweeping it trades slot
 # count against surplus directly, which is selecting on the answer, and this map has three
 # near-misses from exactly that.
+#
+# 🔑🔑 #139 -- TAU 1.0 IS CALIBRATED AGAINST AN INFLATED SKEW, AND THAT IS WHY THE POSTERIOR WENT
+# DIFFUSE. #132's own write-up already disclosed the cost of tau=1.0 -- dominant-slot accuracy
+# 0.8251 -> 0.2677, confidence 0.43 -> 0.34, entropy 0.80 -> 0.885 -- as an accepted trade for
+# minor-slot recall 0.0000 -> 0.28. #130's complexity_strata measured, and did not act on, the fact
+# that the corpus-pooled `slot0:slot3` skew (11.9x, what tau=1.0 is calibrated against) is not the
+# within-building skew a multi-region building actually presents: restricting the SAME prior
+# computation to buildings whose label uses >=2 slots gives 9.13x; >=3 gives 6.42x; exactly 4 gives
+# 4.71x (#130's own number, reproduced here as a cross-check). The pooled figure is inflated by
+# 1/2/3-slot buildings, which always own slot 0 and structurally never own slot 3 -- they are not
+# evidence that slot 3 is rarer than it is, only that most buildings do not need a slot 3 at all.
+#
+# The standard logit-adjustment recipe (`tau * log(prior)`, decode unchanged) targets a UNIFORM
+# decision boundary at tau=1.0 -- correct when training and deployment class balance differ, which
+# is the textbook long-tail setting. Here they do not differ: the pinned 714 are drawn from the same
+# distribution as training. Full correction is therefore asking the assignment head to hit a target
+# balance the corpus does not have, which is one candidate explanation for why the fix bought minor
+# recall by spending far more dominant-slot confidence than #132's own diagnosis priced.
+#
+# 🔑 THE CHANGE: tau 1.0 -> 0.5, the untuned midpoint between no correction (0.0, the diffuse-but-
+# usable head #129 shipped) and full correction (1.0, #132's disclosed over-correction) -- not a
+# value chosen after seeing this run, and not a sweep, because it is the only new value this ticket
+# runs. `assign_temperature` still travels with every checkpoint, so #132's own numbers remain
+# exactly reproducible from its saved weights regardless of what this constant reads afterwards.
 ASSIGN_DECODE = "argmax"
-ASSIGN_TEMPERATURE = 1.0
+ASSIGN_TEMPERATURE = 0.5
+
+# 🔑 #138 -- THE TYPE HEAD'S OWN VERSION OF THE LINE ABOVE. #132 named `used_slots_typed_ramp` 0.390 the
+# binding constraint on its own KILL without asking why it reads that -- `type_prior` shows the
+# label itself is steeply slot-index-conditional (slot 0 59.4% Ramp, slot 1 52.3%, slot 2 32.3%,
+# slot 3 13.4%, over the 34,909 training rows), which is the same construction the ASSIGN_
+# correction above answers, one head over: slots are canonicalised by AREA, so a small region is
+# usually a flat setback and the plain per-slot cross-entropy is imbalanced by the label, not by
+# anything geometric. `type_collapse` asks the diffuse-or-wrong question of this head before this
+# correction is trusted, the same order #132 asked it of the assignment head.
+#
+# The pairing is the one #132 already chose for the sibling head: `tau * log(prior)` added to the
+# TYPE logits during training, decode left as the plain argmax -- so a training-side correction
+# changes what is learned rather than a decode-side one reshuffling a finished posterior, which
+# `test_and_the_half_that_did_not_it_loses_the_dominant_slot` found destroys the dominant class
+# when tried on the assignment head. Whether it helps here is #138's question, not assumed by
+# writing the mechanism down.
+#
+# 🔑 `type_collapse` measured on `heightmap_program_adj.pt` (#132's checkpoint) BEFORE this fix was
+# written, and it is the same story: the `balanced` DECODE-side read recovers slot 3's Ramp recall
+# 0.087 -> 0.957 but pays for it with Layer recall 0.995 -> 0.413 at that slot and overall accuracy
+# 0.758 -> 0.676 -- a bigger relabelling than a gain, exactly `decode_assignment`'s failure mode.
+# The head is not blind at the slots the label starves: `p(Ramp|Ramp label)` exceeds
+# `p(Ramp|Layer label)` at every slot (slot 3: 0.235 vs 0.128), so the information is there and a
+# plain argmax at threshold 0.5 is the wrong decision rule for a base rate that low -- a loss-side
+# correction, not a decode-side one.
+TYPE_TEMPERATURE = 1.0
 
 # 🔑🔑 #129's DECODE, pre-registered here before the first training step and read by
 # `decode_plane_logits`, in the order of `PLANE_QUANTITIES`. The reasons are in that docstring and
@@ -466,9 +659,145 @@ PLANE_DECODE = ("median", "q0.25", "argmax")
 PLANE_FLOOR_EPS = 1e-4
 
 N_REGIONS = 3          # source corpora: 0 NL / 1 DE / 2 JP, the `region` column of the latent cache
+# #173: the two footprint-shape statistics #164 measured a real error correlation for (jagged
+# outlines predict worse `extra`/`missing`/`vol_iou`; `aspect_ratio` and `vertex_count` did not and
+# are not offered here). Fixed canonical order -- CLI/checkpoint order never matters, only membership
+# does -- so `conditioning_channel_names` always appends them the same way regardless of how a caller
+# spelled the request.
+SHAPE_CHANNEL_STATS = ("perimeter_sq_over_area", "solidity")
+
+
+def validate_shape_channels(names) -> tuple[str, ...]:
+    """Canonicalise a requested shape-channel subset to `SHAPE_CHANNEL_STATS` order (#173)."""
+    requested = set(names)
+    bad = requested - set(SHAPE_CHANNEL_STATS)
+    if bad:
+        raise ValueError(f"#173: unknown shape channel(s) {sorted(bad)}; "
+                         f"choose from {SHAPE_CHANNEL_STATS}")
+    return tuple(s for s in SHAPE_CHANNEL_STATS if s in requested)
+
+
+def conditioning_channel_names(shape_channels: tuple[str, ...] = ()) -> tuple[str, ...]:
+    """Full ordered channel-name tuple for a shape-channel selection (#173).
+
+    The base footprint/extent/height/edt/region set is #127's original design and never reorders.
+    Shape-stat channels are always appended after it, in `SHAPE_CHANNEL_STATS` order, so the empty
+    selection reproduces the pre-#173 channel set exactly and every historical checkpoint's channel
+    meaning is unaffected. Pinned by `test_the_channel_count_matches_the_model_input` so the model's
+    input width and this tuple cannot drift apart.
+    """
+    shape_channels = validate_shape_channels(shape_channels)
+    return ("footprint", "extent_voxels", "log_height_m", "distance_to_footprint_edge",
+            *(f"region_{r}" for r in range(N_REGIONS)), *shape_channels)
+
+
 # footprint mask, conditioned extent, log height in metres, distance-to-edge, region one-hot.
-# Pinned by `test_the_channel_count_matches_the_model_input` so the two cannot drift apart.
-COND_CHANNELS = 4 + N_REGIONS
+CONDITIONING_CHANNELS = conditioning_channel_names()
+COND_CHANNELS = len(CONDITIONING_CHANNELS)
+
+
+def validate_region_ids(regions: np.ndarray) -> np.ndarray:
+    """Return int64 region ids after rejecting values the one-hot cannot represent (#163)."""
+    values = np.asarray(regions)
+    if values.ndim != 1 or values.dtype.kind not in "iu":
+        raise ValueError(f"#163: region must be a one-dimensional integer column, got "
+                         f"shape={values.shape} dtype={values.dtype}")
+    values = values.astype(np.int64, copy=False)
+    bad = values[(values < 0) | (values >= N_REGIONS)]
+    if len(bad):
+        raise ValueError(f"#163: region ids must be in [0, {N_REGIONS}); found "
+                         f"{np.unique(bad).tolist()}")
+    return values
+
+
+def cache_corpus_identity(cache: dict) -> str:
+    """Order-independent identity of the exact row set represented by a height-field cache."""
+    rows = np.asarray(cache["row"])
+    if rows.ndim != 1 or rows.dtype.kind not in "iu":
+        raise ValueError("#163: cache row ids must be a one-dimensional integer column")
+    rows = rows.astype(np.int64, copy=False)
+    if len(np.unique(rows)) != len(rows):
+        raise ValueError("#163: cache row ids must be unique")
+    canonical = np.sort(rows).astype("<i8", copy=False)
+    return hashlib.sha256(canonical.tobytes()).hexdigest()
+
+
+def cache_provenance(cache: dict, shape_channels: tuple[str, ...] = ()) -> dict:
+    """The checkpoint compatibility contract derived from its training cache (#163, #173).
+
+    Returns exactly #163's original four keys -- `shape_channels` itself is NOT one of them, on
+    purpose: every key here is checked unconditionally against `checkpoint[key]` by
+    `validate_checkpoint_provenance`, so adding a fifth would make a genuine pre-#173 checkpoint
+    (written before this key existed) fail that load with a `KeyError` instead of the legacy
+    warning it is supposed to get. `shape_channels` still travels with a checkpoint -- `train`
+    writes it directly onto the saved dict, the same way it already writes `k_hyp`/`plane_head` --
+    just not through this contract.
+    """
+    validate_region_ids(cache["region"])
+    if len(cache["region"]) != len(cache["row"]):
+        raise ValueError("#163: cache region and row columns have different lengths")
+    shape_channels = validate_shape_channels(shape_channels)
+    return dict(
+        n_regions=N_REGIONS,
+        conditioning_channels=list(conditioning_channel_names(shape_channels)),
+        corpus_identity_sha256=cache_corpus_identity(cache),
+        region_mapping_sha256=region_mapping_sha256(),
+    )
+
+
+def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) -> None:
+    """Refuse new checkpoints whose channel/corpus/region-mapping meaning differs from the
+    current runtime.
+
+    `region_mapping_sha256` (#167) needs no training cache to compute, so it is checked whether
+    or not `cache` is given; `corpus_identity_sha256` needs one and is only checked when `cache`
+    is not None. Historical checkpoints predate #163. They remain loadable with an explicit
+    warning; their first-layer tensor still enforces channel count, but their corpus and
+    region-mapping provenance are unknowable.
+
+    `shape_channels` (#173) is read from the CHECKPOINT itself, not assumed empty: the runtime
+    supports more than one valid channel selection now, so "expected" is what today's code would
+    produce for the selection this checkpoint claims, not for a single hardcoded default. A
+    checkpoint whose recorded `conditioning_channels` does not match its own claimed
+    `shape_channels` -- a stale save, a renamed statistic -- still fails exactly as before.
+    """
+    keys = ("n_regions", "conditioning_channels", "corpus_identity_sha256",
+            "region_mapping_sha256")
+    present = [key for key in keys if key in checkpoint]
+    if not present:
+        warnings.warn("#163: legacy height-map checkpoint has no corpus/channel provenance; "
+                      "compatibility cannot be verified", RuntimeWarning, stacklevel=2)
+        return
+    if len(present) != len(keys):
+        raise ValueError(f"#163: checkpoint provenance is incomplete; missing "
+                         f"{sorted(set(keys) - set(present))}")
+    if cache is None:
+        # A serving path with no training cache on disk (town_generate_service.py routinely runs
+        # this way) cannot compute cache_corpus_identity, so corpus_identity_sha256 goes unchecked
+        # below -- this is the one operator-visible signal that verification was skipped, matching
+        # the legacy-checkpoint warning above rather than failing silently.
+        warnings.warn("#163: no training cache given; corpus_identity_sha256 cannot be verified "
+                      "for this checkpoint load (region_mapping_sha256 and channel count still "
+                      "are)", RuntimeWarning, stacklevel=2)
+    shape_channels = validate_shape_channels(checkpoint.get("shape_channels", ()))
+    expected = cache_provenance(cache, shape_channels) if cache is not None else {
+        "n_regions": N_REGIONS,
+        "conditioning_channels": list(conditioning_channel_names(shape_channels)),
+        "region_mapping_sha256": region_mapping_sha256(),
+    }
+    for key, value in expected.items():
+        if checkpoint[key] != value:
+            raise ValueError(f"#163: checkpoint {key} mismatch: expected {value!r}, "
+                             f"got {checkpoint[key]!r}")
+
+
+def load_checkpoint(ckpt: Path, cache: dict | None = None) -> dict:
+    """Load one height-map checkpoint through the #163 compatibility gate."""
+    import torch
+
+    checkpoint = torch.load(ckpt, map_location="cpu", weights_only=False)
+    validate_checkpoint_provenance(checkpoint, cache)
+    return checkpoint
 
 
 # ==================================================================================================
@@ -556,6 +885,70 @@ def roof_description_length(surface: np.ndarray, fp: np.ndarray, y0: int, extent
                 planar_fraction=float(planar / len(mix)) if mix else 0.0)
 
 
+def smooth_heightmap(h: np.ndarray, fp: np.ndarray, sigma: float) -> np.ndarray:
+    """Footprint-masked Gaussian blur of a per-column height map, footprint-exact in and out.
+
+    A plain `gaussian_filter(h)` would blend in the height-0 exterior at every boundary column,
+    understating height exactly at the wall. This is "normalised convolution": blur `h * mask` and
+    `mask` separately and divide, so a boundary column's smoothed value is the average of its
+    FOOTPRINT neighbours only, never diluted by the outside. Undefined columns (the blurred mask is
+    ~0, meaning no footprint pixel was within reach of `sigma`) cannot occur inside a footprint of
+    any real building at the sigmas this is used at, but are floored to the raw value rather than
+    left as a division artefact if they ever do.
+    """
+    m = np.asarray(fp, bool).astype(np.float64)
+    num = ndimage.gaussian_filter(np.asarray(h, np.float64) * m, sigma)
+    den = ndimage.gaussian_filter(m, sigma)
+    safe = den > 1e-6
+    out = np.where(safe, num / np.where(safe, den, 1.0), h)
+    return np.where(fp, np.clip(np.rint(out), 1, None), 0).astype(h.dtype)
+
+
+def fit_decode(heights: np.ndarray, held: dict, max_ops: int = K_OPS,
+               allowance: float = CARVE_NEEDED, bias: FitBias | None = None,
+               smooth_sigma: float = 0.0) -> np.ndarray:
+    """#8's fusion arm: SERVE #10's beam-fitter's output instead of only measuring it.
+
+    `roof_description_length` already runs `fit_program_beam` on an arm's own surface, but only to
+    report `dl_ops`/`dl_planar_fraction` as a diagnostic -- the fitted height map it computes along
+    the way is discarded. This function keeps it, so a generator's raw per-column prediction (a
+    mound, per #127's montage) is replaced by the small typed `Layer`/`Ramp`/`CutRoof` program the
+    fitter finds to explain it, compiled back to a height map.
+
+    🔑 The fitter's containment invariant (`fitted` may never drop below the `target` it is fit to)
+    gives this a provable, one-directional trade: since `target` here is the ARM's own prediction,
+    not GT, `fitted >= heights` on every footprint column WHEN `smooth_sigma == 0`. Relative to GT,
+    that means `missing` can only fall or hold and `extra` can only rise or hold. Whether the
+    `dl_ops`/`dl_planar_fraction` gain is worth that `extra` cost is an empirical question this
+    function does not answer -- it only makes the arm exist so `score_arm` can.
+
+    ⚠️ Measured unbiased, unsmoothed on the served CE+median arm (#8): `dl_ops` 6.0 -> 3.0 but
+    `dl_planar_fraction` 0.20 -> **0.00** -- the fitter resolved the generator's own noise into MORE
+    flat `Layer` terraces, not fewer pitched planes, because a plane must dominate every point in
+    its region while a `Layer` only has to beat the local max, so noise favours `Layer` on raw gain
+    every round. `bias` (#9's own `FitBias`, reused rather than a new mechanism) was tried first and
+    measured to have **no effect** at #9's own bias strength -- the noise dominates the per-round
+    raw-gain ranking too strongly for a soft nudge to flip it.
+
+    `smooth_sigma` attacks the noise itself, upstream of the fitter, instead: `target` is
+    `smooth_heightmap(heights[i], fp, smooth_sigma)`, not the raw prediction. 🔑 This trades away
+    part of the containment guarantee above -- blurring can pull a column BELOW what the raw model
+    predicted there, so `fitted` is only guaranteed `>= the SMOOTHED target`, not `>= heights`
+    itself, and the monotonic missing/extra argument no longer holds unconditionally. That is the
+    real cost of this variant and is measured, not assumed.
+    """
+    out = np.zeros_like(heights)
+    for i in range(len(heights)):
+        fp, y0, extent = held["fp"][i], int(held["y0"][i]), int(held["extent"][i])
+        target = heights[i].astype(np.int16)
+        if smooth_sigma > 0:
+            target = smooth_heightmap(target, fp, smooth_sigma)
+        _, fitted = fit_program_beam(fp, y0, y0 + extent - 1, target,
+                                     max_ops=max_ops, allowance=allowance, bias=bias)
+        out[i] = fitted
+    return out
+
+
 def roof_shape_stats(h: np.ndarray, fp: np.ndarray) -> dict:
     """Three attempts at a scalar for "does this roof look like a building", and all three fail.
 
@@ -609,7 +1002,8 @@ def envelope_depth(fp: np.ndarray) -> np.ndarray:
 # the conditioning -- footprint, conditioned height, region. Nothing else may enter.
 # ==================================================================================================
 
-def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int) -> np.ndarray:
+def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int,
+                       shape_channels: tuple[str, ...] = ()) -> np.ndarray:
     """[C, Z, X] network input built from #127's conditioning ONLY.
 
     The signature is the leakage guard: there is no argument through which the target height field
@@ -622,7 +1016,17 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
     supplied because #10 found the roof operations are functions of distance-to-edge (a hip erodes
     on all sides, a gable on one), and a small convolutional net would otherwise spend capacity
     rediscovering it.
+
+    `shape_channels` (#173, default empty -- every existing arm's input is byte-for-byte unchanged)
+    adds one more flat plane per requested statistic, computed FRESH from `fp` every call rather than
+    precomputed and cached per row: `_d4` augmentation rotates/flips `fp` before this function ever
+    sees it, and a cached statistic would silently describe the pre-augmentation footprint instead of
+    the one actually shown to the network. `perimeter_sq_over_area` and `solidity` are the two #164
+    found a real error correlation for; both are D4-invariant (area, hull area and a polygon's own
+    perimeter do not depend on the grid's orientation).
     """
+    shape_channels = validate_shape_channels(shape_channels)
+    region = int(validate_region_ids(np.asarray([region]))[0])
     m = np.asarray(fp, bool)
     edt = ndimage.distance_transform_edt(m).astype(np.float32) / 8.0
     ch = [m.astype(np.float32),
@@ -630,7 +1034,22 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
           np.full(m.shape, float(np.log1p(max(height_m, 0.0))) / 4.0, np.float32),
           np.clip(edt, 0.0, 4.0)]
     for r in range(N_REGIONS):
-        ch.append(np.full(m.shape, 1.0 if int(region) == r else 0.0, np.float32))
+        ch.append(np.full(m.shape, 1.0 if region == r else 0.0, np.float32))
+    if shape_channels:
+        # A degenerate mask (empty, or too few pixels for a hull) is never observed on real
+        # buildings -- #164 measured 0/714 skips -- so this fallback is defensive, not an exercised
+        # data path. It assumes the simplest/most convex shape rather than an extreme, so a bad read
+        # looks inert rather than alarming.
+        stats = footprint_shape_stats(m) or {}
+        for name in shape_channels:
+            if name == "perimeter_sq_over_area":
+                # 16 is the isoperimetric minimum (a square); #164 measured outliers past 80 on
+                # jagged plans, so shift-and-clip to the same [0, 4] range `edt` above already uses.
+                raw = stats.get("perimeter_sq_over_area", 16.0)
+                value = float(np.clip((raw - 16.0) / 16.0, 0.0, 4.0))
+            else:  # "solidity" -- already bounded in [0, 1], no rescale needed
+                value = float(stats.get("solidity", 1.0))
+            ch.append(np.full(m.shape, value, np.float32))
     return np.stack(ch).astype(np.float32)
 
 
@@ -712,20 +1131,27 @@ def retrieve_nn(query_fps: np.ndarray, bank_fps: np.ndarray, chunk: int = 512) -
 def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     """Every corpus row as (footprint, base level, extent, target height map) + its conditioning.
 
-    Keyed by the **latent cache**'s rows, because that file carries `held_out` -- the one split all
-    of this project's arms have been scored against. Reading the 64^3 SDFs once and keeping only the
-    height field turns 37 GB into 165 MB, which is the whole reason this task trains in minutes.
+    Keyed by the **ledger**'s rows (#161: `row`/`region`/`held_out`/`height_m`, split out of
+    `vecset_latents.h5` into their own small file) -- this arm never touches a latent, so it no
+    longer needs to open the 9+ GB Dora-encoded cache, or wait for a new corpus row to be Dora-encoded
+    before it can be trained on. `held_out` is still the one split all of this project's arms have
+    been scored against; it just no longer lives beside the latents. Reading the 64^3 SDFs once and
+    keeping only the height field turns 37 GB into 165 MB, which is the whole reason this task trains
+    in minutes.
     """
-    import h5py
-
+    # #162: cached training/evaluation must not bypass the raw corpus identity check.
+    with open_real_corpus(H5):
+        pass
     if path.exists() and not force:
-        d = np.load(path)
-        return {k: d[k] for k in d.files}
-    with h5py.File(LATENTS, "r") as f:
-        rows = f["row"][:].astype(np.int32)
-        held = (f["held_out"][:] == 1).astype(np.uint8)
-        region = f["region"][:].astype(np.int8)
-        height_m = f["height_m"][:].astype(np.float32)
+        with np.load(path) as d:
+            out = {k: d[k] for k in d.files}
+        cache_provenance(out)
+        return out
+    ledger = read_ledger(LEDGER_PATH)
+    rows = ledger["row"].astype(np.int32)
+    held = (ledger["held_out"] == 1).astype(np.uint8)
+    region = validate_region_ids(ledger["region"]).astype(np.int8)
+    height_m = ledger["height_m"].astype(np.float32)
     n = len(rows)
     fps = np.zeros((n, RES, RES), np.uint8)
     targets = np.zeros((n, RES, RES), np.uint8)
@@ -733,7 +1159,7 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
     extents = np.zeros(n, np.int16)
     ok = np.zeros(n, np.uint8)
     t0 = time.time()
-    with h5py.File(H5, "r") as g:
+    with open_real_corpus(H5) as g:
         for k, b in enumerate(rows):
             gt = np.asarray(g["sdf"][int(b)], np.float32) <= 0
             fp = np.asarray(g["footprint"][int(b)]) > 0
@@ -748,10 +1174,29 @@ def build_cache(path: Path = CACHE, force: bool = False) -> dict:
                 print(f"  [cache] {k+1}/{n}  {time.time()-t0:.0f}s", flush=True)
     out = dict(row=rows, held=held, region=region, height_m=height_m,
                fp=fps, target=targets, y0=y0s, extent=extents, ok=ok)
+    cache_provenance(out)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(path, **out)
     print(f"[cache] {path}  n={int(ok.sum())}/{n}  {time.time()-t0:.0f}s", flush=True)
     return out
+
+
+def bank_eligibility(cache: dict, exclude_ids_path: str | None) -> np.ndarray:
+    """#181's `--bank_exclude_ids`: which cache rows the 1-NN retrieval bank / mean-roof profile
+    may draw from -- the existing held-out exclusion, plus (when given) every row id named in a
+    `{"ids": [...]}` file. The bank is a non-parametric lookup rebuilt fresh every run, so excluding
+    a NEW split's ids from it is not retraining; it never touches a `--ckpt` checkpoint's own
+    weights, which were fixed whenever that checkpoint was trained (see the CLI flag's own help).
+    """
+    eligible = (cache["ok"] > 0) & (cache["held"] == 0)
+    if exclude_ids_path:
+        excl = {int(i) for i in json.load(open(exclude_ids_path))["ids"]}
+        excl_mask = np.array([int(r) in excl for r in cache["row"]], bool)
+        n_excluded = int((eligible & excl_mask).sum())
+        eligible = eligible & ~excl_mask
+        print(f"[bank] excluded {n_excluded} rows named in {exclude_ids_path} "
+             f"(on top of the existing held-out split)", flush=True)
+    return eligible
 
 
 # ==================================================================================================
@@ -777,13 +1222,29 @@ def head_channels(objective: str) -> int:
     return DEPTH_CLASSES if objective == "ce" else 1
 
 
-def make_model(objective: str, width: int, k_planes: int, plane_head: str = "regress"):
-    """The one place an objective chooses an architecture."""
+def make_model(objective: str, width: int, k_planes: int, plane_head: str = "regress",
+              k_hyp: int = 1, shape_channels: tuple[str, ...] = ()):
+    """The one place an objective chooses an architecture.
+
+    `k_hyp` (#8) only widens the 'ce' head's final 1x1 conv to `k_hyp` independent copies of the
+    same `DEPTH_CLASSES`-channel posterior -- the 4M-parameter U-Net backbone is untouched, so a
+    `k_hyp=1` model is bit-for-bit what every prior arm on this file already built.
+
+    `shape_channels` (#173) only widens the trunk's FIRST layer, by the same amount
+    `conditioning_channel_names` widens the input; a `shape_channels=()` model is bit-for-bit what
+    every arm before #173 already built.
+    """
+    if k_hyp > 1 and objective != "ce":
+        raise ValueError(f"k_hyp > 1 needs a distribution per hypothesis; "
+                         f"'{objective}' has no per-column posterior to multiply")
+    in_channels = len(conditioning_channel_names(shape_channels))
     if objective == "program":
-        return build_program_model(K_OPS, width, plane_head)
+        return build_program_model(K_OPS, width, plane_head, in_channels)
     if objective == "planes":
-        return build_plane_model(k_planes, width)
-    return build_model(head_channels(objective), width)
+        return build_plane_model(k_planes, width, in_channels)
+    if k_hyp > 1:
+        return build_model(head_channels(objective) * k_hyp, width, in_channels)
+    return build_model(head_channels(objective), width, in_channels)
 
 
 def forward_heights(model, x, ext, objective: str):
@@ -899,6 +1360,76 @@ def slope_loss(depth, y, mask):
     return num / (mz.sum() + mx.sum()).clamp(min=1)
 
 
+def wta_ce_loss(out: "torch.Tensor", y: "torch.Tensor", m: "torch.Tensor",
+               k_hyp: int, epsilon: float = 0.05) -> "torch.Tensor":
+    """Relaxed winner-take-all cross-entropy over `k_hyp` independent 'ce' heads (#8).
+
+    `slope_loss` above already tried to fix the mound by PENALISING an incoherent surface, and
+    #127 measured it does not (`heightmap_ce_slope`: `extra` 0.0651 against plain median's 0.0603,
+    `dl_planar_fraction` 0.22 against 0.20 -- noise). A penalty cannot fix this because the failure
+    is not incoherence a single head could learn away: when two training buildings share almost the
+    same conditioning but genuinely differ (a roof tilts left on one, right on the other), ONE
+    per-column head minimising average cross-entropy over both is doing the correct thing by
+    hedging -- the hedge (a mound) is the Bayes-optimal single answer to a genuinely bimodal
+    target, not a bug a sharper penalty can train out of it.
+
+    Winner-take-all instead gives the network `k_hyp` separate candidate answers for the SAME
+    input. For each training building, all `k_hyp` candidates are scored against its real height
+    map (summed over that building's own footprint columns, never per-column -- picking a winner
+    per column would let one served building be stitched together from different hypotheses'
+    columns, which is incoherent by construction and defeats the entire point); whichever
+    hypothesis is already closest gets most of the gradient, so gradient descent pushes it to
+    specialise further on buildings like this one instead of every hypothesis being pulled toward
+    the same compromise. The other `k_hyp - 1` hypotheses still get a small `epsilon` share rather
+    than zero -- Rupprecht et al. 2017's "relaxed" WTA -- because plain hard WTA is documented to
+    let a hypothesis that loses early in training never win again, and so never learn anything at
+    all ("hypothesis death").
+
+    `out` is `[B, k_hyp * DEPTH_CLASSES, Z, X]`; `y`/`m` are the ordinary per-column target/footprint
+    mask every other 'ce' loss here already takes.
+    """
+    import torch
+    import torch.nn.functional as F
+
+    B, _, Z, X = out.shape
+    logits = out.view(B, k_hyp, DEPTH_CLASSES, Z, X)
+    yc = y.clamp(0, DEPTH_CLASSES - 1)
+    per_hyp = torch.stack([F.cross_entropy(logits[:, k], yc, reduction="none")
+                          for k in range(k_hyp)], dim=1)                       # [B, k_hyp, Z, X]
+    mf = m.float().unsqueeze(1)
+    whole = (per_hyp * mf).sum(dim=(2, 3)) / mf.sum(dim=(2, 3)).clamp(min=1)   # [B, k_hyp]
+    winner = whole.argmin(dim=1)
+    weight = torch.full_like(whole, epsilon / max(k_hyp - 1, 1))
+    weight.scatter_(1, winner.unsqueeze(1), 1.0 - epsilon)
+    return (whole * weight).sum(dim=1).mean()
+
+
+def decode_wta(out_k: np.ndarray, fp: np.ndarray, extent: int, k_hyp: int,
+               quantile: float | None, target: np.ndarray | None = None) -> np.ndarray:
+    """Decode a `k_hyp`-headed 'ce' prediction into ONE height map (#8).
+
+    Each of the `k_hyp` slices is an ordinary single-hypothesis 'ce' posterior and is decoded by
+    the exact same `decode_logits` every other 'ce' arm uses -- a hypothesis is not a new kind of
+    output, there are just several of them.
+
+    `target`, when given, picks the ORACLE hypothesis: whichever candidate has the lowest
+    `missing + extra` against it. ⚠️ This is legitimate ONLY where the real answer is already known
+    -- training-time validation, or #8's own stage-1 gate ("if even an oracle can't find a good
+    roof among k_hyp candidates, no real selector could either") -- and it is NEVER a servable
+    decode: nothing at generation time has `target` to cheat with. Callers that score this against
+    `target` must keep it out of any `verdict()` comparison the way `program_label (sees GT)`
+    already is (`NOT_GENERATORS`), for the same reason. Without `target`, hypothesis 0 is returned:
+    an arbitrary, clearly-unfinished placeholder until a real selector exists.
+    """
+    cands = [decode_logits(out_k[k * DEPTH_CLASSES:(k + 1) * DEPTH_CLASSES], fp, extent, quantile)
+             for k in range(k_hyp)]
+    if target is None:
+        return cands[0]
+    scores = [height_split(c, target) for c in cands]
+    best = min(range(k_hyp), key=lambda k: scores[k]["extra"] + scores[k]["missing"])
+    return cands[best]
+
+
 def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective: str,
                       quantile: float | None, plane_head: str = "regress") -> np.ndarray:
     """One network output -> one height map. The inverse of `per_column_loss`, kept beside it.
@@ -929,13 +1460,16 @@ def decode_prediction(out_k: np.ndarray, fp: np.ndarray, extent: int, objective:
     return apply_depth(fp, extent, np.rint(out_k[0] * extent))
 
 
-def build_model(out_channels: int, width: int = 64):
+def build_model(out_channels: int, width: int = 64, in_channels: int = COND_CHANNELS):
     """A small U-Net over the 64x64 plan. ~4M parameters against A2's 49M and map-24's 947M.
 
     Depth is chosen so the bottleneck is 8x8 -- one cell there sees an eighth of the plan, which is
     the scale a setback or a ridge line lives at. Nothing here is novel and nothing needs to be:
     #127 is a question about the output space, so the network is the cheapest thing that can answer
     it, and a bigger one would confound the answer.
+
+    `in_channels` (#173) only ever widens the first layer's input side; the default is the pre-#173
+    channel count, so every existing caller that does not pass it builds the identical network.
     """
     import torch
     import torch.nn as nn
@@ -949,7 +1483,7 @@ def build_model(out_channels: int, width: int = 64):
         def __init__(self):
             super().__init__()
             w = width
-            self.e1, self.e2, self.e3 = block(COND_CHANNELS, w), block(w, 2 * w), block(2 * w, 4 * w)
+            self.e1, self.e2, self.e3 = block(in_channels, w), block(w, 2 * w), block(2 * w, 4 * w)
             self.bot = block(4 * w, 4 * w)
             self.d3, self.d2, self.d1 = block(8 * w, 2 * w), block(4 * w, w), block(2 * w, w)
             self.head = nn.Conv2d(w, out_channels, 1)
@@ -1007,7 +1541,7 @@ def compose_planes(logits, params, extent, hard: bool = True):
     return (w * planes).sum(1)
 
 
-def build_plane_model(k_planes: int, width: int = 64):
+def build_plane_model(k_planes: int, width: int = 64, in_channels: int = COND_CHANNELS):
     """The same U-Net trunk, with two heads: a per-column assignment and K global plane parameters.
 
     The planes are **global per building** and the assignment is **spatial**, which is the split the
@@ -1019,7 +1553,7 @@ def build_plane_model(k_planes: int, width: int = 64):
     import torch
     import torch.nn as nn
 
-    trunk = build_model(width, width)          # reuse the tested U-Net; its head becomes features
+    trunk = build_model(width, width, in_channels)  # reuse the tested U-Net; its head becomes features
 
     class PlaneNet(nn.Module):
         def __init__(self):
@@ -1348,7 +1882,8 @@ def compile_program(assign, types, planes, fp, extent) -> np.ndarray:
     return np.where(m, np.clip(h, 1, max(e, 1)), 0).astype(np.int16)
 
 
-def program_loss(out, labels, mask, plane_head: str = "regress", assign_prior=None):
+def program_loss(out, labels, mask, plane_head: str = "regress", assign_prior=None,
+                 type_prior=None):
     """🔑 #6's training strategy, in one function: supervise the **program**, never the surface.
 
     #127 established the trap this avoids, twice and from both directions. Supervision on the
@@ -1360,7 +1895,11 @@ def program_loss(out, labels, mask, plane_head: str = "regress", assign_prior=No
         assign  cross-entropy per footprint column over the K slots plus the UNCARVED class. This
                 is where the *regions* are learned, and it is a segmentation, not a height.
         type    cross-entropy per ACTIVE slot over (Layer, Ramp). The discrete flat-or-pitched
-                decision that a straight-through slope could never make.
+                decision that a straight-through slope could never make. `type_prior`, if given,
+                logit-adjusts it the same way `assign_prior` adjusts the assignment term: slots are
+                canonicalised by AREA, so the label's own Ramp share falls from 59% at slot 0 to
+                13% at slot 3, and `type_collapse` measured that a plain argmax under-recalls Ramp
+                hardest exactly where that base rate is lowest.
         param   `regress` (#6): L1 on the plane, in units of the building's own height, per active
                 slot -- and on the OFFSET ONLY for a slot typed `Layer`, because a flat roof's slope
                 is not a quantity the label has an opinion about and regressing it towards zero
@@ -1398,6 +1937,13 @@ def program_loss(out, labels, mask, plane_head: str = "regress", assign_prior=No
     ce = F.cross_entropy(assign_logits, assign, reduction="none")
     l_assign = (ce * m).sum() / m.sum().clamp(min=1)
 
+    if type_prior is not None:
+        # the type-head twin of the assignment adjustment above: `tau * log(prior[k, c])` added to
+        # slot k's class-c logit, so the plain argmax at inference reads a posterior that has
+        # already earned the minority type rather than one rescaled after the fact.
+        tpri = torch.as_tensor(type_prior, dtype=type_logits.dtype,
+                               device=type_logits.device).clamp_min(1e-12)
+        type_logits = type_logits + TYPE_TEMPERATURE * torch.log(tpri).unsqueeze(0)
     active = types >= 0
     n_active = active.sum().clamp(min=1)
     l_type = (F.cross_entropy(type_logits[active], types[active], reduction="sum") / n_active
@@ -1426,7 +1972,8 @@ def program_loss(out, labels, mask, plane_head: str = "regress", assign_prior=No
             PROGRAM_TERM_WEIGHTS["param"] * l_param)
 
 
-def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"):
+def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress",
+                        in_channels: int = COND_CHANNELS):
     """The same U-Net trunk, with an assignment head and a slot head. ~3.6M parameters.
 
     The split is the vocabulary's own: an operation is **one plane over one region**, so the plane
@@ -1447,7 +1994,7 @@ def build_program_model(k_ops: int, width: int = 64, plane_head: str = "regress"
     import torch
     import torch.nn as nn
 
-    trunk = build_model(width, width)             # the tested U-Net; its head becomes features
+    trunk = build_model(width, width, in_channels)  # the tested U-Net; its head becomes features
     n_type = len(SLOT_TYPES)
     n_quant = len(PLANE_QUANTITIES)
     n_plane = n_quant * PLANE_BINS if plane_head == "class" else n_quant
@@ -1611,8 +2158,10 @@ class HeightFieldSet:
     """
 
     def __init__(self, cache: dict, idx: np.ndarray, augment: bool, seed: int = 0,
-                 program: dict | None = None, plane_head: str = "regress"):
+                 program: dict | None = None, plane_head: str = "regress",
+                 shape_channels: tuple[str, ...] = ()):
         self.plane_head = plane_head
+        self.shape_channels = validate_shape_channels(shape_channels)
         self.fp = cache["fp"][idx] > 0
         self.target = cache["target"][idx].astype(np.int16)
         self.extent = cache["extent"][idx].astype(np.int32)
@@ -1636,7 +2185,7 @@ class HeightFieldSet:
             if self.augment:
                 fp, target = _d4(fp, target, k, flip)
             xs.append(condition_channels(fp, int(self.extent[i]), float(self.height_m[i]),
-                                         int(self.region[i])))
+                                         int(self.region[i]), self.shape_channels))
             ys.append(carve_depth(target, fp, int(self.extent[i])))
             if self.program is not None:
                 # ⚠️ the SAME symmetry as the footprint above, drawn once: a program augmented
@@ -1699,11 +2248,14 @@ def train(cache: dict, args) -> Path:
     val_idx, tr_idx = pool[perm[:VAL_BUILDINGS]], pool[perm[VAL_BUILDINGS:]]
     prog = (build_program_cache(cache, force=args.rebuild_program_cache)
             if args.objective == "program" else None)
+    shape_channels = validate_shape_channels(args.shape_channels)
     tr = HeightFieldSet(cache, tr_idx, augment=not args.no_aug, seed=args.seed, program=prog,
-                        plane_head=args.plane_head)
-    va = HeightFieldSet(cache, val_idx, augment=False, program=prog, plane_head=args.plane_head)
+                        plane_head=args.plane_head, shape_channels=shape_channels)
+    va = HeightFieldSet(cache, val_idx, augment=False, program=prog, plane_head=args.plane_head,
+                        shape_channels=shape_channels)
     print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}"
           + (f", plane_head={args.plane_head}" if args.objective == "program" else "")
+          + (f", shape_channels={list(shape_channels)}" if shape_channels else "")
           + f", device={dev}", flush=True)
 
     # 🔑 #132's logit adjustment, from the TRAINING split's labels only and computed once. It is a
@@ -1720,12 +2272,29 @@ def train(cache: dict, args) -> Path:
               + "  ".join(f"{n} {v:.4f}" for n, v in zip(names, a_prior))
               + f"   (tau={ASSIGN_TEMPERATURE})", flush=True)
 
-    model = make_model(args.objective, args.width, args.k_planes, args.plane_head).to(dev)
+    # the TYPE head's own version: per-slot, because slots are canonicalised by AREA and the
+    # label's own Ramp share falls from slot 0 to slot 3 (`type_collapse` measured 0.555/0.501/
+    # 0.299/0.105 on the pinned 411; this is the training split's own number, never the pinned one).
+    t_prior = (type_prior(tr.program["types"], K_OPS)
+              if args.objective == "program" and tr.program is not None
+              and not args.no_type_prior else None)
+    if args.no_type_prior:
+        print("[train] --no_type_prior: #138's type-head correction is OFF for this run", flush=True)
+    if t_prior is not None:
+        ramp = SLOT_TYPES.index("Ramp")
+        print(f"[train] type prior (Ramp share) over {len(tr)} training buildings: "
+              + "  ".join(f"slot{k} {v:.4f}" for k, v in enumerate(t_prior[:, ramp]))
+              + f"   (tau={TYPE_TEMPERATURE})", flush=True)
+
+    model = make_model(args.objective, args.width, args.k_planes, args.plane_head,
+                       args.k_hyp, shape_channels).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=steps)
-    print(f"[train] {n_par/1e6:.2f}M parameters, {steps} steps", flush=True)
+    print(f"[train] {n_par/1e6:.2f}M parameters, {steps} steps"
+          + (f", k_hyp={args.k_hyp} (relaxed WTA, epsilon={args.wta_epsilon})"
+             if args.k_hyp > 1 else ""), flush=True)
 
     def loss_of(x, y, ext, prog_labels=None):
         m = x[:, 0] > 0                                   # footprint columns only
@@ -1733,7 +2302,9 @@ def train(cache: dict, args) -> Path:
             # 🔑 the program arm never sees its own compiled surface during training. No `slope_
             # weight` either: the joint structure is in the output space now, and #127 measured
             # that adding it to the loss buys description length without buying planes.
-            return program_loss(model(x), prog_labels, m, args.plane_head, a_prior)
+            return program_loss(model(x), prog_labels, m, args.plane_head, a_prior, t_prior)
+        if args.k_hyp > 1:
+            return wta_ce_loss(model(x), y, m, args.k_hyp, args.wta_epsilon)
         out = (forward_heights(model, x, ext, args.objective) if args.objective == "planes"
                else model(x))
         per = per_column_loss(out, y, ext, args.objective, args.quantile)
@@ -1775,12 +2346,14 @@ def train(cache: dict, args) -> Path:
         run /= max(len(order) // args.batch, 1)
         model.eval()
         vl, ve, vm = _validate(model, va, val_carve, args.objective, args.quantile, dev,
-                               args.plane_head, a_prior)
+                               args.plane_head, a_prior, t_prior, args.k_hyp)
         curve.append(dict(epoch=ep + 1, train=run, val=vl, val_extra=ve, val_missing=vm,
                           val_symmetric=ve + vm))
         mark = ""
         snap = dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                    quantile=args.quantile, k_planes=args.k_planes,
+                    **cache_provenance(cache, shape_channels),
+                    shape_channels=list(shape_channels),
+                    quantile=args.quantile, k_planes=args.k_planes, k_hyp=args.k_hyp,
                     plane_head=args.plane_head, slope_weight=args.slope_weight,
                     slope_decode_quantile=SLOPE_DECODE_QUANTILE,
                     # ⚠️ the decode travels WITH the weights. #129's checkpoints were trained and
@@ -1790,6 +2363,8 @@ def train(cache: dict, args) -> Path:
                     plane_decode=list(PLANE_DECODE), assign_decode=ASSIGN_DECODE,
                     assign_prior=(None if a_prior is None else a_prior.tolist()),
                     assign_temperature=ASSIGN_TEMPERATURE,
+                    type_prior=(None if t_prior is None else t_prior.tolist()),
+                    type_temperature=TYPE_TEMPERATURE,
                     epoch=ep + 1, val=vl, val_extra=ve, val_missing=vm,
                     val_symmetric=ve + vm, params=n_par)
         if (ve + vm, vl) < best:
@@ -1809,8 +2384,16 @@ def train(cache: dict, args) -> Path:
 
 
 def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
-              plane_head: str = "regress", assign_prior=None) -> tuple:
-    """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings."""
+              plane_head: str = "regress", assign_prior=None, type_prior=None,
+              k_hyp: int = 1) -> tuple:
+    """Validation loss AND the geometric quantity the ticket is judged on, on held-in buildings.
+
+    ⚠️ `k_hyp > 1` (#8) validates at the ORACLE decode (`decode_wta` given the real `va.target`) --
+    legitimate here because checkpoint selection is a training-time decision allowed to know the
+    answer, same footing as every other selection rule in this function. It is a ceiling on what a
+    real, servable selector could ever reach, not a preview of one; nothing about `_validate`
+    picking the oracle hypothesis makes the SERVED arm able to do the same.
+    """
     import torch
 
     # ⚠️ The CE arm is validated at its ARGMAX, which is what it is trained for. Validating it at
@@ -1829,8 +2412,12 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
                 out = model(xt)
                 losses.append(float(program_loss(
                     out, tuple(torch.from_numpy(t).to(dev) for t in p), m, plane_head,
-                    assign_prior).detach()))
+                    assign_prior, type_prior).detach()))
                 o = [tuple(t[k].cpu().numpy() for t in out) for k in range(len(sel))]
+            elif k_hyp > 1:
+                out = model(xt)
+                losses.append(float(wta_ce_loss(out, yt, m, k_hyp).detach()))
+                o = out.cpu().numpy()
             else:
                 out = (forward_heights(model, xt, et, objective) if objective == "planes"
                        else model(xt))
@@ -1839,9 +2426,9 @@ def _validate(model, va, carve_mask, objective: str, quantile: float, dev,
                 o = out.cpu().numpy()
             for k, i in enumerate(sel):
                 ext, fp = int(va.extent[i]), va.fp[i]
-                splits.append(height_split(
-                    decode_prediction(o[k], fp, ext, objective, decode_q, plane_head),
-                    va.target[i]))
+                decoded = (decode_wta(o[k], fp, ext, k_hyp, decode_q, va.target[i]) if k_hyp > 1
+                          else decode_prediction(o[k], fp, ext, objective, decode_q, plane_head))
+                splits.append(height_split(decoded, va.target[i]))
     carve = [d for d, m in zip(splits, carve_mask) if m]
     return (float(np.mean(losses)),
             float(np.median([d["extra"] for d in carve])) if carve else float("nan"),
@@ -1855,14 +2442,22 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
     The provenance travels with the prediction rather than with the command line: a `--ckpt` rerun
     scores a file trained by some earlier invocation, and recording the flags of the *rerun* would
     put a number in the artifact that did not produce the checkpoint beside it.
+
+    ⚠️ A `k_hyp > 1` checkpoint (#8) is decoded here at its ORACLE hypothesis (`decode_wta` given
+    `held["target"]`) -- this is stage 1's own gate ("is a good roof even IN the k_hyp candidates"),
+    not a servable arm, and the returned meta says `oracle=True` so callers keep it out of any
+    generator-vs-generator comparison, the same way `program_label (sees GT)` already is kept out.
     """
     import torch
 
-    d = torch.load(ckpt, map_location="cpu", weights_only=False)
+    d = load_checkpoint(ckpt)
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
     # ⚠️ default "regress": #6's committed checkpoints predate the flag and must still load
     head = d.get("plane_head", "regress")
-    model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head).to(dev)
+    k_hyp = d.get("k_hyp", 1)
+    shape_channels = validate_shape_channels(d.get("shape_channels", ()))  # #173, default legacy ()
+    model = make_model(d["objective"], d["width"], d.get("k_planes", 6), head, k_hyp,
+                       shape_channels).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     out = np.zeros((len(held["fp"]), RES, RES), np.int16)
@@ -1870,7 +2465,8 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
         for s in range(0, len(out), batch):
             sel = range(s, min(s + batch, len(out)))
             x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
-                                             float(held["height_m"][i]), int(held["region"][i]))
+                                             float(held["height_m"][i]), int(held["region"][i]),
+                                             shape_channels)
                           for i in sel])
             xt = torch.from_numpy(x).to(dev)
             if d["objective"] == "planes":
@@ -1882,14 +2478,21 @@ def predict(ckpt: Path, held: dict, batch: int = 64, cpu: bool = False,
             else:
                 y = model(xt).cpu().numpy()
             for k, i in enumerate(sel):
-                out[i] = decode_prediction(y[k], held["fp"][i], int(held["extent"][i]),
-                                           d["objective"], quantile, head)
+                if k_hyp > 1:
+                    out[i] = decode_wta(y[k], held["fp"][i], int(held["extent"][i]), k_hyp,
+                                        quantile, target=held["target"][i])
+                else:
+                    out[i] = decode_prediction(y[k], held["fp"][i], int(held["extent"][i]),
+                                               d["objective"], quantile, head)
     # the whole training curve travels into the artifact, not a summary of it: this project has
     # twice recommended stopping at a dip that recovered (#80), and a curve nobody can re-read is
     # how that happens a third time.
     curve = ckpt.with_name(ckpt.stem + "_curve.json")
     return out, dict(path=str(ckpt), objective=d["objective"], width=d["width"],
-                     decode=("argmax" if d["objective"] == "ce" and quantile is None else
+                     k_hyp=k_hyp, oracle=bool(k_hyp > 1),
+                     decode=(f"ORACLE best-of-{k_hyp} (sees GT -- stage-1 gate, not a servable arm)"
+                             if k_hyp > 1 else
+                             "argmax" if d["objective"] == "ce" and quantile is None else
                              f"posterior q={quantile}" if d["objective"] == "ce" else
                              # ⚠️ read from PLANE_DECODE / ASSIGN_DECODE, never spelled out: this
                              # string said "median pitch" for two committed #132 artifacts after
@@ -1992,7 +2595,11 @@ def verdict(arms: dict, pop: str) -> dict:
     out = {}
     bo, nn = arms["blockout"][pop], arms["nn_retrieval"][pop]
     for name, a in arms.items():
-        if name in NOT_GENERATORS:
+        # ⚠️ `_oracle` (#8) is the same shape of ceiling as `PROGRAM_LABEL_ARM`, by suffix rather
+        # than a fixed name: it is `predict()`'s k_hyp>1 decode, which is given the real answer to
+        # pick a hypothesis and so would collect a mechanical PASS for the same reason the compiled
+        # label would.
+        if name in NOT_GENERATORS or "_oracle" in name:
             continue
         s = a[pop]
         out[name] = dict(
@@ -2096,12 +2703,14 @@ def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
     """
     import torch
 
-    d = torch.load(ckpt, map_location="cpu", weights_only=False)
+    d = load_checkpoint(ckpt)
     if d["objective"] != "program":
         raise ValueError(f"{ckpt} is a '{d['objective']}' arm; the program diagnostics need one")
     head = d.get("plane_head", "regress")
     dev = "cuda" if torch.cuda.is_available() and not cpu else "cpu"
-    model = make_model("program", d["width"], d.get("k_planes", 6), head).to(dev)
+    shape_channels = validate_shape_channels(d.get("shape_channels", ()))  # #173, default legacy ()
+    model = make_model("program", d["width"], d.get("k_planes", 6), head,
+                       shape_channels=shape_channels).to(dev)
     model.load_state_dict(d["state"])
     model.eval()
     A, T, P = [], [], []
@@ -2109,7 +2718,8 @@ def _program_forward(ckpt: Path, held: dict, cpu: bool = False):
         for s in range(0, len(held["fp"]), 64):
             sel = range(s, min(s + 64, len(held["fp"])))
             x = np.stack([condition_channels(held["fp"][i], int(held["extent"][i]),
-                                             float(held["height_m"][i]), int(held["region"][i]))
+                                             float(held["height_m"][i]), int(held["region"][i]),
+                                             shape_channels)
                           for i in sel])
             al, tl, pr = model(torch.from_numpy(x).to(dev))
             A.append(al.cpu().numpy())
@@ -2392,6 +3002,116 @@ def assignment_collapse(ckpt: Path, label, held, rows, cpu: bool = False) -> dic
                 p_true_minor=wt("p_true_minor"), p_won_minor=wt("p_won_minor"),
                 recall_minor=wt("recall_minor"),
                 recall_minor_balanced=wt("recall_minor_balanced"))
+
+
+def type_prior(types, k_ops: int) -> np.ndarray:
+    """Each slot's label Layer/Ramp split, conditioned on the slot being ACTIVE: `(k_ops, 2)`.
+
+    🔑 The imbalance this asks about is NOT #131's corpus-wide 41%-Ramp/59%-Layer split -- it is a
+    steep per-SLOT-INDEX gradient, because slots are canonicalised by AREA (#6): a building's
+    biggest region is a pitch more often than not, and its smallest is almost always a flat
+    setback. Measured over the 34,909 training rows: slot 0 is Ramp 59.4% of the time, slot 1
+    52.3%, slot 2 32.3%, slot 3 13.4%. A single scalar prior would average that gradient away
+    exactly where #132's assignment fix landed its second region -- slot 1, whose own label is
+    still Ramp roughly half the time.
+
+    ⚠️ Per BUILDING, not per column -- a slot is typed once, not once per pixel it owns -- and on
+    the TRAINING split only, the same leakage rule `assignment_prior` follows.
+    """
+    t = np.asarray(types)
+    n_type = len(SLOT_TYPES)
+    out = np.full((k_ops, n_type), 1.0 / n_type, np.float64)
+    for k in range(k_ops):
+        active = t[:, k] >= 0
+        if active.any():
+            counts = np.bincount(t[active, k].astype(np.int64), minlength=n_type)[:n_type]
+            out[k] = counts / max(counts.sum(), 1)
+    return out
+
+
+def type_stats(logits, label_types, prior=None) -> dict:
+    """One building's slot TYPES against their labels: the type-head analogue of `assignment_stats`.
+
+    #132 named `used_slots_typed_ramp` 0.390 the binding constraint on its own KILL without asking
+    whether that is the head being diffuse, confidently wrong, or simply correct about a label that
+    is itself steeply slot-index-conditional (`type_prior`). This asks `assignment_stats`'s "diffuse
+    or wrong" question of the type head, with the one asymmetry the compiler gives it:
+    `compile_program` reads a slot's plane only when its type says `Ramp`, so mistyping a real
+    `Ramp` as `Layer` costs a roof and the reverse costs nothing the compiler can see.
+
+    `prior`, if given, is `type_prior`'s `(k_ops, 2)` split: the BALANCED read divides each slot's
+    posterior by its own prior before the argmax, mirroring `decode_assignment`'s correction --
+    reported here as a diagnosis, not served, exactly as `assignment_stats` reported `balanced`
+    before #132 decided where its own fix belonged.
+
+    Every returned array is `(k_ops,)` and positional, so many buildings stack into one
+    `(n, k_ops)` matrix without re-deriving which slot is which.
+    """
+    lg = np.asarray(logits, np.float64)
+    p = np.exp(lg - lg.max(axis=-1, keepdims=True))
+    p /= p.sum(axis=-1, keepdims=True)
+    lab = np.asarray(label_types)
+    active = lab >= 0
+    ramp = SLOT_TYPES.index("Ramp")
+    arg = p.argmax(axis=-1)
+    bal = (p / np.clip(prior, 1e-12, None)).argmax(axis=-1) if prior is not None else arg
+    return dict(
+        active=active, is_ramp=(lab == ramp) & active,
+        p_ramp=p[..., ramp], confidence=p.max(axis=-1),
+        entropy_norm=-(p * np.log(np.clip(p, 1e-12, None))).sum(-1) / np.log(p.shape[-1]),
+        correct_argmax=(arg == lab) & active, correct_balanced=(bal == lab) & active,
+        pred_ramp_argmax=(arg == ramp) & active, pred_ramp_balanced=(bal == ramp) & active,
+    )
+
+
+def type_collapse(ckpt: Path, label, held, rows, cpu: bool = False) -> dict:
+    """`type_stats` over the pinned rows, aggregated overall and by slot INDEX.
+
+    The per-slot breakdown is the point: #132's aggregate `used_slots_typed_ramp` 0.390 sits
+    between slot 1's label rate (52%) and slot 3's (13%), which one number cannot tell apart from
+    "the head guesses the corpus average everywhere" and "the head tracks the per-slot rate closely
+    and slot 3 just IS mostly flat". This is that question, per slot.
+    """
+    _, tl, _, _ = _program_forward(ckpt, held, cpu)
+    _, lt, _ = label
+    k_ops = tl.shape[1]
+    prior = type_prior(lt, k_ops)
+    keys = ("active", "is_ramp", "p_ramp", "confidence", "entropy_norm",
+           "correct_argmax", "correct_balanced", "pred_ramp_argmax", "pred_ramp_balanced")
+    stacked = {key: np.stack([type_stats(tl[i], lt[i], prior)[key] for i in rows]) for key in keys}
+    active, is_ramp = stacked["active"], stacked["is_ramp"]
+    is_layer = active & ~is_ramp
+
+    def rate(hit, sel):
+        return float(hit[sel].mean()) if sel.any() else None
+
+    per_slot = []
+    for k in range(k_ops):
+        a, r, l = active[:, k], is_ramp[:, k], is_layer[:, k]
+        per_slot.append(dict(
+            n=int(a.sum()), label_ramp_share=float(r.sum() / max(int(a.sum()), 1)),
+            confidence=float(np.median(stacked["confidence"][a, k])) if a.any() else None,
+            entropy_norm=float(np.mean(stacked["entropy_norm"][a, k])) if a.any() else None,
+            recall_ramp_argmax=rate(stacked["pred_ramp_argmax"][:, k], r),
+            recall_ramp_balanced=rate(stacked["pred_ramp_balanced"][:, k], r),
+            recall_layer_argmax=rate(~stacked["pred_ramp_argmax"][:, k], l),
+            recall_layer_balanced=rate(~stacked["pred_ramp_balanced"][:, k], l),
+            p_ramp_given_ramp=float(stacked["p_ramp"][r, k].mean()) if r.any() else None,
+            p_ramp_given_layer=float(stacked["p_ramp"][l, k].mean()) if l.any() else None,
+        ))
+    return dict(
+        n=len(rows), prior_ramp_share=[float(x) for x in prior[:, SLOT_TYPES.index("Ramp")]],
+        confidence_median=float(np.median(stacked["confidence"][active])) if active.any() else None,
+        entropy_norm_mean=float(np.mean(stacked["entropy_norm"][active])) if active.any() else None,
+        accuracy_argmax=float(stacked["correct_argmax"][active].mean()) if active.any() else None,
+        accuracy_balanced=(float(stacked["correct_balanced"][active].mean())
+                           if active.any() else None),
+        recall_ramp_argmax=rate(stacked["pred_ramp_argmax"], is_ramp),
+        recall_ramp_balanced=rate(stacked["pred_ramp_balanced"], is_ramp),
+        recall_layer_argmax=rate(~stacked["pred_ramp_argmax"], is_layer),
+        recall_layer_balanced=rate(~stacked["pred_ramp_balanced"], is_layer),
+        per_slot=per_slot,
+    )
 
 
 # #130's buckets, named ONCE. They are simultaneously JSON keys, print labels and prose in the
@@ -2686,6 +3406,7 @@ def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
     a training failure" case. On this project a number that cannot be re-derived from a committed
     code path is an anecdote, so they live here rather than in a notebook.
     """
+    load_checkpoint(ckpt, cache)
     pred = program_predictions(ckpt, held, cpu)
     k = np.array([{int(r): i for i, r in enumerate(program["row"])}[int(r)] for r in held["row"]])
     label = (program["assign"][k], program["types"][k], program["planes"][k])
@@ -2698,6 +3419,9 @@ def diagnose_program(ckpt: Path, held: dict, program: dict, rows, cache: dict,
         slot_usage=slot_usage(pred, label, held, rows),
         # #132: WHY slot_usage reads 1. Free, and it decides which fix the next arm pre-registers.
         assignment_collapse=assignment_collapse(ckpt, label, held, rows, cpu),
+        # the type-head analogue of the line above: is `used_slots_typed_ramp` diffuse, confidently
+        # wrong, or tracking a label that is itself steeply slot-index-conditional?
+        type_collapse=type_collapse(ckpt, label, held, rows, cpu),
         # #130: the OTHER dial that row's report line names -- "a loss or a curriculum". #132 turned
         # the loss one; this prices the schedule one, on the label rather than on an argument.
         complexity_strata=complexity_strata(pred, label, held, rows, cache, program),
@@ -2756,6 +3480,22 @@ def report_program_diagnostics(d: dict) -> None:
               f"   balanced {a['recall_minor_balanced']:.4f}")
         print(f"    -> near p(winner) means it KNOWS and loses the argmax (a decode); near zero "
               f"means it does not know (a loss or a curriculum)")
+    if d.get("type_collapse"):
+        t = d["type_collapse"]
+        print(f"\n  the TYPE head's own diffuse-or-wrong question, by slot index "
+              f"(label Ramp share: {'  '.join(f'{x:.3f}' for x in t['prior_ramp_share'])})")
+        print(f"    overall: confidence {t['confidence_median']:.3f}   "
+              f"entropy {t['entropy_norm_mean']:.3f}   accuracy argmax {t['accuracy_argmax']:.4f} "
+              f"-> balanced {t['accuracy_balanced']:.4f}")
+        print(f"    recall(Ramp) argmax {t['recall_ramp_argmax']:.4f} -> balanced "
+              f"{t['recall_ramp_balanced']:.4f}   recall(Layer) argmax "
+              f"{t['recall_layer_argmax']:.4f} -> balanced {t['recall_layer_balanced']:.4f}")
+        for k, s in enumerate(t["per_slot"]):
+            print(f"    slot{k}  n={s['n']:>4}  label Ramp {s['label_ramp_share']:.3f}  "
+                  f"conf {s['confidence']:.3f}  recall(Ramp) {s['recall_ramp_argmax']}"
+                  f" -> {s['recall_ramp_balanced']}  recall(Layer) {s['recall_layer_argmax']}"
+                  f" -> {s['recall_layer_balanced']}  p(Ramp|Ramp) {s['p_ramp_given_ramp']}"
+                  f"  p(Ramp|Layer) {s['p_ramp_given_layer']}")
     if d.get("complexity_strata"):
         s = d["complexity_strata"]
         k = s["k_ops"]
@@ -3113,6 +3853,23 @@ def main() -> None:
                          "in place of it. 0 disables it, which is every arm on #127's record; the "
                          "pre-registered value is 1.0, fixed a priori as a 20%% share of the "
                          "converged loss (CE 1.5552, slope 0.3090) and deliberately not swept")
+    ap.add_argument("--k_hyp", type=int, default=1,
+                    help="#8: number of independent 'ce' hypothesis heads, trained with relaxed "
+                         "winner-take-all instead of one averaged posterior. 1 (default) is every "
+                         "prior arm on this file, bit-for-bit unchanged. Only valid with "
+                         "--objective ce")
+    ap.add_argument("--wta_epsilon", type=float, default=0.05,
+                    help="with --k_hyp > 1: the gradient share given to each LOSING hypothesis "
+                         "(Rupprecht et al. 2017's relaxed WTA), so an early-losing hypothesis "
+                         "still learns something instead of dying")
+    ap.add_argument("--shape_channels", nargs="*", default=[], choices=SHAPE_CHANNEL_STATS,
+                    help="#173: footprint-shape flat-plane conditioning channels to add, on top of "
+                         "#127's footprint/extent/height/edt/region set. Default none -- every arm "
+                         "before #173 is bit-for-bit unchanged. #164 found perimeter_sq_over_area a "
+                         "real (if partly area-confounded) error correlate and solidity a weaker, "
+                         "likely-redundant one; aspect_ratio and vertex_count are not offered here "
+                         "because #164 found no signal for either. Ship as its own single-variable "
+                         "arm -- never combine with a --objective, corpus or region change")
     ap.add_argument("--tag", default=None, help="run name; defaults to the objective")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=64)
@@ -3120,6 +3877,13 @@ def main() -> None:
     ap.add_argument("--width", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--no_aug", action="store_true", help="disable the 8 plan symmetries")
+    ap.add_argument("--no_type_prior", action="store_true",
+                    help="disable #138's type-head logit adjustment for --objective program, so an "
+                         "assignment-side change (#139) can be measured without it. #139's first run "
+                         "did not have this flag and was, undocumented, already the combined arm --"
+                         "see 139-assignment-temperature.md's correction. Assignment's own "
+                         "`assign_prior` has no equivalent switch: it has never been run isolated "
+                         "from anything, so there is nothing yet for it to be confounded with.")
     ap.add_argument("--cpu", action="store_true")
     ap.add_argument("--rebuild_cache", action="store_true")
     ap.add_argument("--rebuild_program_cache", action="store_true",
@@ -3131,6 +3895,19 @@ def main() -> None:
                          "training failure, so they are a code path and not a notebook")
     ap.add_argument("--ckpt", nargs="*", default=None,
                     help="score these checkpoints instead of training (name=path or path)")
+    ap.add_argument("--fit_decode", action="store_true",
+                    help="#8's fusion: add '<arm>_fit' siblings that post-process each trained "
+                         "arm's height map (and its _median sibling, if any) through #10's "
+                         "beam-search fitter before scoring")
+    ap.add_argument("--fit_decode_roof_family", default=None, choices=("flat", "ramp", "cut_roof"),
+                    help="with --fit_decode, also add a '<arm>_fit_<family>' sibling that biases "
+                         "the fitter's per-round type choice toward this family via #9's FitBias "
+                         "-- tests whether that recovers dl_planar_fraction lost to plain fitting")
+    ap.add_argument("--fit_decode_smooth", type=float, nargs="*", default=[],
+                    help="with --fit_decode, also add one '<arm>_fit_smXX' sibling per sigma that "
+                         "Gaussian-blurs the raw height map before fitting (XX = sigma*10, e.g. "
+                         "sigma=1.5 -> '_fit_sm15') -- tests whether denoising upstream of the "
+                         "fitter recovers dl_planar_fraction where a bias on the fitter could not")
     ap.add_argument("--no_form", action="store_true",
                     help="skip the description-length form metric. It fits a Layer/Ramp/CutRoof "
                          "program to every arm's own surface, which is the only measure found that "
@@ -3139,6 +3916,15 @@ def main() -> None:
                     help="add a second arm per CE checkpoint decoding the posterior MEDIAN rather "
                          "than the mode. A decode ablation reported beside the pre-registered arm, "
                          "never in place of it")
+    ap.add_argument("--bank_exclude_ids", default=None, metavar="IDS_JSON",
+                    help="#181: a {'ids': [...]} file of row ids to additionally exclude from the "
+                         "1-NN retrieval bank and the mean-roof profile, on top of the existing "
+                         "held-out exclusion. The retrieval bank is a non-parametric lookup, "
+                         "rebuilt fresh every run -- excluding a NEW split's held-out ids from it "
+                         "is not retraining, unlike the checkpoint passed via --ckpt, which this "
+                         "flag never touches: scoring a --ckpt trained under the OLD split against "
+                         "ids this flag names is a retrospective measurement, not a claim that the "
+                         "checkpoint itself never saw them during training")
     ap.add_argument("--montage", type=int, default=6, help="buildings per sheet; 0 disables")
     ap.add_argument("--montage_rank", default="extra", choices=("extra", "missing"),
                     help="which failure the sheet's best/representative/worst rank by. `extra` is "
@@ -3194,6 +3980,11 @@ def main() -> None:
     else:
         ckpts[args.tag] = train(cache, args)
 
+    # Validate every selected checkpoint against the cache before any diagnostic, rendering, or
+    # scoring path can use it. The lower-level loaders repeat the channel check for library callers.
+    for path in ckpts.values():
+        load_checkpoint(path, cache)
+
     # ---- the pinned population, in the pinned order -------------------------------------------
     ids = [int(i) for i in json.load(open(args.ids_from))["ids"]]
     row_to_idx = {int(r): i for i, r in enumerate(cache["row"])}
@@ -3218,7 +4009,8 @@ def main() -> None:
         return
 
     # ---- the arms -------------------------------------------------------------------------------
-    train_idx = np.nonzero((cache["ok"] > 0) & (cache["held"] == 0))[0]
+    eligible = bank_eligibility(cache, args.bank_exclude_ids)
+    train_idx = np.nonzero(eligible)[0]
     bank_fp = cache["fp"][train_idx] > 0
     bank_target = cache["target"][train_idx].astype(np.int16)
     bank_extent = cache["extent"][train_idx].astype(np.int32)
@@ -3271,11 +4063,38 @@ def main() -> None:
                        for i in range(len(sel))}
 
     ckpt_meta = {}
-    for name, path in ckpts.items():
-        heights[name], ckpt_meta[name] = predict(path, held, cpu=args.cpu)
+    for raw_name, path in ckpts.items():
+        h0, m0 = predict(path, held, cpu=args.cpu)
+        # ⚠️ #8: a k_hyp>1 checkpoint's decode is the ORACLE hypothesis (`predict` says so in
+        # `oracle=True`), suffixed by CONTENT rather than by whatever `--tag`/`--ckpt` name was
+        # chosen, so `verdict()`'s `_oracle` exclusion can never be bypassed by a forgetful name.
+        name = f"{raw_name}_oracle" if m0.get("oracle") else raw_name
+        heights[name], ckpt_meta[name] = h0, m0
         if args.median_decode and ckpt_meta[name]["objective"] == "ce":
             alt = f"{name}_median"
             heights[alt], ckpt_meta[alt] = predict(path, held, cpu=args.cpu, quantile=0.5)
+        if args.fit_decode:
+            bases = [name] + ([f"{name}_median"] if f"{name}_median" in heights else [])
+            for base in bases:
+                fit_name = f"{base}_fit"
+                heights[fit_name] = fit_decode(heights[base], held)
+                ckpt_meta[fit_name] = dict(ckpt_meta[base],
+                                           decode=ckpt_meta[base]["decode"] + " -> #10 beam fit")
+                if args.fit_decode_roof_family:
+                    ramp_name = f"{fit_name}_{args.fit_decode_roof_family}"
+                    heights[ramp_name] = fit_decode(
+                        heights[base], held, bias=FitBias(roof_family=args.fit_decode_roof_family))
+                    ckpt_meta[ramp_name] = dict(
+                        ckpt_meta[base],
+                        decode=ckpt_meta[base]["decode"] +
+                        f" -> #10 beam fit (roof_family={args.fit_decode_roof_family} bias)")
+                for sigma in args.fit_decode_smooth:
+                    sm_name = f"{base}_fit_sm{int(round(sigma * 10)):02d}"
+                    heights[sm_name] = fit_decode(heights[base], held, smooth_sigma=sigma)
+                    ckpt_meta[sm_name] = dict(
+                        ckpt_meta[base],
+                        decode=ckpt_meta[base]["decode"] +
+                        f" -> gaussian blur sigma={sigma} -> #10 beam fit")
 
     # ---- score, split by population, never pooled -----------------------------------------------
     rows = {name: score_arm(h, held, form=not args.no_form)

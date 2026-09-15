@@ -1,129 +1,101 @@
-# Integration state: where the massing pieces are, and which ones have never met
+# Integration state
 
-*Written 2026-08-31. A standing map of how the massing work wires together, kept because the answer
-to "how do we connect these" turned out to be much narrower than it looks from the ticket titles.*
+Reconciled 2026-09-09 against commit `e48b9e9`, local source, saved evaluation artifacts,
+and live GitHub issues/comments. This describes checked-in behavior, not the state of a
+running server. See [PROJECT_STATE.md](PROJECT_STATE.md) for the full work map.
 
-⚠️ **Read this before opening [#2](https://github.com/danvisai/SDFusion/issues/2)** ("Define
-Integration with the Existing Recipe and SDF Stack"). Most of what that ticket imagines needs
-defining already exists and is wired. The real gap is one function call wide.
+## Two demos and a research pipeline
 
-
-## The one-sentence version
-
-**The generator predicts a program, throws it away, and serves the height map it compiled** —
-so the demo's editable representation and its generated geometry have never actually met, even
-though both halves are built, tested, and running.
-
-
-## What is already wired
-
-**The service.** `scripts/server/town_generate_service.py` serves seven massing arms
-(`ARM_ORDER`): `envelope`, `heightmap_mode`, `heightmap_median`, `heightmap_slope`,
-**`heightmap_program`**, `retrieval`, `a2`. Weights resolve through a fallback chain —
-`weights/massing-heightmap/` (the published staging tree) then `outputs/height_map_generator/` —
-so a retrain is picked up without a copy step, and an absent file simply means the arm is not
-offered. 🔑 **The program arm already has a slot in the product**, pointed at #6's checkpoint.
-
-**The edit stack.** [#128](https://github.com/danvisai/SDFusion/issues/128) made a layer program
-first-class in the recipe/SDF path, and it is closed:
-
-* `scene/sdf_primitives.py:138` `sdf_polygon_prism`, `:163` `sdf_plane_halfspace` — the primitives
-  `Layer` and `Ramp` needed and the palette did not have.
-* `scene/sdf_edit.py:753` `layer_program_to_ops` — a recovered program to `EditOp`s.
-* `scene/sdf_edit.py:423` `EditableBuilding` — undo, re-roll, delete any operation (not only the
-  last, because [#4](wayfinding/solid-first-subtractive-modeling/4-edit-algebra.md) proved the
-  algebra commutes).
-* Verified: the composed SDF matches the voxel compiler, and a serialised program replays to the
-  height map the fitter found.
-
-**The scoring.** `scripts/foundations/eval_massing_arms.py` holds the metric definitions; the bar is
-machine-checked in `verdict()`. See `CONTEXT.md` → *Reading the numbers*.
-
-
-## The gap, precisely
-
-`decode_prediction(out_k, fp, extent, "program", ...)` in
-`scripts/foundations/train_height_map_generator.py` does this:
-
-1. decodes the assignment (`decode_assignment`), the types, and the planes — **a program**;
-2. calls `compile_program(...)` to turn that program into a height map;
-3. **returns the height map.**
-
-The program is constructed and discarded inside step 2. The service calls this function, so even the
-`heightmap_program` arm serves a compiled surface with no operations attached to it. `EditableBuilding`
-has never been handed a *generated* program — only a **recovered** one, which needs ground truth.
-
-So the two halves are:
-
-| | generated from a footprint alone | editable through the real stack |
+| Path | Input → output | What is connected |
 |---|---|---|
-| height map (#127, served) | ✅ ~0.1 s/building | ❌ no operations exist |
-| recovered program (#10/#128) | ❌ needs GT to fit | ✅ full undo / re-roll / delete |
-| **generated program** | **the missing cell** | |
+| Original demo (`inference_service.py`) | Metric footprint/class/height/style → recipe parameters and GLB; sculpt requests → SDF/edit state | Recipe inference, SDEdit/refinement, detail, appearance and export APIs. The index hides single-building, selected-building and export panels. |
+| New town (`town_generate_service.py`) | Metric footprint/height/region → normalized field → world-space vertices/faces | A2, optional height-map models and retrieval; NDJSON town streaming and seven-arm comparison. No generated EditOp payload. |
+| Height-map research | Conditioning → per-column depths or typed slot predictions → height map | Training, evaluation, program compilation, fitting and diagnostics. The service imports shared decoding from this module. |
+| Semantic edit engine (`scene/sdf_edit.py`) | Base SDF plus serialized EditOps → compiled SDF/occupancy/mesh | Add, undo, deletion by stable ID, replay, bidirectional layer/ramp operations and per-footprint coordinated replacement. |
 
-⚠️ **The project's load-bearing claim — editable/reversible — is currently satisfied only by the
-path that has no generator, and the path that ships has nothing to edit.**
+The original index/sculpt bridge uses local storage. It does not connect the new town editor's
+generated meshes to the semantic edit engine. Serving `town.html` through the original server
+does not change which APIs that page calls.
 
+## What each generator actually serves
 
-## Every part of the missing link already exists
+`ARM_ORDER` names `envelope`, `heightmap_mode`, `heightmap_median`,
+`heightmap_slope`, `heightmap_program`, `retrieval`, and `a2`.
+The default is `a2`, loading `vecset_v4_surf.pth`; published v5 checkpoints are not that default.
 
-Nothing new has to be designed. The sequence is:
+- The CE mode and median share a model and differ only in posterior decoding.
+- The program arm predicts assignment/type/plane heads, then `decode_prediction` compiles
+  them to heights. The service returns only a surface, not those decisions.
+- #155's `fit_decode` calls the beam fitter on generated heights and returns its fitted height
+  map. It is available through the evaluation CLI, **not called by the town service**.
+  The decision to ship it is outstanding integration work, explicitly acknowledged in #155's
+  closing comment. #8/#181 previously called it served; that wording was inaccurate.
+- Unbiased, unsmoothed fusion reduces recorded collapse from 0.0268 to 0.0049, increases
+  `extra` from 0.0603 to 0.0807, and reduces planar fraction from 0.20 to 0.00
+  (411 historical carve-needing buildings). A safety improvement is not a roof-form fix.
 
-    program_predictions(ckpt, held)        # (assign, types, planes)   train_height_map_generator.py
-      -> per-slot boolean masks            # (assign == k) & fp
-      -> mask_to_rings(mask)               # exact boundary rings      scene/sdf_edit.py:615
-      -> finalise_program(ops)             # op dicts carrying rings   recover_massing_programs.py
-      -> layer_program_to_ops(...)         # EditOps                   scene/sdf_edit.py:753
-      -> EditableBuilding                  # undo / re-roll / delete   scene/sdf_edit.py:423
+## Generated geometry still loses its program
 
-Every function on that list is committed, tested, and in use. **No caller runs them in sequence.**
+The neural program path discards slot decisions at compilation. The fit-on-prediction path
+discards the fitter's operation list. Recovered programs have been exercised through
+`layer_program_to_ops` and `EditableBuilding`, but the generated town response has no
+program, operation IDs, base-envelope descriptor, or recipe-version field.
 
-⚠️ Two things a first attempt will hit:
+Existing pieces can form an integration path:
 
-* `mask_to_rings` **raises** on a mask with more than one connected component, by design — a `Layer`
-  is one polygon. A *predicted* assignment carries no such guarantee, so predicted slots need
-  splitting (`mask_components_rings`) or rejecting. The recovery fitter splits components during the
-  search; a generator does not.
-* The rings will be **exact voxel traces at a median 94 vertices**, which
-  [#131](wayfinding/solid-first-subtractive-modeling/131-vertex-budget.md) measured: droppable to 58
-  for free, and **not** reducible below that by trimming without the surplus standing up as spikes.
+```text
+predicted slots OR fitted generated height map
+  → connected polygon regions + typed operations
+  → layer_program_to_ops
+  → EditableBuilding(base envelope, operations)
+  → serialize recipe state alongside derived preview geometry
+```
 
+This is more than adding a return value: #2 must settle state ownership, frame conversion,
+disconnected predicted slots, stable identities, replay semantics and the validation boundary.
+`mask_to_rings` refuses disconnected regions; `mask_components_rings` can split them.
+Lossless rings remain larger than a small fixed vertex budget (#131/#134).
 
-## What this does NOT depend on
+## Validity is implemented in separate layers
 
-**A passing generator.** Three arms have now failed the bar
-([#6](wayfinding/solid-first-subtractive-modeling/6-program-generator.md),
-[#129](wayfinding/solid-first-subtractive-modeling/129-classified-plane-parameters.md),
-[#132](wayfinding/solid-first-subtractive-modeling/132-overcarve-and-assignment.md) — three KILLs),
-and the service already offers #6's checkpoint anyway. Wiring the program through would make the
-demo's program arm **editable at whatever quality it currently has**, which is a separate axis from
-whether it is good. It would also force the seam [#2](https://github.com/danvisai/SDFusion/issues/2)
-has to specify to exist in code first, which is the cheaper order.
+| Check | Existing caller / limitation |
+|---|---|
+| `op_problems` | Enforced by `EditableBuilding.add`; constructors and `from_state` do not automatically run it. |
+| `finalize_problems` | Syntax + commutativity + height-map representability; called by `commit_block_program`. |
+| `containment_problems` | Checks compiled occupancy against footprint and height bounds, including the ground perimeter. It is a separate helper, not called by `commit_block_program`. |
+| Visual carving trace / human rubric | Implemented utilities and tests; not automatically produced by every serving endpoint. |
 
-⚠️ It is worth being explicit that this is **not** a quality fix. #132's arm destroys ~26% of
-buildings (`outputs/height_map_generator/worst_by_missing.png`); an editable destroyed building is
-still destroyed.
+**Unresolved contract conflict:** #3/#140 allow ordered mixed add/subtract edits. Those compile
+and have locality tests, but the #7/#145 finalize helper rejects noncommuting mixed programs.
+#179 asks for add/subtract completion passing this helper; its implementation must explicitly
+address whether completion refits to an accepted program or needs a revised gate. Do not
+silently remove the commutativity condition or claim that mixed editing already passes it.
 
+**Evaluation gap:** #180's footprint-adherence objective requires the geometric containment
+check in addition to the architectural-program check. Calling only `finalize_problems` cannot
+establish footprint adherence. #2/#179/#180 carry these gaps; no policy change is assumed here.
 
-## Demoable today, with no model at all
+## Dependencies and reproducibility
 
-`execution/artifacts/program_recovery_714.json` holds a recovered program for all 714 pinned
-buildings, and #128's path already turns any of them into an `EditableBuilding`. So a real building
-can be shown decomposed into `Layer > Ramp > Ramp`, with operations toggled, deleted, or re-rolled
-live through the SDF stack, using GT as a stand-in for the generator. That demonstrates the
-load-bearing claim end to end without waiting on arm four.
+- Town startup unconditionally loads A2/Dora before optional height-map arms. The height-map
+  model itself is codec-free, but a height-map-only deployment is not currently supported.
+  `_generate_one` also reads A2 state before dispatch.
+- Decoder helpers are imported from the training/experiment module. Checkpoint metadata records
+  some decode choices, but the service does not consistently restore those choices; changing
+  module defaults can change served behavior.
+- Stored SDF grids use negative-inside values and array order `[z,y,x]`. Recovered meshes
+  require outward-winding repair and frame conversion before encoding; earlier frame mistakes
+  invalidated two runs. Use the established adapters.
+- `ingest_surfaces.py --verify` compares against an existing `real.h5`; it does not rebuild
+  that file. A clean-clone full-corpus rebuild command is not currently documented/implemented.
+- BuildingWorld #162/#177 preserve the historical split. Proof work #153/#181 needs a separately
+  versioned stratified split; it must not overwrite that regression control.
+- HTML is served from disk while imported Python lives in process memory. Source inspection
+  alone cannot establish the version running on a remote demo.
 
+## Current handoff
 
-## Checked, not assumed
-
-⚠️ #132 changed `PLANE_DECODE` (pitch `median` → `q0.25`) and added `ASSIGN_DECODE`, and the service
-imports `decode_prediction` from the training module — so those constants reach the demo. Verified
-harmless: `ASSIGN_DECODE` is `"argmax"`, identical to the argmax it replaced, and `PLANE_DECODE` is
-read only on a `class` plane head while the served `program` checkpoint is `regress`. **A future
-change to either constant will silently change what the demo serves.** The decode now travels inside
-each checkpoint (`plane_decode`, `assign_decode`) so a mismatch is at least visible in the artifact.
-
-⚠️ And a standing hazard from
-[the demo memo](wayfinding/solid-first-subtractive-modeling/): the demo serves **HTML from disk but
-Python from memory**, so a running process can be several commits behind the file it is importing.
-Check the process start time against the file mtime before believing a demo.
+The latest commit settles BuildingWorld policies (#165/#166). Audits #157/#158 remain open for
+review. The ingestion chain and new training have not landed. The semantic proof design (#8)
+has landed; #2/#152/#153/#154/#179/#180/#181 remain the research/integration work.
+Headless tests verify individual contracts, not completion of those end-to-end tasks.

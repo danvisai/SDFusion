@@ -1,129 +1,117 @@
 # GenerativeTowns
 
-Generate an editable 3D town from a footprint image, then sculpt, detail, age, texture,
-and photoreal-render individual buildings — every step reversible, every building a
-compact symbolic recipe rather than a frozen mesh.
+Generate building massing from footprint polygons and height, with an architectural editing and
+detail-composition research stack built on [SDFusion](https://github.com/yccyenchicheng/SDFusion).
+The intended building representation is a symbolic recipe; the newer town-generation service
+currently returns meshes and has not yet connected generated programs to recipe editing.
 
-**Maintainer:** Danvi Simhadri (danvisai03@gmail.com).
-Built on top of [SDFusion](https://github.com/yccyenchicheng/SDFusion) — original README
-preserved at `README_UPSTREAM.md`; the training/research surface lives on the
-`upstream-training` branch, `main` is the demo/serving code. Agents: start at `CONTEXT.md` (research thesis, ubiquitous
-language, and current **Project status**), then `docs/wayfinding/` (the living per-map status
-with tables + montages) and `docs/adr/` (architecture decisions).
+**Start with [the reconciled project state](docs/PROJECT_STATE.md)** for what is implemented,
+measured, served, and still open. [CONTEXT.md](CONTEXT.md) records the thesis and vocabulary;
+[INTEGRATION_STATE.md](docs/INTEGRATION_STATE.md) maps the actual code boundaries.
+Original upstream documentation is preserved in [README_UPSTREAM.md](README_UPSTREAM.md).
 
-## The design doctrine
+This checkout's active work is on `massing-solid-gate-retrain`. It contains both research and
+serving code; do not infer its contents from the historical `main`/`upstream-training` split.
 
-**Every *decision* about what a building looks like is made by a learned model; every
-*realization* into geometry is deterministic procedure.** That split is what keeps
-everything editable: models choose, procedures build, and any choice can be re-rolled
-without destroying the rest of the building.
+## The three serving surfaces
 
-| learned component | checkpoint | decides |
+| Surface | Entry point | Current behavior |
 |---|---|---|
-| recipe-parameter diffusion | `outputs/recipe_param_diffusion_b6` — HF `demo-serving/` | massing: proportions/roof/wings from footprint + class + style |
-| Stage 3a SDF diffusion (947M) + VQVAE | `logs_building/continue-stage3a-xcultural-warmstart-ft*/ckpt` — HF `demo-serving/` | "AI massing" from real NL/DE/JP buildings; the localized snap (`/snap_sdf`) |
-| **vecset massing diffusion (49M)** — the current research line | **published**, HF `massing-vecset/` | footprint + height → solid mass; see the [model card](https://huggingface.co/danvisimhadri/SDFUSION) |
-| PartLayoutPlannerV2 | `outputs/part_layout_planner_v2` | window/door/balcony layouts, ornament slots, Make-it-architecture typing |
-| CoherentPartRefiner | `outputs/part_set_refiner` | integrating a sculpted mass into the building's part set |
-| PartComposer | `outputs/part_composer` | the always-on statistical facade detail |
-| SDXL + depth/canny/scribble ControlNets + IP-Adapter | HF cache (auto-downloads) | texture bake, photoreal renders, sketch-relief art |
-| Depth Anything V2 | HF cache | relief height from generated art |
+| Footprint-town editor | `scripts.server.town_generate_service:app`, port 8767 | Draw/import footprints, set height, stream per-building meshes; compare alternatives at `/arms`. Default generator is A2. |
+| Image footprint extraction | `scripts.server.footprint_extract_service:app`, port 8766 | Classical image processing used by the town editor. Separate process, no generator. |
+| Original recipe/sculpt demo | `scripts.server.inference_service:app`, port 8099 | Recipe generation, SDEdit, detail, appearance and export APIs; `/sculpt.html` opens the sculptor. The index page's single-building, selected-building and export panels are hidden by the earlier demo-cull decision. |
 
-Not learned (by design): footprint extraction (classical CV), recipe→SDF realization,
-CSG sculpting, weathering (pure noise functions), ornament retrieval/fit (real heritage
-scans; placement IS learned), marching cubes / UV / PBR heuristics, and the sketch-relief
-rectification + fusion math.
+The town editor uses the extraction and generation ports above (overridable with its `extract`
+and `gen` query parameters). The original service can also serve `/town.html`, but that page
+still calls the separate town/extraction services. The old index/sculpt local-storage bridge
+does not establish an editable round trip for the new town generator.
 
-## Setting up on a new machine
+## Run the footprint-town demo
 
-📄 **[`REPRODUCING.md`](REPRODUCING.md) is the full guide** — clone, environment, third-party
-checkpoint, data regeneration with runtimes, and verification against a committed baseline. Start
-there. This section is the short version.
-
-| what | where it comes from |
-|---|---|
-| code, docs, results | this repo |
-| **model weights** | **<https://huggingface.co/danvisimhadri/SDFUSION>** → `massing-vecset/` |
-| corpus (35 GB SDF + 17.4 GB latents) | **regenerated** from 25 MB committed here — `REPRODUCING.md` §4 |
-| `external/dora_vae_1_1.ckpt` (2.1 GB) | Hugging Face, third-party |
-| SDXL / ControlNet / Depth-Anything (~46 GB) | HF cache, auto-downloads on first texture/render call |
+Set up the environment and model/data prerequisites using [REPRODUCING.md](REPRODUCING.md),
+noting its documented corpus-rebuild gap. In separate terminals:
 
 ```bash
-git clone https://github.com/danvisai/SDFusion.git && cd SDFusion
-git checkout massing-solid-gate-retrain      # the active branch; `main` is far behind
+env -u LD_PRELOAD -u LD_LIBRARY_PATH ./sdfusion/bin/python -m uvicorn \
+    scripts.server.footprint_extract_service:app --host 0.0.0.0 --port 8766
 
-python -m venv venv && venv/bin/pip install -r requirements-frozen.txt
-hf download danvisimhadri/SDFUSION --include 'massing-vecset/*' --local-dir weights/
-
-CUDA_VISIBLE_DEVICES=0 ./venv/bin/python -m uvicorn scripts.server.inference_service:app \
-    --host 0.0.0.0 --port 8099 --log-level warning
+env -u LD_PRELOAD -u LD_LIBRARY_PATH ./sdfusion/bin/python -m uvicorn \
+    scripts.server.town_generate_service:app --host 0.0.0.0 --port 8767
 ```
 
-⚠️ **`requirements-frozen.txt` is CUDA-pinned** (14 `nvidia-*-cu12`, `torch==2.8.0+cu126`). On an
-**AMD/ROCm** box do *not* install it verbatim — see
-[`transfer/huggingface/AGENT-HANDOFF.md`](transfer/huggingface/AGENT-HANDOFF.md) §1, which covers the
-port: training needs no pytorch3d, the ~40 `.cuda()` sites are fine under ROCm's HIP mapping, and
-pytorch3d is the one real blocker (build it CPU-only).
+Open `http://localhost:8767/`, or `http://localhost:8767/arms` for model/decode comparisons.
+For remote use, forward both ports.
 
-**Running the demo** needs its serving weights, published separately under `demo-serving/` — the
-recipe-param diffusion, layout planner, part refiners/composer, and the two snap-prior checkpoints.
-Paths mirror this repo, so it unpacks straight over a clone:
+Startup currently loads Dora and `weights/massing-vecset/vecset_v4_surf.pth` unconditionally.
+Height-map inference itself needs no codec, but **the service does not yet support a
+height-map-only startup**. Optional height-map checkpoints resolve first from
+`weights/massing-heightmap/`, then `outputs/height_map_generator/`; retrieval additionally
+needs the height-field cache. `/health` reports available arms.
+
+The seven supported arms are `envelope`, `heightmap_mode`, `heightmap_median`,
+`heightmap_slope`, `heightmap_program`, `retrieval`, and `a2`.
+Mode and median share one checkpoint and differ only in decoding.
+The measured `fit_decode` fusion is **not a served arm**.
+Height-map generation is deterministic at the scored setting; `roof_variation` is an
+unvalidated demonstration control, not a measured diversity result.
+
+## Run the original demo
+
+Serving weights are documented under
+[transfer/huggingface](transfer/huggingface/README.md); the original demo uses the
+`demo-serving/` bundle, separate from the vecset checkpoints.
 
 ```bash
-hf download danvisimhadri/SDFUSION --include 'demo-serving/*' --local-dir /tmp/demo
-cp -r /tmp/demo/demo-serving/* .
 ./scripts/server/run_web_demo.sh 8099
 ```
 
-⚠️ Published checkpoints have optimizer state stripped — inference-ready, **not** resume-ready. To
-resume training, use the originals under `logs_building/` on the cluster.
+Open `http://localhost:8099/` or `http://localhost:8099/sculpt.html`.
+The original recipe, planner/refiner/composer, and snap-prior weights differ from the newer
+town generator's weights. Texture/render features load additional appearance models.
+API availability is not a claim that every feature is currently visible or freshly validated.
 
-Hardware: ~24 GB VRAM comfortable, ~10 GB disk for checkpoints, ~46 GB more for the HF model cache.
+## Research and architecture
 
-Then open:
+Learned models choose massing or architectural decisions; deterministic SDF/CSG and retrieval
+realize them. The thesis separates massing transformation (C1) from detail composition (C2).
 
-- **`http://localhost:8099/`** — the town page: drop an OSM map / footprint-mask image
-  (samples under `scripts/server/web/samples/`), get a town; select a building to
-  restyle / re-height / re-roll it, age it with the weathering slider, mount a heritage
-  ornament, texture-bake or photoreal-render the whole town, export glTF for Unreal.
-- **`http://localhost:8099/sculpt.html`** — the SDF Sculptor: raymarched live editing.
-  Place primitives and let *Make it architecture* interpret them (tower/wing/dormer with
-  windows and roofs), carve, bake textures, or sketch a
-  rough shape on a wall and have it sculpted into real bas-relief geometry (*Sketch
-  relief*; reliefs stack, and a prompt like "a lion head" steers the motif).
+Current massing work uses a small footprint-conditioned height-map generator and a
+`Layer`/`Ramp`/`CutRoof` program fitter. The latest committed work (2026-09-06) concerns
+BuildingWorld ingestion policy, not a completed new training run. Roof form and generated-program
+integration remain open. Historical vecset alignment/convergence investigations are complete;
+C2's comparative evidence effort is inactive.
 
-Round trips between the two pages are lossless (a building opened in the Sculptor comes
-back to the town with its edits as first-class state).
+| Code | Responsibility |
+|---|---|
+| `scripts/server/` | The separate APIs, web pages, recipe/refinement and appearance adapters |
+| `scene/sdf_edit.py`, `scene/sdf_primitives.py` | Editable operations, SDF realization and validity helpers |
+| `models/shape_codec.py`, `models/networks/vecset_*.py` | Codec adapters and A2 token-set projection |
+| `scripts/train_vecset.py` | A2 training on cached real/blockout latents |
+| `scripts/foundations/train_height_map_generator.py` | Height-map/program models, training, decoding and experimental scorecards |
+| `scripts/foundations/recover_massing_programs.py` | Program fitting, replay and block coordination |
+| `scripts/foundations/eval_massing_arms.py` | Shared massing measurements and pinned evaluation |
+| `docs/wayfinding/`, `execution/artifacts/` | Dated decisions/results and numerical evidence |
+| `legacy/`, dated handovers, `tickets.md` | Historical material, not the current queue |
 
-## Tests
+## Verification
 
-Both suites run against a live server and assert metrics per flow:
+CPU/headless checks cover geometry, program replay, validity helpers and model contracts:
 
 ```bash
-python scripts/server/test_branches.py      # 13 branch tests (API surface)
-python scripts/server/test_sculpt_flows.py  # 19 UI-flow tests (incl. relief, textures)
+env -u LD_PRELOAD -u LD_LIBRARY_PATH ./sdfusion/bin/python -m unittest \
+    scene.test_sdf_edit scripts.foundations.test_recover_massing_programs \
+    scripts.foundations.test_train_height_map_generator
+env -u LD_PRELOAD -u LD_LIBRARY_PATH ./sdfusion/bin/python \
+    scripts/server/test_town_generate.py --geometry-only
 ```
 
-## Repo layout
+The older demo's `test_branches.py` and `test_sculpt_flows.py` require its live service and
+weights. The town test without `--geometry-only` loads real A2/Dora models.
+Passing headless tests does not prove trained-model quality, visual acceptance, or live GPU serving.
 
-- `scripts/server/` — FastAPI service (`inference_service.py`), refiner/recipe engines,
-  the two web pages (`web/`), both gate suites.
-- `scripts/appearance/` — texture bake, neural (SDXL) rendering.
-- `scene/` — SDF primitives/CSG, composer detail, weathering, mesh cleanup.
-- `models/` — Stage 3a diffusion, VQVAE, planner/refiner/composer networks.
-- `docs/` — dated handoffs and build plans. `docs/wayfinding/` is the living per-map status
-  (tables + montages); `docs/adr/` the architecture decisions; `docs/professor_report/` the thesis.
-- `legacy/archive_2026-07-10/` — the superseded research record (28 historical docs + 217 MB of
-  renders/metrics from dead experiments), kept for comparison. `RESTORE.md` there explains what was
-  archived and how to restore it. ⚠️ Its 356 GB of dead training checkpoints are cluster-only.
-- `transfer/huggingface/` — the published model card, agent handoff, and weight staging.
-- Training code, dataset tooling, original SDFusion research surface: `upstream-training`.
+## Documentation and work tracking
 
-## Where to start reading
-
-| you are | start at |
-|---|---|
-| setting up on a new machine | [`REPRODUCING.md`](REPRODUCING.md) |
-| continuing the massing research | [`transfer/huggingface/AGENT-HANDOFF.md`](transfer/huggingface/AGENT-HANDOFF.md), then [`docs/SESSION-HANDOVER-2026-08-03.md`](docs/SESSION-HANDOVER-2026-08-03.md) |
-| an agent picking up any thread | `CONTEXT.md` → `docs/wayfinding/` → `docs/adr/` |
-| judging the research claims | the [model card](https://huggingface.co/danvisimhadri/SDFUSION) — results, what was ruled out, and the measurement traps |
+Use [PROJECT_STATE.md](docs/PROJECT_STATE.md) → [INTEGRATION_STATE.md](docs/INTEGRATION_STATE.md)
+→ the relevant dated result and GitHub issue. [AGENTS.md](AGENTS.md) links tracker conventions.
+A closed research ticket may record a negative finding; an implemented backend may still lack
+a serving caller. Check each claim at that level.

@@ -45,6 +45,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.eval_massing_arms import (  # noqa: E402
     H5, LATENTS, RES, build_montage, pick_ids, score_arm, summarise, volume_split,
 )
@@ -136,7 +137,7 @@ def main() -> None:
             return codec.decode_grid(
                 torch.from_numpy(zn * sd + mu)[None].to(dev), RES).cpu().numpy()[0, 0]
 
-    with h5py.File(args.latents, "r") as lf, h5py.File(H5, "r") as gt:
+    with h5py.File(args.latents, "r") as lf, open_real_corpus(H5) as gt:
         for k, bid in enumerate(ids):
             gocc = np.asarray(gt["sdf"][bid], np.float32) <= 0
             fp = np.asarray(lf["footprint"][lat_of[bid]])

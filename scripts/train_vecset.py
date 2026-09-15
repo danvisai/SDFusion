@@ -34,6 +34,7 @@ if str(REPO) not in sys.path:
 
 from models.networks.vecset_denoiser import VecsetDenoiser          # noqa: E402
 from models.networks.vecset_projection import cosine_alphas          # noqa: E402
+from utils.frozen_corpus import open_real_corpus                     # noqa: E402
 
 
 def latent_moments(latents, chunk_rows: int = 32,
@@ -350,6 +351,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_arg_parser().parse_args()
 
+    # #162: a pre-existing latent cache must not conceal a changed source corpus.
+    with open_real_corpus():
+        pass
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     rng = ExperimentRng(args.seed, dev)

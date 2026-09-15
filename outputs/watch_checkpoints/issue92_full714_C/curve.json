@@ -1,0 +1,242 @@
+[
+  {
+    "checkpoint": "vecset_denoiser_step190000.pth",
+    "step": 190000,
+    "n": 714,
+    "fp_iou": 0.9570106566338421,
+    "vol_iou": 0.8533187540056131,
+    "missing": 0.0021113093862599602,
+    "extra": 0.11615746328985987,
+    "collapse_rate": 0.08543417366946779,
+    "beats_envelope_rate": 0.011204481792717087,
+    "vs_input": 0.9749608946570099,
+    "by_region": {
+      "de": {
+        "n": 235,
+        "vol_iou": 0.8138302841053151,
+        "extra": 0.20632998962296784,
+        "missing": 0.0010745998529494939,
+        "vs_input": 0.9857345004607082,
+        "beats_envelope_rate": 0.01276595744680851
+      },
+      "jp": {
+        "n": 231,
+        "vol_iou": 0.966820996388911,
+        "extra": 0.025524919243193354,
+        "missing": 0.003001801080648389,
+        "vs_input": 0.966820996388911,
+        "beats_envelope_rate": 0.0
+      },
+      "nl": {
+        "n": 248,
+        "vol_iou": 0.7706358307378072,
+        "extra": 0.25809674268733807,
+        "missing": 0.002567021280096701,
+        "vs_input": 0.9735718861944636,
+        "beats_envelope_rate": 0.020161290322580645
+      }
+    },
+    "artifact": "execution/artifacts/massing_arms_eval_issue92_full714_armC_vecset_denoiser_step190000.json",
+    "montage": "outputs/massing_arms_eval/montage_issue92_full714_armC_vecset_denoiser_step190000.png"
+  },
+  {
+    "checkpoint": "vecset_denoiser_step200000.pth",
+    "step": 200000,
+    "n": 714,
+    "fp_iou": 0.9745744001575649,
+    "vol_iou": 0.8715324337923478,
+    "missing": 0.0013564973660625127,
+    "extra": 0.10150984355527976,
+    "collapse_rate": 0.06162464985994398,
+    "beats_envelope_rate": 0.012605042016806723,
+    "vs_input": 0.987619511631765,
+    "by_region": {
+      "de": {
+        "n": 235,
+        "vol_iou": 0.8183843785448064,
+        "extra": 0.19146232821696144,
+        "missing": 0.000881402409166585,
+        "vs_input": 0.9910753407282706,
+        "beats_envelope_rate": 0.01276595744680851
+      },
+      "jp": {
+        "n": 231,
+        "vol_iou": 0.9832918319038396,
+        "extra": 0.012113425713499128,
+        "missing": 0.001703232568665285,
+        "vs_input": 0.9832918319038396,
+        "beats_envelope_rate": 0.0
+      },
+      "nl": {
+        "n": 248,
+        "vol_iou": 0.7926343500148727,
+        "extra": 0.2385102402911154,
+        "missing": 0.0016635694522830974,
+        "vs_input": 0.987015671334219,
+        "beats_envelope_rate": 0.024193548387096774
+      }
+    },
+    "artifact": "execution/artifacts/massing_arms_eval_issue92_full714_armC_vecset_denoiser_step200000.json",
+    "montage": "outputs/massing_arms_eval/montage_issue92_full714_armC_vecset_denoiser_step200000.png"
+  },
+  {
+    "checkpoint": "vecset_denoiser_step210000.pth",
+    "step": 210000,
+    "n": 714,
+    "fp_iou": 0.9631509948504929,
+    "vol_iou": 0.8577356108742946,
+    "missing": 0.002195170100814142,
+    "extra": 0.1029242957974964,
+    "collapse_rate": 0.11064425770308123,
+    "beats_envelope_rate": 0.008403361344537815,
+    "vs_input": 0.9800576106965198,
+    "by_region": {
+      "de": {
+        "n": 235,
+        "vol_iou": 0.8196105489113769,
+        "extra": 0.18640111597585735,
+        "missing": 0.0012264922322158627,
+        "vs_input": 0.9876848624930028,
+        "beats_envelope_rate": 0.01702127659574468
+      },
+      "jp": {
+        "n": 231,
+        "vol_iou": 0.9725465158701204,
+        "extra": 0.018021445866482185,
+        "missing": 0.0020971867007672632,
+        "vs_input": 0.9725465158701204,
+        "beats_envelope_rate": 0.0
+      },
+      "nl": {
+        "n": 248,
+        "vol_iou": 0.7650835496954755,
+        "extra": 0.24327456673996584,
+        "missing": 0.003982398533983628,
+        "vs_input": 0.9718986125144036,
+        "beats_envelope_rate": 0.008064516129032258
+      }
+    },
+    "artifact": "execution/artifacts/massing_arms_eval_issue92_full714_armC_vecset_denoiser_step210000.json",
+    "montage": "outputs/massing_arms_eval/montage_issue92_full714_armC_vecset_denoiser_step210000.png"
+  },
+  {
+    "checkpoint": "vecset_denoiser_step220000.pth",
+    "step": 220000,
+    "n": 714,
+    "fp_iou": 0.9625096964256143,
+    "vol_iou": 0.8647951570659045,
+    "missing": 0.0016318579571758438,
+    "extra": 0.10679027595605725,
+    "collapse_rate": 0.07983193277310924,
+    "beats_envelope_rate": 0.008403361344537815,
+    "vs_input": 0.9823027343622389,
+    "by_region": {
+      "de": {
+        "n": 235,
+        "vol_iou": 0.8168414899490144,
+        "extra": 0.1916563668758728,
+        "missing": 0.0009976371751115778,
+        "vs_input": 0.9894489164086687,
+        "beats_envelope_rate": 0.01276595744680851
+      },
+      "jp": {
+        "n": 231,
+        "vol_iou": 0.9791614532383921,
+        "extra": 0.015256492612645682,
+        "missing": 0.001660957126544171,
+        "vs_input": 0.9791614532383921,
+        "beats_envelope_rate": 0.0
+      },
+      "nl": {
+        "n": 248,
+        "vol_iou": 0.7799748596270012,
+        "extra": 0.2426672796136633,
+        "missing": 0.0028154769180420034,
+        "vs_input": 0.9798944399877725,
+        "beats_envelope_rate": 0.012096774193548387
+      }
+    },
+    "artifact": "execution/artifacts/massing_arms_eval_issue92_full714_armC_vecset_denoiser_step220000.json",
+    "montage": "outputs/massing_arms_eval/montage_issue92_full714_armC_vecset_denoiser_step220000.png"
+  },
+  {
+    "checkpoint": "vecset_denoiser_step230000.pth",
+    "step": 230000,
+    "n": 714,
+    "fp_iou": 0.961812819618782,
+    "vol_iou": 0.8641861848446061,
+    "missing": 0.001351776869863227,
+    "extra": 0.10859278988166249,
+    "collapse_rate": 0.08123249299719888,
+    "beats_envelope_rate": 0.0196078431372549,
+    "vs_input": 0.9816561917598519,
+    "by_region": {
+      "de": {
+        "n": 235,
+        "vol_iou": 0.8058634117118466,
+        "extra": 0.1914039110306252,
+        "missing": 0.0010042735042735042,
+        "vs_input": 0.9860622757095734,
+        "beats_envelope_rate": 0.02553191489361702
+      },
+      "jp": {
+        "n": 231,
+        "vol_iou": 0.9757265769596318,
+        "extra": 0.0113724309914868,
+        "missing": 0.0015263723217818985,
+        "vs_input": 0.9757265769596318,
+        "beats_envelope_rate": 0.0
+      },
+      "nl": {
+        "n": 248,
+        "vol_iou": 0.7852050687144845,
+        "extra": 0.24210107240085854,
+        "missing": 0.001571527798156365,
+        "vs_input": 0.9811730938782702,
+        "beats_envelope_rate": 0.03225806451612903
+      }
+    },
+    "artifact": "execution/artifacts/massing_arms_eval_issue92_full714_armC_vecset_denoiser_step230000.json",
+    "montage": "outputs/massing_arms_eval/montage_issue92_full714_armC_vecset_denoiser_step230000.png"
+  },
+  {
+    "checkpoint": "vecset_denoiser_step240000.pth",
+    "step": 240000,
+    "n": 714,
+    "fp_iou": 0.9502168760444067,
+    "vol_iou": 0.833238233347782,
+    "missing": 0.0035962363076061698,
+    "extra": 0.11271754237962597,
+    "collapse_rate": 0.1792717086834734,
+    "beats_envelope_rate": 0.0070028011204481795,
+    "vs_input": 0.9682276369939554,
+    "by_region": {
+      "de": {
+        "n": 235,
+        "vol_iou": 0.7822200120275709,
+        "extra": 0.18760160398829523,
+        "missing": 0.0038636527767747526,
+        "vs_input": 0.9694105764374865,
+        "beats_envelope_rate": 0.00425531914893617
+      },
+      "jp": {
+        "n": 231,
+        "vol_iou": 0.9654638258970517,
+        "extra": 0.020240281603917967,
+        "missing": 0.0025222551928783385,
+        "vs_input": 0.9654638258970517,
+        "beats_envelope_rate": 0.0
+      },
+      "nl": {
+        "n": 248,
+        "vol_iou": 0.7641958207090818,
+        "extra": 0.2509950008324754,
+        "missing": 0.005343569672795254,
+        "vs_input": 0.9655467883756048,
+        "beats_envelope_rate": 0.016129032258064516
+      }
+    },
+    "artifact": "execution/artifacts/massing_arms_eval_issue92_full714_armC_vecset_denoiser_step240000.json",
+    "montage": "outputs/massing_arms_eval/montage_issue92_full714_armC_vecset_denoiser_step240000.png"
+  }
+]

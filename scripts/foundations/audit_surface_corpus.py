@@ -33,6 +33,8 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
+
 SOURCES = ("bag3d", "nrw", "plateau")
 SURF = REPO / "data/real_massing_v1"
 H5 = SURF / "real.h5"
@@ -89,7 +91,9 @@ def pipeline_orientation(n: int = 8) -> dict:
         vo, fo, rr = f["vert_offset"][:], f["face_offset"][:], f["row"][:]
         V, F = f["verts"][:], f["faces"][:]
     raw = [vol(V[vo[i]:vo[i + 1]], F[fo[i]:fo[i + 1]]) for i in range(n)]
-    surf = load_surfaces()
+    # `rr` only ever names bag3d rows (read from surfaces_bag3d.h5 above); scoped so this doesn't
+    # also pay to load BuildingWorld's ~1.5M rows just to look up a bag3d one (code-review, #175).
+    surf = load_surfaces(sources=("bag3d",))
     loaded, arrayf, encoder = [], [], []
     for i in range(n):
         v, fa, _ = surf[int(rr[i])]
@@ -164,7 +168,7 @@ def main() -> None:
     # ---- the 153 that never came back ----------------------------------------------------------
     missing = {}
     if not args.limit:
-        with h5py.File(H5, "r") as f:
+        with open_real_corpus(H5) as f:
             n_total = int(f["sdf"].shape[0])
             have = set(all_rows)
             absent = [i for i in range(n_total) if i not in have]

@@ -20,95 +20,80 @@ Learned models make the *decisions*; deterministic procedure + retrieval do the 
 features (weathering, ornaments, sketch-relief, recipe-closure round-trip) remain the **demo wrapper**:
 they make the artifact impressive but are not what the paper proves.
 
-## Project status (updated 2026-08-21)
+## Project status (reconciled 2026-09-09)
 
-The living status lives in the **wayfinding maps** under `docs/wayfinding/` (each mirrors a GitHub
-issue map and carries its own tables + montages); this section is only the index into them. Massing
-fidelity (C1) has been the active problem since 2026-07. The C2 detail-composition thesis above is
-unchanged and is **not** currently being worked — its evidence-package effort (map #11) was closed
-stale on 2026-08-21 with its record kept in `.scratch/transform-composition-proof/` and `tickets.md`.
+Current implementation, evidence, and tracker relationships are reconciled in
+[docs/PROJECT_STATE.md](docs/PROJECT_STATE.md). Read it alongside
+[docs/INTEGRATION_STATE.md](docs/INTEGRATION_STATE.md). Dated experiment reports retain their
+original populations and gates; a closed investigation is not necessarily a successful model.
 
-### Active
+### Current work
 
-- **Latent token order — IN PROGRESS.** `docs/wayfinding/latent-token-order/` (map #87). The pair
-  training target was corrupted by token ordering; #88–#91 captured the codec's query positions and
-  rebuilt the aligned cache. #92's arms train against `v4_surf@240k` as the control — arm A closed
-  at step 240000 (its best checkpoint and its first non-zero), arm N (NL/DE only, PLATEAU excluded
-  as LoD1) is still running. Checkpoints are scored continuously by
-  `scripts/foundations/watch_checkpoints.py` into `execution/artifacts/`.
-- **Whole-volume voxel transform — IN PROGRESS (planning + throwaway prototypes only).** Map #113.
-  Decides whether an A2-only whole-volume voxel correction can satisfy hard footprint/validity
-  invariants *and* preserve editability. #114–#116 are settled (dense absolute binary 64³ state;
-  authentic replay supervision; recipe posture deferred to an explicit gate); #117–#125 are open.
-  This is a **competing empirical route beside** solid-first semantic carving (#1), not a silent
-  replacement — the semantic architectural edit program remains authoritative, and this map may not
-  rewrite `CONTEXT.md` or an ADR without the explicit recipe-compatibility decision.
-- **Footprint-drawn town demo — IN PROGRESS.** `docs/wayfinding/footprint-town-demo/` (map #97).
-  The standalone town editor generating from A2, streamed into the viewport. #102/#104/#105 open.
-- **Bitmagic-inspired town experience — IN PROGRESS (Codex).** Map #106: a recipe-preserving town
-  interaction and presentation exploration. #107–#112 open.
+- **BuildingWorld corpus extension — map #156, execution-carrying.** Latest committed work
+  (`e48b9e9`, 2026-09-06) records the CRS/units policy (#165) and mesh-acceptance standard (#166).
+  Audits #157/#158 have reports but remain open for review. Ingestion, derived surfaces,
+  pseudo-labels, split, and new baseline (#174–#178) are not implemented. Safeguards and decisions
+  (#159–#173) precede them. New retrain-arm execution tickets are not yet specified.
+- **Solid-first semantic carving — map #1.** The representation, recovery fitter, bidirectional
+  core operations, stable operation IDs, grid snapping, locality tests, validity helpers, carving
+  traces, and block-coordination mechanism exist. #8 completed the proof-package design on
+  2026-09-06. Open work includes integration #2, provenance #152, split #153, annotations #154,
+  guided-edit proxy #179, coordination evaluation #180, and five-arm scorecard #181.
+  The map is a planning charter with explicitly scoped implementation/evaluation child tickets;
+  closing a decision ticket does not imply its spawned work is finished.
+- **Footprint-town demo — map #97.** A separate town service streams massing from A2 or optional
+  height-map/retrieval arms. #102/#104/#105/#135 remain open. It is separate from the older
+  recipe/sculpt service, whose hidden controls must not be described as visible features.
+- **Whole-volume voxel transform — map #113.** Planning/prototype alternative, not a replacement
+  for the semantic program. #114–#116 are settled; #117–#124 and companion spec #125 remain open.
+  Production implementation and any change to the recipe contract require the map's explicit gate.
+- **Town experience — map #106.** Identity/history, Evidence/Showcase, prompt patches, staged
+  realization, and sharing work (#107–#112) remains open. Backend operation IDs alone do not
+  complete a cross-page recipe-history contract.
 
-### Settled
+### Established results and limits
 
-- **Solid massing — DONE & shipped.** `docs/wayfinding/solid-massing-generation/` (map #24):
-  footprint-IoU 0.43 → ~0.89. "Breaking apart" was a BuildingNet thin-shell artifact, not a model
-  failure. This checkpoint is the accepted dense-grid massing generator.
-- **Surface crispness, first pass — CLOSED NEGATIVE.** `docs/wayfinding/massing-surface-fidelity/`
-  (map #34): the roughness is prior-side, and the map's cheapest-first levers all fell short.
-- **Crisp clean massing — COMPLETE (locates the ceiling).** `docs/wayfinding/crisp-massing-model/`
-  (map #52): the VQVAE codec is **not** the crispness bottleneck — `decode(encode(GT))` ≈ 0.0044 vs
-  a GT floor of 0.0041 — **the diffusion is**. Composite-over-extrusion (#56) and a post-decode SDF
-  refiner (#54) were both ruled out cheaply.
-- **Diffusion latent accuracy — CLOSED.** `docs/wayfinding/diffusion-latent-accuracy/` (map #58):
-  #59 (latent-space corrector) and #60 (x0-sharp finetune) both hit the same ~0.0047 wall, so
-  post-hoc correction is ruled out in **both** the SDF and latent domains. The durable fix was to
-  move crispness into the decode — taken up by map #61.
-- **Crisp massing via a query-based decoder — model shipped, map still open.**
-  `docs/wayfinding/crisp-massing-vecset/` (map #61): the A2 vecset massing diffusion is trained,
-  published, and is the current research line (see README). #66/#67 remain open as specs, and the
-  map's own "not yet specified" fog — whether editing survives a token-set latent — is exactly what
-  map #87 is now burning off.
-- **Vecset convergence — COMPLETE.** `docs/wayfinding/vecset-convergence/` (#69–#85, all closed):
-  the evaluation harness, the decoded-surface loss, the height-input decision, and the band-fix
-  findings that map #87 inherited.
+- Dense-grid solid massing (#24) shipped; surface-refinement and latent-correction investigations
+  (#34/#52/#58) closed with documented limitations or negative results.
+- A2's codec, token-set denoiser, training, and town serving exist. The representation-choice map
+  #61 and PRD #66 have completed their planning purpose; implementation spec #67 retains
+  unresolved quality/localized-edit acceptance, not an unbuilt codec.
+- Vecset convergence (#69) and token alignment (#87) are closed. Alignment was repaired and
+  remeasured, but did not open a usable transform strength band. Do not restart those completed
+  runs from an old handover's “next” paragraph.
+- #127's small height-map generator breaks the near-identity failure. On the historical 411
+  carve-needing cases, CE+median has `extra=0.0603`, `vs_input=0.8432`, and collapse 0.0268.
+  The human accepted its blockout appearance on 2026-08-28. That judgment does not establish
+  coherent pitched roof form or operation-level editability.
+- #155's unbiased, unsmoothed `fit_decode` is implemented and measured **in evaluation only**:
+  collapse 0.0268 → 0.0049, `extra` 0.0603 → 0.0807, planar fraction 0.20 → 0.00.
+  The decision to ship it has not been wired into the town service. Its fitter also discards the
+  recovered operations at the return boundary.
+- The assignment/type 2×2 was run, including an accidental combined arm; no cell passes
+  `PROGRAM_BAR`. The combined arm is documented by checkpoint name, not as GitHub #140:
+  actual #140 is bidirectional Layer/Ramp editing.
+- #131 measured the lossless polygon budget; #134's direct few-vertex fitter was tested and killed.
+  Its naive floor control reduced spikes at a substantial over-carving cost. Neither is unstarted.
+- C2's transform/composition proof effort (#11) is closed stale. The thesis/ADRs remain recorded
+  hypotheses, not a completed comparative proof. The old demo-cleanup effort #47 is closed; its
+  sibling #50 (fixing the *old* `inference_service.py` recipe generation) is still **open**, not
+  closed or formally marked superseded — #50's own record already points at A2 (#61) as the eventual
+  replacement generation, and #97's newer town service sidesteps #50's problem with a separate A2
+  path rather than resolving it. Don't cite #50 as done.
 
-### Known gaps in this record
+### Integration and evidence boundaries
 
-- Maps #106 and #113 have no `docs/wayfinding/` folder yet; #113 names
-  `docs/wayfinding/whole-volume-voxel-transform/` as its required home.
-- `effort:solid-first-carving` (#1–#9) is specified but unstarted; it is deliberately kept open.
-  #10, #126, #127 and #128 are done — see `docs/wayfinding/solid-first-subtractive-modeling/`.
-- 🔑 **#127 broke the no-op.** A 3.4M-parameter footprint→height-map generator carves: `extra`
-  0.2308 → **0.0603** with `vs_input` 0.8432, against the shipped 49M model's 0.2357 at 0.9852
-  vs-input. The pattern that closed #69–#92 was a property of the output space, not of the task.
-  ⚖️ **1-NN was demoted to a reference point by the human on 2026-08-28**, after the results: it is
-  non-parametric (it carries 34,909 real roofs to inference and copies one), so requiring a 3.4M
-  generator to beat it charges a compression constraint as a quality failure. ⚠️ The premise that
-  motivated the ruling — that retrieval always wins — is **false as measured**: three of four arms
-  beat it and the served one beats it by 41.5%, at **six times better collapse** (11 of 411 against
-  retrieval's 65). Its **pre-registered arm did miss** (0.1178 against 0.1031) and the original
-  pre-registration is kept intact in the doc; the arms that clear it were run after seeing that. ⚠️ **The montage disagrees with the scorecard** — every trained arm
-  returns a rounded mound where the real roof is planes meeting at a ridge, and three amplitude
-  statistics failed to separate them. The open problem has moved from *amount* to *form*.
-  ✅ **The human reviewed the montages on 2026-08-28 and accepted them**: this meets the scope
-  *"input a shape, get a blockout that looks like a building"* where earlier approaches did not.
-  Recorded as their judgement on criterion 1; it does not change the scalar record above.
-  **Served in the demo** by `town_generate_service.py` behind an `arm` knob (default still `a2`),
-  with a `/arms` comparison page — ~0.1 s/building against A2's ~7 s, because a height map needs no
-  codec. ⚠️ It is **deterministic**: identical footprints give identical buildings, so a town needs
-  the `roof_variation` knob (default 0 = the arm that was scored). Weights: `weights/massing-heightmap/`.
-  ⚠️ **The "make the objective match the decode" retrain was run and is NEGATIVE**: a pinball loss at
-  q=0.5 scores `extra` 0.0685 against the post-hoc median's 0.0603, winning on only 166/411
-  (p=0.0044). Cross-entropy learns the whole posterior; a quantile head learns one scalar and throws
-  it away. CE + post-hoc median stands as the best arm.
+Generated height maps and generated slot programs currently reach the town API as **meshes**,
+without an editable operation list. Recovered programs can replay through `EditableBuilding`,
+but recovery from GT is not autonomous generation. Syntax validation, program finalization, and
+compiled geometric containment are separate checks; the current coordinated commit calls the
+program check, not the containment check. Mixed ordered add/subtract programs are executable but
+are rejected by the finalize helper's commutativity requirement. These unresolved integration
+tensions belong in #2/#179/#180; they are not evidence of an end-to-end valid editing product.
 
-## Integration state
-
-⚠️ **`docs/INTEGRATION_STATE.md`** maps how the massing pieces wire together and which ones have
-never met. Read it before opening [#2](https://github.com/danvisai/SDFusion/issues/2): most of what
-that ticket imagines needs defining is already built and running, and the real gap is one function
-call wide — **the generator predicts a program, compiles it to a height map, and throws the program
-away**, so the editable representation and the generated geometry have never met.
+The historical pinned-714 set is a fixed regression control for BuildingWorld (#162/#177).
+The new proof benchmark (#153/#181) needs a separately versioned region/tile-stratified split.
+Those are distinct datasets and must not silently overwrite one another.
 
 ## Reading the numbers
 
@@ -204,10 +189,9 @@ where any edit requires regenerating the whole object and cannot preserve unrela
 _Avoid_: static mesh, output mesh
 
 **Massing**:
-The generatable part of a building: low-spatial-frequency geometry *above* the detail scale s*
-— base mass, wings, overall roof form. Produced by a diffusion-based massing generator conditioned
-on {footprint, class, height, style} — Stage 3a's dense-grid diffusion, or A2's vecset/Dora-latent
-diffusion (map #61); both realize the same C1 transform (ADR 0003), differing in representation.
+The coarse architectural solid above the detail scale s*: the main volume, wings, and roof form.
+It is the result of massing decisions, independent of whether those decisions are expressed through
+a latent transform, a height map, or a semantic architectural edit program.
 _Avoid_: base shape, blockout (blockout is the crude user primitive, not the generated mass)
 
 **Detail**:

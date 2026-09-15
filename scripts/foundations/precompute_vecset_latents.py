@@ -5,12 +5,17 @@ data loader. Everything goes through the `ShapeCodec` contract (spec #68) rather
 autoencoder directly -- the same calls the diffusion will use, so a codec swap changes one flag here and
 nothing downstream.
 
-Also caches the conditioning the generator needs beside each latent -- footprint, height, region -- so
-training reads one file and never touches the source corpus.
+Also caches the conditioning the generator needs beside each latent -- footprint, height, region,
+held_out -- so training reads one file and never touches the source corpus. height/region/held_out are
+no longer decided here (#161): they are looked up in the small `corpus_ledger.h5` ledger, which is
+built and extended independently of this (expensive, GPU-bound) encode step, and this module refuses
+to encode a row the ledger has no entry for. `--split_ledger` builds that ledger from an existing
+output of this script.
 
 Usage:
     precompute_vecset_latents.py --limit 256          # smoke
     precompute_vecset_latents.py                       # the whole corpus
+    precompute_vecset_latents.py --split_ledger --out data/real_massing_v1/vecset_latents.h5  # #161
 """
 from __future__ import annotations
 
@@ -27,14 +32,17 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import open_real_corpus                         # noqa: E402
 from models.shape_codec import Building, DoraCodec                       # noqa: E402
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface       # noqa: E402
+from scripts.foundations.corpus_ledger import (                          # noqa: E402
+    LEDGER_PATH, extract_from_vecset_latents, index_by_row, read_ledger, write_ledger,
+)
 from scripts.foundations.vecset_ceiling_probe import TRUNC, verts_to_world  # noqa: E402
 from scripts.foundations.dora_roundtrip_probe import load_dora, H5       # noqa: E402
 from scripts.foundations.dora_frozen_gate import load_surfaces           # noqa: E402
 from scene.surface_sampling import to_array_frame                        # noqa: E402
 from utils.numeric_guard import check_numpy  # noqa: E402
-from scripts.foundations.vecset_ceiling_probe import test_indices        # noqa: E402
 
 OUT = REPO / "data/real_massing_v1/vecset_latents.h5"
 
@@ -479,6 +487,23 @@ def measure_from_cache(real: str, blockout: str, n: int = 64, seed: int = 0) -> 
     return out
 
 
+def ledger_row_metadata(ledger: dict, ledger_pos: dict, row: int) -> tuple[int, int, float]:
+    """(region, held_out, height_m) for one corpus row, from the #161 ledger.
+
+    Refuses a row absent from the ledger rather than falling back to computing it here: which held-out
+    policy a new corpus row gets (#177's roof-family/spatial split, for BuildingWorld rows) is no
+    longer this module's decision, so encoding a row the ledger has not been told how to split is a
+    configuration error, not something to guess at.
+    """
+    if row not in ledger_pos:
+        raise SystemExit(
+            f"[precompute] row {row} has no corpus_ledger entry (#161) -- extend the ledger "
+            f"(scripts.foundations.corpus_ledger.append_ledger) with this row's region/held_out/"
+            f"height_m before encoding it; this module no longer derives them itself")
+    i = ledger_pos[row]
+    return int(ledger["region"][i]), int(ledger["held_out"][i]), float(ledger["height_m"][i])
+
+
 def main() -> None:
     check_numpy()
     ap = argparse.ArgumentParser()
@@ -508,6 +533,15 @@ def main() -> None:
     ap.add_argument("--blockout", action="store_true",
                     help="encode the footprint EXTRUSION instead of the real surface, giving the "
                          "aligned-pair partner: what the generator is handed at inference")
+    ap.add_argument("--split_ledger", action="store_true",
+                    help="#161: encode nothing -- pull the row/region/held_out/height_m ledger out "
+                         "of --out (an existing vecset_latents.h5) into its own file at "
+                         "corpus_ledger.LEDGER_PATH, and exit. One-time (or re-run to re-sync after "
+                         "hand-editing the source file); does not touch latent/query_pos/footprint.")
+    ap.add_argument("--force_split_ledger", action="store_true",
+                    help="--split_ledger: overwrite corpus_ledger.LEDGER_PATH even if --out has "
+                         "fewer rows than the ledger already there (default: refuse, since that "
+                         "shape only occurs by pointing --out at a smoke/test file by mistake)")
     args = ap.parse_args()
 
     import h5py
@@ -515,10 +549,39 @@ def main() -> None:
         measure_from_cache(*args.from_cache, n=args.pairs)
         return
 
+    if args.split_ledger:
+        ledger = extract_from_vecset_latents(Path(args.out))
+        if LEDGER_PATH.exists() and not args.force_split_ledger:
+            existing = read_ledger()
+            if len(ledger["row"]) < len(existing["row"]):
+                raise SystemExit(
+                    f"[split_ledger] refusing: {args.out} has {len(ledger['row'])} row(s), fewer "
+                    f"than the {len(existing['row'])} already in {LEDGER_PATH} -- this is what "
+                    f"pointing --out at a smoke/test vecset_latents.h5 by mistake looks like. Pass "
+                    f"--force_split_ledger if this shrink is actually intended.")
+        write_ledger(**ledger, source=f"split from {args.out}")
+        print(f"[split_ledger] {len(ledger['row'])} rows -> {LEDGER_PATH}")
+        return
+
+    # #162: fail before loading the codec or creating/truncating an output cache.
+    with open_real_corpus(H5):
+        pass
+    # #161: fail before paying for the codec, too -- a row this run would encode but the ledger has
+    # no entry for is a configuration error, not something worth GPU time to discover.
+    ledger = read_ledger()
+    ledger_pos = index_by_row(ledger)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     codec = DoraCodec(load_dora(dev), n_coarse=args.n_coarse, n_sharp=args.n_sharp)
 
-    surf = load_surfaces()
+    # Code-review finding on #175: `load_surfaces()`'s default grew to include BuildingWorld's
+    # ~1.5M rows the moment #175 registered it, but vecset-latent encoding of BuildingWorld is
+    # explicitly out of #175/#176's scope (#174's own doc: "a much more expensive, separate step
+    # this arm does not require") and #161's ledger has no entries for those rows yet (#177's job)
+    # -- so the unscoped default made this script's own default invocation (no --limit/--stratify)
+    # raise SystemExit on ~1.5M "missing ledger entry" rows instead of encoding the historical
+    # corpus it always has. Scoped back to the three sources this script could ever succeed against
+    # today; revisit once #177 extends the ledger.
+    surf = load_surfaces(sources=("bag3d", "nrw", "plateau"))
     rows = sorted(surf)
     if args.stratify:
         rows = _stratified_rows(surf, rows, args.stratify)
@@ -528,7 +591,6 @@ def main() -> None:
             rows = rows[args.start:]
         if args.limit:
             rows = rows[:args.limit]
-    held = set(int(i) for i in test_indices(35776))
     print(f"[precompute] {len(rows)} buildings -> {args.out}")
 
     # Verification samples span the whole requested output, not just the tail encoded after a
@@ -541,18 +603,27 @@ def main() -> None:
     if cache.done:
         rows = [r for r in rows if r not in cache.done]
         print(f"[precompute] {len(rows)} rows left to encode")
-    src_id = {"bag3d": 0, "nrw": 1, "plateau": 2}
+    # #161: check the WHOLE batch against the ledger before encoding any of it -- a per-row check
+    # made after that row's own (expensive, GPU-bound) encode already ran would only save the *rest*
+    # of the batch, not the row that tripped it.
+    missing = [r for r in rows if r not in ledger_pos]
+    if missing:
+        raise SystemExit(
+            f"[precompute] {len(missing)} row(s) have no corpus_ledger entry (#161), e.g. "
+            f"{missing[:5]} -- extend the ledger (scripts.foundations.corpus_ledger.append_ledger) "
+            f"with region/held_out/height_m for these rows before encoding them")
     vblds: dict = {}
     t0 = time.time()
     attrs = {"codec": codec.name, "n_coarse": args.n_coarse, "n_sharp": args.n_sharp}
     try:
-        with h5py.File(H5, "r") as f:
+        with open_real_corpus(H5) as f:
             for n, r in enumerate(rows):
                 try:
-                    bld, src = _building_for_row(f, surf, r, args.blockout)
+                    bld, _ = _building_for_row(f, surf, r, args.blockout)
                     z, pos = encode_row(codec, bld, r)
                 except Exception as e:
                     print(f"  [skip] row {r}: {type(e).__name__}"); continue
+                region, held_out, height_m = ledger_row_metadata(ledger, ledger_pos, r)
                 if r in vrows:
                     vblds[r] = bld
                 cache.add(
@@ -561,10 +632,10 @@ def main() -> None:
                     # voxel pitch, so the storage is exact enough to match on and halves 875 MB -> 437 MB
                     query_pos=pos.astype(np.float16),
                     footprint=np.asarray(f["footprint"][r], np.uint8),
-                    height_m=float(f["height_m"][r]),
-                    region=src_id[src],
+                    height_m=height_m,
+                    region=region,
                     row=r,
-                    held_out=1 if r in held else 0,             # 1 = held out, never trained on
+                    held_out=held_out,                          # 1 = held out, never trained on
                 )
                 written_rows.add(r)
                 # Trimesh's face-adjacency/normal caches form cycles after `sample_streams` touches a

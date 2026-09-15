@@ -37,6 +37,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface          # noqa: E402
 from scripts.foundations.refiner_prototype import surface_roughness          # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import (                       # noqa: E402
@@ -48,7 +49,10 @@ from scripts.foundations.dora_roundtrip_probe import (                       # n
 
 SURF = REPO / "data/real_massing_v1"
 TRIPO_VAE = REPO / "external/triposg_vae"
-SOURCES = {"bag3d": "NL", "nrw": "DE", "plateau": "JP"}
+# #175: "buildingworld" -> "BW" is a pipeline label, not a country code -- unlike bag3d/nrw/
+# plateau, BuildingWorld's 18 cities span many countries, and #171 (its region-conditioning
+# granularity) has not landed, so this does not claim a single region for it.
+SOURCES = {"bag3d": "NL", "nrw": "DE", "plateau": "JP", "buildingworld": "BW"}
 
 
 def _revoxel(v: np.ndarray, f: np.ndarray, pts: np.ndarray) -> np.ndarray:
@@ -65,11 +69,22 @@ def _rough(field: np.ndarray) -> float:
     return surface_roughness(torch.from_numpy(np.clip(field, -TRUNC, TRUNC)))
 
 
-def load_surfaces():
-    """row -> (verts, faces) for every recovered building, across all three sources."""
+def load_surfaces(sources=None):
+    """row -> (verts, faces, src) for every recovered building, across `sources` (default: every
+    registered `SOURCES` key).
+
+    Code-review finding on #175: registering `"buildingworld"` in `SOURCES` silently grew this
+    function's default row set from 35,776 to 1,562,554 -- ~1.5M extra verts/faces materialised
+    into RAM, plus a `trimesh.Trimesh(...).volume` build per row for the winding check, for EVERY
+    caller that takes the default. `sources` lets a caller that isn't ready for BuildingWorld's
+    rows (`precompute_vecset_latents.py`'s default path, this module's own `main()` -- see their
+    own call sites) say so explicitly, rather than paying that cost or crashing on a #161 ledger
+    that doesn't cover those rows yet (#177's job). The default stays "every registered source" so
+    a caller that DOES want everything (or is written before this parameter existed) is unaffected.
+    """
     import h5py
     out = {}
-    for src in SOURCES:
+    for src in (sources if sources is not None else SOURCES):
         p = SURF / f"surfaces_{src}.h5"
         if not p.exists():
             print(f"[warn] missing {p.name}"); continue
@@ -108,10 +123,17 @@ def main() -> None:
     rng = np.random.default_rng(0)
     import h5py, trimesh
 
-    surf = load_surfaces()
-    with h5py.File(H5, "r") as f:
-        held = [int(i) for i in test_indices(int(f["sdf"].shape[0]))]
-    # stratify: take round-robin across sources so all three regions are represented
+    # `held` only ever holds rows < FROZEN_SPLIT_N_TOTAL, so buildingworld (all rows appended after
+    # that prefix, #175) could never contribute a pick below regardless -- scoping this call to the
+    # three historical sources skips ~1.5M rows' worth of verts/faces and winding checks for a
+    # source this gate structurally cannot select from (code-review finding on #175).
+    surf = load_surfaces(sources=[s for s in SOURCES if s != "buildingworld"])
+    with open_real_corpus(H5) as f:
+        held = [int(i) for i in test_indices(FROZEN_SPLIT_N_TOTAL)]
+    # stratify: take round-robin across sources so bag3d/nrw/plateau are all represented. `held`
+    # only ever holds rows < FROZEN_SPLIT_N_TOTAL, so buildingworld (all rows appended after that
+    # prefix, #175) never contributes a pick here -- registering it in SOURCES only makes
+    # load_surfaces() findable for OTHER consumers, not this gate's own held-out sample.
     by_src = {s: [r for r in held if r in surf and surf[r][2] == s] for s in SOURCES}
     print("held-out with surfaces per source:", {SOURCES[s]: len(v) for s, v in by_src.items()})
     picks, i = [], 0
@@ -149,7 +171,7 @@ def main() -> None:
     pts = grid_points()
     rows = []
 
-    with h5py.File(H5, "r") as f:
+    with open_real_corpus(H5) as f:
         for k, r in enumerate(picks):
             v, fc, src = surf[r]
             gt = np.asarray(f["sdf"][r], np.float32)

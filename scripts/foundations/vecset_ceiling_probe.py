@@ -37,6 +37,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface  # noqa: E402
 from scripts.foundations.refiner_prototype import surface_roughness  # noqa: E402
 
@@ -144,9 +145,8 @@ def main() -> None:
         return
     pts = grid_points()
 
-    import h5py
-    with h5py.File(H5, "r") as f:
-        idxs = test_indices(int(f["sdf"].shape[0]))[:args.n]
+    with open_real_corpus(H5) as f:
+        idxs = test_indices(FROZEN_SPLIT_N_TOTAL)[:args.n]
         gts = [np.asarray(f["sdf"][int(i)], dtype=np.float32) for i in idxs]
         bag_ids = [f["bag_id"][int(i)].decode() for i in idxs]
 

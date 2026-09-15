@@ -166,6 +166,10 @@ def main():
         f.create_dataset("style_id", data=np.full(len(sdfs), 8, np.int32))     # 8 = "unknown"/real
         f.create_dataset("class_label", data=np.array(["BAG_real"] * len(sdfs), dtype="S16"))
         f.create_dataset("bag_id", data=np.array(ids, dtype="S40"))
+        # #152: the 3D BAG API is periodically republished with no dataset version it exposes --
+        # the fetch date of THIS run is the snapshot stamp. License/credit: docs/DATA_SOURCES.md.
+        f.attrs["source"] = "3dbag"
+        f.attrs["ingested_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     print(f"[done] kept={kept} skipped={skipped} -> {fname}  "
           f"sdf{sdfs.shape} occ_mean={(sdfs<=0).mean():.3f}  {(time.time()-t0):.0f}s")
 

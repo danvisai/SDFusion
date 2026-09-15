@@ -24,6 +24,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from scripts.foundations.eval_massing_arms import (_vertical_extent, blockout_sdf,  # noqa: E402
                                                    pick_ids, score_arm, summarise)
 
@@ -70,7 +71,7 @@ def main():
     else:
         print("[extract] reading GT vertical extents ...", flush=True)
         y0s, y1s, ok = [], [], []
-        with h5py.File(H5, "r") as g:
+        with open_real_corpus(H5) as g:
             for i, r in enumerate(rows):
                 ext = _vertical_extent(np.asarray(g["sdf"][int(r)], np.float32) <= 0)
                 if ext is None:
@@ -115,7 +116,7 @@ def main():
     scores = {"blockout_specified": {}, "blockout_inferred": {}}
     idx_of = {int(r): i for i, r in enumerate(rows)}
     print(f"\n[rescore] on the pinned held-out ids ...", flush=True)
-    with h5py.File(H5, "r") as g:
+    with open_real_corpus(H5) as g:
         for bid in cand:
             if len(ids) >= 48:
                 break
@@ -182,6 +183,8 @@ def fit_extent_predictor(latents: Path, h5: Path):
     import h5py
     from sklearn.ensemble import HistGradientBoostingRegressor
 
+    with open_real_corpus(h5):
+        pass
     with h5py.File(latents, "r") as f:
         held = f["held_out"][:] == 1
         reg = f["region"][:].astype(int)

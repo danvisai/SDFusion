@@ -13,6 +13,7 @@ corpus into RAM). Missing inputs are skipped with a warning (run again once inge
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import h5py
@@ -65,12 +66,21 @@ def main():
         d.create_dataset("bag_id", (total,), "S64")
 
         off = 0
+        provenance = {}
         for p, sid, n, _ in srcs:
             with h5py.File(p, "r") as s:
                 has_src = "source_id" in s
                 has_cls = "class_label" in s
                 has_bid = "bag_id" in s
                 has_sty = "style_id" in s
+                # #152: each ingester stamps its own output with attrs["source"]/["ingested_at"],
+                # but real.h5 is the one file everything downstream actually trains on -- without
+                # this, that stamp never reaches the file docs/DATA_SOURCES.md claims carries it.
+                provenance[str(sid)] = dict(
+                    input_file=p.name,
+                    source=s.attrs.get("source", ""),
+                    ingested_at=s.attrs.get("ingested_at", ""),
+                )
                 for i in range(0, n, BLK):
                     j = min(i + BLK, n)
                     d["sdf"][off + i:off + j] = s["sdf"][i:j]
@@ -87,6 +97,8 @@ def main():
                     print(f"  {p.name}: {j}/{n}", end="\r", flush=True)
             off += n
             print(f"\n[copied] {p.name} ({n}) -> offset {off}")
+
+        d.attrs["source_provenance"] = json.dumps(provenance, sort_keys=True)
 
     with h5py.File(out, "r") as d:
         sid = d["source_id"][:]

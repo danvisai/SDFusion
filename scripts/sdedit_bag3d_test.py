@@ -74,10 +74,14 @@ def main():
     ap.add_argument("--strengths", default="0.3,0.5,0.7")
     ap.add_argument("--out", default="outputs/sdedit_bag3d/sdedit_bag3d_autoguidance.png")
     ap.add_argument("--bag3d_h5", default="data/real_massing_v1/real.h5", help="input building corpus")
+    ap.add_argument("--bag3d_frozen_corpus", action="store_true",
+                    help="validate a renamed copy of the frozen real corpus (#162)")
     args = ap.parse_args()
     dev = args.device
 
-    ds = Bag3dDataset(); ds.initialize(SimpleNamespace(bag3d_h5=args.bag3d_h5, trunc_thres=TRUNC, augment=False), "train")
+    ds = Bag3dDataset(); ds.initialize(SimpleNamespace(
+        bag3d_h5=args.bag3d_h5, bag3d_frozen_corpus=args.bag3d_frozen_corpus,
+        trunc_thres=TRUNC, augment=False), "train")
     it = ds[args.sample]
     sdf0 = it["sdf"].view(1, 1, 64, 64, 64).to(dev)
     data = {"sdf": sdf0, "fp": it["fp"].view(1, 1, 64, 64).to(dev),

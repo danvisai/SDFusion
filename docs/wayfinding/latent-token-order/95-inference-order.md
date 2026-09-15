@@ -1,15 +1,13 @@
 <!-- RECOVERED FROM THE ISSUE TRACKER, 2026-08-14. -->
 
-> **Recovered document.** The original asset `95-inference-order.md` was written and committed on another
-> machine (`3c4bac5`) and was never pushed; it does not exist in this repository or on origin.
-> This file is its findings reconstructed verbatim from GitHub issue #95 — the ticket body
-> and every resolution comment. It is the *record*, not the code: the implementation described
-> below is still missing. See `RECOVERY.md`.
+> **Recovered and re-landed.** The original asset was lost with commit `3c4bac5`; this file preserves
+> its tracker record. The inference-order probe, tests, and regenerated artifact were reconstructed
+> and re-measured in `c542ef2`. See `RECOVERY.md` for the recovery audit and reproduced measurements.
 
 
 # #95 — Does an arbitrary token order at inference break a model trained on aligned pairs?
 
-*State: open · opened 2026-08-09*
+*State: closed · opened 2026-08-09 · implementation re-landed 2026-08-14*
 
 
 ## Ticket

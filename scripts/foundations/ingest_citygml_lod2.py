@@ -15,7 +15,9 @@ Sources (verified 2026-06-29):
 
 Output: <out>/<source>.h5 with the bag3d schema + a source_id channel for region conditioning:
   sdf (N,R,R,R) f32 | footprint (N,R,R) u8 | height_m (N,) f32 | style_id (N,) i32 (8=unknown/real)
-  | source_id (N,) i32 (0=NL 1=DE 2=JP) | class_label (N,) S16 | src_key (N,) S64
+  | source_id (N,) i32 (0=NL 1=DE 2=JP) | class_label (N,) S16 | bag_id (N,) S64
+  Plus attrs["source"] and attrs["ingested_at"] (#152: per-run provenance -- see
+  docs/DATA_SOURCES.md for the license/credit each source_id requires).
 
   env -u LD_PRELOAD -u LD_LIBRARY_PATH PYTHONPATH=. sdfusion/bin/python \
     scripts/foundations/ingest_citygml_lod2.py --source nrw --max_tiles 1 --limit 200 --smoke
@@ -218,6 +220,11 @@ def main():
         f.create_dataset("source_id", data=np.full(len(sdfs), sid, np.int32))  # region token
         f.create_dataset("class_label", data=np.array([SOURCE_CLASS[args.source]] * len(sdfs)))
         f.create_dataset("bag_id", data=np.array(ids, dtype="S64"))
+        # #152: NRW/PLATEAU are both living, periodically-republished sources with no dataset
+        # version their own API exposes -- the fetch date of THIS run is the snapshot stamp.
+        # License/credit per source_id live in docs/DATA_SOURCES.md, not restated per row here.
+        f.attrs["source"] = args.source
+        f.attrs["ingested_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     print(f"[done] {args.source}: kept={kept} skipped={skipped} seen={seen} -> {fname}\n"
           f"       sdf{sdfs.shape} occ_mean={(sdfs<=0).mean():.3f} "
           f"height_m[min/med/max]={heights.min():.1f}/{np.median(heights):.1f}/{heights.max():.1f} "

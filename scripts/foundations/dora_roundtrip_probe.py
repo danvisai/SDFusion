@@ -31,6 +31,7 @@ DORA = REPO / "external/Dora/pytorch_lightning"
 if str(DORA) not in sys.path:
     sys.path.insert(0, str(DORA))
 
+from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, open_real_corpus  # noqa: E402
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface      # noqa: E402
 from scripts.foundations.refiner_prototype import surface_roughness      # noqa: E402
 from scripts.foundations.vecset_ceiling_probe import (                   # noqa: E402
@@ -188,13 +189,13 @@ def main() -> None:
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     rng = np.random.default_rng(0)
-    import h5py, trimesh
+    import trimesh
 
     model = load_dora(dev)
     pts_world = grid_points()                                   # [-1,1]^3, index order
 
-    with h5py.File(H5, "r") as f:
-        idxs = test_indices(int(f["sdf"].shape[0]))[:args.n]
+    with open_real_corpus(H5) as f:
+        idxs = test_indices(FROZEN_SPLIT_N_TOTAL)[:args.n]
         gts = [np.asarray(f["sdf"][int(i)], np.float32) for i in idxs]
 
     for k, (gi, gt) in enumerate(zip(idxs, gts)):

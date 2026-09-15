@@ -1,12 +1,13 @@
 <!-- Mirrored from the tracker, 2026-08-14. -->
 
-> **Open ticket, mirrored locally** so this effort can be read without the
-> tracker. Nothing was lost for this one — it had no committed asset.
+> **Resolved ticket, mirrored locally** so this effort can be read without the tracker. The four
+> training arms survived the machine transition and the final full-heldout evaluation was completed
+> on 2026-09-01.
 
 
 # #92 — Retrain with the aligned pair target, against v4_surf@240k as the control
 
-*State: open · opened 2026-08-09*
+*State: resolved 2026-09-01 · opened 2026-08-09*
 
 
 ## Ticket
@@ -67,3 +68,94 @@ Per this map's Destination, criterion 2, all three at the strength maximising me
 The 2x2 table on n=714 with `vs_input`, a montage for criterion 1, the marginal-surface-value
 comparison, and a plain statement of whether the pre-registered bar was met — including "met only
 transiently" if that is what happened.
+
+
+## Resolution — alignment does not restore a usable band
+
+**Verdict: NOT MET, and not met transiently.** Greedy alignment makes the pair objective much easier
+to fit, but it does not produce a strength where B both acts and preserves quality. The from-scratch
+aligned follow-on is therefore **not triggered**: B did not beat A under the registered visual/AND bar.
+
+### Execution integrity
+
+All four arms resumed the same 180k checkpoint and reached 240k. Every 10k checkpoint from 190k
+through 240k was scored at strength 0.5 on the exact 714 IDs from
+`execution/artifacts/massing_arms_eval_ship714.json`; all 24 raw artifacts were checked for identical
+IDs and population size. No checkpoint was dropped at a dip. The candidate checkpoint was chosen by
+median 3D IoU on that common-strength curve, then B alone received the ticket's fixed eight-strength
+sweep.
+
+The best checkpoint observed at the common strength of 0.5 was:
+
+| arm | selected step | 3D IoU | `vs_input` | collapse | beats envelope |
+|---|---:|---:|---:|---:|---:|
+| A — encoded + surface | 220k | 0.8622 | 0.9721 | 10.22% | 0.28% |
+| **B — aligned + surface** | **190k** | **0.8735** | **0.9911** | **11.90%** | **9.38%** |
+| C — encoded + no surface | 200k | 0.8715 | 0.9876 | 6.16% | 1.26% |
+| D — aligned + no surface | 190k | 0.8730 | 0.9850 | 19.89% | 10.92% |
+
+B's apparent +0.0113 over A is a no-op comparison: B is 99.1% its input and therefore inherits the
+envelope. At the matched 240k endpoint the sign reverses: B scores 0.7616 against A's 0.8573 and
+collapses 46.36% against 8.96%.
+
+### Candidate strength sweep — full 714
+
+| strength | 3D IoU | `vs_input` | collapse | beats envelope | footprint gate pass |
+|---:|---:|---:|---:|---:|---:|
+| 0.30 | 0.8075 | 0.9575 | 32.63% | 1.68% | 94.26% |
+| 0.40 | 0.8464 | 0.9843 | 19.05% | 3.64% | 97.06% |
+| **0.45** | **0.8753** | **0.9938** | **10.64%** | **5.74%** | **98.60%** |
+| 0.50 | 0.8735 | 0.9911 | 11.90% | 9.38% | 98.32% |
+| 0.55 | 0.8485 | 0.9817 | 16.81% | 9.38% | 96.22% |
+| 0.60 | 0.8143 | 0.9625 | 27.17% | 7.14% | 91.46% |
+| 0.70 | 0.1294 | 0.1591 | 91.88% | 0.14% | 53.36% |
+| 0.85 | 0.1850 | 0.2197 | 100.00% | 0.00% | 12.32% |
+
+At the strength that maximises median IoU, the registered AND bar reads:
+
+- `vs_input < 0.98`: **FAIL**, 0.9938;
+- 3D IoU `>= 0.876`: **FAIL**, 0.8753 (short by 0.0007);
+- beats envelope `> 5%`: **PASS**, 5.74%.
+
+The only sampled strengths that clearly act are 0.30, 0.60, 0.70, and 0.85; all lose quality, and
+the last two are catastrophic. There is no hidden middle: no observed checkpoint at strength 0.5
+met the bar, and no strength on the selected checkpoint met it either.
+
+### Visual and footprint criteria
+
+The shaded sweep tells the same story more clearly than the scalar near-miss. At 0.40–0.55 the model
+mostly reproduces the envelope, including its missing roof decisions. At 0.60 it begins deforming and
+melting faces; by 0.70–0.85 the outputs are slats, rubble, or rounded blobs. No sampled setting reads
+as a net-new real building rather than an extrusion or a damaged extrusion. **Criterion 1 fails.**
+
+At the scalar-selected 0.45, 98.60% pass the 5% spill/uncovered footprint gate, above the old 77.0%
+reference. This is not an independent win: `vs_input=0.9938` shows that the near-no-op inherits the
+envelope's footprint. The worst-first plan still exposes the small tail—detached masses, filled
+courtyards, and spill up to 22.0%—but criterion 2 does not regress in aggregate.
+
+### The matched 2x2 and #89's side-prediction
+
+Pure factorial claims use the same step and strength, not each arm's separately selected operating
+point. At the matched 240k endpoint, strength 0.5:
+
+| arm | 3D IoU | `vs_input` | collapse | beats envelope |
+|---|---:|---:|---:|---:|
+| A | 0.8573 | 0.9624 | 8.96% | 0.42% |
+| B | 0.7616 | 0.8910 | 46.36% | 3.50% |
+| C | 0.8332 | 0.9682 | 17.93% | 0.70% |
+| D | 0.8709 | 0.9894 | 19.05% | 9.10% |
+
+The decoded-surface term's endpoint marginal is **+0.0241 IoU / -9.0 collapse points** in the encoded
+pair, but **-0.1093 IoU / +27.3 collapse points** in the aligned pair. Across all six matched
+checkpoints its median IoU marginal drops from **-0.0391** encoded to **-0.1156** aligned, while its
+median collapse penalty grows from **+18.1** to **+26.2 points**. #89's prediction that the surface
+term's marginal value would drop after repairing the bridge is confirmed—more strongly than hoped:
+the term becomes actively harmful rather than merely redundant.
+
+### Assets
+
+- Machine-checkable decision: `execution/artifacts/issue92_2x2_summary.json`
+- Candidate sweep: `execution/artifacts/massing_arms_eval_issue92_strength_armB_step190000.json`
+- Six-checkpoint curves: `outputs/watch_checkpoints/issue92_full714_{A,B,C,D}/curve.json`
+- Candidate montage: `docs/wayfinding/latent-token-order/92-arm-b-strength-montage.png`
+- Worst-first plan: `docs/wayfinding/latent-token-order/92-arm-b-plan-worst.png`

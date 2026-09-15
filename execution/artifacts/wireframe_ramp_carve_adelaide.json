@@ -1,0 +1,328 @@
+{
+  "meta": {
+    "script": "scripts/foundations/wireframe_ramp_carve.py",
+    "what_this_measures": "run #10's beam-search fitter twice, unbiased vs. with wireframe-derived Ramp planes offered as additional candidates (recover_massing_programs.py's _wireframe_ramp_candidates) -- a wireframe plane only wins a region if it beats every other candidate on raw gain under the same containment guard. Coherent search, not post-hoc substitution (see module docstring for why the v1 substitution approach was replaced). Steps 4-5 of the wireframe precision check (see wireframe_ramp_probe.py for steps 1-3)",
+    "city": "Adelaide",
+    "n_checked": 2282,
+    "n_compared": 7
+  },
+  "buildings": {
+    "Adelaide/21g_22c_60": {
+      "n_ramp_ops_baseline": 0,
+      "n_ramp_ops_guided": 2,
+      "n_ops_baseline": 4,
+      "n_ops_guided": 4,
+      "n_wireframe_ops_won": 2,
+      "wireframe_ops_won": [
+        {
+          "pitch_deg": 27.8,
+          "area": 110,
+          "plane": [
+            17.328952215983186,
+            -0.30443958612257344,
+            0.43164375757383006
+          ]
+        },
+        {
+          "pitch_deg": 28.1,
+          "area": 94,
+          "plane": [
+            25.441558311721664,
+            0.3103252947240658,
+            -0.4357980427530242
+          ]
+        }
+      ],
+      "baseline": {
+        "vol_iou": 0.9771,
+        "missing": 0.0,
+        "extra": 0.0235,
+        "arm_vox": 18326,
+        "gt_vox": 17906,
+        "vs_input": 0.6971
+      },
+      "wireframe_guided": {
+        "vol_iou": 0.982,
+        "missing": 0.0,
+        "extra": 0.0184,
+        "arm_vox": 18235,
+        "gt_vox": 17906,
+        "vs_input": 0.6937
+      },
+      "local_baseline": {
+        "gt_vox": 2017,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0575
+      },
+      "local_wireframe_guided": {
+        "gt_vox": 2017,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0
+      }
+    },
+    "Adelaide/24_24a_24f_117": {
+      "n_ramp_ops_baseline": 3,
+      "n_ramp_ops_guided": 1,
+      "n_ops_baseline": 4,
+      "n_ops_guided": 4,
+      "n_wireframe_ops_won": 1,
+      "wireframe_ops_won": [
+        {
+          "pitch_deg": 28.2,
+          "area": 80,
+          "plane": [
+            33.00536574743965,
+            0.1531306440419989,
+            -0.5130034955210195
+          ]
+        }
+      ],
+      "baseline": {
+        "vol_iou": 0.8623,
+        "missing": 0.0,
+        "extra": 0.1597,
+        "arm_vox": 14329,
+        "gt_vox": 12356,
+        "vs_input": 0.73
+      },
+      "wireframe_guided": {
+        "vol_iou": 0.8644,
+        "missing": 0.0,
+        "extra": 0.1568,
+        "arm_vox": 14294,
+        "gt_vox": 12356,
+        "vs_input": 0.7282
+      },
+      "local_baseline": {
+        "gt_vox": 675,
+        "missing_frac": 0.0,
+        "extra_frac": 0.1585
+      },
+      "local_wireframe_guided": {
+        "gt_vox": 675,
+        "missing_frac": 0.0,
+        "extra_frac": 0.1081
+      }
+    },
+    "Adelaide/26_15": {
+      "n_ramp_ops_baseline": 1,
+      "n_ramp_ops_guided": 2,
+      "n_ops_baseline": 3,
+      "n_ops_guided": 4,
+      "n_wireframe_ops_won": 1,
+      "wireframe_ops_won": [
+        {
+          "pitch_deg": 37.1,
+          "area": 1,
+          "plane": [
+            34.43989992631498,
+            -0.7252710861297903,
+            -0.21331277136963986
+          ]
+        }
+      ],
+      "baseline": {
+        "vol_iou": 0.8881,
+        "missing": 0.0,
+        "extra": 0.126,
+        "arm_vox": 1770,
+        "gt_vox": 1572,
+        "vs_input": 0.59
+      },
+      "wireframe_guided": {
+        "vol_iou": 0.8886,
+        "missing": 0.0,
+        "extra": 0.1253,
+        "arm_vox": 1769,
+        "gt_vox": 1572,
+        "vs_input": 0.5897
+      },
+      "local_baseline": {
+        "gt_vox": 3,
+        "missing_frac": 0.0,
+        "extra_frac": 0.3333
+      },
+      "local_wireframe_guided": {
+        "gt_vox": 3,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0
+      }
+    },
+    "Adelaide/27_27a_4": {
+      "n_ramp_ops_baseline": 3,
+      "n_ramp_ops_guided": 3,
+      "n_ops_baseline": 3,
+      "n_ops_guided": 3,
+      "n_wireframe_ops_won": 1,
+      "wireframe_ops_won": [
+        {
+          "pitch_deg": 19.5,
+          "area": 456,
+          "plane": [
+            8.332156349502867,
+            0.09782180295424808,
+            0.3395753706978848
+          ]
+        }
+      ],
+      "baseline": {
+        "vol_iou": 0.9699,
+        "missing": 0.0,
+        "extra": 0.031,
+        "arm_vox": 22468,
+        "gt_vox": 21792,
+        "vs_input": 0.6599
+      },
+      "wireframe_guided": {
+        "vol_iou": 0.9702,
+        "missing": 0.0,
+        "extra": 0.0307,
+        "arm_vox": 22461,
+        "gt_vox": 21792,
+        "vs_input": 0.6596
+      },
+      "local_baseline": {
+        "gt_vox": 9176,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0144
+      },
+      "local_wireframe_guided": {
+        "gt_vox": 9176,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0136
+      }
+    },
+    "Adelaide/27_27a_50": {
+      "n_ramp_ops_baseline": 3,
+      "n_ramp_ops_guided": 3,
+      "n_ops_baseline": 4,
+      "n_ops_guided": 4,
+      "n_wireframe_ops_won": 1,
+      "wireframe_ops_won": [
+        {
+          "pitch_deg": 29.6,
+          "area": 65,
+          "plane": [
+            15.994750807073146,
+            -0.16887681050795164,
+            0.5429935498127038
+          ]
+        }
+      ],
+      "baseline": {
+        "vol_iou": 0.9769,
+        "missing": 0.0,
+        "extra": 0.0236,
+        "arm_vox": 12652,
+        "gt_vox": 12360,
+        "vs_input": 0.8169
+      },
+      "wireframe_guided": {
+        "vol_iou": 0.9771,
+        "missing": 0.0,
+        "extra": 0.0235,
+        "arm_vox": 12650,
+        "gt_vox": 12360,
+        "vs_input": 0.8168
+      },
+      "local_baseline": {
+        "gt_vox": 809,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0037
+      },
+      "local_wireframe_guided": {
+        "gt_vox": 809,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0
+      }
+    },
+    "Adelaide/29c_29d_32": {
+      "n_ramp_ops_baseline": 0,
+      "n_ramp_ops_guided": 1,
+      "n_ops_baseline": 2,
+      "n_ops_guided": 2,
+      "n_wireframe_ops_won": 1,
+      "wireframe_ops_won": [
+        {
+          "pitch_deg": 25.0,
+          "area": 198,
+          "plane": [
+            7.651194878002173,
+            0.44578255800638183,
+            0.1397501050810216
+          ]
+        }
+      ],
+      "baseline": {
+        "vol_iou": 0.9816,
+        "missing": 0.0,
+        "extra": 0.0188,
+        "arm_vox": 38270,
+        "gt_vox": 37564,
+        "vs_input": 0.7504
+      },
+      "wireframe_guided": {
+        "vol_iou": 0.9852,
+        "missing": 0.0,
+        "extra": 0.0151,
+        "arm_vox": 38130,
+        "gt_vox": 37564,
+        "vs_input": 0.7476
+      },
+      "local_baseline": {
+        "gt_vox": 3430,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0531
+      },
+      "local_wireframe_guided": {
+        "gt_vox": 3430,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0
+      }
+    },
+    "Adelaide/35f_25": {
+      "n_ramp_ops_baseline": 3,
+      "n_ramp_ops_guided": 3,
+      "n_ops_baseline": 4,
+      "n_ops_guided": 4,
+      "n_wireframe_ops_won": 1,
+      "wireframe_ops_won": [
+        {
+          "pitch_deg": 34.6,
+          "area": 368,
+          "plane": [
+            57.96323610503639,
+            0.05679517575988552,
+            -0.6876397506879391
+          ]
+        }
+      ],
+      "baseline": {
+        "vol_iou": 0.9786,
+        "missing": 0.0,
+        "extra": 0.0219,
+        "arm_vox": 67853,
+        "gt_vox": 66399,
+        "vs_input": 0.7418
+      },
+      "wireframe_guided": {
+        "vol_iou": 0.9787,
+        "missing": 0.0,
+        "extra": 0.0218,
+        "arm_vox": 67845,
+        "gt_vox": 66399,
+        "vs_input": 0.7417
+      },
+      "local_baseline": {
+        "gt_vox": 8138,
+        "missing_frac": 0.0,
+        "extra_frac": 0.001
+      },
+      "local_wireframe_guided": {
+        "gt_vox": 8138,
+        "missing_frac": 0.0,
+        "extra_frac": 0.0
+      }
+    }
+  }
+}

@@ -1,15 +1,33 @@
 <!-- RECOVERED FROM THE ISSUE TRACKER, 2026-08-14. -->
 
-> **Recovered document.** The original asset `89-surface-loss-immunity.md` was written and committed on another
-> machine (`4dcdccd`) and was never pushed; it does not exist in this repository or on origin.
-> This file is its findings reconstructed verbatim from GitHub issue #89 — the ticket body
-> and every resolution comment. It is the *record*, not the code: the implementation described
-> below is still missing. See `RECOVERY.md`.
+> **Recovered and re-measured.** The original asset was lost with commit `4dcdccd`; this file preserves
+> its tracker record. The actual pair-training-path probe has now been reconstructed as
+> `scripts/foundations/probe_surface_loss_order.py`, with its fresh measurement in
+> `execution/artifacts/surface_loss_order_probe.json`.
 
 
 # #89 — Does the decoded-surface loss escape the ordering corruption?
 
-*State: open · opened 2026-08-09*
+*State: closed · opened 2026-08-09 · implementation re-measured 2026-09-01*
+
+
+## Recovered measurement — 2026-09-01
+
+The reconstructed probe changes only the blockout token order and applies the same permutation to
+its diffusion noise, while the real latent target stays fixed. It evaluates the shipped
+`vecset_v4_surf@240k` denoiser and the exact `surface_term` from `train_vecset.py` on six
+region-balanced training rows, five orderings, 8,192 shared query points, and three timesteps.
+
+| t/T | epsilon spread | decoded-surface spread | epsilon / surface sensitivity |
+|---:|---:|---:|---:|
+| 0.40 | 1.406993% | 0.0000618% | 22,751× |
+| 0.55 | 1.039246% | 0.0001749% | 5,941× |
+| 0.70 | 0.286167% | 0.0000345% | 8,297× |
+
+The lost run reported epsilon spreads of 1.53% / 0.97% / 0.31% and surface spreads of
+0.0003% / 0.0005% / 0.0001%. The reconstruction reproduces both the scale and schedule trend, and
+strengthens the decision: the decoded-surface term is **5,941–22,751× less order-sensitive at every
+measured t**. #89's conclusion survives recovery.
 
 
 ## Ticket

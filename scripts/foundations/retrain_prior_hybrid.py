@@ -51,6 +51,7 @@ def build_opt(args, ckpt_dir):
         use_adaln=bool(args.adaln),
         # dataset
         bag3d_h5=args.bag3d_h5, trunc_thres=0.2, augment=True, bag_ratio=args.bag_ratio,
+        bag3d_frozen_corpus=getattr(args, "bag3d_frozen_corpus", False),
         bag_labels=str(REPO / "data/bag3d_v1/bag_labels.npz"), seed=0,
         dataroot="data", recipe_aug_root="data/recipe_augmentation_v1",
         heights_csv="outputs/stage3_metadata/asset_dimensions.csv",
@@ -71,6 +72,8 @@ def main():
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--vq_ckpt", default=VQ_CLEAN)
     ap.add_argument("--bag3d_h5", default="/dev/shm/bag3d_fast.h5")
+    ap.add_argument("--bag3d_frozen_corpus", action="store_true",
+                    help="validate a renamed copy of the frozen real corpus (#162)")
     ap.add_argument("--total_iters", type=int, default=20000)
     ap.add_argument("--bs", type=int, default=16)
     ap.add_argument("--lr", type=float, default=1e-4)

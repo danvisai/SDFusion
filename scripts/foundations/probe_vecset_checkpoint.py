@@ -2,6 +2,7 @@
 projection's footprint/volume against the blockout it starts from."""
 import sys, argparse, numpy as np, torch, h5py
 sys.path.insert(0, '.')
+from utils.frozen_corpus import open_real_corpus  # noqa: E402
 from models.networks.vecset_denoiser import VecsetDenoiser
 from models.networks.vecset_projection import SetSDEdit
 from models.shape_codec import Building, DoraCodec
@@ -37,7 +38,7 @@ cosn = {s: [] for s in a.strengths}
 proj = {s: {"fp": [], "iou": [], "miss": [], "extra": [], "vs_in": []} for s in a.proj}
 bo_arm = {"fp": [], "iou": [], "miss": [], "extra": []}
 
-with h5py.File(LATENTS, "r") as lf, h5py.File(H5, "r") as gt:
+with h5py.File(LATENTS, "r") as lf, open_real_corpus(H5) as gt:
     for bid in ids:
         gocc = np.asarray(gt["sdf"][bid], np.float32) <= 0
         fp = np.asarray(lf["footprint"][lat_of[bid]])

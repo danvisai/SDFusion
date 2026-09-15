@@ -30,21 +30,27 @@ from scripts.foundations.eval_massing_arms import RES, volume_split  # noqa: E40
 from scripts.foundations.recover_massing_programs import (  # noqa: E402
     K_OPS, fit_program, occupancy, program_to_slots, replay_program,
 )
+from scripts.foundations.source_provenance import region_mapping_sha256  # noqa: E402
 from scripts.foundations.train_height_map_generator import (  # noqa: E402
-    COND_CHANNELS, DEPTH_CLASSES, PLANE_BINS, PROGRAM_TYPES, _d4, _d4_program,
+    CONDITIONING_CHANNELS, COND_CHANNELS, DEPTH_CLASSES, N_REGIONS, PLANE_BINS,
+    PROGRAM_TYPES, SHAPE_CHANNEL_STATS, _d4, _d4_program,
     apply_depth, bins_to_plane, carve_depth, compile_program,
-    condition_channels, decode_logits, decode_plane_logits,
+    condition_channels, conditioning_channel_names, decode_logits, decode_plane_logits,
     head_channels, height_split, mean_relative_depth, mean_roof_height,
     differentiable_depth, height_rgb, normal_rgb,
     per_column_loss, decode_prediction, PLANE_DECODE, PLANE_QUANTITIES, plane_to_bins,
     plane_to_normalised,
     plane_to_voxel, rebin_planes,
     ASSIGN_DECODE, ASSIGN_TEMPERATURE, assignment_prior, assignment_stats, decode_assignment,
+    TYPE_TEMPERATURE, type_prior, type_stats,
     COMPLEXITY_BUCKETS, complexity_strata, label_complexity, slot_counts_of,
     make_model,
     program_loss, retrieve_nn, roof_description_length, sheet_picks, slot_centroids,
     slope_loss, SLOPE_DECODE_QUANTILE,
-    roof_shape_stats, summarise, verdict,
+    roof_shape_stats, summarise, verdict, fit_decode, FitBias, smooth_heightmap,
+    wta_ce_loss, decode_wta, bank_eligibility,
+    cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
+    validate_region_ids, validate_shape_channels,
 )
 
 
@@ -144,6 +150,228 @@ class TestHeightSplit(unittest.TestCase):
         self.assertEqual((s["missing"], s["extra"], s["vol_iou"]), (0.0, 0.0, 1.0))
 
 
+class TestSmoothHeightmap(unittest.TestCase):
+    """#8's second fusion attempt: denoise the generator's raw prediction before handing it to the
+    fitter, since #9's bias mechanism measured no effect on the real corpus."""
+
+    def _fp(self):
+        fp = np.zeros((RES, RES), bool)
+        fp[16:48, 12:52] = True
+        return fp
+
+    def test_a_flat_roof_is_unchanged(self):
+        fp = self._fp()
+        h = np.where(fp, 30, 0).astype(np.int16)
+        np.testing.assert_array_equal(smooth_heightmap(h, fp, 2.0), h)
+
+    def test_stays_footprint_exact(self):
+        fp = self._fp()
+        rng = np.random.default_rng(3)
+        h = np.where(fp, rng.integers(10, 30, fp.shape), 0).astype(np.int16)
+        out = smooth_heightmap(h, fp, 2.0)
+        self.assertTrue(bool((out[~fp] == 0).all()))
+        self.assertTrue(bool((out[fp] >= 1).all()))
+
+    def test_boundary_columns_are_not_diluted_by_the_zero_exterior(self):
+        """The whole reason this is mask-aware rather than a plain `gaussian_filter`: a naive blur
+        would blend the height-0 outside into every boundary column, understating height exactly at
+        the wall. The masked version must keep a uniform-height footprint's boundary at its true
+        value; a naive blur pulls it down by construction."""
+        fp = self._fp()
+        h = np.where(fp, 30, 0).astype(np.int16)
+        naive = ndimage.gaussian_filter(h.astype(np.float64), 2.0)
+        zs, xs = np.nonzero(fp)
+        edge = (zs == zs.min())
+        bz, bx = zs[edge], xs[edge]
+        self.assertLess(float(naive[bz, bx].mean()), 29.0)              # the naive blur dips
+        smoothed = smooth_heightmap(h, fp, 2.0)
+        self.assertEqual(int(smoothed[bz, bx].mean()), 30)               # the masked one does not
+
+    def test_reduces_high_frequency_noise_toward_the_underlying_plane(self):
+        fp = self._fp()
+        _, xx = np.mgrid[0:RES, 0:RES]
+        rng = np.random.default_rng(4)
+        clean = 34 - 0.55 * np.abs(xx - 32)
+        noisy = np.where(fp, np.clip(np.rint(clean + rng.integers(-2, 3, (RES, RES))), 1, 40),
+                         0).astype(np.int16)
+        target = np.where(fp, np.clip(np.rint(clean), 1, 40), 0).astype(np.int16)
+        err_before = float(np.abs(noisy[fp].astype(int) - target[fp].astype(int)).mean())
+        err_after = float(np.abs(smooth_heightmap(noisy, fp, 2.0)[fp].astype(int)
+                                 - target[fp].astype(int)).mean())
+        self.assertLess(err_after, err_before)
+
+
+class TestMakeModelKHyp(unittest.TestCase):
+    """#8 stage 1: `k_hyp` widens the 'ce' head without touching the backbone."""
+
+    def test_k_hyp_1_matches_every_prior_arm(self):
+        import torch
+
+        m = make_model("ce", 8, 6, k_hyp=1)
+        y = m(torch.zeros(2, COND_CHANNELS, RES, RES))
+        self.assertEqual(y.shape, (2, DEPTH_CLASSES, RES, RES))
+
+    def test_k_hyp_multiplies_the_head_channels_only(self):
+        import torch
+
+        m = make_model("ce", 8, 6, k_hyp=3)
+        y = m(torch.zeros(2, COND_CHANNELS, RES, RES))
+        self.assertEqual(y.shape, (2, 3 * DEPTH_CLASSES, RES, RES))
+
+    def test_k_hyp_refuses_objectives_with_no_posterior_to_multiply(self):
+        with self.assertRaises(ValueError):
+            make_model("mse", 8, 6, k_hyp=2)
+        with self.assertRaises(ValueError):
+            make_model("planes", 8, 6, k_hyp=2)
+
+
+class TestMakeModelShapeChannels(unittest.TestCase):
+    """#173: `shape_channels` widens the trunk's first layer only, and only when requested."""
+
+    def test_no_shape_channels_matches_every_prior_arm(self):
+        import torch
+
+        m = make_model("ce", 8, 6)
+        y = m(torch.zeros(2, COND_CHANNELS, RES, RES))
+        self.assertEqual(y.shape, (2, DEPTH_CLASSES, RES, RES))
+
+    def test_shape_channels_widen_the_first_layer_to_match(self):
+        import torch
+
+        m = make_model("ce", 8, 6, shape_channels=SHAPE_CHANNEL_STATS)
+        y = m(torch.zeros(2, COND_CHANNELS + len(SHAPE_CHANNEL_STATS), RES, RES))
+        self.assertEqual(y.shape, (2, DEPTH_CLASSES, RES, RES))
+
+    def test_an_unknown_shape_channel_is_rejected(self):
+        with self.assertRaises(ValueError):
+            make_model("ce", 8, 6, shape_channels=("not_a_real_stat",))
+
+    def test_shape_channels_also_widen_the_planes_and_program_trunks(self):
+        import torch
+
+        planes_model = make_model("planes", 8, 6, shape_channels=SHAPE_CHANNEL_STATS)
+        logits, params = planes_model(torch.zeros(2, COND_CHANNELS + len(SHAPE_CHANNEL_STATS),
+                                                   RES, RES))
+        self.assertEqual(logits.shape[0], 2)
+        program_model = make_model("program", 8, 6, shape_channels=SHAPE_CHANNEL_STATS)
+        assign, *_ = program_model(torch.zeros(2, COND_CHANNELS + len(SHAPE_CHANNEL_STATS),
+                                               RES, RES))
+        self.assertEqual(assign.shape[0], 2)
+
+
+class TestWtaCeLoss(unittest.TestCase):
+    """#8 stage 1: relaxed winner-take-all over `k_hyp` independent 'ce' heads.
+
+    The claim under test is not "the loss computes a number" -- it is the actual mechanism: given a
+    batch where the true answer is genuinely bimodal (half the buildings need answer A, half need
+    answer B), training against `wta_ce_loss` should let two hypotheses SPECIALISE, confidently, one
+    into each. An ordinary single 'ce' head cannot do that -- for a CLASSIFIER, "hedging" under
+    genuine 50/50 ambiguity is not landing on some third, averaged class (there is no such thing as
+    the class halfway between two indices to a softmax); the Bayes-optimal single answer is a
+    DIFFUSE ~50/50 posterior over A and B, so its argmax is an arbitrary coin flip between them,
+    never a confident pick of either. That diffuseness -- confident within a hypothesis, uncertain
+    within a single shared head -- is exactly what is checked below, not the argmax alone.
+    """
+
+    def test_specialises_into_two_confident_modes_a_single_head_leaves_diffuse(self):
+        import torch
+        import torch.nn.functional as F
+
+        rng = np.random.default_rng(0)
+        n, z, x = 64, 4, 4
+        # two well-separated depth classes standing in for "roof tilts left" / "roof tilts right"
+        a, b = 5, 25
+        y = torch.tensor(np.where(rng.random(n) < 0.5, a, b)[:, None, None]
+                         * np.ones((n, z, x), np.int64))
+        m = torch.ones(n, z, x, dtype=torch.bool)
+        logits = torch.zeros(1, 2, DEPTH_CLASSES, requires_grad=True)      # shared across columns
+        opt = torch.optim.Adam([logits], lr=0.2)
+        for _ in range(300):
+            out = logits.expand(n, 2, DEPTH_CLASSES).reshape(n, 2 * DEPTH_CLASSES, 1, 1) \
+                        .expand(n, 2 * DEPTH_CLASSES, z, x)
+            loss = wta_ce_loss(out, y, m, k_hyp=2, epsilon=0.05)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+        probs = torch.softmax(logits.detach()[0], dim=1)                  # [2, DEPTH_CLASSES]
+        learned = probs.argmax(dim=1).tolist()
+        self.assertEqual(set(learned), {a, b})                            # both modes present
+        self.assertGreater(float(probs.max(dim=1).values.min()), 0.9)     # BOTH confident, not one
+
+        single = torch.zeros(1, DEPTH_CLASSES, requires_grad=True)
+        opt2 = torch.optim.Adam([single], lr=0.2)
+        for _ in range(300):
+            out = single.view(1, DEPTH_CLASSES, 1, 1).expand(n, DEPTH_CLASSES, z, x)
+            loss = F.cross_entropy(out, y)
+            opt2.zero_grad()
+            loss.backward()
+            opt2.step()
+        single_top2 = torch.softmax(single.detach()[0], dim=0)[[a, b]]
+        self.assertLess(float(single_top2.max()), 0.7)                    # diffuse: hedges, doesn't commit
+
+    def test_relaxed_epsilon_keeps_a_losing_hypothesis_learning(self):
+        """Hard WTA (epsilon=0) gives a hypothesis that never wins in a batch exactly zero
+        gradient; #127's own diagnosis is that per-column independence produces a mound, and a
+        hypothesis that gets no gradient because it lost early can never recover -- this is the
+        documented failure relaxed WTA exists to avoid (Rupprecht et al. 2017)."""
+        import torch
+
+        n, z, x = 8, 2, 2
+        y = torch.zeros(n, z, x, dtype=torch.int64)                       # every building wants 0
+        m = torch.ones(n, z, x, dtype=torch.bool)
+        # hypothesis 0 already predicts the answer; hypothesis 1 never wins
+        logits = torch.zeros(1, 2, DEPTH_CLASSES, requires_grad=True)
+        with torch.no_grad():
+            logits[0, 0, 0] = 10.0
+        out = logits.expand(n, 2, DEPTH_CLASSES).reshape(n, 2 * DEPTH_CLASSES, 1, 1) \
+                    .expand(n, 2 * DEPTH_CLASSES, z, x)
+
+        hard = wta_ce_loss(out, y, m, k_hyp=2, epsilon=0.0)
+        hard.backward()
+        self.assertEqual(float(logits.grad[0, 1].abs().sum()), 0.0)
+
+        logits.grad = None
+        relaxed = wta_ce_loss(out, y, m, k_hyp=2, epsilon=0.1)
+        relaxed.backward()
+        self.assertGreater(float(logits.grad[0, 1].abs().sum()), 0.0)
+
+
+class TestDecodeWta(unittest.TestCase):
+    """#8 stage 1: reading one height map out of `k_hyp` independent 'ce' posteriors."""
+
+    E = 20
+
+    def _hyp_logits(self, *heights):
+        """One building's `[k_hyp * DEPTH_CLASSES, RES, RES]` logits, each hypothesis a confident,
+        uniform prediction of the given height everywhere (there is exactly one footprint cell to
+        keep this small; `decode_logits`/`height_split` only look at `fp`-true cells anyway)."""
+        out = np.full((len(heights) * DEPTH_CLASSES, 1, 1), -10.0, np.float32)
+        for k, h in enumerate(heights):
+            out[k * DEPTH_CLASSES + h, 0, 0] = 10.0
+        return out
+
+    def test_without_a_target_returns_hypothesis_zero(self):
+        fp = np.ones((1, 1), bool)
+        out = self._hyp_logits(3, 15)
+        h = decode_wta(out, fp, self.E, k_hyp=2, quantile=None, target=None)
+        expected = decode_logits(out[:DEPTH_CLASSES], fp, self.E, None)
+        np.testing.assert_array_equal(h, expected)
+
+    def test_with_a_target_picks_the_closer_hypothesis(self):
+        """Derives both candidates the same way `decode_wta` does internally (via `decode_logits`
+        on each hypothesis's own slice), rather than guessing `decode_logits`'s height/depth
+        convention by hand -- that convention is `decode_logits`'s own contract, tested elsewhere;
+        this test is only about whether the ORACLE SELECTION picks the matching one."""
+        fp = np.ones((1, 1), bool)
+        out = self._hyp_logits(3, 15)
+        cand0 = decode_logits(out[:DEPTH_CLASSES], fp, self.E, None)
+        cand1 = decode_logits(out[DEPTH_CLASSES:2 * DEPTH_CLASSES], fp, self.E, None)
+        self.assertFalse(np.array_equal(cand0, cand1))                    # the two must differ
+        target = cand1.astype(np.int16)                                  # exactly matches hyp 1
+        h = decode_wta(out, fp, self.E, k_hyp=2, quantile=None, target=target)
+        np.testing.assert_array_equal(h, cand1)
+
+
 class TestRoofDescriptionLength(unittest.TestCase):
     """🔑 The form metric, pinned on shapes whose answer is known BY CONSTRUCTION.
 
@@ -202,6 +430,92 @@ class TestRoofDescriptionLength(unittest.TestCase):
     def test_a_flat_roof_below_the_envelope_costs_one(self):
         """One `Layer` down from the envelope: the simplest carve there is."""
         self.assertEqual(self._ops(np.full((RES, RES), float(self.E) - 10))["ops"], 1)
+
+
+class TestFitDecode(unittest.TestCase):
+    """#8's fusion arm: serve #10's fitter's output instead of only measuring it with it.
+
+    The containment tests hold for ANY input by construction (the fitter never returns below the
+    target it is fit to) and are checked here on a deliberately messy surface -- the noisy-mound
+    shape #127's montages show -- rather than a friendly one, since that is the actual input this
+    arm will see in production.
+    """
+
+    E = 40
+
+    def _surface(self, h):
+        fp = np.zeros((RES, RES), bool)
+        fp[16:48, 12:52] = True
+        return fp, np.where(fp, np.clip(np.rint(h), 1, self.E), 0).astype(np.int16)
+
+    def _held_of(self, *surfs):
+        fps, targets = zip(*surfs)
+        return dict(fp=np.stack(fps), y0=np.full(len(fps), 8),
+                   extent=np.full(len(fps), self.E))
+
+    def test_output_shape_and_dtype_match_the_input(self):
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        fp, mound = self._surface(30 + 3 * np.sin(xx * 0.7) * np.cos(zz * 0.7))
+        heights = np.stack([mound, mound])
+        fitted = fit_decode(heights, self._held_of((fp, mound), (fp, mound)))
+        self.assertEqual(fitted.shape, heights.shape)
+        self.assertEqual(fitted.dtype, heights.dtype)
+
+    def test_never_drops_below_the_input_it_is_fit_to(self):
+        """The containment invariant #10 already proved, now checked on the arm's own noisy
+        prediction rather than only against ground truth: `fitted` may only ADD volume back."""
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        rng = np.random.default_rng(0)
+        mound = 34 + 5 * np.sin(xx * 0.5) * np.cos(zz * 0.6) + rng.integers(-2, 3, (RES, RES))
+        fp, surf = self._surface(mound)
+        fitted = fit_decode(surf[None], self._held_of((fp, surf)))[0]
+        self.assertTrue(bool((fitted[fp] >= surf[fp]).all()))
+
+    def test_stays_zero_off_the_footprint(self):
+        fp, surf = self._surface(np.full((RES, RES), 25.0))
+        fitted = fit_decode(surf[None], self._held_of((fp, surf)))[0]
+        self.assertTrue(bool((fitted[~fp] == 0).all()))
+
+    def test_reproduces_an_already_clean_gable_almost_exactly(self):
+        """A shape the vocabulary already expresses exactly in 2 ops (see
+        `TestRoofDescriptionLength.test_a_gable_is_two_operations`) should come back close to
+        unchanged -- `fit_decode` should not need its whole op budget to explain something this
+        simple, so it should not drift far from what it was given."""
+        _, xx = np.mgrid[0:RES, 0:RES]
+        fp, surf = self._surface(34 - 0.55 * np.abs(xx - 32))
+        fitted = fit_decode(surf[None], self._held_of((fp, surf)))[0]
+        self.assertLessEqual(int(np.abs(fitted[fp].astype(int) - surf[fp].astype(int)).max()), 1)
+
+    def test_smoothing_does_not_rescue_a_systematic_mound(self):
+        """⚠️ Pinned negative, matched to the real corpus measurement (#8): the served CE+median
+        arm's failure is a systematically wrong LOW-FREQUENCY shape (a mound), not high-frequency
+        per-pixel noise on top of a correct one -- the same distinction `roof_shape_stats` and
+        `roof_description_length` were built around. Gaussian blur removes noise; a smoothed mound
+        is still a mound, so `planar_fraction` should not meaningfully improve at any of these
+        sigmas. If this ever starts failing, the mechanism understanding behind #8's writeup is
+        wrong and needs revisiting, not the test."""
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        dome = 36 - 0.020 * ((xx - 32) ** 2 + (zz - 32) ** 2)
+        fp, surf = self._surface(dome)
+        held = self._held_of((fp, surf))
+        baseline = roof_description_length(fit_decode(surf[None], held)[0], fp, 8, self.E,
+                                           max_ops=K_OPS)["planar_fraction"]
+        for sigma in (1.0, 2.0, 3.0, 4.0):
+            fitted = fit_decode(surf[None], held, smooth_sigma=sigma)[0]
+            planar = roof_description_length(fitted, fp, 8, self.E, max_ops=K_OPS)["planar_fraction"]
+            self.assertLessEqual(planar, baseline + 0.34, f"sigma={sigma} unexpectedly recovered form")
+
+    def test_a_roof_family_bias_still_respects_containment(self):
+        """#9's `FitBias` is reused here, not a new mechanism -- it may shift WHICH type wins a
+        close call, but must never break the containment guarantee the unbiased path has."""
+        zz, xx = np.mgrid[0:RES, 0:RES]
+        rng = np.random.default_rng(1)
+        mound = 34 + 5 * np.sin(xx * 0.5) * np.cos(zz * 0.6) + rng.integers(-2, 3, (RES, RES))
+        fp, surf = self._surface(mound)
+        fitted = fit_decode(surf[None], self._held_of((fp, surf)),
+                            bias=FitBias(roof_family="ramp"))[0]
+        self.assertTrue(bool((fitted[fp] >= surf[fp]).all()))
+        self.assertTrue(bool((fitted[~fp] == 0).all()))
 
 
 class TestRoofShapeStats(unittest.TestCase):
@@ -269,6 +583,213 @@ class TestConditioningCarriesNoAnswer(unittest.TestCase):
         c = condition_channels(fp, 64, 300.0, 2)
         self.assertTrue(np.isfinite(c).all())
         self.assertLessEqual(float(np.abs(c).max()), 4.0)
+
+    def test_unrepresentable_regions_are_rejected_instead_of_becoming_all_zero(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        for region in (-1, N_REGIONS):
+            with self.subTest(region=region), self.assertRaisesRegex(ValueError, r"in \[0, 3\)"):
+                condition_channels(fp, 9, 12.0, region)
+
+
+class TestShapeChannels(unittest.TestCase):
+    """#173: opt-in footprint-shape flat-plane channels. Default empty leaves every prior arm's
+    input byte-for-byte unchanged; the two offered stats must be canonically ordered, D4-invariant
+    (computed fresh from the already-augmented mask, never cached), and bounded."""
+
+    def test_canonical_order_is_independent_of_request_order(self):
+        self.assertEqual(validate_shape_channels(("solidity", "perimeter_sq_over_area")),
+                         validate_shape_channels(("perimeter_sq_over_area", "solidity")))
+
+    def test_empty_selection_reproduces_the_pre_173_channel_set(self):
+        self.assertEqual(conditioning_channel_names(()), CONDITIONING_CHANNELS)
+
+    def test_unknown_names_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "unknown shape channel"):
+            validate_shape_channels(("not_a_real_stat",))
+
+    def test_shape_channels_widen_the_input_by_exactly_their_count(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        c = condition_channels(fp, 9, 12.0, 1, shape_channels=SHAPE_CHANNEL_STATS)
+        self.assertEqual(c.shape[0], COND_CHANNELS + len(SHAPE_CHANNEL_STATS))
+
+    def test_request_order_does_not_change_the_appended_channels(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        a = condition_channels(fp, 9, 12.0, 1,
+                               shape_channels=("solidity", "perimeter_sq_over_area"))
+        b = condition_channels(fp, 9, 12.0, 1,
+                               shape_channels=("perimeter_sq_over_area", "solidity"))
+        np.testing.assert_array_equal(a, b)
+
+    def test_an_unknown_shape_channel_is_rejected(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        with self.assertRaisesRegex(ValueError, "unknown shape channel"):
+            condition_channels(fp, 9, 12.0, 1, shape_channels=("not_a_real_stat",))
+
+    def test_shape_channels_are_finite_and_bounded(self):
+        fp = _rect(16, 0, 16, 0, 16)
+        c = condition_channels(fp, 64, 300.0, 2, shape_channels=SHAPE_CHANNEL_STATS)
+        self.assertTrue(np.isfinite(c).all())
+        self.assertLessEqual(float(np.abs(c).max()), 4.0)
+
+    def test_shape_channel_values_are_d4_invariant(self):
+        """The invariance #173 requires: a channel that secretly depended on orientation would fight
+        the corpus's own D4 augmentation. An L-shape is NOT symmetric under D4, so this is a real
+        check, not one every mask would pass trivially.
+
+        `solidity` (hull area / pixel area) is exact to float32 rounding under every one of the 8
+        transforms. `perimeter_sq_over_area` is only approximately so: it goes through
+        `_simplify_corners`'s Douglas-Peucker simplification, which walks the traced contour in a
+        fixed direction, so a REFLECTED contour is walked starting from a different point and can
+        simplify to a very slightly different vertex set than the unflipped/rotated-only case
+        (measured here: up to ~3.5% of the channel's own value, comfortably inside the statistic's
+        own disclosed DP-tolerance sensitivity, docs/wayfinding/buildingworld-corpus/
+        164-footprint-shape-error-correlation.md). The tolerance below is wide enough to pass that
+        known wobble but far too tight for a channel that actually depended on orientation, which
+        would differ by O(0.1-1.0), not O(0.01).
+        """
+        fp = np.zeros((16, 16), bool)
+        fp[2:12, 2:8] = True
+        fp[2:6, 8:12] = True
+        base = condition_channels(fp, 9, 12.0, 1, shape_channels=SHAPE_CHANNEL_STATS)[-2:, 0, 0]
+        for k in range(4):
+            for flip in (False, True):
+                with self.subTest(k=k, flip=flip):
+                    rotated, _ = _d4(fp, fp.astype(np.int16), k, flip)
+                    c = condition_channels(rotated, 9, 12.0, 1,
+                                           shape_channels=SHAPE_CHANNEL_STATS)[-2:, 0, 0]
+                    np.testing.assert_allclose(c, base, atol=0.02)
+
+    def test_a_more_jagged_footprint_reads_a_higher_perimeter_sq_over_area_than_a_square(self):
+        square = _rect(16, 4, 12, 4, 12)                      # 8x8, the isoperimetric minimum
+        crenellated = _rect(16, 4, 12, 4, 12).copy()
+        # carve four notches from the top of the same bounding square, 3 rows deep -- area shrinks,
+        # perimeter grows, and rows 7:12 stay solid across every column so the shape stays connected.
+        for x in range(4, 12, 2):
+            crenellated[4:7, x] = False
+        square_val = condition_channels(square, 9, 12.0, 1,
+                                        shape_channels=("perimeter_sq_over_area",))[-1, 0, 0]
+        jagged_val = condition_channels(crenellated, 9, 12.0, 1,
+                                        shape_channels=("perimeter_sq_over_area",))[-1, 0, 0]
+        self.assertGreater(jagged_val, square_val)
+
+    def test_solidity_of_a_square_is_higher_than_a_re_entrant_staple_shape(self):
+        square = _rect(16, 2, 12, 2, 12)
+        staple = _rect(16, 2, 12, 2, 12).copy()
+        staple[2:8, 4:10] = False    # carve a deep notch from the top -- a U/staple, re-entrant
+        square_val = condition_channels(square, 9, 12.0, 1, shape_channels=("solidity",))[-1, 0, 0]
+        staple_val = condition_channels(staple, 9, 12.0, 1, shape_channels=("solidity",))[-1, 0, 0]
+        self.assertGreater(square_val, staple_val)
+
+
+class TestCheckpointProvenance(unittest.TestCase):
+    """#163's compatibility contract: channel meaning and corpus identity travel with weights."""
+
+    @staticmethod
+    def _cache(rows=(7, 2, 11), regions=(0, 1, 2)):
+        return {"row": np.asarray(rows, np.int32), "region": np.asarray(regions, np.int8)}
+
+    def test_cache_validation_rejects_malformed_and_out_of_range_region_columns(self):
+        for regions in (np.asarray([0.0, 1.0]), np.asarray([[0, 1]]),
+                        np.asarray([-1, 0]), np.asarray([0, N_REGIONS])):
+            with self.subTest(regions=regions), self.assertRaises(ValueError):
+                validate_region_ids(regions)
+
+    def test_corpus_identity_is_row_order_independent_but_set_sensitive(self):
+        a = cache_corpus_identity(self._cache())
+        b = cache_corpus_identity(self._cache(rows=(11, 7, 2)))
+        c = cache_corpus_identity(self._cache(rows=(11, 7, 3)))
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, c)
+
+    def test_duplicate_row_ids_are_rejected_as_an_ambiguous_corpus_identity(self):
+        with self.assertRaisesRegex(ValueError, "unique"):
+            cache_corpus_identity(self._cache(rows=(2, 2, 7)))
+
+    def test_saved_metadata_names_every_conditioning_channel_in_order(self):
+        metadata = cache_provenance(self._cache())
+        self.assertEqual(metadata["n_regions"], N_REGIONS)
+        self.assertEqual(metadata["conditioning_channels"], list(CONDITIONING_CHANNELS))
+        self.assertEqual(metadata["region_mapping_sha256"], region_mapping_sha256())
+        self.assertEqual(metadata["corpus_identity_sha256"], cache_corpus_identity(self._cache()))
+
+    def test_checkpoint_mismatches_fail_before_weights_are_used(self):
+        cache = self._cache()
+        metadata = cache_provenance(cache)
+        mutations = {
+            "n_regions": N_REGIONS + 1,
+            "conditioning_channels": list(reversed(CONDITIONING_CHANNELS)),
+            "corpus_identity_sha256": "different-corpus",
+            "region_mapping_sha256": "different-mapping",
+        }
+        for key, value in mutations.items():
+            checkpoint = {**metadata, key: value}
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
+                validate_checkpoint_provenance(checkpoint, cache)
+
+    def test_region_mapping_is_also_checked_without_a_cache(self):
+        # #167: region_mapping_sha256 needs no cache to compute, so a checkpoint loaded before
+        # the cache exists on disk still has its region-mapping identity checked.
+        checkpoint = {"n_regions": N_REGIONS, "conditioning_channels": list(CONDITIONING_CHANNELS),
+                      "corpus_identity_sha256": "unverifiable-without-a-cache",
+                      "region_mapping_sha256": "different-mapping"}
+        with self.assertRaisesRegex(ValueError, "region_mapping_sha256"):
+            validate_checkpoint_provenance(checkpoint, cache=None)
+        checkpoint["region_mapping_sha256"] = region_mapping_sha256()
+        validate_checkpoint_provenance(checkpoint, cache=None)  # does not raise
+
+    def test_a_cacheless_load_warns_that_corpus_identity_went_unchecked(self):
+        # A production serving path (town_generate_service.py) routinely loads with no training
+        # cache on disk; that must not look like a fully-verified load with nothing said about it.
+        checkpoint = {"n_regions": N_REGIONS, "conditioning_channels": list(CONDITIONING_CHANNELS),
+                      "corpus_identity_sha256": "unverifiable-without-a-cache",
+                      "region_mapping_sha256": region_mapping_sha256()}
+        with self.assertWarnsRegex(RuntimeWarning, "corpus_identity_sha256 cannot be verified"):
+            validate_checkpoint_provenance(checkpoint, cache=None)
+
+    def test_partial_provenance_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            validate_checkpoint_provenance({"n_regions": N_REGIONS})
+
+    def test_legacy_checkpoint_load_is_explicitly_unverifiable(self):
+        with self.assertWarnsRegex(RuntimeWarning, "cannot be verified"):
+            validate_checkpoint_provenance({"state": {}})
+
+    def test_cache_provenance_widens_conditioning_channels_but_does_not_carry_shape_channels(self):
+        # `shape_channels` must NOT be a key `cache_provenance` returns: every key it returns is
+        # checked unconditionally against `checkpoint[key]`, so a 5th key here would make a genuine
+        # pre-#173 checkpoint (saved before `shape_channels` existed) fail with a KeyError instead
+        # of the legacy-checkpoint warning it is supposed to get.
+        metadata = cache_provenance(self._cache(), shape_channels=("solidity",
+                                                                    "perimeter_sq_over_area"))
+        self.assertNotIn("shape_channels", metadata)
+        self.assertEqual(metadata["conditioning_channels"],
+                         list(CONDITIONING_CHANNELS) + ["perimeter_sq_over_area", "solidity"])
+
+    def test_a_legacy_checkpoint_with_no_shape_channels_field_still_loads(self):
+        # The exact regression the finding above describes: a checkpoint saved before #173, with
+        # only #163's original four provenance keys and no `shape_channels` field at all.
+        cache = self._cache()
+        checkpoint = cache_provenance(cache)
+        self.assertNotIn("shape_channels", checkpoint)
+        validate_checkpoint_provenance(checkpoint, cache)  # does not raise
+
+    def test_a_checkpoint_is_validated_against_its_own_claimed_shape_channels_not_a_fixed_default(self):
+        # #173: the runtime now supports more than one valid channel selection, so "expected" must
+        # be derived from what THIS checkpoint claims (its own `shape_channels` field, written by
+        # `train` alongside `cache_provenance`'s output, the same way `k_hyp`/`plane_head` are),
+        # not from the pre-#173 global default.
+        cache = self._cache()
+        shape_channels = ("solidity",)
+        checkpoint = {**cache_provenance(cache, shape_channels), "shape_channels": list(shape_channels)}
+        validate_checkpoint_provenance(checkpoint, cache)  # does not raise
+
+    def test_a_checkpoint_whose_channel_list_disagrees_with_its_own_shape_channels_is_rejected(self):
+        cache = self._cache()
+        checkpoint = {**cache_provenance(cache, shape_channels=("solidity",)),
+                     "shape_channels": ["solidity"],
+                     "conditioning_channels": list(CONDITIONING_CHANNELS)}  # stale: missing solidity
+        with self.assertRaisesRegex(ValueError, "conditioning_channels"):
+            validate_checkpoint_provenance(checkpoint, cache)
 
 
 class TestDecode(unittest.TestCase):
@@ -351,6 +872,48 @@ class TestRetrievalBaseline(unittest.TestCase):
         q = _rect(16, 2, 10, 2, 10)
         bank = np.stack([_rect(16, 0, 3, 0, 3), _rect(16, 12, 16, 12, 16)])
         self.assertIn(int(retrieve_nn(q[None], bank)[0]), (0, 1))
+
+
+class TestBankEligibility(unittest.TestCase):
+    """#181's `--bank_exclude_ids`: additionally excludes a NEW split's ids from the retrieval
+    bank / mean-roof profile, on top of the existing held-out exclusion -- never touches a
+    `--ckpt` checkpoint's own weights (those are fixed by whichever split trained them)."""
+
+    def _cache(self, rows, ok, held):
+        return dict(row=np.array(rows, np.int32), ok=np.array(ok, np.uint8),
+                   held=np.array(held, np.uint8))
+
+    def test_matches_the_existing_held_out_exclusion_when_no_file_is_given(self):
+        cache = self._cache([1, 2, 3, 4], [1, 1, 1, 1], [0, 1, 0, 1])
+        np.testing.assert_array_equal(bank_eligibility(cache, None), [True, False, True, False])
+
+    def test_a_row_flagged_not_ok_is_excluded_regardless(self):
+        cache = self._cache([1, 2], [0, 1], [0, 0])
+        np.testing.assert_array_equal(bank_eligibility(cache, None), [False, True])
+
+    def test_named_ids_are_additionally_excluded(self):
+        import json
+        import tempfile
+        cache = self._cache([1, 2, 3, 4], [1, 1, 1, 1], [0, 0, 0, 0])
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"ids": [2, 4]}, f)
+            path = f.name
+        try:
+            np.testing.assert_array_equal(bank_eligibility(cache, path), [True, False, True, False])
+        finally:
+            Path(path).unlink()
+
+    def test_naming_an_id_already_excluded_by_held_out_changes_nothing(self):
+        import json
+        import tempfile
+        cache = self._cache([1, 2, 3], [1, 1, 1], [1, 0, 0])       # row 1 already held-out
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"ids": [1]}, f)
+            path = f.name
+        try:
+            np.testing.assert_array_equal(bank_eligibility(cache, path), [False, True, True])
+        finally:
+            Path(path).unlink()
 
 
 class TestObjectives(unittest.TestCase):
@@ -1637,6 +2200,11 @@ class TestAssignmentDecode(unittest.TestCase):
         that is *also* nearly flat lands in a tie with every other flat class and the argmax between
         them is decided by second-order structure. That is the 0.8251 -> 0.1275 dominant-slot
         accuracy on real weights, and it is why the correction moved into the loss.
+
+        ⚠️ Pinned at `temperature=1.0` explicitly, not the module default: this is a refutation of
+        the FULL decode-side correction #132 measured and rejected, and #139 halving the loss-side
+        `ASSIGN_TEMPERATURE` for training must not quietly weaken the historical refutation it was
+        never about.
         """
         fp = self._fp()
         rng = np.random.default_rng(3)
@@ -1650,7 +2218,7 @@ class TestAssignmentDecode(unittest.TestCase):
         dominant = fp.copy()
         dominant[3:6, 3:6] = False                    # where slot 0 is genuinely the right answer
         kept_arg = float((decode_assignment(lg, fp, "argmax")[dominant] == 0).mean())
-        kept_bal = float((decode_assignment(lg, fp, "balanced")[dominant] == 0).mean())
+        kept_bal = float((decode_assignment(lg, fp, "balanced", 1.0)[dominant] == 0).mean())
         self.assertEqual(kept_arg, 1.0, "the plain argmax keeps the dominant slot")
         self.assertLess(kept_bal, 0.5, "the balanced read hands most of it away")
 
@@ -1725,8 +2293,11 @@ class TestLogitAdjustedAssignmentLoss(unittest.TestCase):
         adj = float(program_loss(self._out(lg), self._labels(a), m, assign_prior=prior))
         self.assertGreater(adj, plain)
 
-    def test_the_adjustment_is_pre_registered_at_one(self):
-        self.assertEqual(ASSIGN_TEMPERATURE, 1.0)
+    def test_the_adjustment_is_pre_registered_at_one_half(self):
+        """#139 halved #132's full adjustment: tau 1.0 targets a uniform balance the corpus does
+        not have, calibrated against a skew (11.9x) inflated by buildings that structurally never
+        reach slot 3 at all. 0.5 is the untuned midpoint, not a value chosen after this run."""
+        self.assertEqual(ASSIGN_TEMPERATURE, 0.5)
 
     def test_the_prior_matches_the_models_assignment_head(self):
         """⚠️ The bug this caught on the first batch: `make_model` IGNORES `--k_planes` for the
@@ -1749,6 +2320,151 @@ class TestLogitAdjustedAssignmentLoss(unittest.TestCase):
         pr = assignment_prior(assign, fp, k_ops=2)
         np.testing.assert_allclose(pr, [0.5, 0.5, 0.0], atol=1e-9)
         self.assertAlmostEqual(float(pr.sum()), 1.0, places=9)
+
+
+class TestTypePrior(unittest.TestCase):
+    """The type-head analogue of `assignment_prior`: `used_slots_typed_ramp`'s 0.390 (#132) is not
+    one scalar's distance from one scalar -- it is the label's own slot-index gradient (measured on
+    the 34,909 training rows: slot 0 59.4% Ramp, slot 1 52.3%, slot 2 32.3%, slot 3 13.4%)."""
+
+    def test_it_is_per_slot_not_one_scalar(self):
+        types = np.array([[1, 1, 0, 0], [1, 0, 0, 0], [1, 1, 1, -1]])
+        pr = type_prior(types, k_ops=4)
+        self.assertEqual(pr.shape, (4, 2))
+        np.testing.assert_allclose(pr.sum(axis=1), 1.0)
+        # slot 0 is Ramp on every active row; slot 3 is never Ramp on the rows that have one
+        self.assertAlmostEqual(float(pr[0, 1]), 1.0)
+        self.assertAlmostEqual(float(pr[3, 1]), 0.0)
+
+    def test_inactive_slots_do_not_enter_the_count(self):
+        types = np.array([[-1, 1], [-1, 0], [-1, 0]])
+        pr = type_prior(types, k_ops=2)
+        # slot 0 is never active: falls back to the uniform prior rather than dividing by zero
+        np.testing.assert_allclose(pr[0], [0.5, 0.5])
+        np.testing.assert_allclose(pr[1], [2 / 3, 1 / 3])
+
+    def test_an_all_ramp_slot_still_sums_to_one(self):
+        types = np.full((5, 1), 1)
+        pr = type_prior(types, k_ops=1)
+        np.testing.assert_allclose(pr, [[0.0, 1.0]])
+
+
+class TestTypeStats(unittest.TestCase):
+    """`type_stats`: the type head's own diffuse-or-wrong question, per slot. Positional and
+    unaggregated by design -- `type_collapse` stacks many buildings' output into one matrix."""
+
+    def _logits(self, p_ramp):
+        """One building, 4 slots, each slot's P(Ramp) set exactly."""
+        p = np.stack([1 - np.asarray(p_ramp), np.asarray(p_ramp)], axis=-1)
+        return np.log(np.clip(p, 1e-12, None))
+
+    def test_a_confident_head_that_is_simply_wrong(self):
+        lab = np.array([1, 0, -1, -1])                     # slot 0 is really a Ramp
+        s = type_stats(self._logits([0.02, 0.02, 0.5, 0.5]), lab)
+        self.assertFalse(s["correct_argmax"][0], "confidently typed Layer where the label is Ramp")
+        self.assertLess(s["confidence"][0], 0.99)
+        self.assertAlmostEqual(float(s["p_ramp"][0]), 0.02)
+
+    def test_a_diffuse_head_that_narrowly_loses(self):
+        lab = np.array([1, -1, -1, -1])
+        s = type_stats(self._logits([0.45, 0.5, 0.5, 0.5]), lab)
+        self.assertFalse(s["correct_argmax"][0])
+        self.assertGreater(s["p_ramp"][0], 0.4, "the head DOES lean towards the right answer")
+        self.assertGreater(s["entropy_norm"][0], 0.9, "and is close to maximum uncertainty")
+
+    def test_inactive_slots_are_excluded_everywhere(self):
+        lab = np.array([1, -1, 0, -1])
+        s = type_stats(self._logits([0.9, 0.9, 0.1, 0.1]), lab)
+        np.testing.assert_array_equal(s["active"], [True, False, True, False])
+        np.testing.assert_array_equal(s["is_ramp"], [True, False, False, False])
+
+    def test_the_balanced_read_can_flip_a_slot_the_argmax_loses(self):
+        """Dividing by a slot-specific prior is the same correction `decode_assignment` makes,
+        applied per slot instead of per column."""
+        lab = np.array([1, 0, -1, -1])
+        lg = self._logits([0.3, 0.3, 0.5, 0.5])             # argmax says Layer on both
+        plain = type_stats(lg, lab)
+        prior = np.array([[0.9, 0.1], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]])
+        adj = type_stats(lg, lab, prior=prior)
+        self.assertFalse(plain["correct_balanced"][0])
+        self.assertTrue(adj["correct_balanced"][0], "a low Ramp prior on slot 0 flips the argmax")
+        self.assertEqual(adj["correct_balanced"][1], plain["correct_balanced"][1],
+                         "slot 1's flat prior changes nothing")
+
+    def test_no_prior_means_the_balanced_read_equals_the_argmax(self):
+        lab = np.array([1, 0, -1, -1])
+        s = type_stats(self._logits([0.7, 0.3, 0.5, 0.5]), lab)
+        np.testing.assert_array_equal(s["correct_argmax"], s["correct_balanced"])
+
+
+class TestTypeTemperatureIsPreRegistered(unittest.TestCase):
+    def test_the_adjustment_is_pre_registered_at_one(self):
+        self.assertEqual(TYPE_TEMPERATURE, 1.0)
+
+
+class TestLogitAdjustedTypeLoss(unittest.TestCase):
+    """The type-head twin of `TestLogitAdjustedAssignmentLoss`. `type_collapse` on #132's own
+    checkpoint found the same shape of problem the assignment head had: a plain argmax under-
+    recalls Ramp hardest exactly where the label's own Ramp share is lowest (slot 3: recall 0.087,
+    balanced-DECODE 0.957 but Layer recall 0.995 -> 0.413 -- the same relabelling cost that sent
+    #132's fix into the loss rather than the decode). This is that fix, one head over.
+    """
+
+    def _out(self, type_logits, k_ops=4):
+        import torch
+        b = type_logits.shape[0]
+        return (torch.zeros(b, k_ops + 1, 8, 8), type_logits, torch.zeros(b, k_ops, 3))
+
+    def _labels(self, types, k_ops=4):
+        import torch
+        b = types.shape[0]
+        return (torch.zeros(b, 8, 8, dtype=torch.long), types, torch.zeros(b, k_ops, 3))
+
+    def test_a_uniform_prior_changes_nothing(self):
+        import torch
+        rng = np.random.default_rng(0)
+        lg = torch.tensor(rng.normal(size=(4, 4, 2)), dtype=torch.float32)
+        t = torch.tensor(rng.integers(0, 2, (4, 4)))
+        m = torch.ones(4, 8, 8, dtype=torch.bool)
+        plain = float(program_loss(self._out(lg), self._labels(t), m))
+        flat = torch.full((4, 2), 0.5)
+        adj = float(program_loss(self._out(lg), self._labels(t), m, type_prior=flat))
+        self.assertAlmostEqual(plain, adj, places=5)
+
+    def test_a_skewed_prior_penalises_predicting_the_majority(self):
+        """The whole point: confidently predicting the majority type costs MORE under the
+        adjustment, so the gradient pushes towards the minority type where the label supports it."""
+        import torch
+        lg = torch.zeros(2, 1, 2)
+        lg[:, 0, 0] = 4.0                                # confidently predict Layer at slot 0
+        t = torch.zeros(2, 1, dtype=torch.long)
+        t[0, 0] = 1                                      # this building's slot 0 really is a Ramp
+        m = torch.ones(2, 8, 8, dtype=torch.bool)
+        prior = torch.tensor([[0.9, 0.1]])               # slot 0 is labelled Layer 90% of the time
+        plain = float(program_loss(self._out(lg, 1), self._labels(t, 1), m))
+        adj = float(program_loss(self._out(lg, 1), self._labels(t, 1), m, type_prior=prior))
+        self.assertGreater(adj, plain)
+
+    def test_inactive_slots_are_unaffected_by_the_prior(self):
+        import torch
+        lg = torch.zeros(1, 1, 2)
+        t = torch.full((1, 1), -1, dtype=torch.long)     # no active slot at all
+        m = torch.ones(1, 8, 8, dtype=torch.bool)
+        prior = torch.tensor([[0.99, 0.01]])
+        plain = float(program_loss(self._out(lg, 1), self._labels(t, 1), m))
+        adj = float(program_loss(self._out(lg, 1), self._labels(t, 1), m, type_prior=prior))
+        self.assertAlmostEqual(plain, adj, places=6)
+
+    def test_the_prior_matches_the_models_type_head(self):
+        """The type-head twin of `test_the_prior_matches_the_models_assignment_head`: the prior is
+        `(K_OPS, n_type)` and the model's type head emits `(K_OPS, n_type)` regardless of
+        `--k_planes`, for the same reason `assignment_prior` must be sized from `K_OPS`."""
+        import torch
+        model = make_model("program", 16, 6, "class")
+        with torch.no_grad():
+            _, type_logits, _ = model(torch.zeros(1, COND_CHANNELS, 32, 32))
+        pr = type_prior(np.full((1, K_OPS), -1, np.int64), K_OPS)
+        self.assertEqual(pr.shape, (type_logits.shape[1], type_logits.shape[2]))
 
 
 class TestClassPlaneAugmentation(unittest.TestCase):

@@ -85,8 +85,9 @@ from scripts.foundations.ingest_citygml_lod2 import SOURCE_ID                   
 from scripts.foundations.recover_massing_programs import occ_to_field, occupancy       # noqa: E402
 from scripts.foundations.measure_scoring_optimum import transplant_height              # noqa: E402
 from scripts.foundations.train_height_map_generator import (                           # noqa: E402
-    CACHE, DEPTH_CLASSES, apply_depth, build_model, condition_channels, decode_logits,
-    decode_prediction, envelope_depth, make_model, retrieve_nn,
+    CACHE, DEPTH_CLASSES, apply_depth, build_model, condition_channels,
+    conditioning_channel_names, decode_logits,
+    decode_prediction, envelope_depth, load_checkpoint, make_model, retrieve_nn,
 )
 
 A2_CKPT = REPO / "weights/massing-vecset/vecset_v4_surf.pth"
@@ -189,21 +190,33 @@ def _load_heightmap_arms(dev) -> None:
     """
     t0 = time.time()
     _state["hm_nets"], _state["hm_models"] = {}, {}
+    cache = None
+    if CACHE.exists():
+        with np.load(CACHE) as source:
+            cache = {key: source[key] for key in source.files}
     for name, chain in HEIGHTMAP_MODELS.items():
         p = next((c for c in chain if c.exists()), None)
         if p is None:
             continue
-        ck = torch.load(p, map_location="cpu", weights_only=False)
+        ck = load_checkpoint(p, cache)
+        # #173: an arm trained with --shape_channels has a wider first layer than the pre-#173
+        # default; reconstructing it at the default width would fail `load_state_dict` below with a
+        # shape mismatch, so the checkpoint's OWN recorded selection is what gets rebuilt, exactly as
+        # `train_height_map_generator.py`'s own eval driver already does.
+        shape_channels = tuple(ck.get("shape_channels", ()))
         # `make_model` is the one place an objective chooses an architecture, so the program arm's
         # two-headed net is built by the same function the training used rather than a second
         # spelling here that could drift from it.
-        net = (make_model("program", ck["width"], ck.get("k_planes", 6)) if ck["objective"] == "program"
-               else build_model(DEPTH_CLASSES if ck["objective"] == "ce" else 1, ck["width"])).to(dev)
+        net = (make_model("program", ck["width"], ck.get("k_planes", 6), shape_channels=shape_channels)
+               if ck["objective"] == "program"
+               else build_model(DEPTH_CLASSES if ck["objective"] == "ce" else 1, ck["width"],
+                                len(conditioning_channel_names(shape_channels)))).to(dev)
         net.load_state_dict(ck["state"])
         net.eval()
         _state["hm_nets"][name] = net
         _state["hm_models"][name] = dict(epoch=ck.get("epoch"), objective=ck["objective"],
                                          params=ck.get("params"), slope_weight=ck.get("slope_weight"),
+                                         shape_channels=list(shape_channels),
                                          path=str(p.relative_to(REPO)))
         print(f"[town_generate] height map '{name}' ({ck['objective']}, epoch {ck.get('epoch')}, "
               f"{ck.get('params', 0)/1e6:.2f}M) from {p.relative_to(REPO)}", flush=True)
@@ -220,7 +233,8 @@ def _load_heightmap_arms(dev) -> None:
               f"{sorted({str(c[0].parent.relative_to(REPO)) for c in HEIGHTMAP_MODELS.values()})}"
               f" -- height-map arms unavailable", flush=True)
     if CACHE.exists():
-        d = np.load(CACHE)
+        d = cache
+        assert d is not None
         keep = (d["ok"] > 0) & (d["held"] == 0)          # TRAINING rows only, never the pinned 714
         _state["bank"] = dict(fp=d["fp"][keep] > 0, target=d["target"][keep].astype(np.int16),
                               extent=d["extent"][keep].astype(np.int32))
@@ -477,7 +491,8 @@ def _heightmap_field(fp: np.ndarray, y0: int, y1: int, height: float, region: in
     """
     extent = int(y1 - y0 + 1)
     mask = fp.astype(bool)
-    x = condition_channels(mask, extent, float(height), int(region))
+    shape_channels = _state["hm_models"][model].get("shape_channels", ())
+    x = condition_channels(mask, extent, float(height), int(region), shape_channels)
     with torch.no_grad():
         logits = _state["hm_nets"][model](
             torch.from_numpy(x)[None].to(_state["dev"])).cpu().numpy()[0]
@@ -495,7 +510,8 @@ def _program_field(fp: np.ndarray, y0: int, y1: int, height: float, region: int,
     """
     extent = int(y1 - y0 + 1)
     mask = fp.astype(bool)
-    x = condition_channels(mask, extent, float(height), int(region))
+    shape_channels = _state["hm_models"][model].get("shape_channels", ())
+    x = condition_channels(mask, extent, float(height), int(region), shape_channels)
     with torch.no_grad():
         heads = _state["hm_nets"][model](torch.from_numpy(x)[None].to(_state["dev"]))
     out = tuple(t[0].cpu().numpy() for t in heads)
