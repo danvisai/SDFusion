@@ -108,19 +108,77 @@ whoever eventually wires a BuildingWorld-trained checkpoint into the live demo -
 #155's `fit_decode`, which was shipped as an arm with its town-service integration explicitly left
 as separate, not-yet-done work. Not part of #183's own scope.
 
+## Arm 2 - corpus + style-bucket fold-in: DONE, KILL on the BuildingWorld gate (2026-09-16)
+
+Full retrain from scratch, `--corpus_scope all` (9-region channel, BuildingWorld folded in),
+otherwise the exact same recipe as arm 1/the served checkpoint (`--objective ce --epochs 40
+--median_decode --seed 0`). `build_cache(corpus_scope="all")` ran first (1,562,401 rows, 18.5 min
+parallelized - see the `build_cache` parallelization entry below). Training itself: 40 epochs,
+~5.93h (21,341s), after fixing a real CPU/GPU overlap bug mid-run (see below) that would otherwise
+have made this an ~11-13h run. Checkpoint: `outputs/height_map_generator/heightmap_ce_bw_bucket.pt`.
+
+**Gate 1 - pinned-714 regression guard (carve-needing n=411), vs arm 1's noise band:**
+
+| metric | frozen | arm 2 | delta | noise band | within? |
+|---|---|---|---|---|---|
+| extra | 0.0603 | 0.0665 | +0.0062 | ±0.0082 | yes |
+| missing | 0.0385 | 0.0325 | -0.0060 | ±0.0051 | no (improved) |
+| vs_input | 0.8432 | 0.8433 | +0.0001 | ±0.0020 | yes |
+| collapse_rate | 0.0268 | 0.0243 | -0.0024 | ±0.0024 | at boundary (improved) |
+| vol_iou | 0.8948 | 0.8961 | +0.0012 | ±0.0008 | no (improved) |
+| dl_planar_fraction | 0.2000 | 0.2000 | 0.0000 | ±0.0000 | yes |
+| dl_ops (median) | 6.0 | 6.0 | 0.0 | ±1.0 | yes |
+
+Every metric that nominally exceeds its noise-band tolerance does so in the IMPROVING direction
+(lower missing/collapse, higher vol_iou) - the regression guard's purpose is to catch a metric
+getting WORSE by more than ordinary retrain noise can explain, and nothing did. **Gate 1: clears.**
+BuildingWorld fold-in did not hurt (and mildly helped) the legacy pinned-714 population.
+
+**Gate 2 - #178's signed-off BuildingWorld bar, scored via the new
+`scripts/foundations/score_buildingworld_checkpoint.py` (24,464 held-out buildings across the 9
+named cities): every one of the 11 floors reads `pass=False`. numeric_pass=False.**
+
+The failure is concentrated and legible, not scattered noise: `clear_kill` (the KILL clause,
+`dl_planar_fraction > kill_planar`) fails on **every single floor**, because arm 2's measured
+`dl_planar_fraction` is 0.000 almost everywhere (`gable_hip` alone reaches 0.250, still under its
+0.261 kill line). This is not simply "the population is mostly flat, so zero is correct" - the
+1-NN baseline itself (a non-generative nearest-footprint copy, no learning at all) already
+measured nonzero planar fraction on Berlin (0.20), Edmonton (0.125), and gable_hip (0.261);
+arm 2's trained model comes in at 0.00, 0.00, and 0.25 respectively on those same three
+populations - **underperforming a copy-paste baseline specifically on roof form.** `extra` and
+`collapse` clear their bars comfortably almost everywhere (`beats_extra`/`collapse` mostly True) -
+the arm is not destroying volume or over-carving; it is producing safe, close-to-flat surfaces
+that never commit to a pitched roof. This is the exact "volume/safety PASS, form KILL" pattern
+already on record for this objective on the LEGACY population (`1-map-status-and-parked-work.md`:
+"no trained arm clears the 0.40 planar bar while also holding extra/collapse") - now also
+confirmed, with a hard KILL rather than a soft NOT MET, on BuildingWorld's own population and
+`#170`'s stricter three-floor bar. BuildingWorld fold-in did not cause this; it did not fix it
+either. Full per-floor numbers: `execution/artifacts/183_arm2_buildingworld_gate.json`.
+
+**Verdict: arm 2 is a KILL.** Per #172(b), "a KILL verdict on any arm stops the ladder rather than
+running the remaining arms regardless." **Arm 3 (drop-region control) is not run.**
+
+## Incidental fix found and fixed mid-arm-2: train()'s CPU/GPU overlap
+
+`train()`'s hot loop called `HeightFieldSet.batch()` (CPU-bound: `_d4` augmentation, then
+`condition_channels`'s per-row `distance_transform_edt`) synchronously, immediately followed by
+GPU forward/backward - invisible at the legacy 35,776-row scale, but a live run at BuildingWorld's
+scale measured 52% GPU utilization, confirmed by reading the code: no overlap at all. Fixed with
+`prefetch_iter()`, a single-background-thread producer (deliberately not a multi-process
+`DataLoader`, which would have let each worker's own forked, independently-advancing copy of
+`HeightFieldSet`'s per-call `self.rng` diverge from what a sequential caller produces - silently
+changing which augmentation draws a batch gets, not just wall-clock). Measured: 1204s/epoch -> 540s
+(2.23x), GPU utilization 52% -> 96%. Arm 2's full run used the fixed version throughout.
+
 ## What's left
 
-1. **Arm 2 - corpus + style-bucket fold-in.** `--corpus_scope all` (region channel intact, 9-wide),
-   full retrain from scratch, BuildingWorld folded in. Needs a real `build_cache(corpus_scope="all")`
-   run first (multi-hour SDF read across ~1.56M rows, not yet started) before training can begin.
-   Score on the carve-needing pinned-714 AND on #178's signed-off BuildingWorld bar (9 floors, 4 of
-   them GUARD-only per the 2026-09-15 sign-off) - both gates must clear.
-2. **Arm 3 - drop-region control**, only if arm 2 does not KILL. Same enlarged corpus, region
-   channel removed entirely (`shape_channels`/base four channels only, no `region_r` band) - this
-   needs its own explicit "no region" path, not yet built (arms 2 and 3 are NOT the same code path
-   with a flag flipped on `n_regions`; dropping the channel is a fifth conditioning-channel
-   variant, distinct from widening it).
-3. #173's footprint-shape channel remains explicitly out of scope for this ladder (per #183's own
-   text) - a separate, later, single-variable arm if #173 ever resolves to add one.
+1. **Arm 3 will not run** - the ladder's own pre-registered stopping rule (#172(b)) ends it here.
+   A future revisit needs a new decision, not a continuation: is the form problem addressed before
+   trying a drop-region control on top of it, or is a drop-region arm still informative on its own?
+2. #173's footprint-shape channel was already out of scope for this ladder (per #183's own text)
+   and remains so.
+3. The form problem itself (#1's "not yet specified" list already named this the owner's next
+   focus after #154, independent of BuildingWorld) is now confirmed on a second, larger, more
+   diverse population - not a new problem, but no longer only a legacy-corpus observation either.
 
-## Status: arm 1 complete and pre-registered; arms 2-3 blocked on a corpus_scope="all" cache build, not yet started (2026-09-15)
+## Status: arm 1 complete; arm 2 complete and KILLed on the BuildingWorld gate; arm 3 not run per the ladder's stopping rule; ladder concluded (2026-09-16)
