@@ -52,7 +52,7 @@ from scripts.foundations.train_height_map_generator import (  # noqa: E402
     wta_ce_loss, decode_wta, bank_eligibility,
     cache_corpus_identity, cache_provenance, validate_checkpoint_provenance,
     validate_region_ids, validate_shape_channels, scope_mask_for, CORPUS_SCOPES,
-    N_REGIONS_ALL, cache_batch_size, prefetch_iter,
+    N_REGIONS_ALL, cache_batch_size, prefetch_iter, HeightFieldSet,
 )
 from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL
 
@@ -655,6 +655,80 @@ class TestConditioningNRegions(unittest.TestCase):
                           region_mapping_sha256=region_mapping_sha256())
         with self.assertRaisesRegex(ValueError, "conditioning_channels mismatch"):
             validate_checkpoint_provenance(checkpoint, cache=None)
+
+
+class TestDropRegion(unittest.TestCase):
+    """#183 arm 3: the drop-region control omits the region one-hot band entirely, sharing arm
+    2's exact cache (real, valid per-row region ids) without ever feeding them to the model."""
+
+    def test_n_regions_zero_appends_no_region_channels(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        c = condition_channels(fp, 9, 12.0, region=2, n_regions=0)
+        self.assertEqual(c.shape[0], 4)  # footprint, extent, height, edt -- nothing else
+
+    def test_n_regions_zero_does_not_validate_the_region_value_at_all(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        # A region value miles outside ANY real scheme must not raise -- it is simply never read.
+        condition_channels(fp, 9, 12.0, region=999, n_regions=0)
+
+    def test_dropping_region_changes_nothing_else_about_the_input(self):
+        fp = _rect(16, 2, 10, 3, 11)
+        dropped = condition_channels(fp, 9, 12.0, region=0, n_regions=0)
+        base = condition_channels(fp, 9, 12.0, region=1, n_regions=N_REGIONS)[:4]
+        np.testing.assert_array_equal(dropped, base)
+
+    def test_conditioning_channel_names_omits_region_entries_at_zero(self):
+        names = conditioning_channel_names(n_regions=0)
+        self.assertEqual(len(names), 4)
+        self.assertFalse(any(n.startswith("region_") for n in names))
+
+    def test_make_model_builds_the_narrowest_possible_first_layer(self):
+        dropped = make_model("ce", 8, 6, n_regions=0)
+        legacy = make_model("ce", 8, 6)
+        self.assertEqual(dropped.e1[0].in_channels, legacy.e1[0].in_channels - N_REGIONS)
+
+    def test_cache_provenance_drop_region_reports_zero_but_still_validates_the_raw_column(self):
+        cache = {"row": np.array([1, 2], np.int32), "region": np.array([0, 5], np.int8),
+                 "n_regions": N_REGIONS_ALL}
+        prov = cache_provenance(cache, drop_region=True)
+        self.assertEqual(prov["n_regions"], 0)
+        self.assertEqual(len(prov["conditioning_channels"]), 4)
+
+    def test_cache_provenance_drop_region_still_rejects_a_genuinely_invalid_raw_region(self):
+        cache = {"row": np.array([1, 2], np.int32),
+                 "region": np.array([0, N_REGIONS_ALL], np.int8),  # out of range for its OWN scheme
+                 "n_regions": N_REGIONS_ALL}
+        with self.assertRaises(ValueError):
+            cache_provenance(cache, drop_region=True)
+
+    def test_cache_provenance_without_drop_region_is_unaffected(self):
+        cache = {"row": np.array([1, 2], np.int32), "region": np.array([0, 5], np.int8),
+                 "n_regions": N_REGIONS_ALL}
+        self.assertEqual(cache_provenance(cache)["n_regions"], N_REGIONS_ALL)
+
+    def test_a_correctly_saved_drop_region_checkpoint_loads_against_its_real_scheme_cache(self):
+        cache = {"row": np.array([1, 2], np.int32), "region": np.array([0, 5], np.int8),
+                 "n_regions": N_REGIONS_ALL}
+        checkpoint = cache_provenance(cache, drop_region=True)
+        validate_checkpoint_provenance(checkpoint, cache)  # must not raise
+
+    def test_a_checkpoint_claiming_an_unrelated_third_n_regions_value_is_rejected(self):
+        cache = {"row": np.array([1, 2], np.int32), "region": np.array([0, 5], np.int8),
+                 "n_regions": N_REGIONS_ALL}
+        checkpoint = dict(cache_provenance(cache), n_regions=3)  # neither 0 nor N_REGIONS_ALL
+        with self.assertRaisesRegex(ValueError, "neither 0"):
+            validate_checkpoint_provenance(checkpoint, cache)
+
+    def test_heightfieldset_drop_region_overrides_the_caches_own_n_regions(self):
+        cache = dict(row=np.array([0, 1], np.int32), region=np.array([2, 5], np.int8),
+                     held=np.array([0, 0], np.uint8), height_m=np.array([10.0, 12.0], np.float32),
+                     fp=np.ones((2, 16, 16), np.uint8), target=np.zeros((2, 16, 16), np.uint8),
+                     y0=np.array([0, 0], np.int16), extent=np.array([9, 9], np.int16),
+                     ok=np.array([1, 1], np.uint8), n_regions=N_REGIONS_ALL)
+        ds = HeightFieldSet(cache, np.array([0, 1]), augment=False, drop_region=True)
+        self.assertEqual(ds.n_regions, 0)
+        x, *_ = ds.batch(np.array([0]))
+        self.assertEqual(x.shape[1], 4)
 
 
 class TestShapeChannels(unittest.TestCase):

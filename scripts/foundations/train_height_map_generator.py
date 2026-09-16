@@ -754,7 +754,8 @@ def cache_corpus_identity(cache: dict) -> str:
     return hashlib.sha256(canonical.tobytes()).hexdigest()
 
 
-def cache_provenance(cache: dict, shape_channels: tuple[str, ...] = ()) -> dict:
+def cache_provenance(cache: dict, shape_channels: tuple[str, ...] = (),
+                     drop_region: bool = False) -> dict:
     """The checkpoint compatibility contract derived from its training cache (#163, #173).
 
     Returns exactly #163's original four keys -- `shape_channels` itself is NOT one of them, on
@@ -768,12 +769,20 @@ def cache_provenance(cache: dict, shape_channels: tuple[str, ...] = ()) -> dict:
     `n_regions` (#183 arms 2-3) comes from the CACHE itself (`build_cache` stamps it from
     `corpus_scope`), defaulting to the legacy 3-region scheme for any cache built before this key
     existed -- so a pre-#183 cache dict validates exactly as before.
+
+    `drop_region` (#183 arm 3): the RETURNED `n_regions`/`conditioning_channels` describe the
+    model's actual input width, which may be narrower than the cache's own real region-scheme
+    size -- arm 3 shares arm 2's exact cache (real, valid per-row region ids) but the model never
+    sees them. The cache's raw `region` column is still validated for sanity against its OWN real
+    scheme regardless of this flag: dropping the channel from the model is not license to skip
+    validating the underlying data is well-formed.
     """
-    n_regions = int(cache.get("n_regions", N_REGIONS))
-    validate_region_ids(cache["region"], n_regions=n_regions)
+    real_n_regions = int(cache.get("n_regions", N_REGIONS))
+    validate_region_ids(cache["region"], n_regions=real_n_regions)
     if len(cache["region"]) != len(cache["row"]):
         raise ValueError("#163: cache region and row columns have different lengths")
     shape_channels = validate_shape_channels(shape_channels)
+    n_regions = 0 if drop_region else real_n_regions
     return dict(
         n_regions=n_regions,
         conditioning_channels=list(conditioning_channel_names(shape_channels, n_regions=n_regions)),
@@ -818,7 +827,21 @@ def validate_checkpoint_provenance(checkpoint: dict, cache: dict | None = None) 
                       "are)", RuntimeWarning, stacklevel=2)
     shape_channels = validate_shape_channels(checkpoint.get("shape_channels", ()))
     if cache is not None:
-        expected = cache_provenance(cache, shape_channels)
+        # #183: trust the checkpoint's OWN claimed n_regions, bounded to either 0 (a deliberate
+        # arm-3 drop-region checkpoint) or exactly this cache's real region-scheme size -- never
+        # re-derive n_regions purely from the cache, which would reject every legitimate
+        # drop-region checkpoint as a "mismatch" (it genuinely trained with fewer region channels
+        # than its own training cache's raw scheme, sharing that cache with arm 2). The bound
+        # still rules out a checkpoint claiming some unrelated third n_regions value.
+        base = cache_provenance(cache, shape_channels)
+        cache_n_regions = int(cache.get("n_regions", N_REGIONS))
+        claimed_n_regions = checkpoint.get("n_regions", cache_n_regions)
+        if claimed_n_regions not in (0, cache_n_regions):
+            raise ValueError(f"#183: checkpoint n_regions={claimed_n_regions!r} is neither 0 "
+                             f"(drop-region) nor this cache's own scheme size {cache_n_regions}")
+        expected = dict(base, n_regions=claimed_n_regions,
+                        conditioning_channels=list(conditioning_channel_names(
+                            shape_channels, n_regions=claimed_n_regions)))
     else:
         # #183: no cache to derive n_regions from, so trust the CHECKPOINT's own claim -- this is
         # still a real check (does today's code reproduce what a checkpoint claiming this many
@@ -1071,9 +1094,15 @@ def condition_channels(fp: np.ndarray, extent: int, height_m: float, region: int
     the one actually shown to the network. `perimeter_sq_over_area` and `solidity` are the two #164
     found a real error correlation for; both are D4-invariant (area, hull area and a polygon's own
     perimeter do not depend on the grid's orientation).
+
+    `n_regions=0` (#183 arm 3, the drop-region control) means "no region channel at all" --
+    `region` is neither validated nor read, and the loop below appends zero `region_r` planes.
+    This is deliberately NOT the same as some region value being invalid; it means the whole
+    conditioning axis is absent, testing whether it ever mattered.
     """
     shape_channels = validate_shape_channels(shape_channels)
-    region = int(validate_region_ids(np.asarray([region]), n_regions=n_regions)[0])
+    if n_regions:
+        region = int(validate_region_ids(np.asarray([region]), n_regions=n_regions)[0])
     m = np.asarray(fp, bool)
     edt = ndimage.distance_transform_edt(m).astype(np.float32) / 8.0
     ch = [m.astype(np.float32),
@@ -2317,7 +2346,7 @@ class HeightFieldSet:
 
     def __init__(self, cache: dict, idx: np.ndarray, augment: bool, seed: int = 0,
                  program: dict | None = None, plane_head: str = "regress",
-                 shape_channels: tuple[str, ...] = ()):
+                 shape_channels: tuple[str, ...] = (), drop_region: bool = False):
         self.plane_head = plane_head
         self.shape_channels = validate_shape_channels(shape_channels)
         self.fp = cache["fp"][idx] > 0
@@ -2325,7 +2354,9 @@ class HeightFieldSet:
         self.extent = cache["extent"][idx].astype(np.int32)
         self.height_m = cache["height_m"][idx]
         self.region = cache["region"][idx].astype(np.int32)
-        self.n_regions = int(cache.get("n_regions", N_REGIONS))
+        # #183 arm 3: drop_region overrides the cache's own real scheme size to 0 -- condition_
+        # channels then omits the region one-hot band entirely, regardless of self.region's values.
+        self.n_regions = 0 if drop_region else int(cache.get("n_regions", N_REGIONS))
         self.augment, self.rng = augment, np.random.default_rng(seed)
         self.program = None
         if program is not None:
@@ -2482,9 +2513,10 @@ def train(cache: dict, args) -> Path:
             if args.objective == "program" else None)
     shape_channels = validate_shape_channels(args.shape_channels)
     tr = HeightFieldSet(cache, tr_idx, augment=not args.no_aug, seed=args.seed, program=prog,
-                        plane_head=args.plane_head, shape_channels=shape_channels)
+                        plane_head=args.plane_head, shape_channels=shape_channels,
+                        drop_region=args.drop_region)
     va = HeightFieldSet(cache, val_idx, augment=False, program=prog, plane_head=args.plane_head,
-                        shape_channels=shape_channels)
+                        shape_channels=shape_channels, drop_region=args.drop_region)
     print(f"[train] {len(tr)} buildings, {len(va)} validation, objective={args.objective}"
           + (f", plane_head={args.plane_head}" if args.objective == "program" else "")
           + (f", shape_channels={list(shape_channels)}" if shape_channels else "")
@@ -2520,7 +2552,8 @@ def train(cache: dict, args) -> Path:
 
     model = make_model(args.objective, args.width, args.k_planes, args.plane_head,
                        args.k_hyp, shape_channels,
-                       n_regions=int(cache.get("n_regions", N_REGIONS))).to(dev)
+                       n_regions=(0 if args.drop_region
+                                 else int(cache.get("n_regions", N_REGIONS)))).to(dev)
     n_par = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     steps = args.epochs * max(len(tr) // args.batch, 1)
@@ -2587,7 +2620,7 @@ def train(cache: dict, args) -> Path:
                           val_symmetric=ve + vm))
         mark = ""
         snap = dict(state=model.state_dict(), objective=args.objective, width=args.width,
-                    **cache_provenance(cache, shape_channels),
+                    **cache_provenance(cache, shape_channels, drop_region=args.drop_region),
                     shape_channels=list(shape_channels),
                     quantile=args.quantile, k_planes=args.k_planes, k_hyp=args.k_hyp,
                     plane_head=args.plane_head, slope_weight=args.slope_weight,
@@ -4132,6 +4165,12 @@ def main() -> None:
                          "auto-selects min(cpu_count, 48). Only matters on a cache miss -- "
                          "'legacy' has a committed cache and rarely rebuilds; 'all' does not and "
                          "this is what makes a ~1.56M-row build tractable")
+    ap.add_argument("--drop_region", action="store_true",
+                    help="#183 arm 3: omit the region one-hot conditioning entirely -- tests "
+                         "whether the channel (#171's style buckets under --corpus_scope all, or "
+                         "the legacy NL/DE/JP one under 'legacy') ever mattered. Shares its "
+                         "corpus_scope's own cache unmodified; only the model's input width and "
+                         "the saved checkpoint's own n_regions=0 claim differ from arm 2")
     ap.add_argument("--rebuild_cache", action="store_true")
     ap.add_argument("--rebuild_program_cache", action="store_true",
                     help="re-fit #6's slot labels over the whole corpus (56 s on 48 cores)")
