@@ -1012,6 +1012,23 @@ def build_replay_envelope(manifest: dict, editor_checkpoint: Path | None = None)
     return envelope
 
 
+def normalize_latent_stats(checkpoint: dict, device: str = "cpu"):
+    """The checkpoint's latent mean/std as tensors on `device`, whatever it stored them as.
+
+    `train_vecset.py` persists `ds.mu`/`ds.sd` verbatim, so a checkpoint may carry Python floats,
+    NumPy scalars, or tensors depending on the dataset that produced it. The frozen A2 source
+    (`vecset_v4_surf` @240k) stores floats, which is why the unguarded `.to(device)` this replaces
+    could never have run. `torch.as_tensor` is what the surface-loss probes already use.
+    """
+    import torch
+
+    for key in ("latent_mu", "latent_sd"):
+        if key not in checkpoint:
+            raise KeyError(f"#125: checkpoint has no {key}; it cannot denormalise A2 latents")
+    return (torch.as_tensor(checkpoint["latent_mu"], device=device),
+            torch.as_tensor(checkpoint["latent_sd"], device=device))
+
+
 def cache_command(args) -> None:
     import h5py
     import torch
@@ -1064,7 +1081,10 @@ def cache_command(args) -> None:
     net.load_state_dict(ck["model"])
     net.eval()
     op = SetSDEdit(net, timesteps=ca["timesteps"])
-    mu, sd = ck["latent_mu"].to(device), ck["latent_sd"].to(device)
+    # `train_vecset.py` writes whatever its dataset exposes, and the frozen A2 checkpoint stores
+    # these as Python floats, not tensors -- `.to(device)` raised AttributeError here before the
+    # first row could be generated. Every other call site in the repo already normalises.
+    mu, sd = normalize_latent_stats(ck, device)
     codec = DoraCodec(load_dora(device))
 
     with h5py.File(manifest["latents_path"], "r") as lat, open_real_corpus(manifest["real_corpus_path"]) as real:

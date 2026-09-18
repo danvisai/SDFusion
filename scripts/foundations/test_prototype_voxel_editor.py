@@ -32,6 +32,7 @@ from scripts.foundations.prototype_voxel_editor import (  # noqa: E402
     paired_win_record, probability_of_early_stop, sealed_volume_metrics, wilson_lower_bound,
     occupancy_from_logits, occupancy_iou, occupancy_to_sdf, open_training_cache,
     recover_surface_control, recover_surface_narrowband, row_content_digest, row_list_digest,
+    normalize_latent_stats,
     sanitize_footprint, screening_gate, select_screen_rows, sha256_file, signs_consistent,
     summarize_rows, validity_projection_delta, validity_report, verify_cache_integrity,
     volume_metrics, _filter_non_degenerate, _salted_score,
@@ -841,6 +842,39 @@ class TestDigests(unittest.TestCase):
             f.flush()
             self.assertEqual(sha256_file(Path(f.name)),
                              hashlib.sha256(b"some content").hexdigest())
+
+
+class TestLatentStatsNormalisation(unittest.TestCase):
+    """#119: the frozen A2 checkpoint stores `latent_mu`/`latent_sd` as Python floats, so the
+    unguarded `.to(device)` `cache_command` used to do raised AttributeError before it could
+    generate a single row. The cache path had never been executed, so nothing caught it."""
+
+    def test_accepts_python_floats_as_the_frozen_a2_checkpoint_stores_them(self):
+        import torch
+
+        mu, sd = normalize_latent_stats({"latent_mu": -0.0243, "latent_sd": 0.8388})
+        self.assertIsInstance(mu, torch.Tensor)
+        self.assertIsInstance(sd, torch.Tensor)
+        self.assertAlmostEqual(float(mu), -0.0243, places=6)
+        self.assertAlmostEqual(float(sd), 0.8388, places=6)
+
+    def test_passes_tensors_through_unchanged(self):
+        import torch
+
+        mu, sd = normalize_latent_stats({"latent_mu": torch.tensor(1.5),
+                                         "latent_sd": torch.tensor(2.5)})
+        self.assertAlmostEqual(float(mu), 1.5)
+        self.assertAlmostEqual(float(sd), 2.5)
+
+    def test_accepts_numpy_scalars(self):
+        mu, sd = normalize_latent_stats({"latent_mu": np.float32(0.25),
+                                         "latent_sd": np.float32(0.75)})
+        self.assertAlmostEqual(float(mu), 0.25)
+        self.assertAlmostEqual(float(sd), 0.75)
+
+    def test_missing_stats_fail_loudly_rather_than_denormalising_wrongly(self):
+        with self.assertRaisesRegex(KeyError, "latent_sd"):
+            normalize_latent_stats({"latent_mu": 0.0})
 
 
 class TestSharedConstantsMirrorTheFixedIdEvaluator(unittest.TestCase):
