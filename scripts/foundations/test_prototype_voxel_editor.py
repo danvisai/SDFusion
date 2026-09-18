@@ -22,10 +22,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from utils.frozen_corpus import FROZEN_SPLIT_N_TOTAL, REAL_CORPUS_PATH  # noqa: E402
 from scripts.foundations.prototype_voxel_editor import (  # noqa: E402
     ADD, IN_CHANNELS, KEEP, REMOVE, RES, S_STAR_VOXELS,
+    A2_PINNED_714_EXTRA_OF_RECORD, EXTRA_SEED_NOISE_RANGE, GATE_CONFIRMATION_N,
+    GATE_SCREEN_ALTERNATIVE_P1, GATE_SCREEN_N,
     RoleIsolationError, action_weight_map, apply_action_to_source, assert_disjoint_rows,
-    assert_disjoint_roles, assert_frozen_a2_checkpoint, build_corrector, connected_components,
-    derive_action, envelope_occupancy, error_stratum, full_gate,
-    ground_connected_ok, hollow_shell_voxels, min_thickness_survival, model_input,
+    assert_disjoint_roles, assert_frozen_a2_checkpoint, assay_sensitivity, build_corrector,
+    confirmation_gate, connected_components,
+    derive_action, envelope_occupancy, error_stratum, fill_sealed_cavities, futility_boundary,
+    ground_connected_ok, hollow_shell_voxels, kill_clauses, min_thickness_survival, model_input,
+    paired_win_record, probability_of_early_stop, sealed_volume_metrics, wilson_lower_bound,
     occupancy_from_logits, occupancy_iou, occupancy_to_sdf, open_training_cache,
     recover_surface_control, recover_surface_narrowband, row_content_digest, row_list_digest,
     sanitize_footprint, screening_gate, select_screen_rows, sha256_file, signs_consistent,
@@ -331,6 +335,7 @@ class TestMetrics(unittest.TestCase):
             "collapse_source": False, "collapse_sanitized": False,
             "collapse_predicted": collapsed,
             "spill_raw_source": {}, "spill_raw_predicted": {},
+            "footprint_c2_pass_predicted": True, "footprint_c2_pass_source": True,
             "validity_predicted": {"valid": valid}, "validity_sanitized_source": {"valid": True},
             "validity_projection": {"projection_changed_voxels": 0},
         }
@@ -378,60 +383,288 @@ class TestFailureAccounting(unittest.TestCase):
 # ---------------------------------------------------------------------------------------------
 
 
+class TestHollowInvariantScoring(unittest.TestCase):
+    """#118: interior fill must not reach any score.
+
+    A building may be modelled hollow or solid; both are the same architecture seen from outside,
+    and ISO 19107 treats an interior shell as a first-class feature (#117). Scoring raw volumes
+    charges a solid candidate for every voxel of air inside a shell target -- and #117 measured
+    ~4.6% of BuildingWorld (~70,600 rows) arriving as 1-3 voxel skins, Calgary ~97% of them.
+    Sealing both sides first also puts this arm on the footing of the floors it is graded against:
+    #178's 1-NN bar is computed in height-column space, where no interior can exist at all.
+    """
+
+    def _shell(self):
+        occ = np.zeros((8, 8, 8), bool)
+        occ[1:7, 1:7, 1:7] = True
+        solid = occ.copy()
+        occ[2:6, 2:6, 2:6] = False          # same outside, hollow inside
+        return occ, solid
+
+    def test_a_sealed_cavity_is_filled(self):
+        hollow, solid = self._shell()
+        np.testing.assert_array_equal(fill_sealed_cavities(hollow), solid)
+
+    def test_a_courtyard_open_to_the_sky_is_left_alone(self):
+        occ = np.zeros((8, 8, 8), bool)
+        occ[1:7, 1:7, 1:7] = True
+        occ[2:6, 1:7, 2:6] = False          # a shaft clear through the roof: still architecture
+        np.testing.assert_array_equal(fill_sealed_cavities(occ), occ)
+
+    def test_a_hollow_shell_and_its_solid_twin_score_identically(self):
+        hollow, solid = self._shell()
+        target = np.zeros((8, 8, 8), bool)
+        target[1:7, 1:7, 1:6] = True        # one layer shorter: a real, outside-visible difference
+        self.assertEqual(sealed_volume_metrics(hollow, target),
+                         sealed_volume_metrics(solid, target))
+
+    def test_a_hollow_target_does_not_charge_a_solid_candidate(self):
+        hollow, solid = self._shell()
+        self.assertEqual(sealed_volume_metrics(solid, hollow),
+                         {"vol_iou": 1.0, "missing": 0.0, "extra": 0.0})
+        # ...which the raw comparison the prototype shipped with does not say
+        self.assertGreater(volume_metrics(solid, hollow)["extra"], 0.0)
+
+    def test_outside_visible_differences_still_score(self):
+        _, solid = self._shell()
+        shorter = solid.copy()
+        shorter[:, 6, :] = False
+        self.assertGreater(sealed_volume_metrics(shorter, solid)["missing"], 0.0)
+
+
+class TestPairedWinAccounting(unittest.TestCase):
+    """#126 requires #118 to name the metric AND how ties are counted. Ties are excluded from
+    the rate and published, because pooling them into the denominator is what turned a real
+    60% into a 46% 'coin flip' on #126's own 72 rows."""
+
+    def test_ties_are_excluded_from_the_rate_and_reported(self):
+        record = paired_win_record([(0.1, 0.2), (0.3, 0.2), (0.2, 0.2)])
+        self.assertEqual((record["wins"], record["losses"], record["ties"]), (1, 1, 1))
+        self.assertEqual(record["decided"], 2)
+        self.assertEqual(record["rate"], 0.5)
+
+    def test_direction_is_explicit(self):
+        higher = paired_win_record([(0.3, 0.2)], lower_is_better=False)
+        self.assertEqual(higher["wins"], 1)
+        self.assertEqual(paired_win_record([(0.3, 0.2)])["wins"], 0)
+
+    def test_no_decided_comparisons_is_not_a_pass(self):
+        record = paired_win_record([(0.2, 0.2), (0.2, 0.2)])
+        self.assertEqual(record["decided"], 0)
+        self.assertEqual(record["rate"], 0.0)
+        self.assertEqual(record["wilson_lower_bound"], 0.0)
+
+    def test_wilson_lower_bound_matches_the_published_interval(self):
+        self.assertAlmostEqual(wilson_lower_bound(60, 100), 0.517807, places=5)
+        self.assertAlmostEqual(wilson_lower_bound(30, 57), 0.418825, places=5)
+
+    def test_the_confirmation_population_needs_12361_of_24464(self):
+        """At n=24,464 the statistical clause is nearly free -- the 1-NN floors carry the bar.
+        On the legacy 411 the same clause needed 0.5426."""
+        self.assertLessEqual(wilson_lower_bound(12360, 24464), 0.50)
+        self.assertGreater(wilson_lower_bound(12361, 24464), 0.50)
+
+
+class TestFutilityBoundary(unittest.TestCase):
+    """Simon (1989): a two-stage design stops for futility at <= r1 successes of n1."""
+
+    def test_boundary_matches_the_exact_binomial(self):
+        self.assertEqual(futility_boundary(GATE_SCREEN_N, GATE_SCREEN_ALTERNATIVE_P1), 136)
+        self.assertEqual(futility_boundary(96, 0.60), 49)
+
+    def test_a_bigger_screen_kills_more_useless_arms(self):
+        self.assertGreater(probability_of_early_stop(GATE_SCREEN_N, GATE_SCREEN_ALTERNATIVE_P1),
+                           probability_of_early_stop(96, GATE_SCREEN_ALTERNATIVE_P1))
+        self.assertGreater(probability_of_early_stop(GATE_SCREEN_N, GATE_SCREEN_ALTERNATIVE_P1),
+                           0.9)
+
+
+class TestAssaySensitivity(unittest.TestCase):
+    """ICH E10: a comparison is uninterpretable if the control did not behave as expected."""
+
+    def test_a_reproducing_baseline_is_interpretable(self):
+        self.assertTrue(assay_sensitivity(0.0930)["baseline_reproduces_arm_of_record"])
+
+    def test_a_drifted_baseline_voids_the_run(self):
+        self.assertFalse(assay_sensitivity(0.2000)["baseline_reproduces_arm_of_record"])
+        self.assertFalse(assay_sensitivity(0.0100)["baseline_reproduces_arm_of_record"])
+
+    def test_the_tolerance_is_this_projects_own_measured_seed_range(self):
+        self.assertEqual(EXTRA_SEED_NOISE_RANGE, 0.04)
+        report = assay_sensitivity(A2_PINNED_714_EXTRA_OF_RECORD)
+        self.assertEqual(report["reference"], A2_PINNED_714_EXTRA_OF_RECORD)
+        self.assertEqual(report["tolerance"], EXTRA_SEED_NOISE_RANGE)
+
+
 class TestScreeningGate(unittest.TestCase):
+    """#118's stage-1 futility boundary. Both surplus axes, both one-time."""
+
     def _passing_summary(self):
         return {
-            "n": 96, "delta_vs_sanitized_source_median": 0.02,
-            "strict_win_rate_vs_sanitized_source_opportunity": 0.60,
-            "collapse_rate_predicted": 0.10, "collapse_rate_sanitized_source": 0.10,
-            "vs_input_median": 0.95, "identity_predicted_delta_median": 0.0,
+            "n": GATE_SCREEN_N, "n_scored_for_wins": 250,
+            "win_extra": {"decided": 200, "wins": 140, "rate": 0.70},
+            "win_missing": {"decided": 200, "wins": 140, "rate": 0.70},
+            "vs_input_median_opportunity": 0.90,
+            "collapse_rate_predicted": 0.10, "collapse_rate_source": 0.12,
+            "identity_missing_delta_median": 0.0, "identity_extra_delta_median": 0.0,
+            "footprint_c2_pass_rate_predicted": 0.80, "footprint_c2_pass_rate_source": 0.77,
+            "invalid_rate_predicted": 0.01, "invalid_rate_source": 0.01,
+            "human_review_pass": True, "sharp_normal_error_views": 22,
+            "sharp_normal_error_narrowband_no_worse": True,
         }
 
-    def test_passing_summary_clears_every_gate(self):
+    def test_passing_summary_clears_every_clause(self):
         gate = screening_gate(self._passing_summary())
-        self.assertTrue(all(gate.values()))
+        self.assertTrue(all(gate.values()), gate)
 
-    def test_each_condition_can_fail_independently(self):
-        base = self._passing_summary
+    def test_each_clause_can_fail_independently(self):
         cases = {
-            "held_out_n_at_least_96": {"n": 90},
-            "median_paired_iou_gain_over_sanitized_at_least_0.01":
-                {"delta_vs_sanitized_source_median": 0.0},
-            "opportunity_strict_win_rate_at_least_0.55":
-                {"strict_win_rate_vs_sanitized_source_opportunity": 0.4},
-            "collapse_increase_over_sanitized_at_most_0.02": {"collapse_rate_predicted": 0.20},
-            "median_overlap_with_sanitized_below_0.99": {"vs_input_median": 0.999},
-            "identity_median_loss_no_worse_than_neg_0.005":
-                {"identity_predicted_delta_median": -0.05},
+            "screen_n_at_least_250": {"n": 96},
+            "extra_wins_clear_futility_boundary":
+                {"win_extra": {"decided": 200, "wins": 100, "rate": 0.50}},
+            "missing_wins_clear_futility_boundary":
+                {"win_missing": {"decided": 200, "wins": 100, "rate": 0.50}},
+            "enough_decided_comparisons":
+                {"win_extra": {"decided": 124, "wins": 124, "rate": 1.0}},
+            "moved_on_opportunity_rows": {"vs_input_median_opportunity": 0.99},
+            "no_collapse_regression_vs_source": {"collapse_rate_predicted": 0.30},
+            "identity_rows_not_degraded": {"identity_missing_delta_median": 0.05},
+            "footprint_no_worse_than_source": {"footprint_c2_pass_rate_predicted": 0.50},
+            "validity_no_worse_than_source": {"invalid_rate_predicted": 0.50},
+            "human_review_passed": {"human_review_pass": False},
+            "sharp_normal_error_measured": {"sharp_normal_error_views": 0},
         }
         for key, override in cases.items():
-            summary = {**base(), **override}
-            gate = screening_gate(summary)
             with self.subTest(key=key):
-                self.assertFalse(gate[key])
+                self.assertFalse(screening_gate({**self._passing_summary(), **override})[key])
+
+    def test_ties_are_not_scored_as_failures_to_win(self):
+        """The boundary is Simon's on the DECIDED comparisons, not on the cohort size. A cohort
+        with ties must not be held to the 250-row boundary, which would make every tie a loss."""
+        summary = self._passing_summary()
+        # 200 decided of 250: 120 wins clears the 200-row boundary (108) but not the 250-row one.
+        record = {"decided": 200, "wins": 120, "rate": 0.60}
+        summary["win_extra"] = summary["win_missing"] = record
+        gate = screening_gate(summary)
+        self.assertTrue(gate["extra_wins_clear_futility_boundary"])
+        self.assertTrue(gate["enough_decided_comparisons"])
+        self.assertGreater(futility_boundary(GATE_SCREEN_N, GATE_SCREEN_ALTERNATIVE_P1), 120)
+
+    def test_the_win_rate_is_scored_on_opportunity_rows(self):
+        """#118 asks for an "opportunity-row win rate", and #125's own gate scoped it that way.
+        Identity rows belong to the non-degradation clauses; letting them into the win rate
+        would score "correctly left it alone" against the arm on the corpus's no-op majority."""
+        def row(row_id, identity, predicted_extra):
+            return TestMetrics()._row(row_id, 0, 0.8, 0.9, 0.5, identity) | {
+                "predicted": {"vol_iou": 0.9, "missing": 0.0, "extra": predicted_extra},
+                "sanitized_source": {"vol_iou": 0.8, "missing": 0.0, "extra": 0.10},
+            }
+        rows = [row(0, False, 0.05), row(1, False, 0.05)] + [row(i, True, 0.10) for i in range(2, 8)]
+        summary = summarize_rows(rows)
+        self.assertEqual(summary["n_scored_for_wins"], 2)          # the two opportunity rows
+        self.assertEqual(summary["win_extra"]["decided"], 2)
+        self.assertEqual(summary["win_extra"]["rate"], 1.0)
+        # the six identity ties would have swamped the all-rows record
+        self.assertEqual(summary["win_extra_all_rows"]["ties"], 6)
+
+    def test_a_thin_decided_slice_cannot_buy_a_cheap_boundary(self):
+        summary = self._passing_summary()
+        record = {"decided": 40, "wins": 40, "rate": 1.0}   # clears its own tiny boundary
+        summary["win_extra"] = summary["win_missing"] = record
+        gate = screening_gate(summary)
+        self.assertTrue(gate["extra_wins_clear_futility_boundary"])
+        self.assertFalse(gate["enough_decided_comparisons"])   # ...but not half the cohort
+
+    def test_a_skipped_human_review_is_absent_not_a_pass(self):
+        summary = self._passing_summary()
+        del summary["human_review_pass"]
+        self.assertFalse(screening_gate(summary)["human_review_passed"])
+
+    def test_a_skipped_sne_run_is_absent_not_a_pass(self):
+        summary = self._passing_summary()
+        del summary["sharp_normal_error_views"]
+        self.assertFalse(screening_gate(summary)["sharp_normal_error_measured"])
 
 
-class TestFullGate(unittest.TestCase):
-    def test_full_gate_passes_with_no_regression(self):
-        full = {"n": 714, "strict_beats_envelope_rate": 0.10, "collapse_rate_predicted": 0.10,
-               "identity_predicted_delta_median": 0.0, "n_predicted_invalid": 5}
-        screen = {"collapse_rate_predicted": 0.10, "identity_predicted_delta_median": 0.0,
-                 "n_predicted_invalid": 1, "n": 96}
-        self.assertTrue(all(full_gate(full, screen).values()))
+class TestConfirmationGate(unittest.TestCase):
+    """#118's stage-2 bar on #178's own 24,464-row population."""
 
-    def test_full_gate_catches_a_collapse_regression(self):
-        full = {"n": 714, "strict_beats_envelope_rate": 0.10, "collapse_rate_predicted": 0.30,
-               "identity_predicted_delta_median": 0.0, "n_predicted_invalid": 5}
-        screen = {"collapse_rate_predicted": 0.10, "identity_predicted_delta_median": 0.0,
-                 "n_predicted_invalid": 1, "n": 96}
-        self.assertFalse(full_gate(full, screen)["no_collapse_regression_vs_screen"])
+    def _passing(self):
+        summary = {
+            "n": GATE_CONFIRMATION_N,
+            "beats_envelope_extra": {"decided": 20000, "wins": 12000, "rate": 0.60},
+            "collapse_rate_predicted": 0.10,
+            "envelope_extra_median": 0.12, "predicted_extra_median": 0.05,
+            "envelope_missing_median": 0.00, "predicted_missing_median": 0.02,
+            "footprint_c2_pass_rate_predicted": 0.80, "footprint_c2_pass_rate_source": 0.77,
+            "invalid_rate_predicted": 0.01, "invalid_rate_source": 0.01,
+            "human_review_pass": True, "sharp_normal_error_views": 22,
+            "sharp_normal_error_narrowband_no_worse": True,
+            "assay_sensitivity": {"baseline_reproduces_arm_of_record": True},
+        }
+        screen = {"collapse_rate_predicted": 0.10, "invalid_rate_predicted": 0.01}
+        return summary, screen, {"numeric_pass": True}
 
-    def test_full_gate_catches_insufficient_beats_envelope(self):
-        full = {"n": 714, "strict_beats_envelope_rate": 0.01, "collapse_rate_predicted": 0.10,
-               "identity_predicted_delta_median": 0.0, "n_predicted_invalid": 5}
-        screen = {"collapse_rate_predicted": 0.10, "identity_predicted_delta_median": 0.0,
-                 "n_predicted_invalid": 1, "n": 96}
-        self.assertFalse(full_gate(full, screen)["strict_beats_envelope_over_0.05"])
+    def test_passing_run_clears_every_clause(self):
+        gate = confirmation_gate(*self._passing())
+        self.assertTrue(all(gate.values()), gate)
+
+    def test_each_clause_can_fail_independently(self):
+        cases = {
+            "confirmation_n_is_the_178_population": {"n": 714},
+            "beats_envelope_over_half_of_decided_rows":
+                {"beats_envelope_extra": {"decided": 20000, "wins": 9000, "rate": 0.45}},
+            "buildingworld_floors_pass": None,
+            "no_collapse_regression_vs_screen": {"collapse_rate_predicted": 0.30},
+            "validity_no_worse_than_screen": {"invalid_rate_predicted": 0.40},
+            "footprint_no_worse_than_source": {"footprint_c2_pass_rate_predicted": 0.10},
+            "human_review_passed": {"human_review_pass": False},
+            "sharp_normal_error_measured": {"sharp_normal_error_views": 0},
+            "assay_sensitivity_holds":
+                {"assay_sensitivity": {"baseline_reproduces_arm_of_record": False}},
+        }
+        for key, override in cases.items():
+            summary, screen, verdict = self._passing()
+            if override is None:
+                verdict = {"numeric_pass": False}
+            else:
+                summary.update(override)
+            with self.subTest(key=key):
+                self.assertFalse(confirmation_gate(summary, screen, verdict)[key])
+
+    def test_the_win_rate_clause_needs_its_lower_bound_above_a_coin_flip(self):
+        summary, screen, verdict = self._passing()
+        summary["beats_envelope_extra"] = {"decided": 24464, "wins": 12360, "rate": 0.5052}
+        self.assertFalse(confirmation_gate(summary, screen, verdict)
+                         ["beats_envelope_over_half_of_decided_rows"])
+        summary["beats_envelope_extra"] = {"decided": 24464, "wins": 12361, "rate": 0.5053}
+        self.assertTrue(confirmation_gate(summary, screen, verdict)
+                        ["beats_envelope_over_half_of_decided_rows"])
+
+
+class TestKillClauses(unittest.TestCase):
+    """KILL is a disjunction, so its clauses are point-estimate facts and carry no alpha.
+    Three tests at 5% ORed together would give a ~14% false-kill rate (Berger 1982's result
+    runs the other way for a union); a KILL must be a plainly visible failure, not a p-value."""
+
+    def test_an_arm_the_envelope_dominates_on_both_axes_is_killed(self):
+        kill = kill_clauses({"predicted_extra_median": 0.13, "envelope_extra_median": 0.12,
+                             "predicted_missing_median": 0.02, "envelope_missing_median": 0.00,
+                             "collapse_rate_predicted": 0.05})
+        self.assertTrue(kill["killed_not_transforming"])
+        self.assertTrue(any(kill.values()))
+
+    def test_beating_the_envelope_on_one_axis_is_not_a_kill(self):
+        kill = kill_clauses({"predicted_extra_median": 0.05, "envelope_extra_median": 0.12,
+                             "predicted_missing_median": 0.02, "envelope_missing_median": 0.00,
+                             "collapse_rate_predicted": 0.05})
+        self.assertFalse(kill["killed_not_transforming"])
+
+    def test_destroying_more_buildings_than_naive_retrieval_is_a_kill(self):
+        kill = kill_clauses({"predicted_extra_median": 0.05, "envelope_extra_median": 0.12,
+                             "predicted_missing_median": 0.02, "envelope_missing_median": 0.00,
+                             "collapse_rate_predicted": 0.20})
+        self.assertTrue(kill["killed_collapse_over_1nn"])
 
 
 # ---------------------------------------------------------------------------------------------

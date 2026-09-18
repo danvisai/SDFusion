@@ -47,12 +47,22 @@ projection steps, guidance 1.0, master seed 0, exactly one sample per building.
 This file remains self-contained and named `prototype`. It is not a production model, service,
 dataset format, or new architectural commitment (#125's Out of Scope), and a passing result does
 not by itself authorize production integration, stochastic diffusion, or recipe closure.
+
+⚠️ **The cohorts in the commands above are #125's and are superseded.** #118 settled the bar on
+2026-09-18 against the BuildingWorld corpus: a 250-row family-stratified screen, #178's own
+24,464-row nine-city held-out slice as the confirmation, the pinned 714 demoted to a regression
+guard, and training on the full held-out=0 bank. `build_manifest`/`select_screen_rows` below are
+still the three-region 384/96/714 design and must be rebuilt by the implementing pass;
+`GATE_SCREEN_N` and `GATE_CONFIRMATION_N` already hold the settled values and the gate enforces
+them, so a cohort that was not rebuilt fails the bar rather than passing quietly. See
+`docs/wayfinding/whole-volume-voxel-transform/118-gates.md`.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import math
 import subprocess
 import sys
 import time
@@ -94,8 +104,10 @@ TRAIN_OPPORTUNITY_QUOTA = {0: 163, 1: 163}
 TRAIN_IDENTITY_QUOTA = {0: 19, 1: 19, 2: 20}
 TRAIN_N = sum(TRAIN_OPPORTUNITY_QUOTA.values()) + sum(TRAIN_IDENTITY_QUOTA.values())  # 384
 SCREEN_PER_REGION = 32
-SCREEN_N = SCREEN_PER_REGION * N_REGIONS  # 96
 EXPECTED_FULL_POPULATION_N = 714
+# `SCREEN_N` (= 96) is gone: #118 replaced it with `GATE_SCREEN_N` and the screen is no longer a
+# flat per-region draw. `SCREEN_PER_REGION` still drives `select_screen_rows` until the
+# implementing pass rebuilds the cohorts on BuildingWorld.
 
 # Mirrors `scripts.foundations.eval_massing_arms`' constants of the same name (checked equal by
 # `test_prototype_voxel_editor.py`). Not imported directly: that module's own top-level imports
@@ -103,6 +115,7 @@ EXPECTED_FULL_POPULATION_N = 714
 # unconditionally require both -- exactly what this file's lazy-import convention avoids elsewhere.
 S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~= 3 voxels @64^3. Fixed a priori.
 COLLAPSE_MISSING = 0.15    # #80: solid iff missing < 15%.
+C2_ALLOWANCE = 0.05        # #85's criterion 2, allowance chosen by the owner on 2026-08-07.
 
 KEEP, ADD, REMOVE = 0, 1, 2
 
@@ -110,6 +123,44 @@ KEEP, ADD, REMOVE = 0, 1, 2
 # flatter a result. Both strata use 1 - vol_iou against the real target.
 E_STRATUM_BOUNDS = (0.05, 0.20)   # envelope (footprint+height, no A2) error
 A_STRATUM_BOUNDS = (0.05, 0.20)   # authentic A2 (raw decode) error
+
+# -------------------------------------------------------------------------------------------------
+# #118's preregistered bar. Settled by interview with the ticket owner on 2026-09-18; see
+# docs/wayfinding/whole-volume-voxel-transform/118-gates.md for the derivation of every number
+# here and for what each one is quoted from. Nothing below was chosen by taste.
+# -------------------------------------------------------------------------------------------------
+
+# Simon (1989)'s two-stage design: stop for futility at <= r1 wins of n1. n1 = 250 kills a useless
+# arm 92.7% of the time against 62.0% at #125's original 96, for the same ~4% power cost.
+GATE_NULL_P0 = 0.50                 # a paired win rate no better than a coin flip
+GATE_SCREEN_ALTERNATIVE_P1 = 0.60   # the alternative the screen is powered against
+GATE_SCREEN_N = 250
+# #178's own held-out population, so its quoted floors apply unchanged. Scoring #118's arm on any
+# other population silently voids every one of them.
+GATE_CONFIRMATION_N = 24464
+# `guided_edit_completion_proxy.UNDERSAMPLED_N`: below this a rate is reported, never trusted.
+MIN_DECIDED_COMPARISONS = 30
+# ⚠️ Not settled in the #118 interview -- a mechanical consequence of computing the futility
+# boundary on decided comparisons, recorded here rather than left implicit. Ties are excluded from
+# every rate (#126), so a boundary read off a thin decided set would be cheap to clear; at least
+# half the cohort must have produced a decided comparison on each axis.
+MIN_DECIDED_FRACTION = 0.5
+# CONTEXT.md's standing guard, and `buildingworld_baseline.quoted_bar`'s `max_vs_input`. #125's
+# placeholder wrote 0.99, which is looser than the project's own rule; 0.98 binds.
+MAX_VS_INPUT = 0.98
+# CONTEXT.md: 1-NN retrieval's collapse rate. "A generator that destroys more buildings than naive
+# retrieval is not servable whatever else it scores."
+KILL_COLLAPSE_RATE = 0.1582
+
+# ICH E10 assay sensitivity: the run is uninterpretable unless the control behaved as expected.
+# `massing_arms_eval_ship714.json` `summary.a2_s0.5.extra`, the shipped operating point's own
+# number on the pinned 714 -- the population CONTEXT.md designates this route's regression control.
+A2_PINNED_714_EXTRA_OF_RECORD = 0.09219727319195108
+# The same artifact's `noise_floor.median_range.extra`: this project's measured seed-to-seed range
+# for `extra`. The cache re-seeds per corpus row rather than by loop order (#125), so the cached
+# baseline is a different draw of the same operating point, and that is exactly the term this
+# tolerance has to cover.
+EXTRA_SEED_NOISE_RANGE = 0.04
 
 
 class RoleIsolationError(RuntimeError):
@@ -188,6 +239,33 @@ def volume_metrics(candidate: np.ndarray, target: np.ndarray) -> dict[str, float
         "missing": float((target & ~candidate).sum() / target_volume),
         "extra": float((candidate & ~target).sum() / target_volume),
     }
+
+
+def fill_sealed_cavities(occ: np.ndarray) -> np.ndarray:
+    """Close interior voids, leaving courtyards and passages untouched.
+
+    #118, owner decision: interior fill is not architecture. A building modelled hollow and the
+    same building modelled solid are one building seen from outside, and ISO 19107 treats an
+    interior shell as a first-class feature (#117 declines to fail cavities for the same reason).
+    A raw volume comparison charges every voxel of air inside a shell target as the candidate's
+    surplus, which is bookkeeping about air -- and #117 measured ~4.6% of BuildingWorld (~70,600
+    rows) arriving as 1-3 voxel skins, Calgary ~97% of them, so it is not a rare corner.
+
+    🔑 It also puts this arm on the footing of the bar it is graded against. #178's 1-NN floors are
+    computed by `train_height_map_generator.height_split` in height-column space, where a column is
+    a solid run and an interior cannot exist. Grading a hollow-sensitive candidate against a
+    hollow-blind floor compares two different measurements.
+
+    A cavity is sealed iff it is unreachable from outside, which is `hollow_shell_voxels`' own
+    test, so a courtyard open to the sky or a passage clear through the building survives.
+    """
+    occ = np.asarray(occ, bool)
+    return occ | hollow_shell_voxels(occ)
+
+
+def sealed_volume_metrics(candidate: np.ndarray, target: np.ndarray) -> dict[str, float]:
+    """`volume_metrics` after sealing both sides, so hollow-vs-solid cannot reach any number."""
+    return volume_metrics(fill_sealed_cavities(candidate), fill_sealed_cavities(target))
 
 
 def occupancy_iou(a: np.ndarray, b: np.ndarray) -> float:
@@ -1174,16 +1252,29 @@ def _surface_realization_diagnostics(sanitized_predicted: np.ndarray,
     }
 
 
+def _criterion2_pass(split: dict, allowance: float = C2_ALLOWANCE) -> bool:
+    """#85's criterion 2: spill and uncovered beyond the s* band, each within the allowance.
+
+    Fringe is excluded on purpose -- it is a 64^3 discretisation effect present even when the
+    model is right, which CONTEXT.md says is "reported and ignored".
+    """
+    return bool(split["spill"] <= allowance and split["uncovered"] <= allowance)
+
+
 def _score_row(ex: Example, predicted_occ: np.ndarray) -> dict:
     from scripts.foundations.eval_massing_arms import footprint_split
 
     sanitized_source = ex.sanitized_source_occ
     sanitized_predicted = sanitize_footprint(predicted_occ, ex.footprint)
-    source_metrics = volume_metrics(ex.source_occ, ex.target)
-    sanitized_metrics = volume_metrics(sanitized_source, ex.target)
-    predicted_metrics = volume_metrics(sanitized_predicted, ex.target)
-    envelope_metrics = volume_metrics(ex.envelope, ex.target)
+    # #118: every volume comparison is made on SEALED occupancy, so whether a building was
+    # modelled hollow or solid cannot reach a score. See `fill_sealed_cavities`.
+    source_metrics = sealed_volume_metrics(ex.source_occ, ex.target)
+    sanitized_metrics = sealed_volume_metrics(sanitized_source, ex.target)
+    predicted_metrics = sealed_volume_metrics(sanitized_predicted, ex.target)
+    envelope_metrics = sealed_volume_metrics(ex.envelope, ex.target)
     identity_envelope = bool(np.array_equal(ex.envelope, ex.target))
+    c2_predicted = footprint_split(predicted_occ, ex.footprint)
+    c2_source = footprint_split(ex.source_occ, ex.footprint)
     e_error = 1.0 - envelope_metrics["vol_iou"]
     a_error = 1.0 - source_metrics["vol_iou"]
     return {
@@ -1202,8 +1293,12 @@ def _score_row(ex: Example, predicted_occ: np.ndarray) -> dict:
         "collapse_source": source_metrics["missing"] >= COLLAPSE_MISSING,
         "collapse_sanitized": sanitized_metrics["missing"] >= COLLAPSE_MISSING,
         "collapse_predicted": predicted_metrics["missing"] >= COLLAPSE_MISSING,
-        "spill_raw_source": footprint_split(ex.source_occ, ex.footprint),
-        "spill_raw_predicted": footprint_split(predicted_occ, ex.footprint),
+        "spill_raw_source": c2_source,
+        "spill_raw_predicted": c2_predicted,
+        # #85's criterion 2, at ADR 0004's fixed s* tolerance and the allowance the owner chose on
+        # 2026-08-07. #118 grades it: the owner's "does it follow the footprint" requirement.
+        "footprint_c2_pass_predicted": _criterion2_pass(c2_predicted),
+        "footprint_c2_pass_source": _criterion2_pass(c2_source),
         "validity_predicted": validity_report(sanitized_predicted, ex.footprint),
         "validity_sanitized_source": validity_report(sanitized_source, ex.footprint),
         "validity_projection": validity_projection_delta(predicted_occ, sanitized_predicted),
@@ -1221,6 +1316,22 @@ def summarize_rows(rows: list[dict]) -> dict:
 
     opportunity = [r for r in rows if not r["identity_envelope"]]
     identity = [r for r in rows if r["identity_envelope"]]
+    # #118: the two surplus axes are never summed -- CONTEXT.md, "not symmetric in consequence":
+    # surplus is a building that looks unfinished, `missing` is a building with a trench through
+    # it. Each gets its own paired win record against the arm's own A2 input, ties excluded.
+    # ⚠️ Scoped to OPPORTUNITY rows, which is the form #118 asks for ("opportunity-row win rate")
+    # and #125's own screening gate used. Identity rows -- where the envelope is already the
+    # answer -- belong to the non-degradation clauses instead; letting them into the win rate
+    # would score "correctly left it alone" against the arm on the corpus's own no-op majority.
+    scored = opportunity or rows
+    win_extra = paired_win_record(
+        [(r["predicted"]["extra"], r["sanitized_source"]["extra"]) for r in scored])
+    win_missing = paired_win_record(
+        [(r["predicted"]["missing"], r["sanitized_source"]["missing"]) for r in scored])
+    win_extra_all_rows = paired_win_record(
+        [(r["predicted"]["extra"], r["sanitized_source"]["extra"]) for r in rows])
+    beats_envelope_extra = paired_win_record(
+        [(r["predicted"]["extra"], r["envelope"]["extra"]) for r in rows])
     delta_vs_sanitized = float(np.median(
         [r["predicted"]["vol_iou"] - r["sanitized_source"]["vol_iou"] for r in rows]))
     strict_win_sanitized = float(np.mean(
@@ -1272,28 +1383,184 @@ def summarize_rows(rows: list[dict]) -> dict:
         "vs_input_median": float(np.median([r["vs_input"] for r in rows])),
         "identity_predicted_delta_median": identity_delta,
         "n_predicted_invalid": n_invalid_predicted,
+        # ---- #118's registered bar reads these. Every one is a paired difference against the
+        # arm's own A2 input, or a rate on the same rows; none is an aggregate-IoU threshold,
+        # which #126 forbids this ticket from using.
+        "win_extra": win_extra,                       # opportunity rows: what the gate reads
+        "win_missing": win_missing,                   # opportunity rows: what the gate reads
+        "win_extra_all_rows": win_extra_all_rows,     # reported, never gated
+        "n_scored_for_wins": len(scored),
+        "beats_envelope_extra": beats_envelope_extra,
+        "predicted_extra_median": med("predicted", "extra"),
+        "predicted_missing_median": med("predicted", "missing"),
+        "envelope_extra_median": med("envelope", "extra"),
+        "envelope_missing_median": med("envelope", "missing"),
+        "vs_input_median_opportunity": float(np.median(
+            [r["vs_input"] for r in opportunity])) if opportunity else 1.0,
+        "identity_extra_delta_median": float(np.median(
+            [r["predicted"]["extra"] - r["sanitized_source"]["extra"] for r in identity]
+        )) if identity else 0.0,
+        "identity_missing_delta_median": float(np.median(
+            [r["predicted"]["missing"] - r["sanitized_source"]["missing"] for r in identity]
+        )) if identity else 0.0,
+        "footprint_c2_pass_rate_predicted": float(np.mean(
+            [r["footprint_c2_pass_predicted"] for r in rows])),
+        "footprint_c2_pass_rate_source": float(np.mean(
+            [r["footprint_c2_pass_source"] for r in rows])),
+        "invalid_rate_predicted": n_invalid_predicted / len(rows),
+        "invalid_rate_source": float(np.mean(
+            [not r["validity_sanitized_source"]["valid"] for r in rows])),
         "by_region": region_summary,
         "by_e_stratum": stratum_summary("e_stratum"),
         "by_a_stratum": stratum_summary("a_stratum"),
     }
 
 
+def wilson_lower_bound(wins: int, decided: int, z: float = 1.6449) -> float:
+    """One-sided 95% Wilson score lower bound on a proportion.
+
+    Brown, Cai & DasGupta (2001) recommend Wilson over Wald at these n; the Wald interval's
+    coverage is erratic and "common textbook prescriptions regarding its safety are misleading".
+    """
+    if decided <= 0:
+        return 0.0
+    p = wins / decided
+    denominator = 1.0 + z * z / decided
+    centre = (p + z * z / (2 * decided)) / denominator
+    half = z * math.sqrt(p * (1 - p) / decided + z * z / (4 * decided * decided)) / denominator
+    return centre - half
+
+
+def _binomial_cdf(k: int, n: int, p: float) -> float:
+    return sum(math.comb(n, i) * p ** i * (1 - p) ** (n - i) for i in range(0, k + 1))
+
+
+def futility_boundary(n: int, p1: float, alpha: float = 0.05) -> int:
+    """Simon (1989)'s stage-1 boundary: stop for futility at or below this many wins of `n`.
+
+    The largest r1 whose chance of occurring under the alternative worth detecting is at most
+    `alpha`, so screening out an arm that really is at `p1` costs at most `alpha` of the power.
+    """
+    return max(k for k in range(n + 1) if _binomial_cdf(k, n, p1) <= alpha)
+
+
+def probability_of_early_stop(n: int, p1: float, p0: float = GATE_NULL_P0,
+                              alpha: float = 0.05) -> float:
+    """How often `futility_boundary` kills an arm that is genuinely no better than `p0`."""
+    return _binomial_cdf(futility_boundary(n, p1, alpha), n, p0)
+
+
+def paired_win_record(pairs, lower_is_better: bool = True) -> dict:
+    """Row-by-row wins of an arm over a reference, with ties excluded from the rate.
+
+    #126 requires #118 to name both the metric and the tie handling, because pooling ties into
+    the denominator is what turned a real 60% into a 46% "coin flip" on its own 72 rows: on 17 of
+    them the alternative's roof simply *was* the envelope. Ties are not losses. They are excluded
+    here and published, so a rate resting on a handful of decided rows is visible rather than
+    hidden -- `screening_gate` refuses one below `MIN_DECIDED_COMPARISONS`.
+    """
+    wins = losses = ties = 0
+    for arm, reference in pairs:
+        if arm == reference:
+            ties += 1
+        elif (arm < reference) == lower_is_better:
+            wins += 1
+        else:
+            losses += 1
+    decided = wins + losses
+    return {"wins": wins, "losses": losses, "ties": ties, "decided": decided,
+            "rate": (wins / decided) if decided else 0.0,
+            "wilson_lower_bound": wilson_lower_bound(wins, decided)}
+
+
+def assay_sensitivity(cached_baseline_extra: float,
+                      reference: float = A2_PINNED_714_EXTRA_OF_RECORD,
+                      tolerance: float = EXTRA_SEED_NOISE_RANGE) -> dict:
+    """ICH E10: a comparison is uninterpretable unless the control behaved as expected.
+
+    Every #118 number is a paired difference against the cached A2 baseline, so if the cache did
+    not reproduce the shipped operating point the whole run is measuring something else while
+    still returning a tidy verdict. The control is the pinned 714, where A2 has a committed
+    number; the tolerance is this project's own measured seed-to-seed range for `extra`, which is
+    exactly the term #125's per-row reseeding introduces.
+    """
+    delta = abs(float(cached_baseline_extra) - reference)
+    return {"measured": float(cached_baseline_extra), "reference": reference,
+            "tolerance": tolerance, "delta": delta,
+            "baseline_reproduces_arm_of_record": delta <= tolerance}
+
+
+def _cleared_futility(record: dict) -> bool:
+    """Simon's boundary on the number of DECIDED comparisons, which is the sign test's own n.
+
+    ⚠️ Not on the cohort size. `wins` counts decided rows only, so measuring it against a
+    boundary computed on all 250 would silently score every tie as a failure to win -- the exact
+    pooling #126 forbids. `enough_decided_comparisons` is what stops a thin decided set from
+    buying a cheap boundary instead.
+    """
+    decided = record.get("decided", 0)
+    if decided < 1:
+        return False
+    return record.get("wins", 0) > futility_boundary(decided, GATE_SCREEN_ALTERNATIVE_P1)
+
+
 def screening_gate(summary: dict) -> dict:
-    """#125's exact preregistered screening thresholds. `validity_projection_reported` is always
-    true by construction: `_score_row` always populates `validity_projection` for every row."""
-    identity_delta = summary["identity_predicted_delta_median"]
+    """#118's stage-1 futility boundary, evaluated mechanically so prose cannot soften it.
+
+    An AND of clauses, which is Berger (1982)'s intersection-union test: each may be run at the
+    same level and the conjunction is still level-alpha, so stacking clauses costs no multiplicity
+    correction. (`kill_clauses` is a disjunction and deliberately carries no alpha at all.)
+
+    ⚠️ A measurement that was not taken reads as ABSENT, never as a pass -- `verdict()`'s own
+    `--no_form` rule in `train_height_map_generator`. Both human review and Sharp Normal Error
+    have to actually have been run, and every SNE artifact this project has ever committed carries
+    `views: 0`.
+    """
+    extra, missing = summary["win_extra"], summary["win_missing"]
+    # Both floors must hold: an absolute one so a rate is never read off a handful of rows, and a
+    # relative one so an arm that ties on most of the cohort cannot win on a thin decided slice.
+    scored = summary.get("n_scored_for_wins", summary["n"])
+    min_decided = max(MIN_DECIDED_COMPARISONS, math.ceil(scored * MIN_DECIDED_FRACTION))
     return {
-        "held_out_n_at_least_96": summary["n"] >= SCREEN_N,
-        "median_paired_iou_gain_over_sanitized_at_least_0.01":
-            summary["delta_vs_sanitized_source_median"] >= 0.01,
-        "opportunity_strict_win_rate_at_least_0.55":
-            summary["strict_win_rate_vs_sanitized_source_opportunity"] >= 0.55,
-        "collapse_increase_over_sanitized_at_most_0.02":
-            summary["collapse_rate_predicted"] <= summary["collapse_rate_sanitized_source"] + 0.02,
-        "median_overlap_with_sanitized_below_0.99": summary["vs_input_median"] < 0.99,
-        "identity_median_loss_no_worse_than_neg_0.005":
-            identity_delta is None or identity_delta >= -0.005,
-        "validity_projection_reported": True,
+        "screen_n_at_least_250": summary["n"] >= GATE_SCREEN_N,
+        "enough_decided_comparisons":
+            min(extra["decided"], missing["decided"]) >= min_decided,
+        "extra_wins_clear_futility_boundary": _cleared_futility(extra),
+        "missing_wins_clear_futility_boundary": _cleared_futility(missing),
+        "moved_on_opportunity_rows": summary["vs_input_median_opportunity"] < MAX_VS_INPUT,
+        "no_collapse_regression_vs_source":
+            summary["collapse_rate_predicted"] <= summary["collapse_rate_source"],
+        "identity_rows_not_degraded":
+            summary["identity_missing_delta_median"] <= 0.0
+            and summary["identity_extra_delta_median"] <= 0.0,
+        "footprint_no_worse_than_source":
+            summary["footprint_c2_pass_rate_predicted"]
+            >= summary["footprint_c2_pass_rate_source"],
+        "validity_no_worse_than_source":
+            summary["invalid_rate_predicted"] <= summary["invalid_rate_source"],
+        "human_review_passed": summary.get("human_review_pass") is True,
+        "sharp_normal_error_measured":
+            summary.get("sharp_normal_error_views", 0) > 0
+            and summary.get("sharp_normal_error_narrowband_no_worse") is True,
+    }
+
+
+def kill_clauses(summary: dict) -> dict:
+    """The pre-registered sentences that answer #113 "no" outright.
+
+    Point-estimate facts, not significance tests, and deliberately so. A PASS gate is a
+    conjunction and Berger (1982) makes it free; a KILL gate is a DISJUNCTION, where three
+    clauses each run at 5% would give roughly a 14% false-kill rate. A KILL has to be a plainly
+    visible failure rather than a marginal p-value, so no alpha is attached to any of these.
+    """
+    dominated_on_extra = summary["predicted_extra_median"] >= summary["envelope_extra_median"]
+    dominated_on_missing = summary["predicted_missing_median"] >= summary["envelope_missing_median"]
+    return {
+        # `train_height_map_generator.verdict`'s `killed_identity`, made two-sided: the arm is
+        # dead only if doing nothing was at least as good on BOTH axes. Beating the envelope on
+        # one of them is a real, if partial, transform and is not killed here.
+        "killed_not_transforming": bool(dominated_on_extra and dominated_on_missing),
+        "killed_collapse_over_1nn": summary["collapse_rate_predicted"] > KILL_COLLAPSE_RATE,
     }
 
 
@@ -1342,24 +1609,39 @@ def evaluate_command(args) -> None:
     evaluate_model(model, ds, device, Path(args.report), editor_checkpoint_sha256=editor_sha)
 
 
-def full_gate(full_summary: dict, screen_summary: dict, collapse_tolerance: float = 0.0,
-             identity_tolerance: float = 0.0) -> dict:
-    """#125's exact preregistered full-population thresholds, checked against the screening
-    run's own numbers for the "no regression" conditions."""
+def confirmation_gate(summary: dict, screen_summary: dict, buildingworld_verdict: dict) -> dict:
+    """#118's stage-2 bar, on #178's own held-out population so its floors apply unchanged.
+
+    `buildingworld_verdict` is the result of `buildingworld_baseline.buildingworld_verdict`
+    against a #118 registration -- one built with `include_missing=True`, so both surplus axes
+    are quoted from 1-NN per #170's falsification rule. That call carries the per-city and
+    per-family floors; what this function adds is the handful of clauses #178's bar has no
+    place for, because a carve-only height map cannot fail them.
+    """
+    envelope = summary["beats_envelope_extra"]
     return {
-        "n_full_at_least_714": full_summary["n"] >= EXPECTED_FULL_POPULATION_N,
-        "strict_beats_envelope_over_0.05": full_summary["strict_beats_envelope_rate"] > 0.05,
+        "confirmation_n_is_the_178_population": summary["n"] >= GATE_CONFIRMATION_N,
+        # #126: name the metric and the tie handling or it is not pre-registered. `extra`, ties
+        # excluded and published. The owner set "more decided rows than not"; at n=24,464 the
+        # 95% lower bound clears 0.50 at 12,361 wins, so the statistical form costs ~0.5 points.
+        "beats_envelope_over_half_of_decided_rows":
+            envelope["decided"] >= MIN_DECIDED_COMPARISONS
+            and wilson_lower_bound(envelope["wins"], envelope["decided"]) > GATE_NULL_P0,
+        "buildingworld_floors_pass": bool(buildingworld_verdict.get("numeric_pass")),
         "no_collapse_regression_vs_screen":
-            full_summary["collapse_rate_predicted"]
-            <= screen_summary["collapse_rate_predicted"] + collapse_tolerance,
-        "no_identity_regression_vs_screen": (
-            full_summary["identity_predicted_delta_median"] is None
-            or screen_summary["identity_predicted_delta_median"] is None
-            or full_summary["identity_predicted_delta_median"]
-            >= screen_summary["identity_predicted_delta_median"] - identity_tolerance),
-        "no_validity_regression_vs_screen":
-            (full_summary["n_predicted_invalid"] / max(full_summary["n"], 1))
-            <= (screen_summary["n_predicted_invalid"] / max(screen_summary["n"], 1)) + 1e-9,
+            summary["collapse_rate_predicted"] <= screen_summary["collapse_rate_predicted"],
+        "validity_no_worse_than_screen":
+            summary["invalid_rate_predicted"] <= screen_summary["invalid_rate_predicted"],
+        "footprint_no_worse_than_source":
+            summary["footprint_c2_pass_rate_predicted"]
+            >= summary["footprint_c2_pass_rate_source"],
+        "human_review_passed": summary.get("human_review_pass") is True,
+        "sharp_normal_error_measured":
+            summary.get("sharp_normal_error_views", 0) > 0
+            and summary.get("sharp_normal_error_narrowband_no_worse") is True,
+        "assay_sensitivity_holds":
+            bool(summary.get("assay_sensitivity", {})
+                 .get("baseline_reproduces_arm_of_record")),
     }
 
 
@@ -1398,18 +1680,25 @@ def evaluate_full_command(args) -> None:
     full_summary = summarize_rows(rows)
     sealed_rows = [r for r in rows if r["row"] not in screen_rows]
     sealed_summary = summarize_rows(sealed_rows) if sealed_rows else None
-    gate = full_gate(full_summary, screen_summary)
+    # #118: `confirmation_gate` also needs the #178 per-city/per-family verdict, the montage
+    # review and the SNE run, none of which this command produces. They are merged in by the
+    # confirmation pass; until then those clauses read false, which is the intended behaviour --
+    # a measurement that was not taken is absent, never a pass.
+    gate = confirmation_gate(full_summary, screen_summary, {"numeric_pass": False})
+    kills = kill_clauses(full_summary)
     artifact = {
-        "all_714": {"summary": full_summary},
-        "sealed_618_complement": {"summary": sealed_summary},
-        "full_gate": gate,
-        "full_gate_pass": bool(all(gate.values())),
+        "all_rows": {"summary": full_summary},
+        "sealed_complement": {"summary": sealed_summary},
+        "confirmation_gate": gate,
+        "confirmation_gate_pass": bool(all(gate.values())),
+        "kill_clauses": kills,
+        "killed": bool(any(kills.values())),
         "rows": rows,
     }
     Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     Path(args.report).write_text(json.dumps(artifact, indent=2, default=str) + "\n")
-    print(json.dumps({"all_714": full_summary, "sealed_618_complement": sealed_summary,
-                     "full_gate": gate}, indent=2, default=str))
+    print(json.dumps({"all_rows": full_summary, "sealed_complement": sealed_summary,
+                     "confirmation_gate": gate, "kill_clauses": kills}, indent=2, default=str))
     print(f"[eval-full] wrote {args.report}")
 
 

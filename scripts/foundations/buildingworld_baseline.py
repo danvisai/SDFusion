@@ -194,28 +194,61 @@ def population_report(rows: list[dict]) -> dict:
                 gable_hip=summary([r for r in rows if r["family"] in ("gable", "hip")]))
 
 
-def quoted_bar(summary: dict) -> dict:
-    """#170: quote this population's 1-NN measurements without rounding or tuning."""
+def quoted_bar(summary: dict, include_missing: bool = False) -> dict:
+    """#170: quote this population's 1-NN measurements without rounding or tuning.
+
+    `include_missing` (#118) adds `max_missing`, the second surplus-pair axis. It is opt-in and
+    defaults off so #178's signed-off registration and #183's running ladder grade exactly as
+    before: a clamped height map carves down from the envelope and cannot add mass, so `missing`
+    is only ever damage there and `collapse_rate` already guards it. #113's whole-volume
+    transform adds as well as removes, and on BuildingWorld the two directions are near-symmetric
+    (1-NN: `missing` 0.0242, `extra` 0.0262), so grading one of them is grading half the task.
+    """
     if summary["n"] == 0:
         raise ValueError("#178: cannot calibrate a hard floor from an empty population")
     keys = ("dl_ops", "dl_planar_fraction", "extra", "collapse_rate")
+    if include_missing:
+        keys += ("missing",)
     if not all(np.isfinite(summary[k]) for k in keys):
         raise ValueError("#178: cannot calibrate a hard floor from non-finite measurements")
-    return dict(max_ops=summary["dl_ops"], min_planar=summary["dl_planar_fraction"],
-                max_extra=summary["extra"], kill_planar=summary["dl_planar_fraction"],
-                max_collapse=summary["collapse_rate"], max_vs_input=0.98)
+    bar = dict(max_ops=summary["dl_ops"], min_planar=summary["dl_planar_fraction"],
+               max_extra=summary["extra"], kill_planar=summary["dl_planar_fraction"],
+               max_collapse=summary["collapse_rate"], max_vs_input=0.98)
+    if include_missing:
+        bar["max_missing"] = summary["missing"]
+    return bar
 
 
-def preregister(report: dict) -> dict:
+def infeasible_clauses_for(bar: dict) -> list:
+    """Which of a quoted bar's PASS-shaped clauses are analytically unreachable.
+
+    #170 quotes every floor from 1-NN's own score, and on a population where 1-NN scored zero the
+    quote is a bound no arm can clear (`extra < 0.0` is never true). This names those clauses; it
+    never alters them. Reported so the owner can sign a clause off per #178's rule -- "never relax
+    a floor automatically" -- rather than the code quietly dropping it.
+    """
+    unreachable = []
+    if bar["max_extra"] <= 0:
+        unreachable.append("beats_extra")
+    if "max_missing" in bar and bar["max_missing"] <= 0:
+        unreachable.append("beats_missing")
+    if bar["kill_planar"] >= 1:
+        unreachable.append("clear_kill")
+    return sorted(unreachable)
+
+
+def preregister(report: dict, include_missing: bool = False) -> dict:
     floors = {"overall": report["overall"], **{f"city:{c}": report["per_city"][c]
               for c in BAR_CITIES}, "gable_hip": report["gable_hip"]}
-    bars = {name: quoted_bar(summary) for name, summary in floors.items()}
+    bars = {name: quoted_bar(summary, include_missing) for name, summary in floors.items()}
+    clauses = {name: infeasible_clauses_for(bar) for name, bar in bars.items()}
     return dict(status="pending_owner_signoff", owner="danvisai", rule_issue=170,
                 threshold_source="1-NN on each floor's own full held-out population",
                 floors=bars,
                 infeasible_floors=[name for name, bar in bars.items()
                                    if bar["max_extra"] <= 0 or bar["kill_planar"] >= 1],
-                infeasibility_note="extra is nonnegative; strict extra < 0 cannot pass. "
+                infeasible_clauses={name: c for name, c in clauses.items() if c},
+                infeasibility_note="extra and missing are nonnegative; strict < 0 cannot pass. "
                                    "Planar fraction cannot exceed 1. Never relax a floor automatically.")
 
 
@@ -239,12 +272,15 @@ def buildingworld_verdict(report: dict, registration: dict) -> dict:
     if set(registration["floors"]) != expected:
         raise ValueError("#178: registration must contain exactly all eleven required floors")
     guard_only = set(registration.get("guard_only_floors", []))
+    guard_only_clauses = registration.get("guard_only_clauses", {}) or {}
     verdicts = {}
     for name, bar in registration["floors"].items():
         s = summaries[name]
+        required = ["dl_ops", "dl_planar_fraction", "extra", "collapse_rate", "vs_input"]
+        if "max_missing" in bar:
+            required.append("missing")
         measured = s.get("n", 0) > 0 and all(
-            np.isfinite(s.get(k, float("nan"))) for k in
-            ("dl_ops", "dl_planar_fraction", "extra", "collapse_rate", "vs_input"))
+            np.isfinite(s.get(k, float("nan"))) for k in required)
         if not measured:
             verdicts[name] = dict(pass_=False, status="missing_measurement")
             continue
@@ -254,19 +290,29 @@ def buildingworld_verdict(report: dict, registration: dict) -> dict:
                        collapse=s["collapse_rate"] <= bar["max_collapse"],
                        moved=s["vs_input"] < bar["max_vs_input"],
                        clear_kill=s["dl_planar_fraction"] > bar["kill_planar"])
+        if "max_missing" in bar:
+            clauses["beats_missing"] = s["missing"] < bar["max_missing"]
         if name in guard_only:
             gating = dict(collapse=clauses["collapse"], moved=clauses["moved"])
             verdicts[name] = dict(pass_=bool(all(gating.values())), pass_available=False,
                                   guard_only=True, **{k: bool(v) for k, v in clauses.items()})
         else:
-            verdicts[name] = dict(pass_=bool(all(clauses.values())), pass_available=True,
+            # #118: a floor can be unreachable on ONE axis and gradeable on the other (Boston and
+            # Melbourne quote `max_extra` 0.0 but a real `max_missing`). Retiring the whole floor
+            # would discard a clause the arm can be held to; the owner signs off the single
+            # unreachable clause instead. The quoted bar is untouched either way.
+            excluded = set(guard_only_clauses.get(name, ()))
+            gating = {k: v for k, v in clauses.items() if k not in excluded}
+            verdicts[name] = dict(pass_=bool(all(gating.values())), pass_available=True,
                                   **{k: bool(v) for k, v in clauses.items()})
+            if excluded:
+                verdicts[name]["guard_only_clauses"] = sorted(excluded)
     return dict(numeric_pass=all(v["pass_"] for v in verdicts.values()), floors=verdicts,
                 registration_status=registration["status"])
 
 
 def apply_signoff(registration: dict, guard_only_floors: list | None = None,
-                  note: str = "") -> dict:
+                  note: str = "", guard_only_clauses: dict | None = None) -> dict:
     """Record the project owner's #170 sign-off on a `preregister()` proposal.
 
     `guard_only_floors` must be a subset of the already-computed `infeasible_floors` --
@@ -280,11 +326,28 @@ def apply_signoff(registration: dict, guard_only_floors: list | None = None,
     unknown = set(guard_only_floors) - set(registration["infeasible_floors"])
     if unknown:
         raise ValueError(f"#178: guard_only_floors must be a subset of infeasible_floors: {sorted(unknown)}")
+    # #118: a single PASS-shaped clause may be signed off where the whole floor should not be.
+    # Same rule as above, one level finer: the clause must already be named analytically
+    # unreachable by `infeasible_clauses_for`. Sign-off chooses what gates, never what was quoted.
+    guard_only_clauses = {k: sorted(v) for k, v in (guard_only_clauses or {}).items()}
+    available = registration.get("infeasible_clauses", {})
+    both = sorted(set(guard_only_clauses) & set(guard_only_floors))
+    if both:
+        raise ValueError(f"#118: {both} named both GUARD-only and per-clause; a GUARD-only floor "
+                         "already gates on nothing but its two guards, so the clause list would "
+                         "silently do nothing. Choose one.")
+    for floor, named in guard_only_clauses.items():
+        unreachable = set(available.get(floor, ()))
+        if not set(named) <= unreachable:
+            raise ValueError(
+                f"#118: {floor} clauses {sorted(set(named) - unreachable)} are not in "
+                f"infeasible_clauses ({sorted(unreachable)}); a reachable clause must keep gating")
     if registration["status"] != "pending_owner_signoff":
         raise ValueError(f"#178: registration already {registration['status']!r}; refusing a second sign-off")
     signed = dict(registration)
     signed["status"] = "signed_off"
     signed["guard_only_floors"] = guard_only_floors
+    signed["guard_only_clauses"] = guard_only_clauses
     signed["signoff_note"] = note
     return signed
 

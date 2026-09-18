@@ -1,0 +1,193 @@
+{
+  "meta": {
+    "issue": 118,
+    "derived_from": "execution/artifacts/buildingworld_baseline_178.json",
+    "source_meta": {
+      "issue": 178,
+      "corpus": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/data/real_massing_v1/real.h5",
+      "ledger_sha256": "cc98b506404e50fc7430f9752ed650bca28f8447e34e0e08e6e5e489ddf97d04",
+      "labels_sha256": "2fca248fcd25665a62c28261ea513eec379a6fb315fff6af914d42ee5681b602",
+      "corpus_rows": 1562554,
+      "identity_sha256": "d960b0e95b26fcadbb55e5bb52e95447a5bb2cb0703722e9c3e5507899ff3f1b",
+      "train_n": 1530908,
+      "train_source_counts": {
+        "-1": 1495999,
+        "0": 11525,
+        "1": 11615,
+        "2": 11769
+      },
+      "train_rows_sha256": "ad7a1e8fd5a144d5ad6262816c3c7146900304fbe25e24063417204f346248a6",
+      "bank_order": "ascending corpus row; first row wins equal footprint IoU",
+      "evaluation_cities": [
+        "Berlin",
+        "Boston",
+        "Cambridge",
+        "Cape Town",
+        "Edmonton",
+        "Melbourne",
+        "Montreal",
+        "New York",
+        "Tokyo"
+      ],
+      "excluded_held_out_cities": {
+        "Adelaide": 28,
+        "Calgary": 3320,
+        "Greater Geelong": 19,
+        "Mississauga": 2783,
+        "Perth": 7,
+        "Philadelphia": 6,
+        "San Francisco": 86,
+        "Wellington": 11,
+        "Yarra": 55
+      },
+      "family_source": "committed #176 fitter pseudo-labels, not human ground truth",
+      "scoring": "score_arm on height-field GT, greedy form fitter max_ops=16",
+      "elapsed_seconds": 1515.7578003383242
+    },
+    "threshold_rule": "#170: quoted from 1-NN on each floor's own held-out population",
+    "note": "Two-axis registration for the whole-volume voxel corrector. #178's own registration is unchanged and remains the bar for #183's ladder."
+  },
+  "registration": {
+    "status": "signed_off",
+    "owner": "danvisai",
+    "rule_issue": 170,
+    "threshold_source": "1-NN on each floor's own full held-out population",
+    "floors": {
+      "overall": {
+        "max_ops": 2.0,
+        "min_planar": 0.0,
+        "max_extra": 0.026199277331885172,
+        "kill_planar": 0.0,
+        "max_collapse": 0.13452419882275998,
+        "max_vs_input": 0.98,
+        "max_missing": 0.024221699673789544
+      },
+      "city:Berlin": {
+        "max_ops": 2.0,
+        "min_planar": 0.2,
+        "max_extra": 0.03823345691130779,
+        "kill_planar": 0.2,
+        "max_collapse": 0.12755716004813478,
+        "max_vs_input": 0.98,
+        "max_missing": 0.025012453538720926
+      },
+      "city:Boston": {
+        "max_ops": 1.0,
+        "min_planar": 0.0,
+        "max_extra": 0.0,
+        "kill_planar": 0.0,
+        "max_collapse": 0.2680906713164778,
+        "max_vs_input": 0.98,
+        "max_missing": 0.061860540472675904
+      },
+      "city:Cambridge": {
+        "max_ops": 1.0,
+        "min_planar": 1.0,
+        "max_extra": 0.0,
+        "kill_planar": 1.0,
+        "max_collapse": 0.0,
+        "max_vs_input": 0.98,
+        "max_missing": 0.09592696629213483
+      },
+      "city:Cape Town": {
+        "max_ops": 2.0,
+        "min_planar": 0.0,
+        "max_extra": 0.07790697674418605,
+        "kill_planar": 0.0,
+        "max_collapse": 0.12125534950071326,
+        "max_vs_input": 0.98,
+        "max_missing": 0.024654018880029327
+      },
+      "city:Edmonton": {
+        "max_ops": 2.0,
+        "min_planar": 0.125,
+        "max_extra": 0.018904058812627418,
+        "kill_planar": 0.125,
+        "max_collapse": 0.10672076203916035,
+        "max_vs_input": 0.98,
+        "max_missing": 0.019843021829776798
+      },
+      "city:Melbourne": {
+        "max_ops": 1.0,
+        "min_planar": 0.0,
+        "max_extra": 0.0,
+        "kill_planar": 0.0,
+        "max_collapse": 0.23076923076923078,
+        "max_vs_input": 0.98,
+        "max_missing": 0.060281953951951225
+      },
+      "city:Montreal": {
+        "max_ops": 1.0,
+        "min_planar": 0.0,
+        "max_extra": 0.032154018751502526,
+        "kill_planar": 0.0,
+        "max_collapse": 0.11251125112511251,
+        "max_vs_input": 0.98,
+        "max_missing": 0.027164343360234777
+      },
+      "city:New York": {
+        "max_ops": 0.0,
+        "min_planar": 0.0,
+        "max_extra": 0.0,
+        "kill_planar": 0.0,
+        "max_collapse": 0.09200968523002422,
+        "max_vs_input": 0.98,
+        "max_missing": 0.0
+      },
+      "city:Tokyo": {
+        "max_ops": 1.0,
+        "min_planar": 0.0,
+        "max_extra": 0.04831315186850846,
+        "kill_planar": 0.0,
+        "max_collapse": 0.14453125,
+        "max_vs_input": 0.98,
+        "max_missing": 0.026105707701285334
+      },
+      "gable_hip": {
+        "max_ops": 2.0,
+        "min_planar": 0.26136363636363635,
+        "max_extra": 0.08283924019357636,
+        "kill_planar": 0.26136363636363635,
+        "max_collapse": 0.07191861840548852,
+        "max_vs_input": 0.98,
+        "max_missing": 0.015922576891372855
+      }
+    },
+    "infeasible_floors": [
+      "city:Boston",
+      "city:Cambridge",
+      "city:Melbourne",
+      "city:New York"
+    ],
+    "infeasible_clauses": {
+      "city:Boston": [
+        "beats_extra"
+      ],
+      "city:Cambridge": [
+        "beats_extra",
+        "clear_kill"
+      ],
+      "city:Melbourne": [
+        "beats_extra"
+      ],
+      "city:New York": [
+        "beats_extra",
+        "beats_missing"
+      ]
+    },
+    "infeasibility_note": "extra and missing are nonnegative; strict < 0 cannot pass. Planar fraction cannot exceed 1. Never relax a floor automatically.",
+    "guard_only_floors": [
+      "city:Cambridge",
+      "city:New York"
+    ],
+    "guard_only_clauses": {
+      "city:Boston": [
+        "beats_extra"
+      ],
+      "city:Melbourne": [
+        "beats_extra"
+      ]
+    },
+    "signoff_note": "#118, owner interview 2026-09-18. The `missing` axis makes Boston's and Melbourne's floors clearable again -- their error was always in the under-fill direction -- so only their analytically unreachable `beats_extra` clause stops gating. Cambridge (n=5) and New York (1-NN exact on both axes) stay GUARD-only. Applies to #118's arm only; #178's own registration and #183's ladder are untouched."
+  }
+}
