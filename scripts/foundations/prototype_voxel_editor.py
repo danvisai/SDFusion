@@ -102,6 +102,7 @@ EXPECTED_FULL_POPULATION_N = 714
 # pull in torch and scipy, which would make importing THIS module for its pure occupancy logic
 # unconditionally require both -- exactly what this file's lazy-import convention avoids elsewhere.
 S_STAR_VOXELS = 3          # ADR 0004: detail scale s* = 1.0 m ~= 3 voxels @64^3. Fixed a priori.
+MIN_THICKNESS_SURVIVAL_THRESHOLD = 0.5  # #117: aggregate survival after s*/2 erosion.
 COLLAPSE_MISSING = 0.15    # #80: solid iff missing < 15%.
 
 KEEP, ADD, REMOVE = 0, 1, 2
@@ -218,7 +219,14 @@ def sanitize_footprint(occ: np.ndarray, footprint: np.ndarray) -> np.ndarray:
     a stronger deterministic repair is ever introduced it creates a new named corpus and must
     still be applied identically to the baseline -- it does not replace this function.
     """
-    return np.asarray(occ, bool) & np.asarray(footprint, bool)[:, None, :]
+    occ = np.asarray(occ, bool)
+    footprint = np.asarray(footprint, bool)
+    expected_footprint_shape = (occ.shape[0], occ.shape[2]) if occ.ndim == 3 else None
+    if footprint.ndim != 2 or footprint.shape != expected_footprint_shape:
+        raise ValueError(
+            "footprint shape must match occupancy's (z, x) extent: "
+            f"occ={occ.shape}, footprint={footprint.shape}")
+    return occ & footprint[:, None, :]
 
 
 def occupancy_to_sdf(occ: np.ndarray) -> np.ndarray:
@@ -270,9 +278,9 @@ def action_weight_map(source_occ: np.ndarray, target_occ: np.ndarray,
 
 
 # -------------------------------------------------------------------------------------------------
-# Validity contract. #117 (the hard validity contract) remains an open human decision; these are
-# the explicit checks #125's own Implementation/Testing Decisions ask for, stated so they can be
-# measured and revisited rather than assumed.
+# Hard validity contract settled by #117. The authoritative decision and the exact training /
+# evaluation disposition are recorded in
+# `docs/wayfinding/whole-volume-voxel-transform/117-hard-validity-contract.md`.
 # -------------------------------------------------------------------------------------------------
 
 
@@ -334,8 +342,8 @@ def min_thickness_survival(occ: np.ndarray, s_star: int = S_STAR_VOXELS) -> floa
     """Fraction of solid volume surviving an erosion by radius floor(s_star/2).
 
     A wafer-thin wall or slab disappears under this erosion; massing built at or above the
-    project's detail scale s* (ADR 0004, 3 voxels @64^3) mostly survives. A volume-fraction
-    proxy, not a per-wall guarantee, pending #117's formal contract.
+    project's detail scale s* (ADR 0004, 3 voxels @64^3) mostly survives. #117 deliberately
+    adopts this aggregate volume-fraction check; it is not a local per-wall guarantee.
     """
     from scipy import ndimage
 
@@ -353,7 +361,8 @@ def min_thickness_survival(occ: np.ndarray, s_star: int = S_STAR_VOXELS) -> floa
 
 
 def validity_report(occ: np.ndarray, footprint: np.ndarray, s_star: int = S_STAR_VOXELS,
-                    min_thickness_survival_threshold: float = 0.5) -> dict:
+                    min_thickness_survival_threshold: float =
+                    MIN_THICKNESS_SURVIVAL_THRESHOLD) -> dict:
     """Explicit validity outcomes for one candidate massing. Every field is always populated --
     nothing here is a hidden repair; only `sanitize_footprint` ever changes the candidate."""
     occ = np.asarray(occ, bool)
@@ -364,6 +373,9 @@ def validity_report(occ: np.ndarray, footprint: np.ndarray, s_star: int = S_STAR
     thickness = min_thickness_survival(occ, s_star)
     report = {
         "nonempty": bool(occ.any()),
+        "footprint_contained": spill == 0,
+        # Compatibility alias for existing #125 artifacts. Containment forbids spill but does
+        # not claim that every footprint cell is covered; new consumers use the precise name.
         "footprint_exact": spill == 0,
         "spill_voxels": spill,
         "ground_connected": ground_connected_ok(occ),
@@ -374,7 +386,7 @@ def validity_report(occ: np.ndarray, footprint: np.ndarray, s_star: int = S_STAR
         "min_thickness_ok": thickness >= min_thickness_survival_threshold,
     }
     report["valid"] = bool(
-        report["nonempty"] and report["footprint_exact"] and report["ground_connected"]
+        report["nonempty"] and report["footprint_contained"] and report["ground_connected"]
         and report["no_hollow_shell"] and report["min_thickness_ok"]
     )
     return report

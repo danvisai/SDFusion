@@ -120,6 +120,11 @@ class TestWholeVolumeEligibility(unittest.TestCase):
 
 
 class TestBaselineParity(unittest.TestCase):
+    def test_sanitizer_rejects_a_non_planar_footprint(self):
+        fp, source = _box()
+        with self.assertRaisesRegex(ValueError, "footprint shape"):
+            sanitize_footprint(source, fp[:, None, :])
+
     def test_sanitizer_is_the_same_function_for_baseline_and_candidate(self):
         fp, source = _box()
         spill = source.copy()
@@ -138,6 +143,19 @@ class TestBaselineParity(unittest.TestCase):
         cleaned = sanitize_footprint(source, fp)
         self.assertFalse((cleaned & ~np.asarray(fp, bool)[:, None, :]).any())
 
+    def test_boundary_fringe_is_projected_but_height_profile_is_not(self):
+        fp, source = _box()
+        candidate = source.copy()
+        candidate[2, :, 4] = False       # leave footprint support uncovered at every height
+        candidate[3, 14, 4] = True       # arbitrary new top profile inside the footprint
+        candidate[2, 14, 4] = True       # one-voxel fringe immediately outside the footprint
+
+        cleaned = sanitize_footprint(candidate, fp)
+
+        self.assertFalse(cleaned[2, 14, 4], "hard containment has no fringe allowance")
+        self.assertTrue(cleaned[3, 14, 4], "the sanitizer must not clamp height")
+        self.assertFalse(cleaned[2, :, 4].any(), "containment does not require full coverage")
+
 
 # ---------------------------------------------------------------------------------------------
 # Validity contract
@@ -145,6 +163,12 @@ class TestBaselineParity(unittest.TestCase):
 
 
 class TestValidity(unittest.TestCase):
+    def test_footprint_containment_does_not_require_full_coverage(self):
+        fp, occ = _box()
+        occ[7, :, 7] = False
+        report = validity_report(sanitize_footprint(occ, fp), fp)
+        self.assertTrue(report["footprint_contained"])
+
     def test_solid_box_is_valid(self):
         fp, occ = _box()
         report = validity_report(occ, fp)
@@ -190,6 +214,14 @@ class TestValidity(unittest.TestCase):
         self.assertTrue(report["no_hollow_shell"])
         self.assertTrue(report["ground_connected"])
 
+    def test_empty_space_needs_a_face_connected_path_to_reach_the_exterior(self):
+        occ = np.ones((8, 8, 8), bool)
+        for i in range(6):
+            occ[i, i, i] = False  # diagonal-only chain from an exterior cell
+        hollow = hollow_shell_voxels(occ)
+        self.assertFalse(hollow[0, 0, 0])
+        self.assertTrue(hollow[5, 5, 5])
+
     def test_thin_wall_fails_minimum_thickness(self):
         wafer = np.zeros((16, 16, 16), bool)
         wafer[:, 0:8, 7:8] = True  # a single-voxel-thick wall, s* = 3 requires more
@@ -197,6 +229,14 @@ class TestValidity(unittest.TestCase):
         thick = np.zeros((16, 16, 16), bool)
         thick[:, 0:8, 5:11] = True  # a 6-voxel-thick slab
         self.assertGreaterEqual(min_thickness_survival(thick, S_STAR_VOXELS), 0.5)
+
+    def test_thin_roof_fails_the_same_s_star_erosion_contract(self):
+        thin_roof = np.zeros((16, 16, 16), bool)
+        thin_roof[:, 8:9, :] = True
+        self.assertEqual(min_thickness_survival(thin_roof, S_STAR_VOXELS), 0.0)
+        thick_roof = np.zeros((16, 16, 16), bool)
+        thick_roof[:, 6:11, :] = True
+        self.assertGreaterEqual(min_thickness_survival(thick_roof, S_STAR_VOXELS), 0.5)
 
     def test_multi_blob_footprint_can_still_be_fully_valid(self):
         """Multiple connected components are allowed -- #125's structural voids requirement --

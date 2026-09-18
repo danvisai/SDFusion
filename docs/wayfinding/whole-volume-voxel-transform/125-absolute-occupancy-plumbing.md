@@ -28,7 +28,8 @@ here should be read as evidence toward or against #120's question.
   logit per voxel (`build_corrector`). `derive_action`/`apply_action_to_source` remain as a pure,
   tested reduction identity used only to reweight the training loss toward rare edits — never a
   second output, never the stored state.
-- Added the explicit validity contract #125 asks for (pending #117's formal decision):
+- Added the explicit validity helpers #125 asks for, now adopted as the formal contract by
+  [`117-hard-validity-contract.md`](117-hard-validity-contract.md):
   `ground_connected_ok` (every solid component touches y=0 — no floating fragments),
   `hollow_shell_voxels` (empty space unreachable from any boundary face — courtyards/passages
   that stay reachable from outside remain admissible), `min_thickness_survival` (erosion-survival
