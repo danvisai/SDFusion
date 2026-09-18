@@ -45,7 +45,7 @@ original populations and gates; a closed investigation is not necessarily a succ
   height-map/retrieval arms. #102/#104/#105/#135 remain open. It is separate from the older
   recipe/sculpt service, whose hidden controls must not be described as visible features.
 - **Whole-volume voxel transform — map #113.** Planning/prototype alternative, not a replacement
-  for the semantic program. #114–#116 are settled; #117–#124 and companion spec #125 remain open.
+  for the semantic program. #114–#117 are settled; #118–#124 and companion spec #125 remain open.
   Production implementation and any change to the recipe contract require the map's explicit gate.
 - **Town experience — map #106.** Identity/history, Evidence/Showcase, prompt patches, staged
   realization, and sharing work (#107–#112) remains open. Backend operation IDs alone do not

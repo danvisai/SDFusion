@@ -96,7 +96,7 @@ is OPEN and unstarted. No new BuildingWorld training/retrain-arm ticket exists y
 |---|---|---|---|
 | Footprint-town demo | [#97](https://github.com/danvisai/SDFusion/issues/97) | OPEN | The standalone town editor (`town_generate_service.py`); #102/#104/#105/#135 open |
 | Town experience | [#106](https://github.com/danvisai/SDFusion/issues/106) | OPEN | Identity/history, sharing, staged realization; #107–#112 open |
-| Whole-volume voxel transform | [#113](https://github.com/danvisai/SDFusion/issues/113) | OPEN | Competing empirical route beside map #1, **not** a replacement; #114–#116 settled, #117–#125 open. Any recipe-contract change needs this map's explicit gate. |
+| Whole-volume voxel transform | [#113](https://github.com/danvisai/SDFusion/issues/113) | OPEN | Competing empirical route beside map #1, **not** a replacement; #114–#117 settled, #118–#125 open. Any recipe-contract change needs this map's explicit gate. |
 | Latent token order | [#87](https://github.com/danvisai/SDFusion/issues/87) | CLOSED | Fixed the pair-training token-order corruption (#88–#91); the fix did **not** open a usable strength band — #92's aligned retrain made collapse worse (46.36% vs the encoded control's 8.96%). Do not restart from an old handover. |
 | Solid massing | [#24](https://github.com/danvisai/SDFusion/issues/24) | CLOSED | Dense-grid massing generator, shipped |
 | Surface fidelity / crisp massing / diffusion-latent accuracy | [#34](https://github.com/danvisai/SDFusion/issues/34), [#52](https://github.com/danvisai/SDFusion/issues/52), [#58](https://github.com/danvisai/SDFusion/issues/58) | CLOSED | Closed negative or ceiling-located; superseded by map #61 |
