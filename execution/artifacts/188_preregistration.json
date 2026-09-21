@@ -1,8 +1,8 @@
 {
  "meta": {
   "ticket": 188,
-  "created": "2026-09-21T05:27:25+00:00",
-  "git_rev": "f5984e2",
+  "created": "2026-09-21T05:42:10+00:00",
+  "git_rev": "3ef4f25",
   "preregistered_before": "any training run on the new corpus",
   "frozen_source": "logs_building/vecset_v4_surf/vecset_denoiser_step240000.pth",
   "frozen_source_sha256": "643aed0896e2edc36ab3ecb073da63847881dc2ba95459eed896a19b65fed04d",
@@ -66,8 +66,28 @@
    "rationale": "All six of #171's BuildingWorld style buckets must generate. A checkpoint that silently covers five has the same class of defect in a smaller place."
   },
   {
-   "id": "K3",
-   "kind": "KILL",
+   "id": "G1",
+   "kind": "GUARD",
+   "source": "summary",
+   "arm": "{arm}",
+   "metric": "vs_input",
+   "rule": "<",
+   "threshold": 0.98,
+   "rationale": "CONTEXT.md's documented guard, at its documented value: 'IoU against the blockout the arm started from. 1.0 means it did nothing. An arm at 0.99 has not been measured as a generator however good its other numbers look (#75). The guard is < 0.98.' This is the ONLY clause an inert model fails -- every other one is satisfied by returning the envelope untouched. The frozen source measures 0.9616 (n=12), so it clears this."
+  },
+  {
+   "id": "G2",
+   "kind": "GUARD",
+   "source": "summary",
+   "arm": "{arm}",
+   "metric": "collapse_rate",
+   "rule": "<=",
+   "threshold": 0.1582,
+   "rationale": "CONTEXT.md's documented bar, at its documented value: 1-NN retrieval's 0.1582, 'a generator that destroys more buildings than naive retrieval is not servable whatever else it scores'. The frozen source measures 0.098 on the pinned 714, so it clears this comfortably; #92's aligned retrain reached 0.4636 and was recorded as a failure. Not #188's bar to loosen."
+  },
+  {
+   "id": "P0",
+   "kind": "PASS",
    "source": "summary",
    "arm": "{arm}",
    "metric": "fp_iou",
@@ -76,18 +96,8 @@
    "rationale": "Footprint adherence is the hard criterion of the eval harness. The frozen source's own legacy median is 0.9589 with p10 0.8803; 0.90 sits well below its median, so this fails only on a source that has genuinely come off its own conditioning footprint."
   },
   {
-   "id": "K4",
-   "kind": "KILL",
-   "source": "summary",
-   "arm": "{arm}",
-   "metric": "collapse_rate",
-   "rule": "<=",
-   "threshold": 0.25,
-   "rationale": "Hollow collapse (>=15% of GT volume missing) is this family's known failure mode: #92's aligned retrain reached 0.4636 and was recorded as a failure, while the frozen source measured 0.1667. 0.25 sits between the two and is fixed before any retrained number is seen."
-  },
-  {
    "id": "B1",
-   "kind": "BAR",
+   "kind": "PASS",
    "source": "ratio",
    "arm": "{arm}",
    "metric": "vol_iou",
@@ -98,7 +108,7 @@
   },
   {
    "id": "B2",
-   "kind": "BAR",
+   "kind": "PASS",
    "source": "ratio",
    "arm": "{arm}",
    "metric": "extra",
@@ -109,7 +119,7 @@
   },
   {
    "id": "B3",
-   "kind": "BAR",
+   "kind": "PASS",
    "source": "summary",
    "arm": "{arm}",
    "metric": "missing",
@@ -122,10 +132,10 @@
    "kind": "INFORMATIONAL",
    "source": "summary",
    "arm": "{arm}",
-   "metric": "vs_input",
-   "rule": "<=",
-   "threshold": 0.99,
-   "rationale": "Reported, never scored. `vs_input` near 1.0 is the near-no-op signature #87 measured on the frozen source (median 0.9882/0.9832/0.9813 by region). Worth seeing on the new corpus; not a verdict, because no arm in this family has ever cleared it."
+   "metric": "beats_envelope_rate",
+   "rule": ">=",
+   "threshold": 0.0056,
+   "rationale": "Reported, never scored. The paired rate at which the arm beats the footprint envelope on vol_iou; the frozen source manages 0.0056 on its own population. It is not a bar for the reason set out in this module's docstring -- #188 is a substitution, and requiring the replacement to beat an envelope the sealed source loses to would make this a different ticket."
   }
  ]
 }

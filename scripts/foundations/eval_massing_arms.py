@@ -689,7 +689,7 @@ def main() -> None:
 
     a2 = None
     if args.a2:
-        from models.networks.vecset_denoiser import denoiser_from_checkpoint, region_width_of
+        from models.networks.vecset_denoiser import denoiser_from_checkpoint, region_tensor
         from models.networks.vecset_projection import SetSDEdit
         ck = torch.load(args.a2, map_location="cpu", weights_only=False)
         ca = ck["args"]
@@ -698,9 +698,9 @@ def main() -> None:
         # net for any checkpoint trained on the new corpus -- the same class of defect that left the
         # frozen source unable to condition on a BuildingWorld row.
         net = denoiser_from_checkpoint(ck, dev)
-        a2 = dict(op=SetSDEdit(net, timesteps=ca["timesteps"]),
+        a2 = dict(op=SetSDEdit(net, timesteps=ca["timesteps"]), net=net,
                   mu=ck["latent_mu"], sd=ck["latent_sd"], step=int(ck["step"]),
-                  n_regions=region_width_of(ck))
+                  n_regions=net.n_regions)
         print(f"[a2] {args.a2}  step {a2['step']}  "
               + ("region-free" if not a2["n_regions"]
                  else f"region channel width {a2['n_regions']}"), flush=True)
@@ -724,10 +724,7 @@ def main() -> None:
                        - a2["mu"]) / a2["sd"])
                 fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
                 ht = torch.tensor([ht_of[bid]], device=dev)
-                # A region-free checkpoint has no embedding to index, and handing it one raises
-                # rather than being quietly ignored -- so the harness must match the checkpoint it
-                # was given instead of assuming a region channel exists (#188).
-                rg = torch.tensor([rg_of[bid]], device=dev) if a2["n_regions"] else None
+                rg = region_tensor(a2["net"], rg_of[bid], dev)
                 for s in args.strength:
                     zp = a2["op"].project(blockout=z0, footprint=fpt, height=ht, region=rg,
                                           strength=s, steps=args.steps, guidance=args.guidance,

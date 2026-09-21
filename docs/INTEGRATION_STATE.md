@@ -1,6 +1,6 @@
 # Integration state
 
-Reconciled 2026-09-09 against commit `e48b9e9`, local source, saved evaluation artifacts,
+Reconciled 2026-09-09 through commit `1a2dbde`, local source, saved evaluation artifacts,
 and live GitHub issues/comments. This describes checked-in behavior, not the state of a
 running server. See [PROJECT_STATE.md](PROJECT_STATE.md) for the full work map.
 
@@ -67,13 +67,15 @@ Lossless rings remain larger than a small fixed vertex budget (#131/#134).
 
 **Unresolved contract conflict:** #3/#140 allow ordered mixed add/subtract edits. Those compile
 and have locality tests, but the #7/#145 finalize helper rejects noncommuting mixed programs.
-#179 asks for add/subtract completion passing this helper; its implementation must explicitly
-address whether completion refits to an accepted program or needs a revised gate. Do not
-silently remove the commutativity condition or claim that mixed editing already passes it.
+#179's completed proxy refits add/subtract gestures into accepted recovered programs, without
+weakening the gate. It observed validity on 461/461 pairs but failed locality (31.7% operation-level,
+41.9% occupancy-level pass across 40 buildings). Direct mixed editing is not automatically accepted,
+and a locality-preserving completion strategy remains unresolved for #2.
 
-**Evaluation gap:** #180's footprint-adherence objective requires the geometric containment
-check in addition to the architectural-program check. Calling only `finalize_problems` cannot
-establish footprint adherence. #2/#179/#180 carry these gaps; no policy change is assumed here.
+**Evaluation versus production:** completed #179/#180 harnesses run both checks. #180 observed
+330/330 valid checks on 55 footprints / 8 scenes with two-level placeholder massing. The generic
+commit helper still calls only `finalize_problems`; neither experiment integrates the full gate
+into town serving. The all-success bootstrap intervals are descriptive, not population certainty.
 
 ## Dependencies and reproducibility
 
@@ -88,14 +90,22 @@ establish footprint adherence. #2/#179/#180 carry these gaps; no policy change i
   invalidated two runs. Use the established adapters.
 - `ingest_surfaces.py --verify` compares against an existing `real.h5`; it does not rebuild
   that file. A clean-clone full-corpus rebuild command is not currently documented/implemented.
-- BuildingWorld #162/#177 preserve the historical split. Proof work #153/#181 needs a separately
-  versioned stratified split; it must not overwrite that regression control.
+- BuildingWorld #162/#177 preserve the historical split. #153 now implements the separate proof
+  split; #181 must select it explicitly. Of its 7,120 test rows, 6,837 are in the old Bag3d training
+  split and 6,937 in the height-map eligible non-held pool before validation selection. Existing
+  checkpoints cannot be presumed unseen-data controls; the old retrieval bank must also be filtered.
 - HTML is served from disk while imported Python lives in process memory. Source inspection
   alone cannot establish the version running on a remote demo.
 
 ## Current handoff
 
-The latest commit settles BuildingWorld policies (#165/#166). Audits #157/#158 remain open for
-review. The ingestion chain and new training have not landed. The semantic proof design (#8)
-has landed; #2/#152/#153/#154/#179/#180/#181 remain the research/integration work.
+Latest commit `1a2dbde` completes the #180 evaluation; #179 is also completed with a negative
+locality result. `fcff154` adds optional wireframe-guided Ramp candidates to GT recovery,
+not BuildingWorld ingestion or generator training/serving. #157/#153 are closed; #158 awaits review.
+#2/#152/#154/#181 remain open. Concurrent uncommitted `bank_eligibility` / `--bank_exclude_ids`
+work for #181 excludes named rows from retrieval, but does not erase checkpoint training exposure.
+The #159 pilot can run from raw source data without waiting for #174; production pseudo-label use
+later requires ingestion and row/source identity. The optional wireframe path is not wired into
+the standard corpus-recovery CLI or town service. Its adoption remains a map-scope decision.
 Headless tests verify individual contracts, not completion of those end-to-end tasks.
+See [RECONCILIATION_AUDIT.md](RECONCILIATION_AUDIT.md) for verified counts and coverage.

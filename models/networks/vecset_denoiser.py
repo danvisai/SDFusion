@@ -199,3 +199,18 @@ def denoiser_from_checkpoint(checkpoint: dict, device=None) -> "VecsetDenoiser":
     if device is not None:
         net = net.to(device)
     return net.eval()
+
+
+def region_tensor(net: "VecsetDenoiser", value, device=None):
+    """The `region` argument to pass this denoiser for one building: a (1,) tensor, or None.
+
+    Six call sites needed the same three lines -- "a region-free checkpoint has no embedding to
+    index and raises if handed one" -- and a guard that is copy-pasted is a guard that gets missed
+    at the seventh site. `forward` raises on a mismatch by design (#188); this is how a caller
+    avoids provoking it without having to know which kind of checkpoint it is holding.
+    """
+    if not net.n_regions:
+        return None
+    import torch
+
+    return torch.tensor([int(value)], device=device)

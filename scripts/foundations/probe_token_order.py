@@ -54,14 +54,14 @@ PUBLISHED = {"equivariant_max_field_diff": 7.36e-04, "tokens_only_max_field_diff
 
 def _load_a2(path: str, dev: str):
     import torch
-    from models.networks.vecset_denoiser import denoiser_from_checkpoint, region_width_of
+    from models.networks.vecset_denoiser import denoiser_from_checkpoint, region_tensor
     from models.networks.vecset_projection import SetSDEdit
 
     ck = torch.load(path, map_location="cpu", weights_only=False)
     ca = ck["args"]
     net = denoiser_from_checkpoint(ck, dev)          # #188: width read off the weights
-    return dict(op=SetSDEdit(net, timesteps=ca["timesteps"]), mu=ck["latent_mu"], sd=ck["latent_sd"],
-                step=int(ck["step"]), n_regions=region_width_of(ck))
+    return dict(op=SetSDEdit(net, timesteps=ca["timesteps"]), net=net, mu=ck["latent_mu"],
+                sd=ck["latent_sd"], step=int(ck["step"]), n_regions=net.n_regions)
 
 
 def _envelope(codec, a2, fp, gt_occ, dev):
@@ -83,8 +83,7 @@ def part_a(codec, a2, fp, gt_occ, ht, rg, dev, strength, steps, guidance, seed) 
     z0, _ = _envelope(codec, a2, fp, gt_occ, dev)
     fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
     h = torch.tensor([ht], device=dev)
-    # A region-free checkpoint has no embedding to index and raises if handed one (#188).
-    r = torch.tensor([rg], device=dev) if a2["n_regions"] else None
+    r = region_tensor(a2["net"], rg, dev)
     eps = torch.randn(z0.shape, generator=torch.Generator(device="cpu").manual_seed(seed)).to(dev)
     perm = torch.from_numpy(np.random.default_rng(seed).permutation(z0.shape[1])).to(dev)
 
@@ -115,7 +114,7 @@ def part_bc(codec, a2, ids, fp_of, gt_occ, ht_of, rg_of, dev, args) -> dict:
         z0, pos = _envelope(codec, a2, fp, gt_occ[bid], dev)
         fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
         h = torch.tensor([ht_of[bid]], device=dev)
-        r = torch.tensor([rg_of[bid]], device=dev) if a2["n_regions"] else None
+        r = region_tensor(a2["net"], rg_of[bid], dev)
 
         def score(z):
             y = a2["op"].project(blockout=z, footprint=fpt, height=h, region=r,

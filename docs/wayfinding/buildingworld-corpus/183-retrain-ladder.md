@@ -156,7 +156,8 @@ confirmed, with a hard KILL rather than a soft NOT MET, on BuildingWorld's own p
 either. Full per-floor numbers: `execution/artifacts/183_arm2_buildingworld_gate.json`.
 
 **Verdict: arm 2 is a KILL.** Per #172(b), "a KILL verdict on any arm stops the ladder rather than
-running the remaining arms regardless." **Arm 3 (drop-region control) is not run.**
+running the remaining arms regardless." Per that rule, arm 3 should not run - see below for why it
+ran anyway.
 
 ## Incidental fix found and fixed mid-arm-2: train()'s CPU/GPU overlap
 
@@ -170,15 +171,90 @@ scale measured 52% GPU utilization, confirmed by reading the code: no overlap at
 changing which augmentation draws a batch gets, not just wall-clock). Measured: 1204s/epoch -> 540s
 (2.23x), GPU utilization 52% -> 96%. Arm 2's full run used the fixed version throughout.
 
+## Arm 3 - drop-region control: DONE, KILL on the BuildingWorld gate; closed by owner ruling, not counted as a failure (2026-09-17)
+
+Per #172(b) ("a KILL verdict on any arm stops the ladder"), arm 2's KILL should have ended the
+ladder without running arm 3. **Project owner explicitly directed running it anyway** (`efc70c9`),
+to test the region channel's own contribution independent of the corpus fold-in. Same recipe as
+arm 2 (`--corpus_scope all`, BuildingWorld folded in), region conditioning removed entirely
+(`--drop_region`, `n_regions=0`) rather than widened - a fifth conditioning-channel variant, not
+arm 2 with a flag flipped. Shares arm 2's exact `height_fields_all.npz` cache unmodified (verified:
+cache mtime unchanged across both training runs). Checkpoint:
+`outputs/height_map_generator/heightmap_ce_bw_dropregion.pt` (best epoch 35/40, selected on
+validation missing+extra).
+
+**Gate 1 - pinned-714 regression guard (carve-needing n=411), vs arm 1's noise band, median decode:**
+
+| metric | frozen | arm 3 | delta | noise band | within? |
+|---|---|---|---|---|---|
+| extra | 0.0603 | 0.1097 | +0.0494 | ±0.0082 | no (regression) |
+| missing | 0.0385 | 0.0112 | -0.0273 | ±0.0051 | no (improved) |
+| vs_input | 0.8432 | 0.8987 | +0.0555 | ±0.0020 | no (regression - carves less) |
+| collapse_rate | 0.0268 | 0.0024 | -0.0244 | ±0.0024 | no (improved) |
+| vol_iou | 0.8948 | 0.8786 | -0.0162 | ±0.0008 | no (regression) |
+| dl_planar_fraction | 0.2000 | 0.0000 | -0.2000 | ±0.0000 | no (regression) |
+| dl_ops (median) | 6.0 | 3.0 | -3.0 | ±1.0 | no (much simpler) |
+
+Unlike arm 2, **arm 3 does not cleanly clear Gate 1**: `extra`, `vs_input`, `vol_iou`, and
+`dl_planar_fraction` all move outside the noise band in the worsening direction, alongside
+`missing`/`collapse_rate`, which improve. Dropping the region channel measurably changes behavior.
+
+**Gate 2 - #178's signed-off BuildingWorld bar** (run this session -
+`execution/artifacts/183_arm3_buildingworld_gate.json`; not run when `efc70c9` landed, so this is
+the first time arm 3 has been checked against the gate that actually killed arm 2): same shape of
+failure. `numeric_pass=False`, `clear_kill` fails on all 11 floors. `dl_planar_fraction` is 0.000 on
+every city floor and on the `overall` pool (n=24,464); `gable_hip` (n=8,454, the floor most likely
+to show real planes) reaches 0.200 - closer than arm 2's 0.250 was to clearing, but still under its
+0.261 kill line either way. `extra`/`collapse` mostly clear their own floors - the same
+"volume/safety fine, form KILL" signature as arm 2.
+
+**Mechanical verdict: KILL**, on the identical clause as arm 2. Dropping the region channel neither
+fixed nor meaningfully worsened the underlying form problem.
+
+### ⚖️ Closed by owner ruling, not counted as a failure (2026-09-17)
+
+*Ruled 2026-09-17, after the results above were seen. Recorded that way on purpose, same
+convention as `127-height-map-generator.md`'s 1-NN demotion - the mechanical verdict above is kept
+intact, not edited after the fact.*
+
+The owner's ruling: the `dl_planar_fraction` / `Layer`-`Ramp`-`CutRoof` vocabulary this ladder
+inherited from #10/#127 is not the lens this research is judging arm 3 by. The question this
+research is asking is whether the model produces real height variation and roof-like
+differentiation conditioned on the footprint - not whether that variation resolves into a small
+number of dead-flat CAD-style planes. Read on that basis, arm 3 (median decode):
+
+| metric | arm 3 | ground truth | reading |
+|---|---|---|---|
+| footprint adherence (`fp_iou`) | 1.000 | - | exact, by construction |
+| columns carved vs GT (`carved_cols` / `gt_carved_cols`, BuildingWorld) | 0.976 / 0.918 | - | acts on close to the right fraction of the footprint |
+| height variation (`roof_relief`, BuildingWorld) | 0.154 | 0.151 | matches real buildings' own variation |
+| bumpiness (`roof_curvature`, BuildingWorld) | 0.293 | 0.278 | matches real buildings' own variation |
+| difference from GT volume (`missing` / `extra`, BuildingWorld) | 0.010 / 0.019 | - | small in absolute terms |
+
+**Caveat, on the record rather than left out:** `roof_relief`/`roof_curvature` are the same two
+statistics `roof_shape_stats()` already documents as a **negative result**
+(`scripts/foundations/train_height_map_generator.py:933`): they cannot distinguish a smooth mound
+from a real faceted roof, because GT is itself terraced at 64³ and an amplitude statistic can't
+tell a discretised plane from a mound - a mound can and does score as well as, or better than, a
+real roof on exactly these two numbers. So "arm 3's relief/curvature matches GT" is real and worth
+recording, but it is not independent evidence against the mound-vs-plane finding above; it is
+silent on that question either way. Both readings stand side by side, per this project's own
+convention of never collapsing a split finding into one number.
+
+**Ticket status:** GitHub issue #183 is already `closed`. This section is the ladder's closing
+record for arm 3.
+
 ## What's left
 
-1. **Arm 3 will not run** - the ladder's own pre-registered stopping rule (#172(b)) ends it here.
-   A future revisit needs a new decision, not a continuation: is the form problem addressed before
-   trying a drop-region control on top of it, or is a drop-region arm still informative on its own?
-2. #173's footprint-shape channel was already out of scope for this ladder (per #183's own text)
+1. #173's footprint-shape channel was already out of scope for this ladder (per #183's own text)
    and remains so.
-3. The form problem itself (#1's "not yet specified" list already named this the owner's next
-   focus after #154, independent of BuildingWorld) is now confirmed on a second, larger, more
-   diverse population - not a new problem, but no longer only a legacy-corpus observation either.
+2. The form problem itself (#1's "not yet specified" list already named this the owner's next
+   focus after #154, independent of BuildingWorld) is now confirmed on a third population (legacy,
+   BuildingWorld via arm 2, BuildingWorld via arm 3) - not a new problem, but no longer only a
+   legacy-corpus observation either.
+3. Open and undecided, per the 2026-09-17 ruling above: whether `dl_planar_fraction`'s
+   plane-organisation lens is still the right one to optimise against going forward, or whether a
+   footprint-adherence / height-variation lens (as used to close arm 3) should replace it - and if
+   so, what a real pre-registered bar under that lens would look like, since none exists yet.
 
-## Status: arm 1 complete; arm 2 complete and KILLed on the BuildingWorld gate; arm 3 not run per the ladder's stopping rule; ladder concluded (2026-09-16)
+## Status: arm 1 complete; arm 2 KILLed on the BuildingWorld gate; arm 3 complete, KILLed on the same gate, closed by owner ruling as not a failure under this research's own footprint-adherence / height-variation criteria (2026-09-17). Ladder concluded.

@@ -666,8 +666,10 @@ def main() -> None:
                         "latent_channels": C, "footprint_res": FPRES,
                         # #188: every consumer rebuilds the net from this blob, so the conditioning
                         # width has to travel WITH the weights. Inferring it from `args` fails for
-                        # any checkpoint written before --region_free existed.
-                        "n_regions": n_regions, "region_free": bool(args.region_free)}
+                        # any checkpoint written before --region_free existed. `region_free` is not
+                        # stored separately: it is exactly `n_regions == 0`, and duplicated state
+                        # that can disagree with itself is worse than state that is derived.
+                        "n_regions": n_regions}
                 torch.save(blob, out / "vecset_denoiser.pth")
                 # Keep periodic step-tagged copies. #75 found the quality curve is NON-MONOTONIC --
                 # it fell for three consecutive checkpoints and then rose past all of them -- so a

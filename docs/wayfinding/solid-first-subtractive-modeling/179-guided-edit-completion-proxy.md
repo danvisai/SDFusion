@@ -52,8 +52,11 @@ the other is a reported locality failure.
 | #7 gate (`finalize_problems` **and** `containment_problems`) | **1.000** | [1.000, 1.000] | 461 |
 | #144 locality, re-checked on this re-fit path | **0.317** | [0.275, 0.358] | 461 |
 
-n=461 is well above this package's own undersampled threshold (30), and the CI is tight — this is
-not a small-sample artifact. **H1b's validity axis holds; its locality axis does not.**
+There are 461 gesture/building pairs but only 40 distinct sampled buildings. The reported bootstrap
+resamples pairs, not building clusters; repeated gestures are not 461 independent building draws.
+The intervals are descriptive and may understate between-building uncertainty. An all-success
+bootstrap interval [1,1] is degenerate, not proof of a zero population failure probability.
+**In this sample, H1b's validity axis holds; its locality axis does not.**
 
 The gate runs BOTH of #7's checks, not `finalize_problems` alone — CONTEXT.md's own standing note
 is explicit that "the footprint-adherence claim requires both checks on compiled geometry," since
@@ -131,10 +134,10 @@ and 218 of 461 rows fail both simultaneously** — id 389 above is one of those.
 ## Verdict, per #8's own per-axis shape
 
 - **H1b / validity: SUPPORTED.** Every completion the harness produced was well-formed and
-  contained (100%, tight CI, n=461).
+  contained (461/461 observed pairs across 40 buildings; interval caveat above).
 - **H1b / locality-on-refit: FALSIFIED as implemented.** The re-fit path does not preserve edit
-  locality reliably (31.7% op-level, 41.9% at the occupancy level as a cross-check — both tight-CI
-  and in the same 32-42% range, n=461). #144's own structural proof (locality under `remove_by_id`,
+  locality reliably (31.7% op-level, 41.9% at the occupancy level as a cross-check,
+  and in the same 32-42% range; 461 pairs across 40 buildings). #144's own structural proof (locality under `remove_by_id`,
   direct algebra edits) does **not** transfer to this different code path, and this ticket's whole
   reason for existing was to check that rather than assume it — confirmed negative.
 
@@ -166,4 +169,5 @@ and 218 of 461 rows fail both simultaneously** — id 389 above is one of those.
 - [#2](https://github.com/danvisai/SDFusion/issues/2) (the integration boundary) was already
   unblocked by #8 directly; this result is additional evidence for it, not a new blocker.
 - H1b's scorecard row (validity: SUPPORTED, locality-on-refit: FALSIFIED as implemented) is ready
-  for #8's own cross-hypothesis rollup once H1a (#181, blocked by #153) and H3 (#180) land.
+  for #8's cross-hypothesis rollup. H3 (#180) is now closed; H1a (#181) remains open and is no
+  longer blocked by the completed #153 split.

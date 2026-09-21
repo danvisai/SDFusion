@@ -29,16 +29,19 @@ original populations and gates; a closed investigation is not necessarily a succ
 
 ### Current work
 
-- **BuildingWorld corpus extension — map #156, execution-carrying.** Latest committed work
-  (`e48b9e9`, 2026-09-06) records the CRS/units policy (#165) and mesh-acceptance standard (#166).
-  Audits #157/#158 have reports but remain open for review. Ingestion, derived surfaces,
+- **BuildingWorld corpus extension — map #156, execution-carrying.** Policies #165/#166 are
+  settled; CRS audit #157 was committed and closed on 2026-09-09. #158 remains open for review.
+  Code in `fcff154` adds optional wireframe-guided Ramp recovery, an exploratory
+  ground-truth/pseudo-label lever, not generation or completion of the #159 pilot. Ingestion, derived surfaces,
   pseudo-labels, split, and new baseline (#174–#178) are not implemented. Safeguards and decisions
   (#159–#173) precede them. New retrain-arm execution tickets are not yet specified.
 - **Solid-first semantic carving — map #1.** The representation, recovery fitter, bidirectional
   core operations, stable operation IDs, grid snapping, locality tests, validity helpers, carving
   traces, and block-coordination mechanism exist. #8 completed the proof-package design on
-  2026-09-06. Open work includes integration #2, provenance #152, split #153, annotations #154,
-  guided-edit proxy #179, coordination evaluation #180, and five-arm scorecard #181.
+  2026-09-06. Split #153 was implemented and closed on 2026-09-09. Open work includes
+  integration #2, provenance #152, annotations #154, and five-arm scorecard #181.
+  Guided-edit proxy #179 and coordination evaluation #180 are now closed: the proxy preserves
+  validity but fails locality; coordination preserves validity on the tested placeholder programs.
   The map is a planning charter with explicitly scoped implementation/evaluation child tickets;
   closing a decision ticket does not imply its spawned work is finished.
 - **Footprint-town demo — map #97.** A separate town service streams massing from A2 or optional
@@ -87,13 +90,16 @@ Generated height maps and generated slot programs currently reach the town API a
 without an editable operation list. Recovered programs can replay through `EditableBuilding`,
 but recovery from GT is not autonomous generation. Syntax validation, program finalization, and
 compiled geometric containment are separate checks; the current coordinated commit calls the
-program check, not the containment check. Mixed ordered add/subtract programs are executable but
-are rejected by the finalize helper's commutativity requirement. These unresolved integration
-tensions belong in #2/#179/#180; they are not evidence of an end-to-end valid editing product.
+program check, not the containment check. The #179/#180 evaluation harnesses explicitly add
+containment checks. #179 resolves mixed gestures by refitting to an accepted program, but passes
+locality on only 31.7% of operation-level checks (41.9% at occupancy level) in its 40-building
+sample. Direct ordered mixed programs still face the finalize helper's commutativity requirement.
+These findings inform #2; they are not evidence of an end-to-end valid, locality-preserving product.
 
 The historical pinned-714 set is a fixed regression control for BuildingWorld (#162/#177).
-The new proof benchmark (#153/#181) needs a separately versioned region/tile-stratified split.
-Those are distinct datasets and must not silently overwrite one another.
+The new proof split (#153) is implemented separately: train 26,064 / val 2,592 / test 7,120.
+#181 must consume it explicitly and audit old-checkpoint training overlap; changing split membership
+does not make previously seen buildings unseen. These populations must not overwrite one another.
 
 ## Reading the numbers
 

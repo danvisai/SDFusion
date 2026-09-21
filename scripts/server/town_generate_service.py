@@ -79,7 +79,7 @@ from scripts.foundations.baseline_gate_eval import mesh_sdf_surface             
 from scripts.foundations.dora_roundtrip_probe import load_dora                         # noqa: E402
 from models.shape_codec import Building, DoraCodec                                     # noqa: E402
 from models.networks.vecset_denoiser import (                                          # noqa: E402
-    denoiser_from_checkpoint, region_width_of,
+    denoiser_from_checkpoint, region_tensor,
 )
 from models.networks.vecset_projection import SetSDEdit                                # noqa: E402
 from scripts.ingest_3dbag import building_to_sdf                                       # noqa: E402
@@ -176,8 +176,8 @@ def _load_models():
     # for the next reader to trip over.
     net = denoiser_from_checkpoint(ck, dev)
     op = SetSDEdit(net, timesteps=ca["timesteps"])
-    _state.update(dev=dev, codec=codec, op=op, mu=ck["latent_mu"], sd=ck["latent_sd"],
-                  step=int(ck["step"]), n_regions=region_width_of(ck))
+    _state.update(dev=dev, codec=codec, op=op, net=net, mu=ck["latent_mu"], sd=ck["latent_sd"],
+                  step=int(ck["step"]), n_regions=net.n_regions)
     print(f"[town_generate] A2 step {_state['step']} "
           + ("(region-free) " if not _state["n_regions"] else
              f"(region channel {_state['n_regions']}) ")
@@ -438,8 +438,7 @@ def _arm_field(arm: str, fp: np.ndarray, y0: int, y1: int, height: float,
         fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
         zp = op.project(blockout=z0, footprint=fpt,
                         height=torch.tensor([height], device=dev),
-                        region=(torch.tensor([knobs.region], device=dev)
-                                if _state["n_regions"] else None),
+                        region=region_tensor(_state["net"], knobs.region, dev),
                         strength=knobs.strength, steps=knobs.steps, guidance=knobs.guidance,
                         seed=seed)
         return codec.decode_grid(zp * sd + mu, RES).cpu().numpy()[0, 0]

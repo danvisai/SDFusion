@@ -133,8 +133,19 @@ yet and isn't this ticket's job to write.
 - **BuildingWorld's own split** (#153's sibling problem, one level up in the epic — see
   [#177](https://github.com/danvisai/SDFusion/issues/177), "Build a roof-family-stratified,
   spatially-blocked held-out split for new BuildingWorld rows") is separate work; this ticket's
-  algorithm is directly reusable for it (whole-tile-blocked, shared-floor stratification), but
-  applying it there is #177's job, not this one's.
+  whole-group blocking idea is reusable, but this implementation's shared ABSOLUTE targets balance
+  nearly equal-sized NL/DE/JP regions, not arbitrary imbalanced city populations. #177 must choose
+  its own balance policy and valid spatial keys; do not reuse the algorithm unchanged by assumption.
+
+## Evaluation boundary (reconciled 2026-09-09)
+
+The split prevents source-group overlap within its own labels. It cannot retroactively remove a
+checkpoint's exposure to these rows. Metadata inspection found 6,837/7,120 new test rows in the
+old Bag3d training split and 6,937/7,120 in the height-map eligible non-held pool before validation
+selection. These are pool-overlap counts, not per-checkpoint training manifests. #181 must disclose
+exposure and exclude new test rows from retrieval; its no-new-training rule does not permit claiming
+unseen-data generalization from an old-trained checkpoint. The `--out` file is a summary, not a
+per-row manifest; record corpus identity, parameters and membership when consuming `make_split`.
 
 ## Artifacts
 

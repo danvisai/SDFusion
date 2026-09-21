@@ -203,5 +203,10 @@ Map #69 and token-alignment map #87 are closed. The v5 band-fix run is complete 
 findings are historical; do not resume it based on an old handover. Current work concerns semantic
 height-map/program generation (#1), BuildingWorld (#156), and the separate demo maps (#97/#106).
 
-The historical pinned-714 set remains a regression control. #153's new proof split and
-#177's BuildingWorld split have distinct purposes and must be versioned separately.
+The historical pinned-714 set remains a regression control. #153's separate proof split is now
+implemented in `scripts/foundations/stratified_split.py` (train 26,064 / val 2,592 / test 7,120).
+Its `--out` writes a summary, not a per-row split manifest. Consumers must call `make_split` on
+the identified corpus and record the corpus identity, seed, parameters and resulting membership.
+Existing checkpoints used different training membership: audit overlap before claiming held-out
+generalization on these new test rows, and rebuild the retrieval bank against the selected split.
+#177's BuildingWorld split is still pending and must remain separately versioned.

@@ -1,4 +1,4 @@
-# #188 — Retraining the A2 massing source on the new corpus, region-free
+# #188 - Retraining the A2 massing source on the new corpus, region-free
 
 *Work on [Retrain the A2 massing source on the new corpus so BuildingWorld rows can be
 generated](https://github.com/danvisai/SDFusion/issues/188), for map [Whole-volume voxel
@@ -13,7 +13,7 @@ and not re-derived here: the frozen source `vecset_v4_surf` @240k (SHA-256 `643a
 through `region = nn.Embedding(3, 512)`, and every BuildingWorld row carries region id 3–8. The
 failure is `IndexError`, not a quality gap.
 
-That distinction governs everything below. **#188 is a substitution, not a new quality claim** —
+That distinction governs everything below. **#188 is a substitution, not a new quality claim** -
 #115's amendment says the method carries over unchanged and "only the identity of the frozen
 checkpoint changes". The bar is set accordingly (see *The pre-registered bar*).
 
@@ -32,7 +32,7 @@ parameter removes the ambiguity.
 The named alternative if this underperforms is #171's 9-bucket style channel, and #188's own text
 requires it be run as its own single-variable arm, never bundled. `--region_free` and `--regions`
 are therefore mutually exclusive at the parser, and the trainer now derives the region width from
-the corpus rather than the module default — which is what stops this defect recurring for a
+the corpus rather than the module default - which is what stops this defect recurring for a
 region-conditioned arm.
 
 ### 2. `corpus_scope="all"` cannot mean "every row" for this family
@@ -49,19 +49,19 @@ cheap SDF read (18.5 min parallelized, #183). The vecset family cannot copy that
 | all 1,526,778 BuildingWorld rows, real pass only | **~88 GPU-hours, ~412 GB** |
 
 So the fold-in is a **sample**, defined in `scripts/foundations/vecset_cohort.py` and committed as
-an artifact rather than improvised at a call site. The encode is GPU-bound on the real pass — there
-is nothing to overlap — but the blockout pass spends 192 ms per row on CPU with the A100 idle,
+an artifact rather than improvised at a call site. The encode is GPU-bound on the real pass - there
+is nothing to overlap - but the blockout pass spends 192 ms per row on CPU with the A100 idle,
 which `prefetch()` now overlaps.
 
 ### 3. Cohort composition: capped-proportional
 
-Chosen by the owner from three options, 2026-09-21. The corpus is severely imbalanced — Canada
+Chosen by the owner from three options, 2026-09-21. The corpus is severely imbalanced - Canada
 640,020 rows against Oceania 13,092, a 49× spread.
 
-- *strictly proportional* — Canada + Germany take ~72% of the draw, Oceania lands under 1%.
-- *equal per bucket* — a distribution no real city has, and self-defeating under region-free
+- *strictly proportional* - Canada + Germany take ~72% of the draw, Oceania lands under 1%.
+- *equal per bucket* - a distribution no real city has, and self-defeating under region-free
   conditioning: the model cannot tell buckets apart, so equalising only reweights the geometry.
-- **capped-proportional** — proportional in the middle, clipped at both ends.
+- **capped-proportional** - proportional in the middle, clipped at both ends.
 
 `cap_frac=0.25`, `floor_frac=0.05`, water-filled. ⚠️ **These fractions are #188's own local call,
 not settled policy.** [#168](https://github.com/danvisai/SDFusion/issues/168) (sampling cap /
@@ -81,7 +81,7 @@ The draw (`execution/artifacts/188_cohort.json`, train digest `9295ac59e5a5a569�
 | | **total** | **1,495,999** | **60,000** | | |
 
 Selection is **outcome-blind**, per #115's surviving method: the only input is a salted hash of the
-row id — never source, geometry, difficulty, or any measured outcome. Held-out rows (#177's split)
+row id - never source, geometry, difficulty, or any measured outcome. Held-out rows (#177's split)
 are structurally ineligible. Hash *ordering* rather than shuffling also makes a larger quota a
 superset of a smaller one, so a later top-up extends the encode instead of invalidating ~8
 GPU-hours of it.
@@ -92,7 +92,7 @@ once rather than materialising a merged ~34 GB copy that could drift from either
 
 ### 4. The recipe is the frozen source's own, with one disclosed departure
 
-`vecset_v4_surf` is not a single run — it is a three-stage lineage, read off the checkpoints
+`vecset_v4_surf` is not a single run - it is a three-stage lineage, read off the checkpoints
 themselves:
 
 ```
@@ -105,7 +105,7 @@ So "retrain from scratch" is **180,000 steps with the surface term off, then 60,
 batch 8, lr 1e-4, width 512, depth 8, heads 8, `pair_frac` 0.8, `pair_t_min` 0.35, `cfg_drop` 0.1.
 
 ⚠️ **One departure, disclosed rather than hidden.** `vecset_v4_surf` ran before `--surf_t_center`
-existed, so its surface term used the lowest-t selection that #80 later measured as a mistake — it
+existed, so its surface term used the lowest-t selection that #80 later measured as a mistake - it
 fed the term only near-clean latents and taught the model to reproduce its input (vs-input 0.993).
 The current default (0.55) is the corrected behaviour. Replicating the old value exactly would
 reproduce a known defect on purpose, so #188 uses the fixed default and records that this is *not*
@@ -149,31 +149,71 @@ there is more for a generator to carve here.
 
 ### The clauses
 
+Structure and vocabulary are `CONTEXT.md`'s own (PASS / GUARD / KILL), not a parallel scheme:
+"**PASS** is what the arm must achieve. **GUARD** is what it may not break on the way (collapse and
+`vs_input`). **KILL** is a pre-registered clause that answers the ticket 'no'."
+
 | id | kind | clause | resolves to |
 |---|---|---|---|
-| K1 | KILL | `generation_failures == 0` | every scored row generated |
+| K1 | KILL | `generation_failures == 0` | every scored row generated; derived from the run, not asserted |
 | K2 | KILL | `buckets_scored == 6` | all six style buckets generated |
-| K3 | KILL | `fp_iou >= 0.90` | (frozen source's own legacy median is 0.9589, p10 0.8803) |
-| K4 | KILL | `collapse_rate <= 0.25` | between the frozen source's 0.1667 and #92's failed 0.4636 |
-| B1 | BAR | `vol_iou / blockout >= 0.9240` | `vol_iou >= 0.8113` |
-| B2 | BAR | `extra / blockout <= 1.2269` | `extra <= 0.1705` |
-| B3 | BAR | `missing <= 0.05` | absolute; the blockout's `missing` is 0, so a ratio is undefined |
-| I1 | INFORMATIONAL | `vs_input <= 0.99` | reported, never scored |
+| G1 | GUARD | `vs_input < 0.98` | `CONTEXT.md`'s documented guard, at its documented value |
+| G2 | GUARD | `collapse_rate <= 0.1582` | `CONTEXT.md`'s documented bar (1-NN retrieval's rate) |
+| P0 | PASS | `fp_iou >= 0.90` | frozen source's own legacy median is 0.9589, p10 0.8803 |
+| B1 | PASS | `vol_iou / blockout >= 0.9240` | `vol_iou >= 0.81102` |
+| B2 | PASS | `extra / blockout <= 1.2269` | `extra <= 0.17091` |
+| B3 | PASS | `missing <= 0.05` | absolute; the blockout's `missing` is 0, so a ratio is undefined |
+| I1 | INFORMATIONAL | `beats_envelope_rate >= 0.0056` | reported, never scored |
 
 **B1/B2 are non-inferiority normalised by population.** The retrained source is scored on
-BuildingWorld rows and the frozen one on legacy rows, so raw numbers are not comparable — the
+BuildingWorld rows and the frozen one on legacy rows, so raw numbers are not comparable - the
 populations differ in difficulty. The ratio form asks: *relative to doing nothing on its own
 population, is the replacement at least as good as the frozen source was relative to doing nothing
 on its population?* Both thresholds sit on the wrong side of 1.0 precisely because the source being
 replaced loses to its own envelope.
 
-A KILL is not outvoted by the clauses that passed (#183's rule, per #172(b)). I1 is informational
-because [#119](https://github.com/danvisai/SDFusion/issues/119) ruled no gate verdict is scored on
-the legacy pinned 714, and because no arm in this family has ever cleared `vs_input`.
+⚠️ **B1/B2 inherit a small inconsistency from the recipe departure above.** Their thresholds come
+from `vecset_v4_surf`'s measured numbers, and §4's `surf_t_center` correction means the retrain does
+not reproduce that checkpoint's recipe exactly. The reference is still the right one - it is the
+source actually being replaced - but "non-inferiority to the frozen source" is therefore
+non-inferiority to a checkpoint trained with a defect this run does not repeat, which if anything
+makes the comparison harder for the retrain rather than easier.
+
+A KILL is not outvoted by the clauses that passed (#183's rule, per #172(b)). A broken GUARD means
+the arm is not servable whatever else it scored. I1 is informational for the reason set out above:
+requiring the replacement to beat an envelope the sealed source loses to would make this a
+different ticket.
+
+### ⚖️ Revision, 2026-09-21, before any training step ran
+
+*Recorded rather than quietly applied, because a pre-registration that can be edited is not one.*
+
+The first committed version of this registration (`c5789a1`) **could be passed by doing nothing.**
+Scoring the committed `blockout` reference arm against it: `fp_iou` 1.0 ≥ 0.90, `collapse_rate` 0.0
+≤ 0.25, and both ratio clauses exactly 1.0 against themselves - every scored clause PASS. The only
+no-op detector, `vs_input`, had been demoted to INFORMATIONAL and loosened to 0.99.
+
+Two documented standards had been silently overridden in the process, which
+`docs/agents/domain.md` specifically forbids ("Surface any conflict ... explicitly instead of
+silently overriding the recorded decision"):
+
+- `CONTEXT.md`: "`vs_input` ... **1.0 means it did nothing.** An arm at 0.99 has not been measured
+  as a generator however good its other numbers look (#75). **The guard is < 0.98.**"
+- `CONTEXT.md`: "`collapse_rate` ... the bar is **1-NN retrieval's 0.1582**: a generator that
+  destroys more buildings than naive retrieval is not servable whatever else it scores."
+
+Both are now scored GUARD clauses at their documented values. The revision **tightens** the bar in
+every direction and was made **before the first training step**, with the original version intact
+in git history at `c5789a1`; no result influenced it. Checked afterwards, and worth recording: the
+frozen source clears both guards on its own population (`collapse_rate` 0.098 on the pinned 714;
+`vs_input` 0.9616 at n=12), so adopting them does not import a bar the predecessor fails.
+
+Verified: a pure no-op now scores **GUARD BROKEN**, failing G1 alone while passing all eight other
+clauses - which is exactly the shape of the hole that was there.
 
 ### Operating point, fixed in advance
 
-`strength 0.5, steps 20, guidance 1.0` — the point the frozen source was scored at, and the one
+`strength 0.5, steps 20, guidance 1.0` - the point the frozen source was scored at, and the one
 #119 will seal alongside the replacement. #115's method forbids sweeping, so this is not tuned.
 
 ## Status
@@ -184,7 +224,7 @@ a result that has not been measured.*
 - ✅ Code landed and tested: region-free denoiser, corpus-derived region width, multi-cache trainer,
   cohort selection, row-scoped surface loading, blockout prefetch overlap, bar + verdict scorer.
 - ✅ Every checkpoint consumer now reads its region width off the weights
-  (`denoiser_from_checkpoint`), including #119's own cache path and the town service — the latter
+  (`denoiser_from_checkpoint`), including #119's own cache path and the town service - the latter
   being the landmine #183 disclosed and explicitly left for whoever produced a BuildingWorld-trained
   checkpoint. That is this ticket.
 - ✅ Cohort drawn and committed; gate population (900 rows) encoded; reference eval run; bar

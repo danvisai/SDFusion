@@ -1,7 +1,7 @@
 <!-- Mirrored from the tracker, 2026-08-14. -->
 
-> **Open ticket, mirrored locally** so this effort can be read without the
-> tracker. Nothing was lost for this one — it had no committed asset.
+> **Historical ticket text, mirrored locally.** The resolution below closed this investigation;
+> the original question is retained for provenance.
 
 > **Resolved, 2026-09-01.** One candidate is refuted with a direct gradient measurement; the other
 > two are narrowed but not separated. See the Resolution section below.

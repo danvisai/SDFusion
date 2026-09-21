@@ -1,6 +1,6 @@
 {
  "meta": {
-  "created": "2026-08-30T18:23:17",
+  "created": "2026-08-30T18:27:55",
   "question": "#127",
   "ids_from": "/scratch/gilbreth/dsimhadr/GenerativeTowns/SDFusion/execution/artifacts/massing_arms_eval_ship714.json",
   "gt_h5": "data/real_massing_v1/real.h5",

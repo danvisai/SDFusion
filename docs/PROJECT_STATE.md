@@ -1,6 +1,6 @@
 # Project state
 
-Reconciled 2026-09-09 against commit `c5787a1`, local source, saved evaluation artifacts, and live
+Reconciled 2026-09-09 through commit `1a2dbde`, local source, saved evaluation artifacts, and live
 GitHub issue/comment state (checked directly via `gh`, not inferred from doc prose). This is the
 entry point [README.md](../README.md) and [CONTEXT.md](../CONTEXT.md) point to for "what is
 implemented, measured, served, and still open" — organized by **research** (which map/ticket owns a
@@ -12,15 +12,17 @@ behavior agree.
 Two disclosed limits on this reconciliation itself: (1) GitHub issue state was checked for every
 ticket cited below, but a ticket can be open for reasons other than "unstarted" — several here are
 explicitly left open for human review, not because work remains; that distinction is called out
-per-item, not assumed from state alone. (2) No server was started and no training/inference was run
-to re-verify current behavior — "served"/"working" claims below cite the evidence (a log, a commit,
-an issue comment) rather than a fresh live check.
+per-item, not assumed from state alone. (2) No server or training run was started; 429 headless
+tests passed at `fcff154`; the extended suite results appear in the audit below. "Served" means implemented in the service,
+not a fresh live model-loading check. Full inventory and verification scope:
+[RECONCILIATION_AUDIT.md](RECONCILIATION_AUDIT.md).
 
 
 ## Research
 
-Two active wayfinder maps carry current research; three older maps are settled or intentionally
-paused; two more are separate, still-open product/demo tracks.
+Maps #1 and #156 carry the main research/data work; #113 is a separate voxel-transform alternative.
+Maps #97/#106 own the new demo and experience. Older open effort records are listed separately
+below rather than treated as either unstarted or silently completed.
 
 ### Map #1 — [Specify Solid-First Semantic Architectural Carving](https://github.com/danvisai/SDFusion/issues/1)
 
@@ -30,22 +32,24 @@ train); its children do. Latest closed decision: [#8](https://github.com/danvisa
 hypotheses into a concrete five-arm/H1a/H1b/H3 scoring protocol and spawned this map's current
 frontier. Also closed: the representation/algebra chain (#4, #6, #9, #10, #126–#134, #138–#140,
 #144–#148 — the core-algebra, program-recovery, vertex-budget, and validity-gate results
-`CONTEXT.md`'s "Established results and limits" section summarizes), and — this session —
-[#5](https://github.com/danvisai/SDFusion/issues/5)'s data audit gained a addendum ruling out an
+`CONTEXT.md`'s "Established results and limits" section summarizes). On September 9,
+[#5](https://github.com/danvisai/SDFusion/issues/5)'s data audit gained an addendum ruling out an
 existing procedural corpus (SYNBUILD-3D) as a shortcut past building the still-unbuilt void-tier
 synthesizer; #5's own ruling (procedural generation on `data/real.h5`'s footprint distribution is
 the only lever) stands unmodified.
 
-**Frontier**, blockers checked live:
+**Open work**, blockers checked live. #153 is CLOSED (`5ca804e`), producing the separate
+train 26,064 / val 2,592 / test 7,120 split. #154/#181 no longer have an open split blocker.
+This table includes human work; it is not an autonomous-agent queue. #179 and #180 subsequently
+closed: #179 observed validity but failed locality (31.7% operation-level / 41.9% occupancy-level
+pass; 461 pairs / 40 buildings); #180 observed 330/330 valid condition checks on 55 footprints in
+8 scenes with placeholder massing. Neither proves end-to-end editable generation.
 
 | # | Title | State | Blocked by |
 |---|---|---|---|
-| [#153](https://github.com/danvisai/SDFusion/issues/153) | Stratify the train/held-out split by source region and tile | OPEN, `ready-for-agent` | none — unblocked |
-| [#179](https://github.com/danvisai/SDFusion/issues/179) | Build the guided-edit completion proxy, re-verify locality (H1b) | OPEN, `ready-for-agent` | none — unblocked |
-| [#180](https://github.com/danvisai/SDFusion/issues/180) | Test multi-footprint coordination on real product footprint sets (H3) | OPEN, `ready-for-agent` | none — unblocked |
-| [#181](https://github.com/danvisai/SDFusion/issues/181) | Run the five-arm autonomous-generation scorecard (H1a) | OPEN, `ready-for-agent` | **#153** (needs its split) |
+| [#181](https://github.com/danvisai/SDFusion/issues/181) | Run the five-arm autonomous-generation scorecard (H1a) | OPEN, `ready-for-agent` | #153 CLOSED; split-consumer and training-overlap checks remain |
 | [#152](https://github.com/danvisai/SDFusion/issues/152) | Record source license/provenance metadata | OPEN, `ready-for-agent` | none — unblocked |
-| [#154](https://github.com/danvisai/SDFusion/issues/154) | Build the small human-audited void-semantic annotation set | OPEN, `ready-for-agent` | re-pointed at #153's split (per #8) |
+| [#154](https://github.com/danvisai/SDFusion/issues/154) | Build the small human-audited void-semantic annotation set | OPEN, `ready-for-agent` | #153 CLOSED; human audit still required |
 | [#2](https://github.com/danvisai/SDFusion/issues/2) | Define integration with the existing recipe/SDF stack | OPEN, `wayfinder:grilling` | needs a human `/grilling` session, not agent execution |
 
 ### Map #156 — [Fold BuildingWorld Into the Massing Corpus (Arm Six on the Gable Bar)](https://github.com/danvisai/SDFusion/issues/156)
@@ -54,14 +58,20 @@ the only lever) stands unmodified.
 (CRS/units policy) and [#166](https://github.com/danvisai/SDFusion/issues/166) (watertightness
 standard), both closed 2026-09-06 (commit `e48b9e9`), decided using #157's and #158's findings.
 
-**Open for human review, not for more work:**
+**Report status:**
 - [#158](https://github.com/danvisai/SDFusion/issues/158) — watertightness/extent profiling across
   all 19 cities. Its own write-up ends "leaving open for review... @danvisai please have a look" —
   pure fact-finding, nothing left to execute.
 - [#157](https://github.com/danvisai/SDFusion/issues/157) — per-city CRS/units/reference-elevation
-  audit. The write-up (`157-crs-units-audit.md`) was finished but sat uncommitted from a session
-  that was killed by a SLURM walltime timeout; committed and closed out this session (see
-  "Current handoff" below).
+  audit committed in `c59ef6e` and CLOSED on September 9. It is no longer awaiting review.
+
+**Latest BuildingWorld-related code is exploratory, not ingestion/training:** `fcff154` adds optional wireframe-guided
+Ramp candidates to #10's recovery search. The saved Adelaide result reports 7 benefiting cases
+among 2,282 confidently paired buildings. The wireframe archive must be matched geometrically,
+not by equal file index. This is a GT-recovery/pseudo-label lever; no wireframe exists for a newly
+generated footprint. #159 still needs its multi-city pilot, and adopting this optional probe is a
+scope decision, not a silent change to map #156's original wireframe exclusion. A raw-archive pilot
+can run before #174; production corpus use later needs ingestion and row/source identity.
 
 **Ingestion is specified, not written.**
 [#174](https://github.com/danvisai/SDFusion/issues/174) (`ingest_buildingworld.py`, mirrors
@@ -88,7 +98,8 @@ and not startable before #174. A further band of preparatory/decision tickets
 [#163](https://github.com/danvisai/SDFusion/issues/163),
 [#164](https://github.com/danvisai/SDFusion/issues/164),
 [#169](https://github.com/danvisai/SDFusion/issues/169)–[#173](https://github.com/danvisai/SDFusion/issues/173))
-is OPEN and unstarted. No new BuildingWorld training/retrain-arm ticket exists yet.
+is OPEN; the Adelaide experiment informs #159 but does not complete its requested comparison.
+No new BuildingWorld training/retrain-arm ticket exists yet.
 
 ### Other maps
 
@@ -132,8 +143,10 @@ commit `21a4876`). Nothing from this line is currently training or running.
 
 **Program recovery and generation:**
 - `scripts/foundations/recover_massing_programs.py` — [#10](https://github.com/danvisai/SDFusion/issues/10)'s
-  constrained beam-search fitter; recovers an exact `Layer`/`Ramp`/`CutRoof` program from a real
-  building's height field (3D IoU 0.9970 at K=4). Closed, done, the corpus's pseudo-label method.
+  constrained beam-search fitter; recovers an approximate `Layer`/`Ramp`/`CutRoof` program from a real
+  building's height field (recorded 3D IoU 0.9970 at K=4). Replay of the recovered discrete program
+  is exact; recovery of GT at a fixed operation budget is not. Optional wireframe candidates landed
+  in `fcff154`, not yet connected to production corpus preparation.
 - `scripts/foundations/train_height_map_generator.py` — the footprint-conditioned height-map
   generator (#127) and the typed-slot program generator (#6 lineage). #127's base CE+median model is
   **done and human-accepted** (`extra` 0.0603, `vs_input` 0.8432 on the 411 carve-needing subset) and
@@ -152,12 +165,11 @@ commit `21a4876`). Nothing from this line is currently training or running.
   arm. Token-alignment work on it (map #87 / #92) is closed and did not open a usable edit-strength
   band, as above.
 
-**Currently running:** nothing. No training or inference process for any of the above was found
-running this session (`ps` checked); the only recent background job (`outputs/watch_2x2_driver.log`,
-a checkpoint-scoring poll loop for the already-finished #92 arms) died when its whole interactive
-SLURM session hit a 14-day walltime and was timed out at 2026-09-08T20:09:50 — not a pipeline
-failure, and nothing was mid-computation when it happened (all #92 checkpoints had been complete
-since 2026-08-27).
+**Runtime is not revalidated here.** The earlier handoff recorded a checkpoint-scoring poll loop
+ending with its SLURM session at 2026-09-08T20:09:50, after the #92 checkpoints had completed.
+The current sandbox's process view exposes only its own processes, so it cannot establish that
+no server or training job exists elsewhere. No server, training job or GPU evaluation was launched
+by this reconciliation.
 
 
 ## Demo
@@ -171,7 +183,7 @@ for exact run commands and [INTEGRATION_STATE.md](INTEGRATION_STATE.md) for how 
 | Footprint-town editor | `scripts/server/town_generate_service.py`, port 8767 | `outputs/town_generate_8767.log` shows healthy `/health` responses as late as **2026-09-01**; `outputs/town_generate_8791.log` (2026-08-29) shows 3 height-map arms plus the 34,909-building retrieval bank loading cleanly. Not re-verified live this session. |
 | Image footprint extraction | `scripts/server/footprint_extract_service.py`, port 8766 | Separate classical-CV process; no model loading, lower risk of drift. Not independently re-checked. |
 
-No server process is currently running (checked via `ps`). The three surfaces are independent
+The three surfaces are independent
 processes with independent state — the original demo's index/sculpt page uses `localStorage` and
 does **not** connect to the new town editor's generated meshes.
 
@@ -180,8 +192,8 @@ the program that produced them. Both the neural program path (assignment/type/pl
 `compile_program`) and the fit-on-prediction path (#155's `fit_decode`) construct an internal
 program and discard it before returning. `EditableBuilding`'s full undo/re-roll/delete stack has
 only ever been exercised on a **recovered** program (needs ground truth), never a **generated** one.
-Every function needed to close that gap exists and is tested; nothing currently calls them in
-sequence. Full detail, including the exact call chain and the two things a first attempt will hit
+Many necessary functions exist and are tested, but the integration contract and validation
+conflicts remain unresolved. Full detail, including the call chain and the two things a first attempt will hit
 (`mask_to_rings` rejecting disconnected regions; the 94-vertex median ring size), is in
 [INTEGRATION_STATE.md](INTEGRATION_STATE.md).
 
@@ -192,13 +204,25 @@ against file mtime before trusting a live demo's behavior against these docs.
 
 ## Current handoff
 
-As of this reconciliation: map #156's latest closed work is #165/#166 (commit `e48b9e9`); #157/#158
-are complete write-ups open for human review, not further agent work (#157 committed and closed out
-this session — see its GitHub comment for the summary). Map #1's semantic-carving design (#8) is
-closed; #152–#154/#179–#181/#2 are the open research/integration frontier, and #153 is the one
-other open items key off. The demo has two independent, unreconciled serving surfaces and no
-generated-program integration on either. Nothing is running. Headless tests
-(`scene.test_sdf_edit`, `scripts.foundations.test_recover_massing_programs`,
-`scripts.foundations.test_train_height_map_generator`, `scripts/server/test_town_generate.py
---geometry-only`) verify individual contracts, not completion of any of the above end-to-end tasks —
-treat a passing suite as necessary, not sufficient, evidence for any claim in this file.
+Latest commit: `1a2dbde` — #180 coordination evaluation. #179's guided-edit proxy is also complete
+with a negative locality result. #153 (separate proof split), #157 (CRS audit) and #165/#166 policies
+are settled. #158 awaits review. BuildingWorld ingestion and new training are not implemented.
+#2/#152/#154/#181 remain
+open on map #1; #160/#162/#167/#168 are the open prerequisites for #174.
+
+**A new split is not a new unseen-data experiment.** Metadata inspection found 6,837 of #153's
+7,120 test rows in the old Bag3d training split, and 6,937 in the height-map eligible non-held pool
+before per-checkpoint validation selection. This does not identify every checkpoint's actual
+training rows, but rules out assuming clean generalization. #181 must audit checkpoint exposure,
+filter the retrieval bank to its chosen training membership, and either report a retrospective
+scorecard or resolve the conflict with its no-new-training constraint. Preserve the legacy 714/411
+control; no historical metrics were recomputed or relabeled in this audit. Concurrent uncommitted
+work adds `bank_eligibility` / `--bank_exclude_ids` for #181; it is not a completed scorecard or a
+fix for checkpoint exposure. Those executable changes belong to the concurrent implementation,
+not this documentation reconciliation.
+
+GitHub issue bodies now distinguish implemented, measured, served, and pending work. Native parent
+and blocker links mirror the written BuildingWorld graph; satisfied blockers remain linked for
+history. Issue states were preserved, including legacy #49/#50/#61/#66. The full open-issue map is
+in [ISSUE_MAP.md](ISSUE_MAP.md). Passing tests are necessary, not sufficient, evidence of end-to-end
+generation, editing, or research claims.

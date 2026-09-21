@@ -35,4 +35,6 @@ The map is one GitHub issue and its tickets are child issues.
 
 ## Wayfinding asset isolation
 
-Each Wayfinder effort gets its own folder under `docs/wayfinding/`. The solid-first subtractive-modeling effort uses `docs/wayfinding/solid-first-subtractive-modeling/`. Do not place its assets in or modify `.scratch/transform-composition-proof/`; that is a separate active experiment.
+Each Wayfinder effort gets its own folder under `docs/wayfinding/`. The solid-first subtractive-modeling effort uses `docs/wayfinding/solid-first-subtractive-modeling/`. Do not place its assets in or modify `.scratch/transform-composition-proof/`; that is a separate historical experiment (map #11 closed stale on 2026-08-21).
+
+The voxel-placement effort (map #186, `docs/wayfinding/voxel-placement/`) is independent of every prior effort in this project, not only the whole-volume-voxel-transform effort (map #113, `docs/wayfinding/whole-volume-voxel-transform/`): different architecture, code, tickets, and gates from all of them. It shares only corpora/data and prior research findings (e.g. #117's validity contract) as comparison baselines — do not merge its tickets or docs folder with any other effort's on the strength of that overlap.

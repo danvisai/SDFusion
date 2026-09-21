@@ -85,7 +85,12 @@ explicit `"unbiased"` condition (`commit_block_program` re-fit through an empty 
 literal "uncoordinated fit" #180's own acceptance criterion names, and every later axis/combined
 failure is checked against that SAME footprint's own unbiased result before being flagged a
 regression (`aggregate`'s `is_regression` field) — none needed to be, since nothing failed at any
-condition, on any footprint, in any of the four structurally different real block layouts.
+condition, on any footprint, in any of the eight sampled block scenes from two source layouts.
+
+The reported bootstrap resamples 330 footprint-condition flags, not independent scene clusters.
+Repeated conditions share footprints and scenes. All flags are 1, so [1,1] is a degenerate
+empirical bootstrap interval, NOT certainty that unseen blocks cannot fail. Scope the result to
+the observed 8 scenes / 55 footprints and this placeholder-massing protocol.
 
 **This is #7's FULL bar, not half of it under the same name** — per this ticket's own reconciliation
 note, `commit_block_program` calls `finalize_problems` only (`program_problems`/`commutes`/
@@ -138,5 +143,5 @@ footprint geometry rather than assumed from the mechanism's design, and it did n
 - [#2](https://github.com/danvisai/SDFusion/issues/2) (the integration boundary) was already
   unblocked by #8 directly; this result is additional evidence for it.
 - H3's scorecard row (SUPPORTED) is ready for #8's own cross-hypothesis rollup once H1a (#181,
-  unblocked now that #153 is closed) and H1b ([#179](179-guided-edit-completion-proxy.md),
-  FALSIFIED as implemented) both land.
+  unblocked now that #153 is closed) lands. H1b ([#179](179-guided-edit-completion-proxy.md)) is
+  already closed: validity passed, locality-on-refit was falsified as implemented.

@@ -708,3 +708,61 @@ montage alone.
 - **A form metric is a prerequisite, not a nicety.** Three amplitude statistics failed here. Until
   something separates a mound from a roof, an arm can pass this scorecard by getting the volume
   right, and the montage is the only thing that catches it.
+
+## Update 2026-09-18: winner-take-all tested, joint commitment still missing
+
+*Discussion note, not a new training run. Reads three already-scored artifacts against this
+ticket's own diagnosis above; no new checkpoint was trained for this entry.*
+
+Artifacts `execution/artifacts/height_map_generator_k2_oracle_714.json` and
+`..._k4_oracle_714.json` (both created 2026-09-04) test the one candidate fix this ticket's
+diagnosis leaves open but does not itself try: if the model is allowed more than one candidate
+massing per footprint, does picking the best one restore planar form? `oracle` here means the
+picker is handed ground truth and told to choose whichever of the k candidates is closest to it,
+per building, which is not a servable arm, it is the best case any such picker could ever reach.
+
+Same 411 carve-needing population as the table at the top of this ticket:
+
+| arm | `extra` | `dl_planar_fraction` | `dl_ops` | collapse |
+|---|---|---|---|---|
+| served: CE + median | 0.0603 | **0.20** | 6.0 | 0.0268 |
+| plain argmax decode, k=1 | 0.1178 | 0.00 | 3.0 | 0.0316 |
+| best-of-2, oracle pick | 0.0730 | 0.00 | 5.0 | 0.0219 |
+| best-of-4, oracle pick | 0.0572 | 0.00 | 5.0 | 0.0170 |
+| best-of-2, oracle pick + median decode of the winner | 0.0503 | 0.167 | 6.0 | 0.0170 |
+
+🔑 **Even the oracle does not restore planarity.** `dl_planar_fraction` stays at 0.00 for both k=2
+and k=4, no better than plain argmax and worse than the served median decode. More candidates
+lower `extra` steadily (more choices, closer match), which confirms the picker is solving the
+problem it was built to solve, but the ridge line does not come back. This separates the two
+failures this ticket's diagnosis names: winner-take-all attacks *which real building*, the
+across-building hedge; it does not touch *do neighbouring columns agree with each other*, the
+within-building failure the "joint commitment" paragraph above already names. They are independent
+axes, and this measurement is the first one to hold the first axis fixed (with an oracle) and show
+the second axis is untouched.
+
+⚠️ The one row that recovers any planarity at all (0.167, still under the served 0.20) is the
+variant that keeps the median decode on the winning hypothesis rather than argmax. That is the
+same per-column decode statistic already diagnosed above, not a winner-take-all effect, sitting on
+top of it. Whatever planarity exists in this table comes from the decode rule, not from having
+more candidates.
+
+This also lines up with the earlier `fit_decode` (#155) negative on this same ticket's population:
+forcing column agreement *after* the fact, by handing the model's finished prediction to #10's
+beam fitter, resolved the model's own per-column noise into more flat `Layer` terraces
+(`dl_planar_fraction` 0.20 -> 0.00), not into planes, because a `Layer` only has to beat the local
+max in its region while a `Ramp` has to fit every point in it, and noise breaks the second
+constraint far more than the first. Two different repair attempts, one before the fact
+(winner-take-all) and one after it (`fit_decode`), both leave `dl_planar_fraction` at 0.00. Neither
+attacks the mechanism: 4,096 columns still reach their answer independently.
+
+**Candidate direction, not yet scoped or built.** Teach the model to commit to one hypothesis
+*and* recognise, as part of the same learned step, where that commitment is locally weak, then
+complete that region so it agrees with its confident neighbours, rather than fitting a fixer
+afterward the way `fit_decode` does. The open question this would have to answer before it is
+trainable: what signal marks a column or region "not sufficient"? Candidates, none picked yet: the
+per-column posterior's own spread (a flat, undecided distribution flags itself); direct
+neighbour-to-neighbour disagreement in the raw prediction; or the residual `fit_program_beam`
+already produces, reused as a training signal rather than only as a post-hoc report. This is a
+discussion note, not a specified arm, and #10's program route named in "What follows" above remains
+the ticket's own pre-existing next step regardless of whether this direction is later scoped.

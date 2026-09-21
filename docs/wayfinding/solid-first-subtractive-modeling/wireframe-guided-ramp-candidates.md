@@ -55,11 +55,13 @@ eaves), convert each accepted plane to pitch/azimuth in Frame-N.
   parameter to `_all_candidates` itself, so existing test doubles that mock `_all_candidates`
   keep working unmodified (the same arm's-length pattern `FitBias` already established).
 
-🔑 **v2 structurally cannot regress a region it wins**, unlike v1: a wireframe candidate only
-wins if it has strictly higher `gain` than every competitor under the same containment rule, so
-using it can only remove more correct surplus, never less. This is not just an empirical
-observation -- `27_27a_4`, v1's one regression, is a small *improvement* under v2 on the exact
-same building.
+**The candidate is locally containment-safe:** it removes positive surplus without cutting below
+the target. At the same search state, an unbiased higher-gain choice removes more surplus at that
+step. This is NOT a proof that the entire finite-budget guided search dominates a separate unguided
+run: new branches can prune old paths, and the greedy fallback also receives `wf_planes`.
+Ties and optional `FitBias` also preclude a blanket strictly-higher-raw-gain claim. End-to-end
+non-regression is measured for the seven reported cases, not guaranteed for every input.
+`27_27a_4`, v1's regression, is a small improvement under v2 on the same building.
 
 ## Integration point
 
@@ -99,10 +101,13 @@ two separate gaps before this can affect anything beyond a standalone script:
    Whatever ingests BuildingWorld (#174) would need to preserve enough identity (e.g. the source
    mesh filename) for a later recovery pass to re-locate each row's wireframe file.
 
-**The direct next user, if either of the above lands, is [#159](https://github.com/danvisai/SDFusion/issues/159)**
+**The direct next investigation is [#159](https://github.com/danvisai/SDFusion/issues/159)**
 ("Pilot the beam-search fitter on BuildingWorld's CRS-safe cities") -- that ticket already plans
-to run #10's fitter on BuildingWorld; passing `wf_planes` there (once the correspondence exists)
-is a one-line change given everything in this doc. Downstream of that, if BuildingWorld's
+to run #10's fitter on raw BuildingWorld samples, not perform full ingestion. That pilot can run
+before #174 using the raw mesh/wireframe matching implemented here; its written blockers are the
+CRS audit #157 (closed) and profile #158 (review pending). Production row-level use later needs the
+two pipeline gaps above resolved. Including the optional wireframe variant is an explicit scope
+choice, not automatic completion of the pilot. Downstream of that, if BuildingWorld's
 recovered programs are ever used as pseudo-label training data for #6's generator, more accurate
 `Ramp` planes on gable/hip roofs would matter more than usual, since fixing gable-roof diversity
 is the literal reason map [#156](https://github.com/danvisai/SDFusion/issues/156) exists ("Arm Six
