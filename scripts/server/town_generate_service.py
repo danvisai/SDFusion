@@ -78,7 +78,9 @@ from scripts.foundations.eval_massing_arms import blockout_sdf, vs_input as _vs_
 from scripts.foundations.baseline_gate_eval import mesh_sdf_surface                    # noqa: E402
 from scripts.foundations.dora_roundtrip_probe import load_dora                         # noqa: E402
 from models.shape_codec import Building, DoraCodec                                     # noqa: E402
-from models.networks.vecset_denoiser import VecsetDenoiser                             # noqa: E402
+from models.networks.vecset_denoiser import (                                          # noqa: E402
+    denoiser_from_checkpoint, region_width_of,
+)
 from models.networks.vecset_projection import SetSDEdit                                # noqa: E402
 from scripts.ingest_3dbag import building_to_sdf                                       # noqa: E402
 from scripts.foundations.ingest_citygml_lod2 import SOURCE_ID                          # noqa: E402
@@ -167,16 +169,19 @@ def _load_models():
     codec.query_chunk = DECODE_CHUNK
     ck = torch.load(A2_CKPT, map_location="cpu", weights_only=False)
     ca = ck["args"]
-    net = VecsetDenoiser(latent_channels=ck["latent_channels"], width=ca["width"],
-                         depth=ca["depth"], heads=ca["heads"],
-                         footprint_res=ck["footprint_res"]).to(dev)
-    net.load_state_dict(ck["model"])
-    net.eval()
+    # #183 disclosed this call site as a known landmine: it assumed the legacy 3-region default and
+    # never read `n_regions` off the checkpoint it was serving, which was "harmless today (only
+    # legacy checkpoints are served)" but would break for a BuildingWorld-trained one. #188 produces
+    # exactly such a checkpoint -- and a region-free one -- so it is defused here rather than left
+    # for the next reader to trip over.
+    net = denoiser_from_checkpoint(ck, dev)
     op = SetSDEdit(net, timesteps=ca["timesteps"])
     _state.update(dev=dev, codec=codec, op=op, mu=ck["latent_mu"], sd=ck["latent_sd"],
-                  step=int(ck["step"]))
-    print(f"[town_generate] A2 step {_state['step']} + DoraCodec loaded on {dev} "
-          f"({time.time()-t0:.0f}s)", flush=True)
+                  step=int(ck["step"]), n_regions=region_width_of(ck))
+    print(f"[town_generate] A2 step {_state['step']} "
+          + ("(region-free) " if not _state["n_regions"] else
+             f"(region channel {_state['n_regions']}) ")
+          + f"+ DoraCodec loaded on {dev} ({time.time()-t0:.0f}s)", flush=True)
     _load_heightmap_arms(dev)
 
 
@@ -433,7 +438,8 @@ def _arm_field(arm: str, fp: np.ndarray, y0: int, y1: int, height: float,
         fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
         zp = op.project(blockout=z0, footprint=fpt,
                         height=torch.tensor([height], device=dev),
-                        region=torch.tensor([knobs.region], device=dev),
+                        region=(torch.tensor([knobs.region], device=dev)
+                                if _state["n_regions"] else None),
                         strength=knobs.strength, steps=knobs.steps, guidance=knobs.guidance,
                         seed=seed)
         return codec.decode_grid(zp * sd + mu, RES).cpu().numpy()[0, 0]

@@ -1063,7 +1063,9 @@ def cache_command(args) -> None:
         "salt": manifest["salt"],
     })
 
-    from models.networks.vecset_denoiser import VecsetDenoiser
+    from models.networks.vecset_denoiser import (
+        denoiser_from_checkpoint, region_width_of,
+    )
     from models.networks.vecset_projection import SetSDEdit
     from models.shape_codec import Building, DoraCodec
     from scripts.foundations.dora_roundtrip_probe import load_dora
@@ -1075,11 +1077,12 @@ def cache_command(args) -> None:
     seed = manifest["generation"]["master_seed"]
     ck = torch.load(manifest["a2_checkpoint"]["path"], map_location="cpu", weights_only=False)
     ca = ck["args"]
-    net = VecsetDenoiser(latent_channels=ck["latent_channels"], width=ca["width"],
-                         depth=ca["depth"], heads=ca["heads"],
-                         footprint_res=ck["footprint_res"]).to(device)
-    net.load_state_dict(ck["model"])
-    net.eval()
+    # #188: rebuild through the shared helper, which reads the region width off the checkpoint's own
+    # weights. This call site hardcoded the 3-region default, which is exactly what made the source
+    # #119 was going to seal unable to condition on a BuildingWorld row -- and #188's replacement is
+    # region-free, so a hardcoded width here would refuse to load it at all.
+    net = denoiser_from_checkpoint(ck, device)
+    n_regions = region_width_of(ck)
     op = SetSDEdit(net, timesteps=ca["timesteps"])
     # `train_vecset.py` writes whatever its dataset exposes, and the frozen A2 checkpoint stores
     # these as Python floats, not tensors -- `.to(device)` raised AttributeError here before the
@@ -1107,7 +1110,8 @@ def cache_command(args) -> None:
             z0 = (codec.encode(Building(verts=verts_to_world(verts), faces=faces)).float() - mu) / sd
             fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(device)
             height = torch.tensor([float(lat["height_m"][li])], device=device)
-            region = torch.tensor([int(lat["region"][li])], device=device)
+            # A region-free source has no embedding to index and raises if handed one (#188).
+            region = (torch.tensor([int(lat["region"][li])], device=device) if n_regions else None)
             zp = op.project(z0, fpt, height, region, strength=manifest["generation"]["strength"],
                             steps=manifest["generation"]["steps"],
                             guidance=manifest["generation"]["guidance"],

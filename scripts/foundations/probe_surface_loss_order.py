@@ -105,20 +105,12 @@ def _shared_training_rows(real_path: Path, blockout_path: Path, n: int) -> list[
 
 def _load_denoiser(path: Path, device: str):
     import torch
-    from models.networks.vecset_denoiser import VecsetDenoiser
+    from models.networks.vecset_denoiser import denoiser_from_checkpoint
 
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
-    args = checkpoint["args"]
-    model = VecsetDenoiser(
-        latent_channels=checkpoint["latent_channels"],
-        width=args["width"],
-        depth=args["depth"],
-        heads=args["heads"],
-        footprint_res=checkpoint["footprint_res"],
-    ).to(device)
-    model.load_state_dict(checkpoint["model"])
-    model.eval()
-    return checkpoint, model
+    # #188: the region width comes off the checkpoint's own weights, so this probe reads a
+    # region-free or wider-channel checkpoint instead of assuming the legacy 3.
+    return checkpoint, denoiser_from_checkpoint(checkpoint, device)
 
 
 def _pair_step_draw(row: int, fraction: float, timesteps: int, alphas, seed: int,

@@ -217,6 +217,50 @@ def encode_row(codec, building: Building, row: int):
     return codec.encode_with_positions(building)
 
 
+def prefetch(items, make, depth: int = 4):
+    """Yield `(item, made, error)`, running `make` one step ahead on ONE background thread.
+
+    #188. The real-surface encode is GPU-bound (measured on this box: 2.9 ms of `sample_streams`
+    against 200 ms of Dora forward), so there is nothing to overlap there. The BLOCKOUT pass is a
+    different shape: reading a 64^3 volume out of the 1.55 TB `real.h5` costs ~141 ms and the
+    extrude + marching-cubes another ~51 ms, against ~222 ms of encode -- 192 ms per row of CPU
+    time spent with the A100 idle, which over a 60,000-row cohort is ~3.2 GPU-hours of nothing.
+
+    ⚠️ **Exactly one thread, and it owns every HDF5 handle.** h5py is not thread-safe, and the
+    corpus handle plus the surface dict are read only here; the consumer touches the codec and the
+    output cache and nothing else. A multi-process `DataLoader` would be wrong for a second reason
+    too, the one #183 hit: each worker would fork its own copy of the codec's per-row RNG, and #88's
+    reproducibility contract (row `k`'s latent is a function of `k` alone) depends on there being
+    one.
+
+    An exception from `make` is carried to the consumer rather than killing the producer, so one bad
+    row still costs one `[skip]` line and not the rest of the run.
+    """
+    import queue
+    import threading
+
+    done = object()
+    q: "queue.Queue" = queue.Queue(maxsize=max(1, depth))
+
+    def produce():
+        try:
+            for item in items:
+                try:
+                    q.put((item, make(item), None))
+                except Exception as exc:              # noqa: BLE001 -- carried, not swallowed
+                    q.put((item, None, exc))
+        finally:
+            q.put(done)
+
+    thread = threading.Thread(target=produce, name="precompute-prefetch", daemon=True)
+    thread.start()
+    while True:
+        got = q.get()
+        if got is done:
+            return
+        yield got
+
+
 def _building_for_row(source_h5, surf: dict, row: int, blockout: bool) -> tuple[Building, str]:
     """Reconstruct the exact encoder input for one corpus row."""
     v, fc, src = surf[row]
@@ -533,6 +577,21 @@ def main() -> None:
     ap.add_argument("--blockout", action="store_true",
                     help="encode the footprint EXTRUSION instead of the real surface, giving the "
                          "aligned-pair partner: what the generator is handed at inference")
+    ap.add_argument("--corpus_scope", default="legacy", choices=("legacy", "buildingworld"),
+                    help="#188: which surface sources to read. 'legacy' is the historical "
+                         "bag3d/nrw/plateau corpus this script has always encoded; "
+                         "'buildingworld' is #174's ~1.5M-row corpus, which must be paired with "
+                         "--rows_from -- encoding it whole is ~88 GPU-hours and ~412 GB.")
+    ap.add_argument("--rows_from", default=None,
+                    help="#188: a cohort manifest (scripts/foundations/vecset_cohort.py) naming "
+                         "exactly which rows to encode. Its digest is checked before any GPU time "
+                         "is spent.")
+    ap.add_argument("--role", default="train", choices=("train", "gate"),
+                    help="--rows_from: which role's rows. 'train' is the training cohort, 'gate' "
+                         "the held-out population #188's bar is scored on.")
+    ap.add_argument("--prefetch", type=int, default=4,
+                    help="rows prepared ahead on the producer thread; 0 disables the overlap. "
+                         "Only the blockout pass has CPU work worth overlapping (see `prefetch`).")
     ap.add_argument("--split_ledger", action="store_true",
                     help="#161: encode nothing -- pull the row/region/held_out/height_m ledger out "
                          "of --out (an existing vecset_latents.h5) into its own file at "
@@ -581,7 +640,30 @@ def main() -> None:
     # raise SystemExit on ~1.5M "missing ledger entry" rows instead of encoding the historical
     # corpus it always has. Scoped back to the three sources this script could ever succeed against
     # today; revisit once #177 extends the ledger.
-    surf = load_surfaces(sources=("bag3d", "nrw", "plateau"))
+    # #188: a cohort manifest names its rows up front, so the surface load is scoped to them and
+    # neither the ~1.3 GB of BuildingWorld verts/faces nor its 1.5M winding checks are paid for.
+    wanted = None
+    if args.rows_from:
+        from scripts.foundations.vecset_cohort import load_manifest
+        wanted = load_manifest(args.rows_from, args.role)
+        print(f"[precompute] cohort {args.rows_from} role {args.role!r}: {len(wanted)} rows "
+              f"(digest verified)", flush=True)
+    elif args.corpus_scope == "buildingworld":
+        raise SystemExit(
+            "[precompute] --corpus_scope buildingworld needs --rows_from: encoding all 1,526,778 "
+            "rows is ~88 GPU-hours and ~412 GB of cache. Draw a cohort with "
+            "scripts/foundations/vecset_cohort.py first.")
+
+    sources = (("buildingworld",) if args.corpus_scope == "buildingworld"
+               else ("bag3d", "nrw", "plateau"))
+    surf = load_surfaces(sources=sources, rows=wanted)
+    if wanted is not None:
+        missing = sorted(set(int(r) for r in wanted) - set(surf))
+        if missing:
+            raise SystemExit(
+                f"[precompute] {len(missing)} cohort row(s) have no recovered surface in "
+                f"{sources}, e.g. {missing[:5]} -- the cohort and the surface corpus disagree; "
+                f"redraw the cohort or re-run the surface ingest rather than encoding a subset")
     rows = sorted(surf)
     if args.stratify:
         rows = _stratified_rows(surf, rows, args.stratify)
@@ -617,9 +699,19 @@ def main() -> None:
     attrs = {"codec": codec.name, "n_coarse": args.n_coarse, "n_sharp": args.n_sharp}
     try:
         with open_real_corpus(H5) as f:
-            for n, r in enumerate(rows):
+            # The producer owns `f` and `surf`; the consumer below touches only the codec and the
+            # output cache. See `prefetch` for why that split is load-bearing and not incidental.
+            def prepare(r):
+                bld, _ = _building_for_row(f, surf, r, args.blockout)
+                return bld, np.asarray(f["footprint"][r], np.uint8)
+
+            prepared = (prefetch(rows, prepare, args.prefetch) if args.prefetch
+                        else ((r, prepare(r), None) for r in rows))
+            for n, (r, made, err) in enumerate(prepared):
+                if err is not None:
+                    print(f"  [skip] row {r}: {type(err).__name__}"); continue
+                bld, footprint = made
                 try:
-                    bld, _ = _building_for_row(f, surf, r, args.blockout)
                     z, pos = encode_row(codec, bld, r)
                 except Exception as e:
                     print(f"  [skip] row {r}: {type(e).__name__}"); continue
@@ -631,7 +723,7 @@ def main() -> None:
                     # positions live in [-1,1], where fp16 resolves ~1e-3 -- 30x finer than the 2/63
                     # voxel pitch, so the storage is exact enough to match on and halves 875 MB -> 437 MB
                     query_pos=pos.astype(np.float16),
-                    footprint=np.asarray(f["footprint"][r], np.uint8),
+                    footprint=footprint,
                     height_m=height_m,
                     region=region,
                     row=r,

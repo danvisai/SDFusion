@@ -12,7 +12,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-from scripts.foundations.precompute_vecset_latents import IncrementalCache  # noqa: E402
+from scripts.foundations.precompute_vecset_latents import IncrementalCache, prefetch  # noqa: E402
 
 
 def _row(row: int) -> dict:
@@ -77,6 +77,52 @@ class TestIncrementalCache(unittest.TestCase):
             f.create_dataset("row", data=np.array([1], np.int32))
         with self.assertRaisesRegex(SystemExit, "not an incremental cache"):
             IncrementalCache(self.path, resume=True)
+
+
+class TestPrefetch(unittest.TestCase):
+    """#188: the producer thread that keeps the A100 busy during the blockout pass's CPU work."""
+
+    def test_yields_every_item_in_order(self):
+        got = [(i, made) for i, made, err in prefetch(range(50), lambda i: i * i)]
+        self.assertEqual(got, [(i, i * i) for i in range(50)])
+
+    def test_carries_an_error_instead_of_killing_the_run(self):
+        """One bad row costs one `[skip]` line, not the remaining 59,999 rows of a cohort."""
+
+        def make(i):
+            if i == 3:
+                raise ValueError("bad row")
+            return i
+
+        rows = list(prefetch(range(6), make))
+        self.assertEqual([r for r, _, _ in rows], [0, 1, 2, 3, 4, 5])
+        bad = [err for _, _, err in rows if err is not None]
+        self.assertEqual(len(bad), 1)
+        self.assertIsInstance(bad[0], ValueError)
+
+    def test_a_slow_consumer_cannot_deadlock_a_bounded_queue(self):
+        """More items than the queue depth, consumed lazily -- the shape the real loop has."""
+        seen = list(prefetch(range(200), lambda i: i, depth=2))
+        self.assertEqual(len(seen), 200)
+
+    def test_actually_runs_ahead_of_the_consumer(self):
+        """The whole reason it exists. Without overlap this takes ~2x as long.
+
+        `make` and the consumer each sleep, so the wall clock separates a producer that runs ahead
+        from one that does not -- without depending on how fast this box happens to be.
+        """
+        import time
+
+        n, unit = 8, 0.02
+        start = time.time()
+        for _ in prefetch(range(n), lambda i: time.sleep(unit), depth=4):
+            time.sleep(unit)
+        overlapped = time.time() - start
+        self.assertLess(overlapped, n * unit * 1.8,
+                        "the producer is not running ahead of the consumer")
+
+    def test_depth_zero_is_clamped_rather_than_hanging(self):
+        self.assertEqual(len(list(prefetch(range(5), lambda i: i, depth=0))), 5)
 
 
 if __name__ == "__main__":

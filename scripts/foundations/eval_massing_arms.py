@@ -689,17 +689,21 @@ def main() -> None:
 
     a2 = None
     if args.a2:
-        from models.networks.vecset_denoiser import VecsetDenoiser
+        from models.networks.vecset_denoiser import denoiser_from_checkpoint, region_width_of
         from models.networks.vecset_projection import SetSDEdit
         ck = torch.load(args.a2, map_location="cpu", weights_only=False)
         ca = ck["args"]
-        net = VecsetDenoiser(latent_channels=ck["latent_channels"], width=ca["width"],
-                             depth=ca["depth"], heads=ca["heads"],
-                             footprint_res=ck["footprint_res"]).to(dev)
-        net.load_state_dict(ck["model"]); net.eval()
+        # #188: rebuild through the shared helper rather than re-deriving the shape here. This call
+        # site used to hardcode the 3-region default, which silently produced a differently shaped
+        # net for any checkpoint trained on the new corpus -- the same class of defect that left the
+        # frozen source unable to condition on a BuildingWorld row.
+        net = denoiser_from_checkpoint(ck, dev)
         a2 = dict(op=SetSDEdit(net, timesteps=ca["timesteps"]),
-                  mu=ck["latent_mu"], sd=ck["latent_sd"], step=int(ck["step"]))
-        print(f"[a2] {args.a2}  step {a2['step']}", flush=True)
+                  mu=ck["latent_mu"], sd=ck["latent_sd"], step=int(ck["step"]),
+                  n_regions=region_width_of(ck))
+        print(f"[a2] {args.a2}  step {a2['step']}  "
+              + ("region-free" if not a2["n_regions"]
+                 else f"region channel width {a2['n_regions']}"), flush=True)
 
     t0 = time.time()
     with h5py.File(args.latents, "r") as f:
@@ -720,7 +724,10 @@ def main() -> None:
                        - a2["mu"]) / a2["sd"])
                 fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
                 ht = torch.tensor([ht_of[bid]], device=dev)
-                rg = torch.tensor([rg_of[bid]], device=dev)
+                # A region-free checkpoint has no embedding to index, and handing it one raises
+                # rather than being quietly ignored -- so the harness must match the checkpoint it
+                # was given instead of assuming a region channel exists (#188).
+                rg = torch.tensor([rg_of[bid]], device=dev) if a2["n_regions"] else None
                 for s in args.strength:
                     zp = a2["op"].project(blockout=z0, footprint=fpt, height=ht, region=rg,
                                           strength=s, steps=args.steps, guidance=args.guidance,

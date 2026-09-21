@@ -73,5 +73,61 @@ class TestLoadSurfacesSources(unittest.TestCase):
         self.assertEqual(sorted(out), [0, 1])
 
 
+class TestRowScoping(unittest.TestCase):
+    """#188: `rows` narrows the load to named corpus rows, before any per-row work happens.
+
+    `sources` was enough while every caller wanted a whole source. #188's vecset retrain wants a
+    60,000-row SAMPLE of BuildingWorld's 1,526,778, and the per-row cost here is not the slice --
+    it is the `trimesh.Trimesh(...).volume` winding check built for every row loaded. Paying that
+    1.5M times to keep 60k is the difference between minutes and most of an hour.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.d = Path(self.tmp.name)
+        _write_source(self.d, "buildingworld", [10, 11, 12, 13])
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_rows_selects_only_the_named_rows(self):
+        with patch.object(gate, "SURF", self.d):
+            out = gate.load_surfaces(sources=("buildingworld",), rows=[11, 13])
+        self.assertEqual(sorted(out), [11, 13])
+
+    def test_rows_none_still_loads_everything(self):
+        with patch.object(gate, "SURF", self.d):
+            out = gate.load_surfaces(sources=("buildingworld",))
+        self.assertEqual(sorted(out), [10, 11, 12, 13])
+
+    def test_a_requested_row_absent_from_the_source_is_simply_not_returned(self):
+        """The caller compares what it asked for against what it got; this must not invent rows."""
+        with patch.object(gate, "SURF", self.d):
+            out = gate.load_surfaces(sources=("buildingworld",), rows=[11, 999])
+        self.assertEqual(sorted(out), [11])
+
+    def test_an_empty_row_set_loads_nothing(self):
+        with patch.object(gate, "SURF", self.d):
+            out = gate.load_surfaces(sources=("buildingworld",), rows=[])
+        self.assertEqual(out, {})
+
+    def test_does_not_do_per_row_work_for_rows_it_was_not_asked_for(self):
+        """The regression this exists for: filtering AFTER the winding check would still cost 1.5M.
+
+        Counts calls to the winding check rather than timing it, so the test states the mechanism
+        instead of hoping a wall-clock assertion stays stable on a loaded box.
+        """
+        import trimesh
+
+        calls = []
+        real = trimesh.Trimesh
+
+        def counting(*a, **kw):
+            calls.append(1)
+            return real(*a, **kw)
+
+        with patch.object(gate, "SURF", self.d), patch.object(trimesh, "Trimesh", counting):
+            gate.load_surfaces(sources=("buildingworld",), rows=[11])
+        self.assertEqual(len(calls), 1, f"built {len(calls)} meshes to keep 1 row")
+
+
 if __name__ == "__main__":
     unittest.main()

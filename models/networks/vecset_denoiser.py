@@ -87,13 +87,29 @@ class Block(nn.Module):
 
 
 class VecsetDenoiser(nn.Module):
-    """Predicts noise on a latent token set, conditioned on footprint + height + region."""
+    """Predicts noise on a latent token set, conditioned on footprint + height + (optionally) region.
+
+    `n_regions` is a property of the CORPUS, not of this module. It defaulted to 3 and no call site
+    ever overrode it, which is how the frozen A2 source (`vecset_v4_surf` @240k) came to carry
+    `region = nn.Embedding(3, 512)` -- and why it raises `IndexError` on every BuildingWorld row,
+    all of which carry region id 3-8 (#188). Pass the corpus's own width.
+
+    `n_regions=0` is the region-FREE variant (owner direction 2026-09-18): the embedding is not
+    built at all, so the checkpoint structurally carries no region channel. That is deliberately
+    stronger than passing `region=None` to a 3-region model -- that combination is an *untrained
+    mode* of a model whose `cfg_drop` only ever dropped the whole condition jointly, which is
+    exactly what #119 refused to generate from. Footprint and height still condition, so the
+    footprint-only contribution claim is unaffected.
+    """
 
     def __init__(self, latent_channels: int = 64, width: int = 768, depth: int = 12,
                  heads: int = 12, footprint_res: int = 64, n_regions: int = 3,
                  cond_tokens: int = 16):
         super().__init__()
+        if n_regions < 0:
+            raise ValueError(f"n_regions must be >= 0 (0 means region-free), got {n_regions}")
         self.width = width
+        self.n_regions = int(n_regions)
         self.inp = nn.Linear(latent_channels, width)
         self.out = nn.Linear(width, latent_channels)
         nn.init.zeros_(self.out.weight); nn.init.zeros_(self.out.bias)
@@ -101,7 +117,10 @@ class VecsetDenoiser(nn.Module):
         self.t_mlp = nn.Sequential(nn.Linear(width, width), nn.SiLU(), nn.Linear(width, width))
         self.fp_enc = FootprintEncoder(width, footprint_res, cond_tokens)
         self.height = nn.Linear(1, width)
-        self.region = nn.Embedding(n_regions, width)
+        # `None`, not `nn.Embedding(0, width)`: an empty embedding is still a submodule, so it would
+        # put a `region.weight` key in the state_dict and leave "is this checkpoint region-free?"
+        # answerable only by reading a shape. Absence is the honest encoding of absence.
+        self.region = nn.Embedding(n_regions, width) if n_regions else None
         # learned stand-ins for "no conditioning", so classifier-free guidance needs no retraining
         self.null_tokens = nn.Parameter(torch.randn(1, cond_tokens, width) * 0.02)
         self.null_vec = nn.Parameter(torch.zeros(1, width))
@@ -112,6 +131,14 @@ class VecsetDenoiser(nn.Module):
     def forward(self, x, t, footprint, height=None, region=None, drop_cond: bool = False):
         """x (B,N,C) noisy tokens · t (B,) · footprint (B,1,R,R) · height (B,) · region (B,) longs."""
         B = x.shape[0]
+        if region is not None and self.region is None:
+            # Loudly, rather than dropping it: a caller passing region ids believes it holds a
+            # region-conditioned model. Silently ignoring them would let a gate score a
+            # region-conditioned harness against a region-free checkpoint and report the
+            # difference as a corpus result.
+            raise ValueError(
+                "this denoiser is region-free (n_regions=0) but was handed region ids; pass "
+                "region=None, or load a checkpoint that carries a region embedding")
         vec = self.t_mlp(timestep_embedding(t, self.width))
 
         if drop_cond:
@@ -128,3 +155,47 @@ class VecsetDenoiser(nn.Module):
         for blk in self.blocks:
             h = blk(h, cond, vec)
         return self.out(self.final(h))
+
+
+def region_width_of(checkpoint: dict) -> int:
+    """How many regions this saved denoiser conditions on. 0 means region-free.
+
+    #188. Every consumer of a checkpoint -- the eval harness, the town service, #119's cache path --
+    has to rebuild the net before it can load the weights, and each one currently hardcodes the
+    3-region default. That default is the whole defect: it is why the frozen A2 source cannot
+    condition on a single BuildingWorld row. So the answer comes from ONE place, and it is read off
+    the weights rather than assumed.
+
+    `n_regions` is preferred when the blob declares it, but every checkpoint written before #188 --
+    the frozen source included -- predates that key, so the embedding's own shape is the fallback.
+    A declaration its weights contradict is refused rather than guessed at.
+    """
+    weights = checkpoint.get("model", checkpoint)
+    stored = weights.get("region.weight")
+    from_weights = 0 if stored is None else int(stored.shape[0])
+    declared = checkpoint.get("n_regions")
+    if declared is None:
+        return from_weights
+    declared = int(declared)
+    if declared != from_weights:
+        raise ValueError(
+            f"checkpoint declares n_regions={declared} but carries a region embedding of width "
+            f"{from_weights} -- refusing to guess which is right")
+    return declared
+
+
+def denoiser_from_checkpoint(checkpoint: dict, device=None) -> "VecsetDenoiser":
+    """Rebuild the denoiser a checkpoint describes, with its weights loaded and in eval mode.
+
+    The single place that knows how a saved blob maps onto constructor arguments, so a consumer
+    cannot quietly rebuild a *differently shaped* model and load weights into it (#188).
+    """
+    args = checkpoint.get("args", {})
+    net = VecsetDenoiser(latent_channels=checkpoint["latent_channels"],
+                         width=args["width"], depth=args["depth"], heads=args["heads"],
+                         footprint_res=checkpoint["footprint_res"],
+                         n_regions=region_width_of(checkpoint))
+    net.load_state_dict(checkpoint["model"])
+    if device is not None:
+        net = net.to(device)
+    return net.eval()

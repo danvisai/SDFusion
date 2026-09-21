@@ -69,9 +69,9 @@ def _rough(field: np.ndarray) -> float:
     return surface_roughness(torch.from_numpy(np.clip(field, -TRUNC, TRUNC)))
 
 
-def load_surfaces(sources=None):
+def load_surfaces(sources=None, rows=None):
     """row -> (verts, faces, src) for every recovered building, across `sources` (default: every
-    registered `SOURCES` key).
+    registered `SOURCES` key). `rows` narrows that to named corpus rows (default: all of them).
 
     Code-review finding on #175: registering `"buildingworld"` in `SOURCES` silently grew this
     function's default row set from 35,776 to 1,562,554 -- ~1.5M extra verts/faces materialised
@@ -83,19 +83,36 @@ def load_surfaces(sources=None):
     a caller that DOES want everything (or is written before this parameter existed) is unaffected.
     """
     import h5py
+    wanted = None if rows is None else {int(r) for r in rows}
     out = {}
     for src in (sources if sources is not None else SOURCES):
         p = SURF / f"surfaces_{src}.h5"
         if not p.exists():
             print(f"[warn] missing {p.name}"); continue
         with h5py.File(p, "r") as f:
-            vo, fo, rows = f["vert_offset"][:], f["face_offset"][:], f["row"][:]
-            V, F = f["verts"][:], f["faces"][:]
-        for i, r in enumerate(rows):
-            v, fa = V[vo[i]:vo[i + 1]], F[fo[i]:fo[i + 1]]
+            vo, fo, src_rows = f["vert_offset"][:], f["face_offset"][:], f["row"][:]
+            if wanted is None:
+                keep = np.arange(len(src_rows))
+                V, F = f["verts"][:], f["faces"][:]
+                slice_of = lambda i: (V[vo[i]:vo[i + 1]], F[fo[i]:fo[i + 1]])  # noqa: E731
+            else:
+                keep = np.flatnonzero(np.isin(src_rows, np.fromiter(wanted, np.int64, len(wanted))))
+                # Read only the kept rows. `verts`/`faces` are ~1.3 GB for BuildingWorld, so a
+                # sampled call must not materialise them whole either.
+                sliced = {int(i): (f["verts"][vo[i]:vo[i + 1]], f["faces"][fo[i]:fo[i + 1]])
+                          for i in keep}
+                slice_of = sliced.__getitem__
+        for i in keep:
+            i = int(i)
+            r = src_rows[i]
+            v, fa = slice_of(i)
             # Guarantee OUTWARD normals: a vecset encoder consumes them, and the Frame-N y/z swap is a
             # reflection that silently inverted every stored mesh. Cheap to assert here, so corpora
             # written before that was understood stay usable.
+            #
+            # ⚠️ This is the reason `rows` filters ABOVE rather than here: it is a mesh build per
+            # row, and #188 keeps 60,000 of BuildingWorld's 1,526,778. Filtering after this point
+            # would cost exactly as much as not filtering at all.
             import trimesh as _tm
             if _tm.Trimesh(np.asarray(v, np.float64), np.asarray(fa), process=False).volume < 0:
                 fa = fa[:, ::-1]

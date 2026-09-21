@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import secrets
 import sys
 import time
@@ -37,9 +38,9 @@ from models.networks.vecset_projection import cosine_alphas          # noqa: E40
 from utils.frozen_corpus import open_real_corpus                     # noqa: E402
 
 
-def latent_moments(latents, chunk_rows: int = 32,
-                   indices: np.ndarray | None = None) -> tuple[float, float]:
-    """Compute cache-wide float32 moments with bounded temporary memory.
+def _moments(latents, chunk_rows: int = 32,
+             indices: np.ndarray | None = None) -> tuple[int, float, float]:
+    """(count, mean, m2) over one cache, in bounded temporary memory.
 
     A production cache is roughly 10 GB in fp16.  Calling ``latents.astype(float32)`` materialises
     another ~20 GB array and can OOM before the first training step.  Parallel/Welford merging keeps
@@ -59,9 +60,73 @@ def latent_moments(latents, chunk_rows: int = 32,
         mean += delta * chunk_count / total
         m2 += chunk_m2 + delta * delta * count * chunk_count / total
         count = total
+    return count, mean, m2
+
+
+def merge_moments(parts) -> tuple[float, float]:
+    """Combine per-cache `(count, mean, m2)` triples into one (mean, sd).
+
+    #188 trains on several caches at once -- the legacy 35,623 rows plus the BuildingWorld cohort --
+    and the latent normalisation has to be taken over the whole training distribution. Normalising
+    to the first cache alone would pose the noise schedule against a distribution the model only
+    partly sees.
+    """
+    count, mean, m2 = 0, 0.0, 0.0
+    for part_count, part_mean, part_m2 in parts:
+        if part_count == 0:
+            continue
+        delta = part_mean - mean
+        total = count + part_count
+        mean += delta * part_count / total
+        m2 += part_m2 + delta * delta * count * part_count / total
+        count = total
     if count == 0:
         return 0.0, 1.0
     return mean, (m2 / count) ** 0.5 or 1.0
+
+
+def latent_moments(latents, chunk_rows: int = 32,
+                   indices: np.ndarray | None = None) -> tuple[float, float]:
+    """Cache-wide float32 (mean, sd) with bounded temporary memory."""
+    return merge_moments([_moments(latents, chunk_rows, indices)])
+
+
+def cache_paths(spec):
+    """`"a.h5,b.h5"` -> `["a.h5", "b.h5"]`; one path stays a one-element list; `None` stays `None`.
+
+    #188's retrain reads several caches at once. An empty entry (`a.h5,,b.h5`) is a typo, and
+    quietly training on two caches where three were named is the worst available response to it.
+    """
+    if spec is None:
+        return None
+    # A Path is ONE path, not an iterable of its parts -- every existing caller passes one.
+    if not isinstance(spec, (str, bytes, os.PathLike)):
+        return [str(p) for p in spec]
+    parts = [p.strip() for p in os.fspath(spec).split(",")]
+    if any(not p for p in parts):
+        raise ValueError(f"empty cache path in {spec!r}")
+    return parts
+
+
+def region_width(regions: np.ndarray, region_free: bool) -> int:
+    """How wide the denoiser's region embedding must be for this corpus. 0 means region-free.
+
+    The frozen A2 source carries `nn.Embedding(3, 512)` only because `n_regions` defaulted to 3 and
+    no call site ever passed it; every BuildingWorld row is id 3-8, so that checkpoint raises
+    `IndexError` on the corpus this effort moved to (#188). Deriving the width from the rows in
+    hand is what stops that recurring for a region-conditioned arm.
+    """
+    if region_free:
+        return 0
+    regions = np.asarray(regions)
+    if regions.size == 0:
+        raise ValueError("no rows to infer a region width from")
+    lo, hi = int(regions.min()), int(regions.max())
+    if lo < 0:
+        raise ValueError(
+            f"region id {lo} is negative -- #174 writes -1 as its pre-backfill sentinel, so this "
+            f"cache predates the #171 bucket backfill; re-run assign_buildingworld_region_buckets")
+    return hi + 1
 
 
 class LatentSet(torch.utils.data.Dataset):
@@ -93,37 +158,73 @@ class LatentSet(torch.utils.data.Dataset):
 
     def __init__(self, path, held_out=False, blockout_path=None, regions=None):
         import h5py
-        self.real_path = str(path)
-        self.blockout_path = str(blockout_path) if blockout_path else None
-        self._real_h5 = None
-        self._blockout_h5 = None
-        with h5py.File(path, "r") as f:
-            m = (f["held_out"][:] == (1 if held_out else 0))
-            if regions is not None:
-                wanted = np.isin(f["region"][:], np.asarray(sorted(regions), np.int32))
-                dropped = int((m & ~wanted).sum())
-                m = m & wanted
-                print(f"[regions] training on {sorted(regions)}; dropped {dropped} rows")
-            real_indices = np.flatnonzero(m)
-            self.latent_shape = tuple(f["latent"].shape[1:])
-            self.fp = f["footprint"][real_indices]
-            self.h = f["height_m"][real_indices]
-            self.r = f["region"][real_indices]
-            rows = f["row"][:][m]
-        self._real_indices = real_indices
-        self._blockout_indices = None
-        if blockout_path:
-            with h5py.File(blockout_path, "r") as g:
-                brow = g["row"][:]
-            idx = {int(r): i for i, r in enumerate(brow)}
-            keep = np.array([i for i, r in enumerate(rows) if int(r) in idx])
-            if len(keep) == 0:
-                raise SystemExit("no rows shared between the latent and blockout caches")
-            self._real_indices = self._real_indices[keep]
-            self.fp = self.fp[keep]
-            self.h, self.r = self.h[keep], self.r[keep]
-            self._blockout_indices = np.asarray([idx[int(rows[i])] for i in keep], np.int64)
-            print(f"[pairs] {len(keep)} aligned blockout/real pairs")
+        self.real_paths = cache_paths(path)
+        self.blockout_paths = cache_paths(blockout_path)
+        # kept for the single-cache callers and for the checkpoint's own record
+        self.real_path = ",".join(self.real_paths)
+        self.blockout_path = ",".join(self.blockout_paths) if self.blockout_paths else None
+        if self.blockout_paths is not None and len(self.blockout_paths) != len(self.real_paths):
+            raise ValueError(
+                f"{len(self.real_paths)} latent cache(s) but {len(self.blockout_paths)} blockout "
+                f"cache(s) -- they are paired positionally, one blockout cache per latent cache")
+        self._real_h5: list = [None] * len(self.real_paths)
+        self._blockout_h5: list = [None] * len(self.real_paths)
+
+        # Per-cache selection, concatenated. #188 trains the legacy 35,623 rows (whose caches
+        # already exist) alongside the freshly encoded BuildingWorld cohort, without materialising
+        # a merged ~34 GB copy that could drift from either source.
+        fps, hs, rs, src, idx, bidx, moments = [], [], [], [], [], [], []
+        self.latent_shape = None
+        for file_i, real_path in enumerate(self.real_paths):
+            with h5py.File(real_path, "r") as f:
+                m = (f["held_out"][:] == (1 if held_out else 0))
+                if regions is not None:
+                    wanted = np.isin(f["region"][:], np.asarray(sorted(regions), np.int32))
+                    dropped = int((m & ~wanted).sum())
+                    m = m & wanted
+                    print(f"[regions] training on {sorted(regions)}; dropped {dropped} rows")
+                real_indices = np.flatnonzero(m)
+                shape = tuple(f["latent"].shape[1:])
+                if self.latent_shape is None:
+                    self.latent_shape = shape
+                elif shape != self.latent_shape:
+                    raise ValueError(
+                        f"{real_path} stores {shape} latents but {self.real_paths[0]} stores "
+                        f"{self.latent_shape} -- these caches were not written by the same codec")
+                fp = f["footprint"][real_indices]
+                h = f["height_m"][real_indices]
+                r = f["region"][real_indices]
+                rows = f["row"][:][m]
+
+            keep = np.arange(len(real_indices))
+            blockout_indices = None
+            if self.blockout_paths:
+                with h5py.File(self.blockout_paths[file_i], "r") as g:
+                    brow = g["row"][:]
+                lookup = {int(row): i for i, row in enumerate(brow)}
+                keep = np.array([i for i, row in enumerate(rows) if int(row) in lookup], np.int64)
+                if len(keep) == 0:
+                    raise SystemExit(
+                        f"no rows shared between {real_path} and {self.blockout_paths[file_i]}")
+                blockout_indices = np.asarray([lookup[int(rows[i])] for i in keep], np.int64)
+                print(f"[pairs] {len(keep)} aligned blockout/real pairs in {Path(real_path).name}")
+                real_indices, fp, h, r = real_indices[keep], fp[keep], h[keep], r[keep]
+
+            fps.append(fp); hs.append(h); rs.append(r)
+            idx.append(real_indices)
+            src.append(np.full(len(real_indices), file_i, np.int64))
+            if blockout_indices is not None:
+                bidx.append(blockout_indices)
+            with h5py.File(real_path, "r") as f:
+                moments.append(_moments(f["latent"], indices=real_indices))
+
+        self.fp = np.concatenate(fps) if fps else np.empty((0, 0, 0), np.uint8)
+        self.h = np.concatenate(hs)
+        self.r = np.concatenate(rs)
+        self._real_indices = np.concatenate(idx)
+        self._file_of = np.concatenate(src)
+        self._blockout_indices = np.concatenate(bidx) if bidx else None
+        self._moments = moments
         # Footprint solidity = mask area / convex-hull area. Precomputed ONCE here, not in the
         # training loop: a ConvexHull per batch element per step would dominate a 305 ms denoiser
         # step. 1.0 = convex, lower = re-entrant (courtyards, L-plans, terraced party walls).
@@ -146,9 +247,8 @@ class LatentSet(torch.utils.data.Dataset):
         except ImportError:
             print("[solidity] scipy unavailable -- solidity fixed at 1.0")
 
-        # normalise the latent to unit scale so the noise schedule is well-posed
-        with h5py.File(path, "r") as f:
-            self.mu, self.sd = latent_moments(f["latent"], indices=self._real_indices)
+        # normalise the latent to unit scale so the noise schedule is well-posed, over EVERY cache
+        self.mu, self.sd = merge_moments(self._moments)
 
     def __len__(self):
         return len(self._real_indices)
@@ -163,28 +263,30 @@ class LatentSet(torch.utils.data.Dataset):
         return h5py.File(path, "r")
 
     def _real_latent(self, i: int) -> np.ndarray:
-        if self._real_h5 is None:
-            self._real_h5 = self._open(self.real_path)
-        return self._real_h5["latent"][int(self._real_indices[i])]
+        file_i = int(self._file_of[i])
+        if self._real_h5[file_i] is None:
+            self._real_h5[file_i] = self._open(self.real_paths[file_i])
+        return self._real_h5[file_i]["latent"][int(self._real_indices[i])]
 
     def _blockout_latent(self, i: int) -> np.ndarray:
-        if self._blockout_h5 is None:
-            assert self.blockout_path is not None and self._blockout_indices is not None
-            self._blockout_h5 = self._open(self.blockout_path)
-        return self._blockout_h5["latent"][int(self._blockout_indices[i])]
+        file_i = int(self._file_of[i])
+        if self._blockout_h5[file_i] is None:
+            assert self.blockout_paths is not None and self._blockout_indices is not None
+            self._blockout_h5[file_i] = self._open(self.blockout_paths[file_i])
+        return self._blockout_h5[file_i]["latent"][int(self._blockout_indices[i])]
 
     def __getstate__(self):
         """Never pickle or inherit an open HDF5 handle into a DataLoader worker."""
         state = self.__dict__.copy()
-        state["_real_h5"] = None
-        state["_blockout_h5"] = None
+        state["_real_h5"] = [None] * len(self.real_paths)
+        state["_blockout_h5"] = [None] * len(self.real_paths)
         return state
 
     def __del__(self):
         for handle_name in ("_real_h5", "_blockout_h5"):
-            handle = getattr(self, handle_name, None)
-            if handle is not None:
-                handle.close()
+            for handle in getattr(self, handle_name, None) or ():
+                if handle is not None:
+                    handle.close()
 
     def __getitem__(self, i):
         z = (self._real_latent(i).astype(np.float32) - self.mu) / self.sd
@@ -265,9 +367,29 @@ class ExperimentRng:
         return torch.rand(shape, generator=self.surface, device=self.device, dtype=dtype)
 
 
+class TrainerArgumentParser(argparse.ArgumentParser):
+    """An `ArgumentParser` that refuses flag combinations which contradict each other.
+
+    `--region_free` with `--regions` is the one that matters (#188): `--regions` selects rows BY
+    their region label, while `--region_free` removes the channel entirely. Resolving that silently
+    either way would produce a run whose name does not describe what it trained on -- and this
+    project has already paid for one such run (#84's weighting flags were exact no-ops for two
+    training runs before anyone noticed).
+    """
+
+    def parse_args(self, *args, **kwargs):
+        parsed = super().parse_args(*args, **kwargs)
+        if getattr(parsed, "region_free", False) and getattr(parsed, "regions", None):
+            self.error("--region_free removes the region channel entirely; --regions selects rows "
+                       "by region. Pick one.")
+        return parsed
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--latents", default="data/real_massing_v1/vecset_latents.h5")
+    ap = TrainerArgumentParser()
+    ap.add_argument("--latents", default="data/real_massing_v1/vecset_latents.h5",
+                    help="latent cache. Accepts a comma-separated list, which #188's retrain uses "
+                         "to train the legacy caches and the BuildingWorld cohort together.")
     ap.add_argument("--steps", type=int, default=20000)
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--lr", type=float, default=1e-4)
@@ -281,8 +403,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
                          "2=PLATEAU/JP). Default: all three. PLATEAU was ingested at LoD1, so its "
                          "footprint envelope already equals the real massing and its pair steps have "
                          "a zero target; '0,1' excludes it.")
+    ap.add_argument("--region_free", action="store_true",
+                    help="#188: train with NO region channel at all (n_regions=0), per owner "
+                         "direction 2026-09-18. This is a distinct conditioning variant, not "
+                         "--regions with everything selected: the embedding is never built, so the "
+                         "checkpoint structurally carries no region input and cannot be handed one. "
+                         "Footprint and height still condition. The named alternative if this "
+                         "underperforms is #171's 9-bucket style channel, run as its own "
+                         "single-variable arm -- never bundled with this one.")
     ap.add_argument("--blockouts", default=None,
-                    help="aligned blockout latent cache; enables pair training")
+                    help="aligned blockout latent cache; enables pair training. Accepts a "
+                         "comma-separated list, paired positionally with --latents.")
     ap.add_argument("--pair_frac", type=float, default=0.8,
                     help="fraction of steps corrupted FROM the blockout rather than from the real "
                          "latent; the remainder keeps a plain denoiser so the manifold is retained")
@@ -371,10 +502,15 @@ def main() -> None:
     print(f"[data] {len(ds)} train latents  tokens={ds.latent_shape[0]} ch={C}  fp={FPRES}  "
           f"mu={ds.mu:.3f} sd={ds.sd:.3f}", flush=True)
 
+    # #188: the region channel's width follows the CORPUS. Leaving it at the module default is
+    # exactly how the frozen A2 source ended up unable to condition on any BuildingWorld row.
+    n_regions = region_width(ds.r, args.region_free)
     net = VecsetDenoiser(latent_channels=C, width=args.width, depth=args.depth,
-                         heads=args.heads, footprint_res=FPRES).to(dev)
+                         heads=args.heads, footprint_res=FPRES, n_regions=n_regions).to(dev)
     n_par = sum(p.numel() for p in net.parameters())
-    print(f"[model] {n_par/1e6:.1f}M params", flush=True)
+    print(f"[model] {n_par/1e6:.1f}M params  "
+          + ("region-free (no region channel)" if args.region_free
+             else f"region channel width {n_regions}"), flush=True)
 
     opt = torch.optim.AdamW(net.parameters(), lr=args.lr, weight_decay=0.01)
     ac = cosine_alphas(args.timesteps).to(dev)
@@ -464,7 +600,9 @@ def main() -> None:
             for mask, flag in ((~drop, False), (drop, True)):
                 if mask.any():
                     pred[mask] = net(x=zt[mask], t=t[mask], footprint=fp[mask],
-                                     height=h[mask], region=r[mask], drop_cond=flag)
+                                     height=h[mask],
+                                     region=None if args.region_free else r[mask],
+                                     drop_cond=flag)
             loss = torch.nn.functional.mse_loss(pred, noise)
 
             # #80: the decoded-surface term. Supervised against the decode of the TRUE latent rather
@@ -525,7 +663,11 @@ def main() -> None:
                 blob = {"model": net.state_dict(), "step": step, "args": vars(args),
                         "opt": opt.state_dict(),       # so --resume continues rather than restarts
                         "latent_mu": ds.mu, "latent_sd": ds.sd,
-                        "latent_channels": C, "footprint_res": FPRES}
+                        "latent_channels": C, "footprint_res": FPRES,
+                        # #188: every consumer rebuilds the net from this blob, so the conditioning
+                        # width has to travel WITH the weights. Inferring it from `args` fails for
+                        # any checkpoint written before --region_free existed.
+                        "n_regions": n_regions, "region_free": bool(args.region_free)}
                 torch.save(blob, out / "vecset_denoiser.pth")
                 # Keep periodic step-tagged copies. #75 found the quality curve is NON-MONOTONIC --
                 # it fell for three consecutive checkpoints and then rose past all of them -- so a

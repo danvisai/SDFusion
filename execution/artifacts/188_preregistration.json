@@ -1,0 +1,131 @@
+{
+ "meta": {
+  "ticket": 188,
+  "created": "2026-09-21T05:27:25+00:00",
+  "git_rev": "f5984e2",
+  "preregistered_before": "any training run on the new corpus",
+  "frozen_source": "logs_building/vecset_v4_surf/vecset_denoiser_step240000.pth",
+  "frozen_source_sha256": "643aed0896e2edc36ab3ecb073da63847881dc2ba95459eed896a19b65fed04d",
+  "frozen_source_legacy_714": {
+   "fp_iou": 0.9589,
+   "missing": 0.0026,
+   "extra": 0.0876,
+   "vol_iou": 0.8625
+  }
+ },
+ "operating_point": {
+  "strength": 0.5,
+  "steps": 20,
+  "guidance": 1.0
+ },
+ "gate_population": {
+  "n": 900,
+  "digest": "47af806a908eb0f5d81fafe6cf730a5b18e5860289f4979c8c69811653378b82",
+  "buckets": 6,
+  "source": "188_cohort.json role=gate"
+ },
+ "reference": {
+  "blockout": {
+   "n": 900,
+   "fp_iou": 1.0,
+   "missing": 0.0,
+   "extra": 0.1393008805293091,
+   "vol_iou": 0.8777316622153579,
+   "collapse_rate": 0.0,
+   "guard_roughness": 0.02276819571852684,
+   "guard_field_slope": 0.03813948296010494
+  },
+  "codec_ceiling": {
+   "n": 900,
+   "fp_iou": 0.9978980348061357,
+   "missing": 0.0002487539231994936,
+   "extra": 0.0007444867265002466,
+   "vol_iou": 0.998809418007597,
+   "collapse_rate": 0.008888888888888889,
+   "guard_roughness": 0.03678401745855808,
+   "guard_field_slope": 1.2432745099067688
+  }
+ },
+ "clauses": [
+  {
+   "id": "K1",
+   "kind": "KILL",
+   "source": "extra",
+   "metric": "generation_failures",
+   "rule": "==",
+   "threshold": 0,
+   "rationale": "The whole reason #188 exists: the frozen source raises IndexError on every BuildingWorld row. A replacement that fails to generate for any scored row has not fixed the structural block."
+  },
+  {
+   "id": "K2",
+   "kind": "KILL",
+   "source": "extra",
+   "metric": "buckets_scored",
+   "rule": "==",
+   "threshold": 6,
+   "rationale": "All six of #171's BuildingWorld style buckets must generate. A checkpoint that silently covers five has the same class of defect in a smaller place."
+  },
+  {
+   "id": "K3",
+   "kind": "KILL",
+   "source": "summary",
+   "arm": "{arm}",
+   "metric": "fp_iou",
+   "rule": ">=",
+   "threshold": 0.9,
+   "rationale": "Footprint adherence is the hard criterion of the eval harness. The frozen source's own legacy median is 0.9589 with p10 0.8803; 0.90 sits well below its median, so this fails only on a source that has genuinely come off its own conditioning footprint."
+  },
+  {
+   "id": "K4",
+   "kind": "KILL",
+   "source": "summary",
+   "arm": "{arm}",
+   "metric": "collapse_rate",
+   "rule": "<=",
+   "threshold": 0.25,
+   "rationale": "Hollow collapse (>=15% of GT volume missing) is this family's known failure mode: #92's aligned retrain reached 0.4636 and was recorded as a failure, while the frozen source measured 0.1667. 0.25 sits between the two and is fixed before any retrained number is seen."
+  },
+  {
+   "id": "B1",
+   "kind": "BAR",
+   "source": "ratio",
+   "arm": "{arm}",
+   "metric": "vol_iou",
+   "relative_to": "blockout",
+   "rule": ">=",
+   "threshold": 0.924,
+   "rationale": "Non-inferiority, normalised by population: relative to doing nothing on its own rows, the replacement must be at least as good as the frozen source was relative to doing nothing on its rows (0.8625/0.9334). \u26a0\ufe0f This threshold is below 1.0 BECAUSE the frozen source loses to its own envelope; #188 is a substitution, not the open quality problem."
+  },
+  {
+   "id": "B2",
+   "kind": "BAR",
+   "source": "ratio",
+   "arm": "{arm}",
+   "metric": "extra",
+   "relative_to": "blockout",
+   "rule": "<=",
+   "threshold": 1.2269,
+   "rationale": "The same non-inferiority test on the over-fill the envelope is supposed to be carved out of (0.0876/0.0714 for the frozen source)."
+  },
+  {
+   "id": "B3",
+   "kind": "BAR",
+   "source": "summary",
+   "arm": "{arm}",
+   "metric": "missing",
+   "rule": "<=",
+   "threshold": 0.05,
+   "rationale": "Absolute, not a ratio: the blockout's `missing` is 0 by construction, so a ratio is undefined. `missing` is the dangerous direction -- it means the generator ate the building rather than over-filled it -- and the frozen source sits at 0.0026."
+  },
+  {
+   "id": "I1",
+   "kind": "INFORMATIONAL",
+   "source": "summary",
+   "arm": "{arm}",
+   "metric": "vs_input",
+   "rule": "<=",
+   "threshold": 0.99,
+   "rationale": "Reported, never scored. `vs_input` near 1.0 is the near-no-op signature #87 measured on the frozen source (median 0.9882/0.9832/0.9813 by region). Worth seeing on the new corpus; not a verdict, because no arm in this family has ever cleared it."
+  }
+ ]
+}

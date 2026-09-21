@@ -3,7 +3,7 @@ projection's footprint/volume against the blockout it starts from."""
 import sys, argparse, numpy as np, torch, h5py
 sys.path.insert(0, '.')
 from utils.frozen_corpus import open_real_corpus  # noqa: E402
-from models.networks.vecset_denoiser import VecsetDenoiser
+from models.networks.vecset_denoiser import denoiser_from_checkpoint, region_width_of
 from models.networks.vecset_projection import SetSDEdit
 from models.shape_codec import Building, DoraCodec
 from scripts.foundations.baseline_gate_eval import fp_iou, mesh_sdf_surface
@@ -22,9 +22,8 @@ a = ap.parse_args()
 dev = "cuda"
 ck = torch.load(a.ckpt, map_location="cpu", weights_only=False)
 ca = ck["args"]
-net = VecsetDenoiser(latent_channels=ck["latent_channels"], width=ca["width"], depth=ca["depth"],
-                     heads=ca["heads"], footprint_res=ck["footprint_res"]).to(dev)
-net.load_state_dict(ck["model"]); net.eval()
+net = denoiser_from_checkpoint(ck, dev)              # #188: width read off the weights
+n_regions = region_width_of(ck)
 mu, sd = ck["latent_mu"], ck["latent_sd"]
 op = SetSDEdit(net, timesteps=ca["timesteps"])
 codec = DoraCodec(load_dora(dev))
@@ -45,7 +44,9 @@ with h5py.File(LATENTS, "r") as lf, open_real_corpus(H5) as gt:
         ht = float(lf["height_m"][lat_of[bid]]); rg = int(lf["region"][lat_of[bid]])
         zn = torch.from_numpy((np.asarray(lf["latent"][lat_of[bid]], np.float32) - mu) / sd)[None].to(dev)
         fpt = torch.from_numpy(fp.astype(np.float32))[None, None].to(dev)
-        htt = torch.tensor([ht], device=dev); rgt = torch.tensor([rg], device=dev)
+        htt = torch.tensor([ht], device=dev)
+        # A region-free checkpoint has no embedding to index and raises if handed one (#188).
+        rgt = torch.tensor([rg], device=dev) if n_regions else None
 
         # (1) in-distribution recovery: noise a REAL latent, denoise, measure cosine
         for s in a.strengths:

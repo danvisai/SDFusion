@@ -15,7 +15,10 @@ import h5py
 import numpy as np
 import torch
 
-from scripts.train_vecset import ExperimentRng, LatentSet, build_arg_parser, latent_moments, surface_term
+from scripts.train_vecset import (
+    ExperimentRng, LatentSet, build_arg_parser, cache_paths, latent_moments, region_width,
+    surface_term,
+)
 
 
 def _mk(n, p=16, err=1.0):
@@ -231,6 +234,117 @@ class TestRegionFilter(unittest.TestCase):
         args = build_arg_parser().parse_args(["--regions", "0,1"])
         self.assertEqual([int(x) for x in args.regions.split(",")], [0, 1])
         self.assertIsNone(build_arg_parser().parse_args([]).regions)
+
+
+class TestCachePaths(unittest.TestCase):
+    """#188: the retrain trains on the legacy caches AND the new BuildingWorld ones, together.
+
+    The legacy 35,623 rows already have both caches and must enter whole rather than be re-encoded
+    at ~0.2 s/row; the BuildingWorld cohort is a separate file. Concatenating at read time keeps one
+    source of truth per cache instead of a merged 34 GB copy that can drift from both.
+    """
+
+    def test_a_single_path_is_unchanged(self):
+        self.assertEqual(cache_paths("a.h5"), ["a.h5"])
+
+    def test_a_comma_separated_list_becomes_several(self):
+        self.assertEqual(cache_paths("a.h5,b.h5"), ["a.h5", "b.h5"])
+
+    def test_whitespace_around_a_separator_is_tolerated(self):
+        self.assertEqual(cache_paths(" a.h5 , b.h5 "), ["a.h5", "b.h5"])
+
+    def test_none_is_none(self):
+        self.assertIsNone(cache_paths(None))
+
+    def test_an_empty_entry_is_refused_rather_than_silently_dropped(self):
+        """`a.h5,,b.h5` is a typo; silently training on two caches instead of three is the worst
+        possible response to it."""
+        with self.assertRaises(ValueError):
+            cache_paths("a.h5,,b.h5")
+
+
+class TestMultiCacheLatentSet(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        tmp = Path(self._tmp.name)
+        self.legacy, self.legacy_bo = tmp / "legacy.h5", tmp / "legacy_bo.h5"
+        self.bw, self.bw_bo = tmp / "bw.h5", tmp / "bw_bo.h5"
+        TestLatentSetStorage._cache(self.legacy, [10, 20], [1, 1, 2, 2], [0, 0], regions=[0, 1])
+        TestLatentSetStorage._cache(self.legacy_bo, [10, 20], [5, 5, 6, 6], [0, 0], regions=[0, 1])
+        TestLatentSetStorage._cache(self.bw, [90, 91], [3, 3, 4, 4], [0, 0], regions=[3, 8])
+        TestLatentSetStorage._cache(self.bw_bo, [91, 90], [8, 8, 7, 7], [0, 0], regions=[8, 3])
+
+    def test_reads_every_row_of_every_cache(self):
+        ds = LatentSet([self.legacy, self.bw])
+        self.assertEqual(len(ds), 4)
+        self.assertEqual(sorted(int(r) for r in ds.r), [0, 1, 3, 8])
+
+    def test_pairs_match_by_row_id_across_caches(self):
+        """Blockout row order differs per file on purpose -- matching is by corpus id, not position."""
+        ds = LatentSet([self.legacy, self.bw], blockout_path=[self.legacy_bo, self.bw_bo])
+        self.assertTrue(ds.has_blockouts)
+        self.assertEqual(len(ds), 4)
+        for i in range(len(ds)):
+            real, block, *_ = ds[i]
+            # each fixture stores blockout value = real value + 4, so the pairing is checkable
+            self.assertAlmostEqual(float(block[0, 0] - real[0, 0]) * ds.sd, 4.0, places=3)
+
+    def test_latent_moments_span_every_cache(self):
+        """The normalisation must see the whole training distribution, not just the first file."""
+        both = LatentSet([self.legacy, self.bw])
+        first = LatentSet([self.legacy])
+        self.assertNotAlmostEqual(both.mu, first.mu, places=6)
+
+    def test_a_single_path_still_works_unwrapped(self):
+        """Every existing caller passes one path and must keep working untouched."""
+        ds = LatentSet(self.legacy)
+        self.assertEqual(len(ds), 2)
+
+    def test_mismatched_cache_and_blockout_counts_are_refused(self):
+        with self.assertRaises(ValueError):
+            LatentSet([self.legacy, self.bw], blockout_path=[self.legacy_bo])
+
+
+class TestRegionWidth(unittest.TestCase):
+    """#188: the conditioning width follows the corpus, and 0 means region-free.
+
+    The frozen A2 source carries `nn.Embedding(3, 512)` purely because nothing ever passed
+    `n_regions`. On the new corpus that is an `IndexError` on every BuildingWorld row.
+    """
+
+    def test_region_free_is_zero(self):
+        self.assertEqual(region_width(np.array([0, 3, 8]), region_free=True), 0)
+
+    def test_otherwise_it_covers_the_largest_id_present(self):
+        self.assertEqual(region_width(np.array([0, 1, 2]), region_free=False), 3)
+        self.assertEqual(region_width(np.array([0, 3, 8]), region_free=False), 9)
+
+    def test_an_empty_corpus_is_refused(self):
+        with self.assertRaises(ValueError):
+            region_width(np.array([], np.int32), region_free=False)
+
+    def test_a_negative_region_id_is_refused(self):
+        """#174 writes -1 as its pre-backfill sentinel; training on it would index backwards."""
+        with self.assertRaises(ValueError):
+            region_width(np.array([0, -1, 2]), region_free=False)
+
+
+class TestRegionFreeFlag(unittest.TestCase):
+    def test_the_flag_exists_and_defaults_off(self):
+        args = build_arg_parser().parse_args([])
+        self.assertFalse(args.region_free)
+
+    def test_it_can_be_turned_on(self):
+        args = build_arg_parser().parse_args(["--region_free"])
+        self.assertTrue(args.region_free)
+
+    def test_region_free_and_an_explicit_region_filter_are_mutually_exclusive(self):
+        """`--regions 0,1` selects rows BY region; asking for that while removing the channel is a
+        contradiction worth refusing rather than silently resolving one way."""
+        parser = build_arg_parser()
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["--region_free", "--regions", "0,1"])
 
 
 if __name__ == "__main__":
