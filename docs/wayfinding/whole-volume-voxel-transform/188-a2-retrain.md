@@ -259,11 +259,14 @@ wrong is close to binary per row, not a uniform degradation.
 
 ### What it produces: hollow shells, and volume in the wrong place
 
-Rendered three ways, all committed under `outputs/massing_arms_eval/`:
+Rendered three ways, committed under [`188_montages/`](../../../execution/artifacts/188_montages)
+(`outputs/` is gitignored, so evidence the record cites is kept beside the record):
 
 - `montage_188_candidate_step240000.png` - the scored arm beside gt / blockout / codec_ceiling.
+- `plan_188_candidate_step240000.png` - #85's criterion-2 plan view, worst first.
 - `voxel_188_PREVIEW_step220000.png` - **the informative one.** True voxel occupancy beside the
   same volume collapsed through a height-map lens.
+- `montage_188_DIAG_phase1_step180000.png` - the surface-term-off control.
 
 The voxel render shows the mechanism the scalars only imply: the arm produces **hollow shells** -
 walls and partial floors around an empty interior. On one row it reaches **0.995x GT volume while
