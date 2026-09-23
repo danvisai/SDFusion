@@ -1,0 +1,130 @@
+{
+ "arm": "a2_s0.5",
+ "verdict": "GUARD BROKEN",
+ "clear_kill": true,
+ "guards_held": false,
+ "numeric_pass": false,
+ "clauses": [
+  {
+   "id": "K1",
+   "kind": "KILL",
+   "source": "extra",
+   "metric": "generation_failures",
+   "rule": "==",
+   "threshold": 0,
+   "rationale": "The whole reason #188 exists: the frozen source raises IndexError on every BuildingWorld row. A replacement that fails to generate for any scored row has not fixed the structural block.",
+   "value": 0,
+   "pass": true,
+   "measured": true
+  },
+  {
+   "id": "K2",
+   "kind": "KILL",
+   "source": "extra",
+   "metric": "buckets_scored",
+   "rule": "==",
+   "threshold": 6,
+   "rationale": "All six of #171's BuildingWorld style buckets must generate. A checkpoint that silently covers five has the same class of defect in a smaller place.",
+   "value": 6,
+   "pass": true,
+   "measured": true
+  },
+  {
+   "id": "G1",
+   "kind": "GUARD",
+   "source": "summary",
+   "arm": "a2_s0.5",
+   "metric": "vs_input",
+   "rule": "<",
+   "threshold": 0.98,
+   "rationale": "CONTEXT.md's documented guard, at its documented value: 'IoU against the blockout the arm started from. 1.0 means it did nothing. An arm at 0.99 has not been measured as a generator however good its other numbers look (#75). The guard is < 0.98.' This is the ONLY clause an inert model fails -- every other one is satisfied by returning the envelope untouched. The frozen source measures 0.9616 (n=12), so it clears this.",
+   "value": 0.13504661165922577,
+   "pass": true,
+   "measured": true
+  },
+  {
+   "id": "G2",
+   "kind": "GUARD",
+   "source": "summary",
+   "arm": "a2_s0.5",
+   "metric": "collapse_rate",
+   "rule": "<=",
+   "threshold": 0.1582,
+   "rationale": "CONTEXT.md's documented bar, at its documented value: 1-NN retrieval's 0.1582, 'a generator that destroys more buildings than naive retrieval is not servable whatever else it scores'. The frozen source measures 0.098 on the pinned 714, so it clears this comfortably; #92's aligned retrain reached 0.4636 and was recorded as a failure. Not #188's bar to loosen.",
+   "value": 0.8177777777777778,
+   "pass": false,
+   "measured": true
+  },
+  {
+   "id": "P0",
+   "kind": "PASS",
+   "source": "summary",
+   "arm": "a2_s0.5",
+   "metric": "fp_iou",
+   "rule": ">=",
+   "threshold": 0.9,
+   "rationale": "Footprint adherence is the hard criterion of the eval harness. The frozen source's own legacy median is 0.9589 with p10 0.8803; 0.90 sits well below its median, so this fails only on a source that has genuinely come off its own conditioning footprint.",
+   "value": 0.7658042898801936,
+   "pass": false,
+   "measured": true
+  },
+  {
+   "id": "B1",
+   "kind": "PASS",
+   "source": "ratio",
+   "arm": "a2_s0.5",
+   "metric": "vol_iou",
+   "relative_to": "blockout",
+   "rule": ">=",
+   "threshold": 0.924,
+   "rationale": "Non-inferiority, normalised by population: relative to doing nothing on its own rows, the replacement must be at least as good as the frozen source was relative to doing nothing on its rows (0.8625/0.9334). \u26a0\ufe0f This threshold is below 1.0 BECAUSE the frozen source loses to its own envelope; #188 is a substitution, not the open quality problem.",
+   "value": 0.12676432055590686,
+   "pass": false,
+   "measured": true
+  },
+  {
+   "id": "B2",
+   "kind": "PASS",
+   "source": "ratio",
+   "arm": "a2_s0.5",
+   "metric": "extra",
+   "relative_to": "blockout",
+   "rule": "<=",
+   "threshold": 1.2269,
+   "rationale": "The same non-inferiority test on the over-fill the envelope is supposed to be carved out of (0.0876/0.0714 for the frozen source).",
+   "value": 1.058616594141329,
+   "pass": true,
+   "measured": true
+  },
+  {
+   "id": "B3",
+   "kind": "PASS",
+   "source": "summary",
+   "arm": "a2_s0.5",
+   "metric": "missing",
+   "rule": "<=",
+   "threshold": 0.05,
+   "rationale": "Absolute, not a ratio: the blockout's `missing` is 0 by construction, so a ratio is undefined. `missing` is the dangerous direction -- it means the generator ate the building rather than over-filled it -- and the frozen source sits at 0.0026.",
+   "value": 0.8655347802212475,
+   "pass": false,
+   "measured": true
+  },
+  {
+   "id": "I1",
+   "kind": "INFORMATIONAL",
+   "source": "summary",
+   "arm": "a2_s0.5",
+   "metric": "beats_envelope_rate",
+   "rule": ">=",
+   "threshold": 0.0056,
+   "rationale": "Reported, never scored. The paired rate at which the arm beats the footprint envelope on vol_iou; the frozen source manages 0.0056 on its own population. It is not a bar for the reason set out in this module's docstring -- #188 is a substitution, and requiring the replacement to beat an envelope the sealed source loses to would make this a different ticket.",
+   "value": 0.006666666666666667,
+   "pass": true,
+   "measured": true
+  }
+ ],
+ "observed": {
+  "generation_failures": 0,
+  "buckets_scored": 6
+ }
+}

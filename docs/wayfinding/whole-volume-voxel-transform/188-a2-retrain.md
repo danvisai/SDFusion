@@ -216,19 +216,107 @@ clauses - which is exactly the shape of the hole that was there.
 `strength 0.5, steps 20, guidance 1.0` - the point the frozen source was scored at, and the one
 #119 will seal alongside the replacement. #115's method forbids sweeping, so this is not tuned.
 
+## Result: GUARD BROKEN (2026-09-22)
+
+The retrain ran to its registered 240,000 steps and was scored **once**, on the 900-row held-out
+gate population, at the pre-registered operating point. Artifacts:
+`execution/artifacts/massing_arms_eval_188_candidate_step240000.json` and
+`execution/artifacts/188_verdict.json`.
+
+| id | kind | clause | measured | |
+|---|---|---|---:|---|
+| K1 | KILL | `generation_failures == 0` | 0 | PASS |
+| K2 | KILL | `buckets_scored == 6` | 6 | PASS |
+| G1 | GUARD | `vs_input < 0.98` | 0.1350 | PASS |
+| G2 | GUARD | `collapse_rate <= 0.1582` | **0.8178** | **FAIL** |
+| P0 | PASS | `fp_iou >= 0.90` | **0.7658** | **FAIL** |
+| B1 | PASS | `vol_iou / blockout >= 0.9240` | **0.1268** | **FAIL** |
+| B2 | PASS | `extra / blockout <= 1.2269` | 1.0586 | PASS |
+| B3 | PASS | `missing <= 0.05` | **0.8655** | **FAIL** |
+| I1 | INFORMATIONAL | `beats_envelope_rate >= 0.0056` | 0.0067 | reported only |
+
+**Both KILL clauses passed, and that is the one thing #188 did achieve.** All 900 BuildingWorld
+rows generated, across all six style buckets, with zero failures. The `IndexError` that made the
+frozen source structurally unusable on this corpus is gone. The capability exists; the quality does
+not.
+
+`B2` passing is an artifact rather than a result: an arm cannot leave much surplus behind when it
+has removed 87% of the building.
+
+### The failure is bimodal, not uniformly bad
+
+| percentile | `missing` |
+|---|---:|
+| p10 | 0.009 |
+| p25 | 0.447 |
+| median | 0.866 |
+| p75 | 0.936 |
+| p90 | 0.961 |
+
+130 of 900 rows (14.4%) come back essentially intact (`missing` < 0.05); 736 (81.8%) are collapsed.
+The model either reproduces a building or demolishes it, and rarely lands in between. Whatever is
+wrong is close to binary per row, not a uniform degradation.
+
+### What it produces: hollow shells, and volume in the wrong place
+
+Rendered three ways, all committed under `outputs/massing_arms_eval/`:
+
+- `montage_188_candidate_step240000.png` - the scored arm beside gt / blockout / codec_ceiling.
+- `voxel_188_PREVIEW_step220000.png` - **the informative one.** True voxel occupancy beside the
+  same volume collapsed through a height-map lens.
+
+The voxel render shows the mechanism the scalars only imply: the arm produces **hollow shells** -
+walls and partial floors around an empty interior. On one row it reaches **0.995x GT volume while
+missing 77% of it**: close to exactly the right quantity of material, in the wrong places.
+
+⚠️ **A height-map lens cannot represent this failure.** A height map is one solid run per column by
+construction, so collapsing this output to a height field fills every cavity back in and renders a
+plausible solid building. This is worth recording beyond #188: any future arm in this family judged
+through a height-field or skyline statistic would score this checkpoint as acceptable.
+
+### Diagnosis: the surface term is an accelerant, not the cause
+
+Two controls, same 12 ids, same harness:
+
+| run | fp_iou | missing | extra | vol_iou | collapse | vs_input |
+|---|---:|---:|---:|---:|---:|---:|
+| **control**: frozen source on LEGACY rows | 0.9580 | 0.0016 | 0.1146 | 0.8975 | 0.1667 | 0.9819 |
+| phase 1 (surf OFF, step 180k), BuildingWorld | 0.9403 | 0.0758 | 0.1629 | 0.7151 | 0.4167 | 0.8765 |
+| phase 2 (surf ON, step 220k), BuildingWorld | 0.7694 | 0.7416 | 0.1623 | 0.2249 | 0.8333 | 0.2773 |
+
+**The harness is sound.** The control reproduces the frozen source's own recorded behaviour
+(`fp_iou` 0.9580 against its 0.9589 at n=714; `collapse_rate` 0.1667 matching its recorded n=12
+exactly), so the region-free changes to `eval_massing_arms.py` did not break the measurement.
+
+**Phase 1 already failed the collapse guard** (0.4167 against 0.1582) before the decoded-surface
+term was ever switched on. Phase 2 then multiplied `missing` roughly tenfold, which matches #60's
+recorded finding that this term diverges into rubble through the `1/sqrt(alpha_bar)` amplification
+of eps-error. So removing the surface term would buy a cheaper failure, not a fix - the cause
+predates it.
+
+### Correction to this document's own earlier claim
+
+An earlier revision of the clause rationale stated that the frozen source "measures 0.9616 (n=12),
+so it clears" the `vs_input < 0.98` guard. The control run above measures **0.9819 on a different
+12 ids, which fails it**. The frozen source sits on that line and lands either side depending on
+the sample; #87's own per-region medians (0.9882 / 0.9832 / 0.9813) are above it. The threshold is
+`CONTEXT.md`'s and is unchanged - only the justifying sentence was wrong, and it is corrected here
+rather than silently edited in place.
+
+### Consequences
+
+- **Not sealed.** `seal_a2_source.py` refuses a non-PASS verdict without a recorded override, and
+  there is no case for one. No digest is handed to #119.
+- **#119 remains blocked**, and with it #120, #121 and #124 - the chain below the source.
+- **#115 and #187 are unaffected** and remain workable.
+- The open question this hands back to the map is whether #113's source must be a vecset A2
+  checkpoint at all, or whether the route is re-chartered onto another generator. That is an owner
+  decision, not one this ticket can settle.
+
 ## Status
 
-*This section is the run's own record and is updated as it proceeds. Nothing below is a claim about
-a result that has not been measured.*
-
-- ✅ Code landed and tested: region-free denoiser, corpus-derived region width, multi-cache trainer,
-  cohort selection, row-scoped surface loading, blockout prefetch overlap, bar + verdict scorer.
-- ✅ Every checkpoint consumer now reads its region width off the weights
-  (`denoiser_from_checkpoint`), including #119's own cache path and the town service - the latter
-  being the landmine #183 disclosed and explicitly left for whoever produced a BuildingWorld-trained
-  checkpoint. That is this ticket.
-- ✅ Cohort drawn and committed; gate population (900 rows) encoded; reference eval run; bar
-  pre-registered and committed **before** training.
-- ⏳ Training-cohort encode (60,000 rows, real + blockout).
-- ⏳ Retrain (180k steps surface-term-off, then 60k on).
-- ⏳ Score against the bar; freeze, hash, and hand the digest to #119.
+- Code, cohort, gate population, pre-registered bar: **done and committed**.
+- Cohort encode (60,000 rows, real + blockout): **done**, 7 h 44 m, zero skipped rows.
+- Retrain, 180k steps surface-off then 60k on: **done**, 2026-09-21 13:13 to 2026-09-22 17:13 UTC.
+- Scored once against the pre-registered bar: **done** - **GUARD BROKEN**.
+- Freeze / hash / seal: **deliberately not done**; the bar did not accept the checkpoint.

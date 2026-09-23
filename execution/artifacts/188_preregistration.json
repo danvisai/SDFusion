@@ -73,7 +73,7 @@
    "metric": "vs_input",
    "rule": "<",
    "threshold": 0.98,
-   "rationale": "CONTEXT.md's documented guard, at its documented value: 'IoU against the blockout the arm started from. 1.0 means it did nothing. An arm at 0.99 has not been measured as a generator however good its other numbers look (#75). The guard is < 0.98.' This is the ONLY clause an inert model fails -- every other one is satisfied by returning the envelope untouched. The frozen source measures 0.9616 (n=12), so it clears this."
+   "rationale": "CONTEXT.md's documented guard, at its documented value: 'IoU against the blockout the arm started from. 1.0 means it did nothing. An arm at 0.99 has not been measured as a generator however good its other numbers look (#75). The guard is < 0.98.' This is the ONLY clause an inert model fails -- every other one is satisfied by returning the envelope untouched. CORRECTED 2026-09-22: the frozen source sits ON this line rather than clearly inside it. One n=12 sample measures 0.9616 (clears), a second measures 0.9819 (fails), and #87's per-region medians are 0.9882/0.9832/0.9813 (fail). The threshold is CONTEXT.md's and is unchanged; only this justifying sentence was wrong."
   },
   {
    "id": "G2",
